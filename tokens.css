@@ -1,0 +1,815 @@
+/**
+ * KlearNow Engine — Blade Theme + KN brand
+ *
+ * Theme shape: Blade ThemeTokens
+ * https://blade.razorpay.com/?path=/docs/tokens-theme--docs
+ * packages/blade/src/tokens/theme/theme.ts
+ *
+ * Brand overrides (WhiteLabelling):
+ * - theme.colors uses KlearNow primitives / semantic values, not Razorpay azure
+ * - theme.typography.fonts.family is Inter (KN), not Blade’s default family
+ *
+ * `--theme-*` is the Blade theme. `--kn-*` aliases it so existing CSS keeps working.
+ */
+
+:root {
+  /* -------------------------------------------------------------------------
+     1.1 KN Color Primitives — never use these in component CSS
+     ------------------------------------------------------------------------- */
+  --kn-primitive-indigo-500: #003f5b;
+  --kn-primitive-blue-sapphire-500: #005d7b;
+  --kn-primitive-marigold-500: #f69000;
+  --kn-primitive-red-500: #ff3d32;
+  --kn-primitive-green-500: #22c55e;
+
+  --kn-primitive-surface-0: #ffffff;
+  --kn-primitive-surface-50: #fafafa;
+  --kn-primitive-surface-100: #f7f8f9;
+  --kn-primitive-surface-200: #f5f5f5;
+  --kn-primitive-surface-300: #eeeeee;
+  --kn-primitive-surface-400: #dadee3;
+  --kn-primitive-surface-500: #9e9e9e;
+  --kn-primitive-surface-600: #64748b;
+  --kn-primitive-surface-700: #556376;
+  --kn-primitive-surface-800: #465161;
+  --kn-primitive-surface-900: #282e38;
+
+  --kn-primitive-bluegray-400: #33657c;
+  --kn-primitive-bluegray-500: #556376;
+  --kn-primitive-red-50: #fff5f5;
+  --kn-primitive-red-200: #ffd0ce;
+  --kn-primitive-red-600: #d9342b;
+  --kn-primitive-gold-50: #fef4e6;
+  --kn-primitive-gold-200: #fcddb0;
+  --kn-primitive-gold-600: #e08300;
+  --kn-primitive-green-600: #1da750;
+  --kn-primitive-information-100: #d0e1fd;
+  --kn-primitive-sea-50: #e6ecef;
+
+  --kn-primitive-alpha-white-300: rgba(255, 255, 255, 0.18);
+  --kn-primitive-alpha-black-500: rgba(40, 46, 56, 0.09);
+
+  /* -------------------------------------------------------------------------
+     Blade theme.name + theme.colors.onLight
+     Color VALUES are KlearNow. Token PATHS are Blade.
+     ------------------------------------------------------------------------- */
+  --theme-name: klearnow;
+
+  --theme-colors-transparent: transparent;
+
+  --theme-colors-surface-background-gray-subtle: var(--kn-primitive-surface-50);
+  --theme-colors-surface-background-gray-moderate: var(--kn-primitive-surface-100);
+  --theme-colors-surface-background-gray-intense: var(--kn-primitive-surface-900);
+  --theme-colors-surface-background-primary-faint: var(--theme-colors-transparent);
+  --theme-colors-surface-background-primary-subtle: var(--kn-primitive-bluegray-400);
+  --theme-colors-surface-background-primary-moderate: var(--theme-colors-transparent);
+  --theme-colors-surface-background-primary-intense: var(--kn-primitive-indigo-500);
+  --theme-colors-surface-background-primary-strong: var(--theme-colors-transparent);
+  --theme-colors-surface-background-sea-subtle: var(--kn-primitive-sea-50);
+  --theme-colors-surface-background-sea-intense: var(--kn-primitive-indigo-500);
+  --theme-colors-surface-background-cloud-subtle: var(--kn-primitive-surface-100);
+  --theme-colors-surface-background-cloud-intense: var(--kn-primitive-blue-sapphire-500);
+
+  --theme-colors-surface-border-gray-normal: var(--kn-primitive-surface-400);
+  --theme-colors-surface-border-gray-subtle: var(--kn-primitive-surface-300);
+  --theme-colors-surface-border-gray-muted: var(--kn-primitive-surface-200);
+  --theme-colors-surface-border-primary-normal: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-surface-border-primary-muted: var(--kn-primitive-bluegray-400);
+
+  --theme-colors-surface-text-gray-normal: var(--kn-primitive-surface-900);
+  --theme-colors-surface-text-gray-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-surface-text-gray-muted: var(--kn-primitive-surface-700);
+  --theme-colors-surface-text-gray-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-surface-text-primary-normal: var(--kn-primitive-indigo-500);
+  --theme-colors-surface-text-onSea-onSubtle: var(--kn-primitive-sea-50);
+  --theme-colors-surface-text-onSea-onIntense: var(--kn-primitive-surface-0);
+  --theme-colors-surface-text-staticWhite-normal: var(--kn-primitive-surface-0);
+  --theme-colors-surface-text-staticWhite-subtle: var(--kn-primitive-sea-50);
+  --theme-colors-surface-text-staticWhite-muted: color-mix(in srgb, var(--kn-primitive-surface-0) 64%, transparent);
+  --theme-colors-surface-text-staticWhite-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-surface-text-staticBlack-normal: var(--kn-primitive-surface-900);
+
+  --theme-colors-surface-icon-gray-normal: var(--kn-primitive-surface-900);
+  --theme-colors-surface-icon-gray-muted: var(--kn-primitive-surface-700);
+  --theme-colors-surface-icon-onSea-onIntense: var(--kn-primitive-surface-0);
+  --theme-colors-surface-icon-staticWhite-normal: var(--kn-primitive-surface-0);
+  --theme-colors-surface-icon-staticWhite-subtle: var(--kn-primitive-sea-50);
+
+  --theme-colors-interactive-background-staticWhite-default: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-background-staticWhite-highlighted: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-background-staticWhite-disabled: var(--kn-primitive-surface-50);
+  --theme-colors-interactive-background-staticWhite-faded: var(--kn-primitive-alpha-white-300);
+  --theme-colors-interactive-background-staticWhite-fadedHighlighted: color-mix(
+    in srgb,
+    var(--kn-primitive-surface-0) 8%,
+    transparent
+  );
+  --theme-colors-interactive-background-staticWhite-ghost: var(--theme-colors-transparent);
+  --theme-colors-interactive-background-staticBlack-default: #000000;
+  --theme-colors-interactive-background-primary-default: var(--kn-primitive-indigo-500);
+  --theme-colors-interactive-background-primary-highlighted: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-background-primary-disabled: color-mix(
+    in srgb,
+    var(--kn-primitive-indigo-500) 18%,
+    transparent
+  );
+  --theme-colors-interactive-background-primary-faded: color-mix(
+    in srgb,
+    var(--kn-primitive-indigo-500) 9%,
+    transparent
+  );
+  --theme-colors-interactive-background-gray-default: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-background-gray-highlighted: var(--kn-primitive-surface-200);
+  --theme-colors-interactive-background-gray-disabled: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-background-negative-faded: var(--kn-primitive-red-50);
+  --theme-colors-interactive-background-notice-faded: var(--kn-primitive-gold-50);
+  --theme-colors-interactive-background-information-faded: color-mix(
+    in srgb,
+    var(--kn-primitive-information-100) 30%,
+    var(--kn-primitive-surface-0)
+  );
+  --theme-colors-interactive-background-positive-faded: color-mix(
+    in srgb,
+    var(--kn-primitive-green-500) 12%,
+    var(--kn-primitive-surface-0)
+  );
+
+  --theme-colors-interactive-border-gray-default: var(--kn-primitive-surface-600);
+  --theme-colors-interactive-border-gray-highlighted: var(--kn-primitive-surface-900);
+  --theme-colors-interactive-border-gray-disabled: var(--kn-primitive-surface-400);
+  --theme-colors-interactive-border-gray-faded: var(--kn-primitive-surface-400);
+  --theme-colors-interactive-border-primary-default: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-border-information-default: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-border-staticWhite-default: var(--kn-primitive-surface-0);
+
+  --theme-colors-interactive-text-gray-normal: var(--kn-primitive-surface-600);
+  --theme-colors-interactive-text-gray-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-text-gray-muted: var(--kn-primitive-surface-700);
+  --theme-colors-interactive-text-gray-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-interactive-text-primary-normal: var(--kn-primitive-indigo-500);
+  --theme-colors-interactive-text-information-normal: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-text-onPrimary-normal: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-text-staticWhite-normal: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-text-staticWhite-subtle: var(--kn-primitive-sea-50);
+  --theme-colors-interactive-text-positive-normal: var(--kn-primitive-green-600);
+  --theme-colors-interactive-text-negative-normal: var(--kn-primitive-red-600);
+  --theme-colors-interactive-text-notice-normal: var(--kn-primitive-gold-600);
+
+  --theme-colors-interactive-icon-gray-normal: var(--kn-primitive-surface-600);
+  --theme-colors-interactive-icon-staticWhite-normal: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-icon-onPrimary-normal: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-icon-information-normal: var(--kn-primitive-blue-sapphire-500);
+
+  --theme-colors-feedback-background-positive-subtle: var(--theme-colors-interactive-background-positive-faded);
+  --theme-colors-feedback-background-positive-intense: var(--kn-primitive-green-600);
+  --theme-colors-feedback-background-negative-subtle: var(--kn-primitive-red-50);
+  --theme-colors-feedback-background-negative-intense: var(--kn-primitive-red-500);
+  --theme-colors-feedback-background-notice-subtle: var(--kn-primitive-gold-50);
+  --theme-colors-feedback-background-notice-intense: var(--kn-primitive-gold-600);
+  --theme-colors-feedback-background-information-subtle: var(--kn-primitive-information-100);
+  --theme-colors-feedback-background-information-intense: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-feedback-background-neutral-subtle: var(--kn-primitive-surface-100);
+  --theme-colors-feedback-background-neutral-intense: var(--kn-primitive-surface-800);
+
+  --theme-colors-feedback-border-negative-subtle: var(--kn-primitive-red-200);
+  --theme-colors-feedback-border-negative-intense: var(--kn-primitive-red-500);
+  --theme-colors-feedback-border-notice-subtle: var(--kn-primitive-gold-200);
+  --theme-colors-feedback-border-notice-intense: var(--kn-primitive-gold-600);
+  --theme-colors-feedback-border-positive-intense: var(--kn-primitive-green-500);
+  --theme-colors-feedback-border-information-subtle: var(--kn-primitive-information-100);
+  --theme-colors-feedback-border-information-intense: var(--kn-primitive-blue-sapphire-500);
+
+  --theme-colors-feedback-text-negative-intense: var(--kn-primitive-red-600);
+  --theme-colors-feedback-text-notice-intense: var(--kn-primitive-gold-600);
+  --theme-colors-feedback-text-positive-intense: var(--kn-primitive-green-600);
+  --theme-colors-feedback-text-information-intense: var(--kn-primitive-blue-sapphire-500);
+
+  --theme-colors-feedback-icon-negative-intense: var(--kn-primitive-red-600);
+  --theme-colors-feedback-icon-notice-intense: var(--kn-primitive-gold-600);
+  --theme-colors-feedback-icon-positive-intense: var(--kn-primitive-green-600);
+  --theme-colors-feedback-icon-information-intense: var(--kn-primitive-blue-sapphire-500);
+
+  --theme-colors-overlay-background-subtle: color-mix(
+    in srgb,
+    var(--kn-primitive-surface-900) 48%,
+    transparent
+  );
+  --theme-colors-overlay-background-moderate: color-mix(
+    in srgb,
+    var(--kn-primitive-surface-900) 64%,
+    transparent
+  );
+
+  --theme-colors-elevation-lowRaised: var(--kn-primitive-alpha-black-500);
+  --theme-colors-elevation-midRaised: color-mix(in srgb, var(--kn-primitive-surface-900) 12%, transparent);
+  --theme-colors-elevation-highRaised: color-mix(in srgb, var(--kn-primitive-surface-900) 18%, transparent);
+
+  --kn-color-background-surface-gray-subtle: var(--theme-colors-surface-background-gray-subtle);
+  --kn-color-background-surface-gray-moderate: var(--theme-colors-surface-background-gray-moderate);
+  --kn-color-background-surface-gray-intense: var(--theme-colors-surface-background-gray-intense);
+  --kn-color-background-surface-primary-subtle: var(--theme-colors-surface-background-primary-subtle);
+  --kn-color-background-surface-primary-intense: var(--theme-colors-surface-background-primary-intense);
+  --kn-color-background-surface-sea-subtle: var(--theme-colors-surface-background-sea-subtle);
+  --kn-color-background-surface-sea-intense: var(--theme-colors-surface-background-sea-intense);
+  --kn-color-border-surface-gray-normal: var(--theme-colors-surface-border-gray-normal);
+  --kn-color-border-surface-gray-subtle: var(--theme-colors-surface-border-gray-subtle);
+  --kn-color-border-surface-gray-muted: var(--theme-colors-surface-border-gray-muted);
+  --kn-color-border-surface-primary-normal: var(--theme-colors-surface-border-primary-normal);
+  --kn-color-border-surface-primary-muted: var(--theme-colors-surface-border-primary-muted);
+  --kn-color-text-surface-gray-normal: var(--theme-colors-surface-text-gray-normal);
+  --kn-color-text-surface-gray-subtle: var(--theme-colors-surface-text-gray-subtle);
+  --kn-color-text-surface-gray-muted: var(--theme-colors-surface-text-gray-muted);
+  --kn-color-text-surface-gray-disabled: var(--theme-colors-surface-text-gray-disabled);
+  --kn-color-icon-surface-gray-normal: var(--theme-colors-surface-icon-gray-normal);
+  --kn-color-icon-surface-gray-muted: var(--theme-colors-surface-icon-gray-muted);
+  --kn-color-icon-surface-staticWhite-normal: var(--theme-colors-surface-icon-staticWhite-normal);
+  --kn-color-icon-surface-staticWhite-subtle: var(--theme-colors-surface-icon-staticWhite-subtle);
+  --kn-color-background-interactive-staticBlack-default: var(--theme-colors-interactive-background-staticBlack-default);
+  --kn-color-text-surface-primary-normal: var(--theme-colors-surface-text-primary-normal);
+  --kn-color-text-surface-onSea-onSubtle: var(--theme-colors-surface-text-onSea-onSubtle);
+  --kn-color-text-surface-onSea-onIntense: var(--theme-colors-surface-text-onSea-onIntense);
+  --kn-color-icon-surface-onSea-onIntense: var(--theme-colors-surface-icon-onSea-onIntense);
+  --kn-color-text-surface-staticWhite-normal: var(--theme-colors-surface-text-staticWhite-normal);
+  --kn-color-text-surface-staticWhite-subtle: var(--theme-colors-surface-text-staticWhite-subtle);
+  --kn-color-text-surface-staticBlack-normal: var(--theme-colors-surface-text-staticBlack-normal);
+  --kn-color-background-interactive-staticWhite-default: var(--theme-colors-interactive-background-staticWhite-default);
+  --kn-color-background-interactive-staticWhite-highlighted: var(--theme-colors-interactive-background-staticWhite-highlighted);
+  --kn-color-background-interactive-staticWhite-faded: var(--theme-colors-interactive-background-staticWhite-faded);
+  --kn-color-background-interactive-staticWhite-fadedHighlighted: var(--theme-colors-interactive-background-staticWhite-fadedHighlighted);
+  --kn-color-background-interactive-primary-default: var(--theme-colors-interactive-background-primary-default);
+  --kn-color-background-interactive-gray-default: var(--theme-colors-interactive-background-gray-default);
+  --kn-color-background-interactive-gray-highlighted: var(--theme-colors-interactive-background-gray-highlighted);
+  --kn-color-background-interactive-gray-disabled: var(--theme-colors-interactive-background-gray-disabled);
+  --kn-color-background-interactive-negative-faded: var(--theme-colors-interactive-background-negative-faded);
+  --kn-color-background-interactive-notice-faded: var(--theme-colors-interactive-background-notice-faded);
+  --kn-color-background-interactive-information-faded: var(--theme-colors-interactive-background-information-faded);
+  --kn-color-border-interactive-gray-default: var(--theme-colors-interactive-border-gray-default);
+  --kn-color-border-interactive-gray-highlighted: var(--theme-colors-interactive-border-gray-highlighted);
+  --kn-color-border-interactive-gray-disabled: var(--theme-colors-interactive-border-gray-disabled);
+  --kn-color-border-interactive-gray-faded: var(--theme-colors-interactive-border-gray-faded);
+  --kn-color-border-interactive-primary-default: var(--theme-colors-interactive-border-primary-default);
+  --kn-color-map-route: var(--theme-colors-interactive-border-primary-default);
+  --kn-color-border-interactive-information-default: var(--theme-colors-interactive-border-information-default);
+  --kn-color-border-interactive-staticWhite-default: var(--theme-colors-interactive-border-staticWhite-default);
+  --kn-color-text-interactive-gray-normal: var(--theme-colors-interactive-text-gray-normal);
+  --kn-color-text-interactive-gray-subtle: var(--theme-colors-interactive-text-gray-subtle);
+  --kn-color-text-interactive-gray-muted: var(--theme-colors-interactive-text-gray-muted);
+  --kn-color-text-interactive-primary-normal: var(--theme-colors-interactive-text-primary-normal);
+  --kn-color-text-interactive-information-normal: var(--theme-colors-interactive-text-information-normal);
+  --kn-color-text-interactive-onPrimary-normal: var(--theme-colors-interactive-text-onPrimary-normal);
+  --kn-color-text-interactive-staticWhite-normal: var(--theme-colors-interactive-text-staticWhite-normal);
+  --kn-color-text-interactive-staticWhite-subtle: var(--theme-colors-interactive-text-staticWhite-subtle);
+  --kn-color-text-interactive-positive-normal: var(--theme-colors-interactive-text-positive-normal);
+  --kn-color-text-interactive-negative-normal: var(--theme-colors-interactive-text-negative-normal);
+  --kn-color-text-interactive-notice-normal: var(--theme-colors-interactive-text-notice-normal);
+  --kn-color-icon-interactive-gray-normal: var(--theme-colors-interactive-icon-gray-normal);
+  --kn-color-icon-interactive-staticWhite-normal: var(--theme-colors-interactive-icon-staticWhite-normal);
+  --kn-color-icon-interactive-onPrimary-normal: var(--theme-colors-interactive-icon-onPrimary-normal);
+  --kn-color-icon-interactive-information-normal: var(--theme-colors-interactive-icon-information-normal);
+  --kn-color-background-feedback-negative-subtle: var(--theme-colors-feedback-background-negative-subtle);
+  --kn-color-background-feedback-notice-subtle: var(--theme-colors-feedback-background-notice-subtle);
+  --kn-color-background-feedback-positive-subtle: var(--theme-colors-feedback-background-positive-subtle);
+  --kn-color-background-feedback-information-subtle: var(--theme-colors-feedback-background-information-subtle);
+  --kn-color-background-feedback-neutral-subtle: var(--theme-colors-feedback-background-neutral-subtle);
+  --kn-color-border-feedback-negative-subtle: var(--theme-colors-feedback-border-negative-subtle);
+  --kn-color-border-feedback-negative-intense: var(--theme-colors-feedback-border-negative-intense);
+  --kn-color-border-feedback-notice-subtle: var(--theme-colors-feedback-border-notice-subtle);
+  --kn-color-border-feedback-notice-intense: var(--theme-colors-feedback-border-notice-intense);
+  --kn-color-border-feedback-positive-intense: var(--theme-colors-feedback-border-positive-intense);
+  --kn-color-border-feedback-information-subtle: var(--theme-colors-feedback-border-information-subtle);
+  --kn-color-text-feedback-negative-intense: var(--theme-colors-feedback-text-negative-intense);
+  --kn-color-text-feedback-notice-intense: var(--theme-colors-feedback-text-notice-intense);
+  --kn-color-text-feedback-positive-intense: var(--theme-colors-feedback-text-positive-intense);
+  --kn-color-text-feedback-information-intense: var(--theme-colors-feedback-text-information-intense);
+  --kn-color-icon-feedback-negative-intense: var(--theme-colors-feedback-icon-negative-intense);
+  --kn-color-icon-feedback-notice-intense: var(--theme-colors-feedback-icon-notice-intense);
+  --kn-color-icon-feedback-positive-intense: var(--theme-colors-feedback-icon-positive-intense);
+  --kn-color-icon-feedback-information-intense: var(--theme-colors-feedback-icon-information-intense);
+  --kn-color-elevation-lowRaised: var(--theme-colors-elevation-lowRaised);
+  --kn-color-elevation-midRaised: var(--theme-colors-elevation-midRaised);
+  --kn-color-elevation-highRaised: var(--theme-colors-elevation-highRaised);
+  --kn-color-transparent: var(--theme-colors-transparent);
+
+  /* -------------------------------------------------------------------------
+     theme.typography — Blade scale, Inter family (KN)
+     onDesktop values; onMobile overrides below
+     ------------------------------------------------------------------------- */
+  --theme-typography-fonts-family-text: Inter, sans-serif;
+  --theme-typography-fonts-family-heading: Inter, sans-serif;
+  --theme-typography-fonts-family-code: Inter, sans-serif;
+
+  --theme-typography-fonts-weight-regular: 400;
+  --theme-typography-fonts-weight-medium: 500;
+  --theme-typography-fonts-weight-semibold: 600;
+  --theme-typography-fonts-weight-bold: 700;
+
+  --theme-typography-fonts-size-25: 0.625rem;
+  --theme-typography-fonts-size-50: 0.6875rem;
+  --theme-typography-fonts-size-75: 0.75rem;
+  --theme-typography-fonts-size-100: 0.875rem;
+  --theme-typography-fonts-size-200: 1rem;
+  --theme-typography-fonts-size-300: 1.125rem;
+  --theme-typography-fonts-size-400: 1.25rem;
+  --theme-typography-fonts-size-500: 1.5rem;
+  --theme-typography-fonts-size-600: 2rem;
+  --theme-typography-fonts-size-700: 2.5rem;
+  --theme-typography-fonts-size-800: 3rem;
+  --theme-typography-fonts-size-900: 3.5rem;
+  --theme-typography-fonts-size-1000: 4rem;
+  --theme-typography-fonts-size-1100: 4.5rem;
+
+  --theme-typography-line-heights-0: 0;
+  --theme-typography-line-heights-25: 0.8125rem;
+  --theme-typography-line-heights-50: 1rem;
+  --theme-typography-line-heights-75: 1.0625rem;
+  --theme-typography-line-heights-100: 1.25rem;
+  --theme-typography-line-heights-200: 1.5rem;
+  --theme-typography-line-heights-300: 1.5rem;
+  --theme-typography-line-heights-400: 1.625rem;
+  --theme-typography-line-heights-500: 2rem;
+  --theme-typography-line-heights-600: 2.375rem;
+  --theme-typography-line-heights-700: 2.875rem;
+  --theme-typography-line-heights-800: 3.5rem;
+  --theme-typography-line-heights-900: 4rem;
+  --theme-typography-line-heights-1000: 4.375rem;
+  --theme-typography-line-heights-1100: 4.875rem;
+
+  --theme-typography-letter-spacings-25: -0.033em;
+  --theme-typography-letter-spacings-50: -0.013em;
+  --theme-typography-letter-spacings-100: 0;
+
+  --kn-font-family: var(--theme-typography-fonts-family-text);
+  --kn-weight-regular: var(--theme-typography-fonts-weight-regular);
+  --kn-weight-medium: var(--theme-typography-fonts-weight-medium);
+  --kn-weight-semibold: var(--theme-typography-fonts-weight-semibold);
+  --kn-weight-bold: var(--theme-typography-fonts-weight-bold);
+  --kn-weight-light: 300;
+  --kn-weight-black: 800;
+
+  --kn-letter-spacing-tight: var(--theme-typography-letter-spacings-50);
+  --kn-letter-spacing-normal: var(--theme-typography-letter-spacings-100);
+  --kn-letter-spacing-wide: 0.125rem;
+  --kn-letter-spacing-wider: 0.25rem;
+
+  --kn-type-heading-h1-size: var(--theme-typography-fonts-size-500);
+  --kn-type-heading-h1-line: var(--theme-typography-line-heights-500);
+  --kn-type-heading-h2-size: var(--theme-typography-fonts-size-400);
+  --kn-type-heading-h2-line: var(--theme-typography-line-heights-400);
+  --kn-type-heading-h3-size: var(--theme-typography-fonts-size-300);
+  --kn-type-heading-h3-line: var(--theme-typography-line-heights-400);
+  --kn-type-heading-h4-size: var(--theme-typography-fonts-size-200);
+  --kn-type-heading-h4-line: var(--theme-typography-line-heights-200);
+  --kn-type-heading-h5-size: var(--theme-typography-fonts-size-100);
+  --kn-type-heading-h5-line: var(--theme-typography-line-heights-100);
+  --kn-type-heading-h6-size: var(--theme-typography-fonts-size-100);
+  --kn-type-heading-h6-line: var(--theme-typography-line-heights-100);
+
+  --kn-type-body-lg-size: var(--theme-typography-fonts-size-200);
+  --kn-type-body-lg-line: var(--theme-typography-line-heights-200);
+  --kn-type-body-md-size: var(--theme-typography-fonts-size-100);
+  --kn-type-body-md-line: var(--theme-typography-line-heights-100);
+  --kn-type-body-sm-size: 0.8125rem;
+  --kn-type-body-sm-line: var(--theme-typography-line-heights-100);
+  --kn-type-body-xs-size: var(--theme-typography-fonts-size-75);
+  --kn-type-body-xs-line: var(--theme-typography-line-heights-50);
+
+  --kn-type-caption-md-size: var(--theme-typography-fonts-size-75);
+  --kn-type-caption-md-line: var(--theme-typography-line-heights-50);
+  /* Ops desktop floor: Blade caption-sm is 11px. Shipment IDs, ETAs, and
+     port meta are scanned for hours — 12px is the smallest readable step. */
+  --kn-type-caption-sm-size: var(--theme-typography-fonts-size-75);
+  --kn-type-caption-sm-line: var(--theme-typography-line-heights-50);
+
+  --kn-type-ui-label-size: var(--theme-typography-fonts-size-75);
+  --kn-type-ui-label-line: var(--theme-typography-line-heights-50);
+  --kn-type-ui-lg-size: var(--theme-typography-fonts-size-200);
+  --kn-type-ui-lg-line: var(--theme-typography-line-heights-100);
+  --kn-type-ui-md-size: var(--theme-typography-fonts-size-100);
+  --kn-type-ui-md-line: var(--theme-typography-line-heights-50);
+  --kn-type-ui-sm-size: 0.8125rem;
+  --kn-type-ui-sm-line: var(--theme-typography-line-heights-50);
+
+  /* -------------------------------------------------------------------------
+     theme.spacing — 0…11 = 0, 2, 4, 8, 12, 16, 20, 24, 32, 40, 48, 56
+     ------------------------------------------------------------------------- */
+  --theme-spacing-0: 0;
+  --theme-spacing-1: 0.125rem;
+  --theme-spacing-2: 0.25rem;
+  --theme-spacing-3: 0.5rem;
+  --theme-spacing-4: 0.75rem;
+  --theme-spacing-5: 1rem;
+  --theme-spacing-6: 1.25rem;
+  --theme-spacing-7: 1.5rem;
+  --theme-spacing-8: 2rem;
+  --theme-spacing-9: 2.5rem;
+  --theme-spacing-10: 3rem;
+  --theme-spacing-11: 3.5rem;
+
+  --kn-spacing-00: var(--theme-spacing-0);
+  --kn-spacing-01: var(--theme-spacing-1);
+  --kn-spacing-02: var(--theme-spacing-2);
+  --kn-spacing-03: var(--theme-spacing-3);
+  --kn-spacing-04: var(--theme-spacing-4);
+  --kn-spacing-05: var(--theme-spacing-5);
+  --kn-spacing-06: var(--theme-spacing-6);
+  --kn-spacing-07: var(--theme-spacing-7);
+  --kn-spacing-08: var(--theme-spacing-8);
+  --kn-spacing-09: var(--theme-spacing-9);
+  --kn-spacing-10: var(--theme-spacing-10);
+  --kn-spacing-11: var(--theme-spacing-11);
+
+  --kn-grid-gutter-condensed: var(--theme-spacing-5);
+  --kn-grid-gutter-default: var(--theme-spacing-7);
+  --kn-grid-gutter-spacious: var(--theme-spacing-8);
+  --kn-grid-margin-default: var(--theme-spacing-10);
+  --kn-grid-columns: 12;
+
+  /* theme.breakpoints */
+  --theme-breakpoints-base: 0;
+  --theme-breakpoints-xs: 320px;
+  --theme-breakpoints-s: 480px;
+  --theme-breakpoints-m: 768px;
+  --theme-breakpoints-l: 1024px;
+  --theme-breakpoints-xl: 1200px;
+
+  --blade-breakpoint-base: var(--theme-breakpoints-base);
+  --blade-breakpoint-xs: var(--theme-breakpoints-xs);
+  --blade-breakpoint-s: var(--theme-breakpoints-s);
+  --blade-breakpoint-m: var(--theme-breakpoints-m);
+  --blade-breakpoint-l: var(--theme-breakpoints-l);
+  --blade-breakpoint-xl: var(--theme-breakpoints-xl);
+
+  --kn-breakpoint-base: var(--theme-breakpoints-base);
+  --kn-breakpoint-xs: var(--theme-breakpoints-xs);
+  --kn-breakpoint-s: var(--theme-breakpoints-s);
+  --kn-breakpoint-m: var(--theme-breakpoints-m);
+  --kn-breakpoint-l: var(--theme-breakpoints-l);
+  --kn-breakpoint-xl: var(--theme-breakpoints-xl);
+
+  --kn-grid-gutter: var(--kn-grid-gutter-condensed);
+  --kn-grid-margin: var(--theme-spacing-5);
+
+  --kn-layout-sidebar: var(--blade-sidenav-expanded);
+  --kn-layout-content: 71rem;
+
+  /* Blade SideNav tokens (packages/blade/src/components/SideNav/tokens.ts) */
+  --blade-sidenav-collapsed: 3.5rem; /* size.56 */
+  --blade-sidenav-expanded: 15rem; /* size.240 */
+  --blade-sidenav-expanded-xl: 16.5rem; /* size.264 */
+  --blade-sidenav-l2: calc(var(--blade-sidenav-expanded) - var(--blade-sidenav-collapsed));
+  --blade-sidenav-item-height: 2.5rem; /* size.40 */
+
+  /* Blade TopNav — TOP_NAV_HEIGHT = size[56] */
+  --blade-topnav-height: 3.5rem;
+
+  /* theme.zIndex — sticky chrome vs overlay */
+  --theme-zindex-base: 0;
+  --theme-zindex-sticky: 100;
+  --theme-zindex-overlay: 1000;
+
+  /* -------------------------------------------------------------------------
+     theme.border + theme.opacity + theme.elevation
+     Radius keeps KN product values (Blade large is 16; KN large is 6)
+     ------------------------------------------------------------------------- */
+  --theme-border-width-none: 0;
+  --theme-border-width-thinner: 0.03125rem;
+  --theme-border-width-thin: 0.0625rem;
+  --theme-border-width-thick: 0.09375rem;
+  --theme-border-width-thicker: 0.125rem;
+
+  --theme-border-radius-none: 0;
+  --theme-border-radius-2xsmall: 0.125rem;
+  --theme-border-radius-xsmall: 0.25rem;
+  --theme-border-radius-small: 0.5rem;
+  --theme-border-radius-medium: 0.75rem;
+  --theme-border-radius-large: 1rem;
+  --theme-border-radius-xlarge: 1.25rem;
+  --theme-border-radius-2xlarge: 1.5rem;
+  --theme-border-radius-max: 624.9375rem;
+  --theme-border-radius-round: 50%;
+
+  --kn-border-none: var(--theme-border-width-none);
+  --kn-border-thinner: var(--theme-border-width-thinner);
+  --kn-border-thin: var(--theme-border-width-thin);
+  --kn-border-thick: var(--theme-border-width-thick);
+  --kn-border-thicker: var(--theme-border-width-thicker);
+
+  --kn-radius-none: var(--theme-border-radius-none);
+  --kn-radius-xsmall: 0.0625rem;
+  --kn-radius-small: var(--theme-border-radius-2xsmall);
+  --kn-radius-medium: var(--theme-border-radius-xsmall);
+  --kn-radius-large: 0.375rem;
+  --kn-radius-xlarge: var(--theme-border-radius-medium);
+  --kn-radius-2xlarge: var(--theme-border-radius-large);
+  --kn-radius-max: var(--theme-border-radius-max);
+
+  /* Component roles
+     surface       — Card, panel, overlay (Blade Card medium)
+     surface-large — workspace, menus, dropdowns
+     nested        — tiles inside a padded surface (Blade small)
+     control       — Button, IconButton, SideNav item
+     input         — TextInput / SearchInput
+     pill          — Badge, Chip, Avatar-on-rect
+     round         — Avatar, icon wells
+     group-radius  — inherited by flush children of a clipped shell */
+  --radius-surface: var(--theme-border-radius-medium);
+  --radius-surface-large: var(--theme-border-radius-large);
+  --radius-nested: var(--theme-border-radius-small);
+  --radius-control: var(--kn-radius-large);
+  --radius-input: var(--theme-border-radius-xsmall);
+  --radius-pill: var(--theme-border-radius-max);
+  --radius-round: var(--theme-border-radius-round);
+
+  --theme-opacity-0: 0;
+  --theme-opacity-100: 0.09;
+  --theme-opacity-200: 0.12;
+  --theme-opacity-300: 0.18;
+  --theme-opacity-400: 0.24;
+  --theme-opacity-500: 0.32;
+  --theme-opacity-600: 0.48;
+  --theme-opacity-700: 0.56;
+  --theme-opacity-800: 0.64;
+  --theme-opacity-900: 0.72;
+  --theme-opacity-1000: 0.8;
+  --theme-opacity-1100: 0.88;
+  --theme-opacity-1200: 0.94;
+  --theme-opacity-1300: 1;
+
+  --kn-opacity-00: var(--theme-opacity-0);
+  --kn-opacity-01: var(--theme-opacity-100);
+  --kn-opacity-02: var(--theme-opacity-200);
+  --kn-opacity-03: var(--theme-opacity-300);
+  --kn-opacity-04: var(--theme-opacity-400);
+  --kn-opacity-05: var(--theme-opacity-500);
+  --kn-opacity-06: var(--theme-opacity-600);
+  --kn-opacity-07: var(--theme-opacity-700);
+  --kn-opacity-08: var(--theme-opacity-800);
+  --kn-opacity-09: var(--theme-opacity-900);
+  --kn-opacity-10: var(--theme-opacity-1000);
+  --kn-opacity-11: var(--theme-opacity-1100);
+  --kn-opacity-12: var(--theme-opacity-1300);
+
+  --theme-elevation-lowRaised: 0 var(--theme-spacing-1) var(--theme-spacing-5) var(--theme-spacing-0)
+    var(--theme-colors-elevation-lowRaised);
+  --theme-elevation-midRaised: 0 var(--theme-spacing-3) var(--theme-spacing-7) var(--theme-spacing-0)
+    var(--theme-colors-elevation-midRaised);
+  --theme-elevation-highRaised: 0 var(--theme-spacing-5) var(--theme-spacing-10) -0.25rem
+    var(--theme-colors-elevation-highRaised);
+
+  --kn-elevation-lowRaised: var(--theme-elevation-lowRaised);
+  --kn-elevation-midRaised: var(--theme-elevation-midRaised);
+  --kn-elevation-highRaised: var(--theme-elevation-highRaised);
+
+  --kn-focus-ring: 0 0 0 var(--theme-border-width-thicker)
+    var(--theme-colors-interactive-border-information-default);
+
+  /* theme.motion */
+  --theme-motion-duration-2xquick: 80ms;
+  --theme-motion-duration-xquick: 160ms;
+  --theme-motion-duration-quick: 200ms;
+  --theme-motion-duration-moderate: 280ms;
+  --theme-motion-duration-xmoderate: 360ms;
+  --theme-motion-duration-gentle: 480ms;
+  --theme-motion-duration-xgentle: 640ms;
+  --theme-motion-duration-2xgentle: 960ms;
+
+  --theme-motion-delay-2xquick: 80ms;
+  --theme-motion-delay-xquick: 160ms;
+  --theme-motion-delay-moderate: 280ms;
+  --theme-motion-delay-gentle: 480ms;
+  --theme-motion-delay-xgentle: 960ms;
+  --theme-motion-delay-long: 2000ms;
+  --theme-motion-delay-xlong: 3000ms;
+  --theme-motion-delay-2xlong: 5000ms;
+
+  --theme-motion-easing-linear: cubic-bezier(0, 0, 0, 0);
+  --theme-motion-easing-entrance: cubic-bezier(0, 0, 0.2, 1);
+  --theme-motion-easing-exit: cubic-bezier(0.17, 0, 1, 1);
+  --theme-motion-easing-standard: cubic-bezier(0.3, 0, 0.2, 1);
+  --theme-motion-easing-emphasized: cubic-bezier(0.5, 0, 0, 1);
+  --theme-motion-easing-overshoot: cubic-bezier(0.5, 0, 0.3, 1.5);
+  --theme-motion-easing-shake: cubic-bezier(1, 0.5, 0, 0.5);
+
+  --blade-motion-duration-2xquick: var(--theme-motion-duration-2xquick);
+  --blade-motion-duration-xquick: var(--theme-motion-duration-xquick);
+  --blade-motion-duration-quick: var(--theme-motion-duration-quick);
+  --blade-motion-duration-moderate: var(--theme-motion-duration-moderate);
+  --blade-motion-duration-xmoderate: var(--theme-motion-duration-xmoderate);
+  --blade-motion-duration-gentle: var(--theme-motion-duration-gentle);
+  --blade-motion-duration-xgentle: var(--theme-motion-duration-xgentle);
+  --blade-motion-duration-2xgentle: var(--theme-motion-duration-2xgentle);
+  --blade-motion-delay-2xquick: var(--theme-motion-delay-2xquick);
+  --blade-motion-delay-xquick: var(--theme-motion-delay-xquick);
+  --blade-motion-delay-moderate: var(--theme-motion-delay-moderate);
+  --blade-motion-delay-gentle: var(--theme-motion-delay-gentle);
+  --blade-motion-delay-xgentle: var(--theme-motion-delay-xgentle);
+  --blade-motion-delay-long: var(--theme-motion-delay-long);
+  --blade-motion-delay-xlong: var(--theme-motion-delay-xlong);
+  --blade-motion-delay-2xlong: var(--theme-motion-delay-2xlong);
+  --blade-motion-easing-linear: var(--theme-motion-easing-linear);
+  --blade-motion-easing-entrance: var(--theme-motion-easing-entrance);
+  --blade-motion-easing-exit: var(--theme-motion-easing-exit);
+  --blade-motion-easing-standard: var(--theme-motion-easing-standard);
+  --blade-motion-easing-emphasized: var(--theme-motion-easing-emphasized);
+  --blade-motion-easing-overshoot: var(--theme-motion-easing-overshoot);
+  --blade-motion-easing-shake: var(--theme-motion-easing-shake);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --theme-motion-duration-2xquick: 0ms;
+    --theme-motion-duration-xquick: 0ms;
+    --theme-motion-duration-quick: 0ms;
+    --theme-motion-duration-moderate: 0ms;
+    --theme-motion-duration-xmoderate: 0ms;
+    --theme-motion-duration-gentle: 0ms;
+    --theme-motion-duration-xgentle: 0ms;
+    --theme-motion-duration-2xgentle: 0ms;
+    --theme-motion-delay-2xquick: 0ms;
+    --theme-motion-delay-xquick: 0ms;
+    --theme-motion-delay-moderate: 0ms;
+    --theme-motion-delay-gentle: 0ms;
+    --theme-motion-delay-xgentle: 0ms;
+    --theme-motion-delay-long: 0ms;
+    --theme-motion-delay-xlong: 0ms;
+    --theme-motion-delay-2xlong: 0ms;
+  }
+}
+
+/* theme.typography.onMobile — below theme.breakpoints.m */
+@media screen and (max-width: 767px) {
+  :root {
+    --theme-typography-fonts-size-300: 1rem;
+    --theme-typography-fonts-size-400: 1.125rem;
+    --theme-typography-fonts-size-500: 1.25rem;
+    --theme-typography-fonts-size-600: 1.5rem;
+    --theme-typography-fonts-size-700: 2rem;
+    --theme-typography-fonts-size-800: 2.125rem;
+    --theme-typography-fonts-size-900: 2.25rem;
+    --theme-typography-fonts-size-1000: 2.375rem;
+    --theme-typography-fonts-size-1100: 2.5rem;
+    --theme-typography-line-heights-300: 1.375rem;
+    --theme-typography-line-heights-400: 1.5rem;
+    --theme-typography-line-heights-500: 1.625rem;
+    --theme-typography-line-heights-600: 2rem;
+    --theme-typography-line-heights-700: 2.375rem;
+    --theme-typography-line-heights-800: 2.5rem;
+    --theme-typography-line-heights-900: 2.625rem;
+    --theme-typography-line-heights-1000: 2.875rem;
+    --theme-typography-line-heights-1100: 3rem;
+  }
+}
+
+/* theme.breakpoints.m — Tablets */
+@media screen and (min-width: 768px) {
+  :root {
+    --kn-grid-gutter: var(--kn-grid-gutter-default);
+    --kn-grid-margin: var(--kn-spacing-07);
+  }
+}
+
+/* theme.breakpoints.l — Medium Desktop */
+@media screen and (min-width: 1024px) {
+  :root {
+    --kn-grid-gutter: var(--kn-grid-gutter-default);
+    --kn-grid-margin: var(--kn-spacing-07);
+  }
+}
+
+/* theme.breakpoints.xl — HD Desktop */
+@media screen and (min-width: 1200px) {
+  :root {
+    --kn-grid-gutter: var(--kn-grid-gutter-default);
+    --kn-grid-margin: var(--kn-spacing-07);
+    --blade-sidenav-expanded: var(--blade-sidenav-expanded-xl);
+    --kn-layout-sidebar: var(--blade-sidenav-expanded-xl);
+  }
+}
+
+/* Typography utilities — bind size + default weight from design.md */
+.type-heading-h1,
+.type-heading-h2,
+.type-heading-h3,
+.type-heading-h4,
+.type-heading-h5,
+.type-heading-h6 {
+  font-family: var(--kn-font-family);
+  font-weight: var(--kn-weight-semibold);
+  letter-spacing: var(--kn-letter-spacing-normal);
+}
+
+.type-heading-h1 {
+  font-size: var(--kn-type-heading-h1-size);
+  line-height: var(--kn-type-heading-h1-line);
+}
+
+.type-heading-h2 {
+  font-size: var(--kn-type-heading-h2-size);
+  line-height: var(--kn-type-heading-h2-line);
+}
+
+.type-heading-h3 {
+  font-size: var(--kn-type-heading-h3-size);
+  line-height: var(--kn-type-heading-h3-line);
+}
+
+.type-heading-h4 {
+  font-size: var(--kn-type-heading-h4-size);
+  line-height: var(--kn-type-heading-h4-line);
+}
+
+.type-heading-h5 {
+  font-size: var(--kn-type-heading-h5-size);
+  line-height: var(--kn-type-heading-h5-line);
+}
+
+.type-heading-h6 {
+  font-size: var(--kn-type-heading-h6-size);
+  line-height: var(--kn-type-heading-h6-line);
+}
+
+.type-body-lg,
+.type-body-md,
+.type-body-sm,
+.type-body-xs,
+.type-caption-md,
+.type-caption-sm {
+  font-family: var(--kn-font-family);
+  font-weight: var(--kn-weight-regular);
+  letter-spacing: var(--kn-letter-spacing-normal);
+}
+
+.type-body-lg {
+  font-size: var(--kn-type-body-lg-size);
+  line-height: var(--kn-type-body-lg-line);
+}
+
+.type-body-md {
+  font-size: var(--kn-type-body-md-size);
+  line-height: var(--kn-type-body-md-line);
+}
+
+.type-body-sm {
+  font-size: var(--kn-type-body-sm-size);
+  line-height: var(--kn-type-body-sm-line);
+}
+
+.type-body-xs {
+  font-size: var(--kn-type-body-xs-size);
+  line-height: var(--kn-type-body-xs-line);
+}
+
+.type-caption-md {
+  font-size: var(--kn-type-caption-md-size);
+  line-height: var(--kn-type-caption-md-line);
+}
+
+.type-caption-sm {
+  font-size: var(--kn-type-caption-sm-size);
+  line-height: var(--kn-type-caption-sm-line);
+}
+
+.type-ui-label,
+.type-ui-lg,
+.type-ui-md,
+.type-ui-sm {
+  font-family: var(--kn-font-family);
+  font-weight: var(--kn-weight-medium);
+  letter-spacing: var(--kn-letter-spacing-normal);
+}
+
+.type-ui-label {
+  font-size: var(--kn-type-ui-label-size);
+  line-height: var(--kn-type-ui-label-line);
+}
+
+.type-ui-lg {
+  font-size: var(--kn-type-ui-lg-size);
+  line-height: var(--kn-type-ui-lg-line);
+}
+
+.type-ui-md {
+  font-size: var(--kn-type-ui-md-size);
+  line-height: var(--kn-type-ui-md-line);
+}
+
+.type-ui-sm {
+  font-size: var(--kn-type-ui-sm-size);
+  line-height: var(--kn-type-ui-sm-line);
+}
+
+.type-weight-regular {
+  font-weight: var(--kn-weight-regular);
+}
+
+.type-weight-medium {
+  font-weight: var(--kn-weight-medium);
+}
+
+.type-weight-semibold {
+  font-weight: var(--kn-weight-semibold);
+}
+
+.type-weight-bold {
+  font-weight: var(--kn-weight-bold);
+}

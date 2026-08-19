@@ -1,0 +1,1930 @@
+<!doctype html>
+<html lang="en" data-theme="klearnow" data-color-scheme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KlearNow · Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./tokens.css?v=36" />
+    <link rel="stylesheet" href="./styles.css?v=127" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-nav" data-variant="primary">
+        <div class="top-nav-mobile">
+          <button class="menu-toggle icon-btn icon-btn--on-dark" type="button" aria-label="Open navigation" data-tooltip="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <p class="top-nav-mobile-title type-heading-h6" id="top-nav-mobile-title">Dashboard</p>
+          <button class="avatar-trigger" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">
+            <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">BN</span>
+          </button>
+        </div>
+
+        <div class="top-nav-desktop">
+          <div class="top-nav-brand">
+            <a class="top-nav-brand-link" href="#dashboard" aria-label="KlearNow Dashboard">
+              <img class="top-nav-logo top-nav-logo--klearnow" src="./assets/brand/klearnow-logo-white.png" alt="KlearNow.AI" />
+              <span class="top-nav-brand-divider" aria-hidden="true"></span>
+              <img class="top-nav-logo top-nav-logo--slb" src="https://www.figma.com/api/mcp/asset/f58372fe-c117-4b51-965a-739e37921184.svg" alt="SLB" />
+            </a>
+          </div>
+          <div class="top-nav-content"></div>
+          <div class="top-nav-actions">
+            <button class="avatar-trigger" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">
+              <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">BN</span>
+              <span class="profile-text">
+                <span class="profile-text__name type-ui-md type-weight-semibold">Brooke Nation</span>
+                <span class="profile-text__role type-caption-sm">Visibility Admin</span>
+              </span>
+              <span class="profile-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div class="menu-overlay" id="profile-menu" hidden role="menu" aria-label="Profile">
+          <div class="menu-header type-ui-md type-weight-semibold">Profile</div>
+          <div class="menu-profile">
+            <span class="avatar avatar--information avatar--large type-ui-sm type-weight-semibold" aria-hidden="true">BN</span>
+            <div class="menu-profile__copy">
+              <p class="type-ui-md type-weight-semibold">Brooke Nation</p>
+              <p class="type-caption-sm">Visibility Admin</p>
+            </div>
+          </div>
+          <button class="menu-item type-ui-md" type="button" role="menuitem">Settings</button>
+          <button class="menu-item menu-item--negative type-ui-md" type="button" role="menuitem">Logout</button>
+        </div>
+      </header>
+
+      <div class="dashboard-workspace">
+      <div class="main-layout">
+        <div class="sidebar-backdrop" hidden></div>
+        <aside class="side-nav sidebar" id="app-sidebar" aria-label="Primary">
+          <a class="skip-nav type-ui-sm" href="#blade-side-nav-skip">Skip to content</a>
+          <div class="side-nav-l1" id="side-nav-l1">
+          <nav class="side-nav-body sidebar-nav" aria-label="Sections">
+            <ul class="side-nav-list">
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#dashboard" data-level="1" aria-current="page">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Dashboard</span>
+                </a>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#analytics-hevo" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-analytics">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 14l4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Analytics</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-analytics" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#analytics-hevo" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Hevo Dashboard</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#kn-user-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-administration">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.25"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17.5" cy="8.5" r="2.25"/><path d="M17.5 13.5a3.6 3.6 0 0 1 3 1.7"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Administration</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-administration" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#kn-user-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KN User Management</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#kn-role-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KN Role Management</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#default-role-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Default Role Management</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#kn-customers" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-entity">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="5.5" rx="1.25"/><path d="M12 8v3.5M7 11.5h10"/><rect x="2.5" y="16" width="7" height="5.5" rx="1.25"/><rect x="14.5" y="16" width="7" height="5.5" rx="1.25"/><path d="M6 16v-4.5M18 16v-4.5"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Entity Management</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-entity" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#kn-customers" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KN Customers</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#broker-association" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Broker Association</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#kn-credits-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-finance">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/><path d="M6.5 15h4"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Finance Management</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-finance" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#kn-credits-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KN Credits Management</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#kn-promo-code-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KN Promo Code Management</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#klearhub-overview" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-klearhub">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-7h6v7"/><path d="M4 20h16"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">KlearHub</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-klearhub" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#klearhub-overview" data-level="2">
+                      <span class="side-nav-link__copy">
+                        <span class="side-nav-link__title type-ui-md">By mode</span>
+                        <span class="side-nav-link__desc type-caption-sm">Ocean, air, truck, rail</span>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#klearhub-visibility" data-level="2">
+                      <span class="side-nav-link__copy">
+                        <span class="side-nav-link__title type-ui-md">Visibility</span>
+                        <span class="side-nav-link__desc type-caption-sm">Track shipments</span>
+                      </span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#notification-table" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-master-data">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v5c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 11v5c0 1.66 3.58 3 8 3s8-1.34 8-3v-5"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Master Data Management</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-master-data" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#notification-table" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Notification Table</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#release-notes" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-content">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8.5L20 8v12.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M15.5 3.5V8H20"/><path d="M9 12h6M9 15.5h4"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Content Management</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-content" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#release-notes" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Release Notes</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#user-guides" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">User Guides</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#announcements" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Announcements</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#default-notification" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-notification">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 20a2 2 0 0 1-3.46 0"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Notification Management</span>
+                  <span class="counter hide-when-collapsed" data-nav-count="notifications" aria-label="3 shipments need action">3</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-notification" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#default-notification" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Default Notification</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#trigger-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Trigger Management</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#ops-shipments" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-ops">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Intelligent OPS Hub</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-ops" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#ops-shipments" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Shipments</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#transaction-us" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-transaction">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Transaction Manager</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-transaction" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#transaction-us" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">US</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </nav>
+          </div>
+          <div class="side-nav-l2" id="side-nav-l2" hidden>
+            <div class="side-nav-l2__header">
+              <button class="side-nav-l2__back type-ui-sm" type="button" aria-label="Back to main menu">Back</button>
+              <p class="side-nav-l2__title type-ui-md type-weight-semibold">KlearHub</p>
+            </div>
+          </div>
+        </aside>
+
+        <main class="content" id="blade-side-nav-skip">
+          <div class="content-breadcrumb" hidden>
+            <nav class="breadcrumb" aria-label="Breadcrumb" data-size="medium" data-color="primary">
+              <ol class="breadcrumb-list" id="breadcrumb-list">
+                <li class="breadcrumb-item" aria-current="page">
+                  <span class="breadcrumb-link is-current">
+                    <span class="breadcrumb-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" />
+                      </svg>
+                    </span>
+                    <span class="visually-hidden">Home</span>
+                  </span>
+                </li>
+              </ol>
+            </nav>
+          </div>
+
+          <section class="dashboard-inner" data-loading="true" aria-busy="true">
+            <div class="dash-skeleton" id="dash-skeleton" role="status" aria-live="polite">
+              <span class="visually-hidden">Loading dashboard</span>
+              <div class="hero">
+                <div class="skeleton-stack">
+                  <span class="skeleton skeleton--title" style="width: 18.5rem"></span>
+                  <span class="skeleton skeleton--line" style="width: 14rem"></span>
+                </div>
+                <div class="hero-actions">
+                  <span class="skeleton skeleton--btn skeleton--btn-md"></span>
+                  <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 11.5rem"></span>
+                  <span class="skeleton skeleton--icon"></span>
+                </div>
+              </div>
+              <div class="dash-action-grid">
+                <article class="panel card">
+                  <div class="card-header">
+                    <div class="card-header__leading">
+                      <span class="skeleton skeleton--icon"></span>
+                      <div class="skeleton-stack">
+                        <span class="skeleton skeleton--title" style="width: 8.5rem"></span>
+                        <span class="skeleton skeleton--caption" style="width: 6.75rem"></span>
+                      </div>
+                    </div>
+                    <span class="skeleton skeleton--badge"></span>
+                  </div>
+                  <div class="card-body"><span class="skeleton skeleton--line" style="width: 88%"></span></div>
+                  <div class="card-footer"><span class="skeleton skeleton--btn"></span></div>
+                </article>
+                <article class="panel card">
+                  <div class="card-header">
+                    <div class="card-header__leading">
+                      <span class="skeleton skeleton--icon"></span>
+                      <div class="skeleton-stack">
+                        <span class="skeleton skeleton--title" style="width: 7.25rem"></span>
+                        <span class="skeleton skeleton--caption" style="width: 7.5rem"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body"><span class="skeleton skeleton--line" style="width: 76%"></span></div>
+                  <div class="card-footer"><span class="skeleton skeleton--btn" style="width: 6.75rem"></span></div>
+                </article>
+                <article class="panel card">
+                  <div class="card-header">
+                    <div class="card-header__leading">
+                      <span class="skeleton skeleton--icon"></span>
+                      <div class="skeleton-stack">
+                        <span class="skeleton skeleton--title" style="width: 9.25rem"></span>
+                        <span class="skeleton skeleton--caption" style="width: 8rem"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body"><span class="skeleton skeleton--line" style="width: 82%"></span></div>
+                  <div class="card-footer"><span class="skeleton skeleton--btn" style="width: 8.25rem"></span></div>
+                </article>
+                <article class="panel card">
+                  <div class="card-header">
+                    <div class="card-header__leading">
+                      <span class="skeleton skeleton--icon"></span>
+                      <div class="skeleton-stack">
+                        <span class="skeleton skeleton--title" style="width: 7.75rem"></span>
+                        <span class="skeleton skeleton--caption" style="width: 6.5rem"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body"><span class="skeleton skeleton--line" style="width: 70%"></span></div>
+                  <div class="card-footer"><span class="skeleton skeleton--btn" style="width: 7.5rem"></span></div>
+                </article>
+              </div>
+              <section class="panel card">
+                <div class="card-header">
+                  <span class="skeleton skeleton--title" style="width: 16rem"></span>
+                  <span class="skeleton skeleton--badge"></span>
+                </div>
+                <div class="card-body alerts-body">
+                  <div class="skeleton-alert">
+                    <span class="skeleton skeleton--icon"></span>
+                    <div class="skeleton-stack">
+                      <span class="skeleton skeleton--title" style="width: 8rem"></span>
+                      <span class="skeleton skeleton--caption" style="width: 7rem"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--btn"></span>
+                    </div>
+                  </div>
+                  <div class="skeleton-alert">
+                    <span class="skeleton skeleton--icon"></span>
+                    <div class="skeleton-stack">
+                      <span class="skeleton skeleton--title" style="width: 9rem"></span>
+                      <span class="skeleton skeleton--caption" style="width: 8rem"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--btn"></span>
+                    </div>
+                  </div>
+                  <div class="skeleton-alert">
+                    <span class="skeleton skeleton--icon"></span>
+                    <div class="skeleton-stack">
+                      <span class="skeleton skeleton--title" style="width: 10rem"></span>
+                      <span class="skeleton skeleton--caption" style="width: 6rem"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--btn"></span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section class="panel card">
+                <div class="card-header">
+                  <span class="skeleton skeleton--title" style="width: 11rem"></span>
+                  <span class="skeleton skeleton--btn"></span>
+                </div>
+                <div class="card-body overview-body">
+                  <div class="kpi-grid dash-skeleton-kpis">
+                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 68%"></span><span class="skeleton skeleton--value"></span></div>
+                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 74%"></span><span class="skeleton skeleton--value" style="width: 3rem"></span></div>
+                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 52%"></span><span class="skeleton skeleton--value" style="width: 2.75rem"></span></div>
+                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 80%"></span><span class="skeleton skeleton--value" style="width: 2.25rem"></span></div>
+                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 62%"></span><span class="skeleton skeleton--value" style="width: 2.5rem"></span></div>
+                  </div>
+                  <div class="split-grid">
+                    <div class="skeleton-stack">
+                      <span class="skeleton skeleton--title" style="width: 8.5rem"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                    </div>
+                    <div class="skeleton-stack">
+                      <span class="skeleton skeleton--title" style="width: 9.25rem"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                      <span class="skeleton skeleton--row"></span>
+                    </div>
+                  </div>
+                  <span class="skeleton skeleton--map"></span>
+                </div>
+              </section>
+              <div class="dash-stat-grid">
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 7rem"></span>
+                  <span class="skeleton skeleton--value"></span>
+                  <span class="skeleton skeleton--caption" style="width: 6rem"></span>
+                </article>
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 5.5rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 3.25rem"></span>
+                  <span class="skeleton skeleton--caption" style="width: 7.25rem"></span>
+                </article>
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 4.5rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 2.5rem"></span>
+                  <span class="skeleton skeleton--caption" style="width: 5.75rem"></span>
+                </article>
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 8rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 2.75rem"></span>
+                  <span class="skeleton skeleton--caption" style="width: 6.5rem"></span>
+                </article>
+              </div>
+              <div class="split-grid">
+                <article class="panel card">
+                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 9.5rem"></span></div>
+                  <div class="skeleton-stack">
+                    <span class="skeleton skeleton--row"></span>
+                    <span class="skeleton skeleton--row"></span>
+                    <span class="skeleton skeleton--row"></span>
+                  </div>
+                </article>
+                <article class="panel card">
+                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 8rem"></span></div>
+                  <div class="skeleton-stack">
+                    <span class="skeleton skeleton--row"></span>
+                    <span class="skeleton skeleton--row"></span>
+                    <span class="skeleton skeleton--row"></span>
+                  </div>
+                </article>
+              </div>
+              <div class="dash-chart-grid">
+                <article class="panel card">
+                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 10rem"></span></div>
+                  <div class="skeleton-stack skeleton-bars">
+                    <span class="skeleton skeleton--bar" style="width: 86%"></span>
+                    <span class="skeleton skeleton--bar" style="width: 64%"></span>
+                    <span class="skeleton skeleton--bar" style="width: 52%"></span>
+                    <span class="skeleton skeleton--bar" style="width: 40%"></span>
+                    <span class="skeleton skeleton--bar" style="width: 28%"></span>
+                  </div>
+                </article>
+                <article class="panel card">
+                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 6.5rem"></span></div>
+                  <div class="dash-donut-wrap">
+                    <span class="skeleton skeleton--donut"></span>
+                    <div class="skeleton-stack">
+                      <span class="skeleton skeleton--line" style="width: 7rem"></span>
+                      <span class="skeleton skeleton--line" style="width: 6.25rem"></span>
+                      <span class="skeleton skeleton--line" style="width: 5.5rem"></span>
+                      <span class="skeleton skeleton--line" style="width: 4.75rem"></span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+              <section class="panel card">
+                <div class="card-header"><span class="skeleton skeleton--title" style="width: 9.75rem"></span></div>
+                <div class="skeleton-stack">
+                  <span class="skeleton skeleton--row"></span>
+                  <span class="skeleton skeleton--row"></span>
+                  <span class="skeleton skeleton--row"></span>
+                  <span class="skeleton skeleton--row"></span>
+                </div>
+              </section>
+              <div class="dash-stat-grid">
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 8.5rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 6rem"></span>
+                </article>
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 7.5rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 5.25rem"></span>
+                </article>
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 7rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 5.5rem"></span>
+                </article>
+                <article class="panel card dash-stat-card">
+                  <span class="skeleton skeleton--caption" style="width: 6.25rem"></span>
+                  <span class="skeleton skeleton--value" style="width: 4.5rem"></span>
+                </article>
+              </div>
+              <div class="split-grid">
+                <article class="panel card">
+                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 8.25rem"></span></div>
+                  <div class="skeleton-stack">
+                    <span class="skeleton skeleton--line" style="width: 90%"></span>
+                    <span class="skeleton skeleton--bar" style="width: 84%"></span>
+                    <span class="skeleton skeleton--line" style="width: 70%"></span>
+                  </div>
+                </article>
+                <article class="panel card">
+                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 10rem"></span></div>
+                  <div class="skeleton-stack">
+                    <span class="skeleton skeleton--row"></span>
+                    <span class="skeleton skeleton--row"></span>
+                    <span class="skeleton skeleton--row"></span>
+                  </div>
+                </article>
+              </div>
+            </div>
+            <div class="dash-live blade-stagger" id="dash-live" hidden>
+            <div class="hero">
+              <div class="hero-copy">
+                <h1 class="type-heading-h3" id="dash-greeting">Good afternoon, Brooke</h1>
+                <p class="type-body-md" id="dash-risk-line">Your shipment summary at a glance.</p>
+                <p class="type-caption-sm" id="dash-welcome" hidden>Start with holds when something is stuck — then copy the ID into your next email.</p>
+              </div>
+              <div class="hero-actions">
+                <div class="quick-actions">
+                  <button
+                    class="btn btn--secondary btn--md type-ui-md"
+                    id="quick-actions-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-controls="quick-actions-menu"
+                  >
+                    Quick Actions
+                    <code class="code type-ui-sm">⌘K</code>
+                  </button>
+                  <div class="menu-overlay dropdown-overlay" id="quick-actions-menu" hidden aria-labelledby="quick-actions-title">
+                    <div class="dropdown-header">
+                      <div class="dropdown-header__row">
+                        <span class="dropdown-header__leading" aria-hidden="true">
+                          <img src="./assets/quick-actions/bolt.svg" width="20" height="20" alt="" />
+                        </span>
+                        <p class="type-heading-h5 type-weight-semibold" id="quick-actions-title">Quick Actions</p>
+                        <button class="icon-btn" type="button" id="quick-actions-close" aria-label="Close">
+                          <img src="./assets/quick-actions/close.svg" width="20" height="20" alt="" />
+                        </button>
+                      </div>
+                      <div class="dropdown-search">
+                        <div class="search-input">
+                          <span class="search-input__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/search.svg" width="16" height="16" alt="" />
+                          </span>
+                          <input
+                            class="search-input__field type-body-sm"
+                            id="quick-actions-search"
+                            type="search"
+                            placeholder="Search action..."
+                            autocomplete="off"
+                            autocorrect="off"
+                            spellcheck="false"
+                            role="combobox"
+                            aria-label="Search actions"
+                            aria-autocomplete="list"
+                            aria-expanded="false"
+                            aria-controls="quick-actions-list"
+                          />
+                          <button class="search-input__clear icon-btn" type="button" id="quick-actions-clear" hidden aria-label="Clear search">
+                            <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="action-list" id="quick-actions-list" role="listbox" aria-label="Actions">
+                      <div class="action-list-section" role="group" aria-label="Jump to">
+                        <p class="action-list-section__title type-ui-sm type-weight-medium">Jump to</p>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-holds" type="button" role="option" data-href="#klearhub-visibility" data-vis-open='{"risk":"hold"}' data-label="View Holds">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/shield.svg" width="20" height="20" alt="" />
+                          </span>
+                          <span class="action-list-item__copy">
+                            <span>View Holds</span>
+                            <span class="action-list-item__why type-caption-sm" id="quick-action-holds-why">2 containers on hold</span>
+                          </span>
+                        </button>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-drayage" type="button" role="option" data-href="#dashboard" data-scroll='[data-widget="actions"]' data-label="Request Drayage">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/truck.svg" width="20" height="20" alt="" />
+                          </span>
+                          Request Drayage
+                        </button>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-vis-search" type="button" role="option" data-href="#klearhub-visibility" data-focus="#vis-search" data-label="Search Visibility">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/search.svg" width="20" height="20" alt="" />
+                          </span>
+                          <span class="action-list-item__copy">
+                            <span>Search Visibility</span>
+                            <span class="action-list-item__why type-caption-sm" id="quick-action-vis-why">3 shipments need action</span>
+                          </span>
+                        </button>
+                      </div>
+                      <div class="action-list-section" role="group" aria-label="Administration">
+                        <p class="action-list-section__title type-ui-sm type-weight-medium">Administration</p>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-add-user" type="button" role="option" data-href="#administration" data-label="Add New User">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/user-plus.svg" width="20" height="20" alt="" />
+                          </span>
+                          Add New User
+                        </button>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-add-role" type="button" role="option" data-href="#administration" data-label="Add New Role">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/shield.svg" width="20" height="20" alt="" />
+                          </span>
+                          Add New Role
+                        </button>
+                      </div>
+                      <div class="action-list-section" role="group" aria-label="Entity Management">
+                        <p class="action-list-section__title type-ui-sm type-weight-medium">Entity Management</p>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-add-subcustomer" type="button" role="option" data-href="#entity-management" data-label="Add Sub-customer">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/sitemap.svg" width="20" height="20" alt="" />
+                          </span>
+                          Add Sub-customer
+                        </button>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-add-company" type="button" role="option" data-href="#entity-management" data-label="Add Company">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/briefcase.svg" width="20" height="20" alt="" />
+                          </span>
+                          Add Company
+                        </button>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-add-party" type="button" role="option" data-href="#entity-management" data-label="Add Party">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/users.svg" width="20" height="20" alt="" />
+                          </span>
+                          Add Party
+                        </button>
+                      </div>
+                      <div class="action-list-section" role="group" aria-label="KlearHub">
+                        <p class="action-list-section__title type-ui-sm type-weight-medium">KlearHub</p>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-overview" type="button" role="option" data-href="#klearhub-overview" data-label="By mode">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/table.svg" width="20" height="20" alt="" />
+                          </span>
+                          By mode
+                        </button>
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-shipments" type="button" role="option" data-href="#klearhub-visibility" data-label="Shipments">
+                          <span class="action-list-item__icon" aria-hidden="true">
+                            <img src="./assets/quick-actions/truck.svg" width="20" height="20" alt="" />
+                          </span>
+                          Shipments
+                        </button>
+                      </div>
+                      <p class="action-list-empty type-body-sm" id="quick-actions-empty" hidden>No actions found</p>
+                    </div>
+                    <div class="dropdown-footer">
+                      <p class="type-caption-sm">Use ↑↓ to navigate, ↵ to select, esc to close</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="vis-menu vis-menu--end kn-date-picker">
+                  <button
+                    class="btn btn--secondary btn--md type-ui-md"
+                    id="dash-date-trigger"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="dash-date-menu"
+                    aria-label="Date range, Aug 01 – Aug 31, 2026"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16">
+                      <rect x="3" y="4" width="18" height="18" rx="2" />
+                      <path d="M16 2v4M8 2v4M3 10h18" />
+                    </svg>
+                    <span id="dash-date-label">Aug 01 – Aug 31, 2026</span>
+                  </button>
+                  <div class="menu-overlay vis-menu__list kn-date-picker__panel" id="dash-date-menu" hidden role="dialog" aria-labelledby="dash-date-title">
+                    <p class="type-ui-sm type-weight-semibold" id="dash-date-title">Date range</p>
+                    <div class="kn-date-picker__presets" role="listbox" aria-label="Presets">
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-dash-preset="7">Last 7 days</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-dash-preset="30">Last 30 days</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-dash-preset="month">This month</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-dash-preset="last-month">Last month</button>
+                    </div>
+                    <div class="kn-date-picker__fields">
+                      <label class="kn-detail-field">
+                        <span class="type-caption-sm">Start date</span>
+                        <input class="vis-th-filter type-body-sm" id="dash-date-start" type="date" />
+                      </label>
+                      <label class="kn-detail-field">
+                        <span class="type-caption-sm">End date</span>
+                        <input class="vis-th-filter type-body-sm" id="dash-date-end" type="date" />
+                      </label>
+                    </div>
+                    <p class="type-caption-sm kn-date-picker__error" id="dash-date-error" hidden>End date must be on or after the start date.</p>
+                    <div class="kn-date-picker__footer">
+                      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" id="dash-date-cancel">Cancel</button>
+                      <button class="btn btn--primary btn--sm type-ui-sm" type="button" id="dash-date-apply">Apply</button>
+                    </div>
+                  </div>
+                </div>
+                <button class="icon-btn" id="dashboard-settings" type="button" aria-label="Settings" data-tooltip="Settings" aria-haspopup="dialog" aria-controls="dash-layout-drawer" aria-expanded="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="dash-action-grid dash-widget" data-widget="actions">
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="card-header-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="12.5" height="11" rx="1.25"/><path d="M14.5 9H19l3 3.25V15h-7.5V9Z"/><circle cx="6.5" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>
+                    </span>
+                    <div>
+                      <h3 class="type-heading-h6 type-weight-semibold">
+                        Request Drayage
+                        <button type="button" class="info-tip" aria-label="About drayage" data-tooltip="Short-haul trucking that moves a container from the terminal to a warehouse or rail ramp.">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
+                        </button>
+                      </h3>
+                      <p class="type-caption-sm" data-kn="drayage-caption">3 containers at destination</p>
+                    </div>
+                  </div>
+                  <span class="badge badge--notice type-caption-sm type-weight-medium" id="dash-drayage-urgent">Urgent</span>
+                </div>
+                <div class="card-body">
+                  <p class="type-body-sm">Book pickup before fees accrue today.</p>
+                </div>
+                <div class="card-footer">
+                  <a class="btn btn--primary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}'>Request Drayage</a>
+                </div>
+              </article>
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="card-header-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+                    </span>
+                    <div>
+                      <h3 class="type-heading-h6 type-weight-semibold">Review Holds</h3>
+                      <p class="type-caption-sm" data-kn="holds-caption">2 containers on hold</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="type-body-sm">Exam, documents, or agriculture checks are blocking release.</p>
+                </div>
+                <div class="card-footer">
+                  <a class="btn btn--secondary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"container","risk":"hold"}'>Review Holds</a>
+                </div>
+              </article>
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="card-header-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6.5h11.5A1.5 1.5 0 0 1 21 8v11.5H9.5A1.5 1.5 0 0 1 8 18V6.5Z"/><path d="M8 18H5.5A1.5 1.5 0 0 1 4 16.5v-11A1.5 1.5 0 0 1 5.5 4H16"/><path d="M11.5 11h6M11.5 14.5h4"/></svg>
+                    </span>
+                    <div>
+                      <h3 class="type-heading-h6 type-weight-semibold">Preview Documents</h3>
+                      <p class="type-caption-sm">
+                        <button type="button" class="text-tip" aria-label="About ISF" data-tooltip="Importer Security Filing. Required 24 hours before the vessel leaves the origin port.">ISF</button>, arrival notices, e-invoices
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="type-body-sm">Filings for this week’s arrivals are ready to review.</p>
+                </div>
+                <div class="card-footer">
+                  <a class="btn btn--secondary btn--sm type-ui-sm" href="#e-invoices">Preview Documents</a>
+                </div>
+              </article>
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="card-header-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.75"/><circle cx="12" cy="4.25" r="1.6"/><circle cx="5.4" cy="17.4" r="1.6"/><circle cx="18.6" cy="17.4" r="1.6"/><path d="M12 9.25V5.85M10.15 13.6 6.6 16.1M13.85 13.6l3.55 2.5"/></svg>
+                    </span>
+                    <div>
+                      <h3 class="type-heading-h6 type-weight-semibold">Live Visibility</h3>
+                      <p class="type-caption-sm" data-kn="visibility-caption">12 active shipments</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="type-body-sm">Track ocean, air, truck, and rail movements in one view.</p>
+                </div>
+                <div class="card-footer">
+                  <a class="btn btn--secondary btn--sm type-ui-sm" href="#klearhub-visibility">Open Visibility</a>
+                </div>
+              </article>
+            </div>
+
+            <section class="panel card dash-widget" data-widget="alerts">
+              <div class="card-header">
+                <div class="card-header__leading">
+                  <h2 class="type-heading-h5 type-weight-semibold">Critical Alerts &amp; Action Center</h2>
+                  <span class="indicator-field" tabindex="0" data-tooltip="Hold and shipment counts refresh as new events arrive.">
+                    <span class="indicator indicator--positive" aria-hidden="true"></span>
+                    <span class="type-caption-sm">Live</span>
+                  </span>
+                </div>
+              </div>
+              <div class="card-body alerts-body" id="alerts-body">
+                <article class="alert-card alert-negative" aria-labelledby="alert-demurrage-title" id="alert-demurrage-card">
+                  <header class="alert-card__head">
+                    <span class="alert-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 8.5 12 3.5 3 8.5v7l9 5 9-5v-7Z" />
+                        <path d="M3 8.5 12 13.5 21 8.5" />
+                        <path d="M12 13.5V20.5" />
+                      </svg>
+                    </span>
+                    <div class="alert-card__heading">
+                      <div class="alert-card__title-row">
+                        <h3 class="type-heading-h6 type-weight-semibold" id="alert-demurrage-title">
+                          Demurrage Risk
+                          <button type="button" class="info-tip" aria-label="About demurrage" data-tooltip="Fee charged when a container stays at the terminal after free time ends.">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
+                          </button>
+                        </h3>
+                        <span class="counter counter--negative counter--intense type-caption-sm type-weight-semibold" data-kn="alert-demurrage-total">0</span>
+                      </div>
+                      <p class="alert-card__lede type-caption-sm">Terminal free time is ending</p>
+                    </div>
+                  </header>
+                  <p class="visually-hidden" data-kn="demurrage-desc"></p>
+                  <div class="alert-card__list-wrap" id="alert-demurrage-wrap">
+                    <ul class="alert-card__hits" id="alert-demurrage-hits"></ul>
+                    <p class="alert-card__empty type-caption-sm" id="alert-demurrage-empty" hidden>No containers at risk of demurrage.</p>
+                  </div>
+                  <footer class="alert-card__footer">
+                    <a class="btn btn--primary btn--sm btn--color-negative type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-cta">Request Drayage</a>
+                    <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-viewall" hidden>View all</a>
+                  </footer>
+                </article>
+                <article class="alert-card alert-notice" aria-labelledby="alert-delay-title" id="alert-delay-card">
+                  <header class="alert-card__head">
+                    <span class="alert-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3.5 2" />
+                      </svg>
+                    </span>
+                    <div class="alert-card__heading">
+                      <div class="alert-card__title-row">
+                        <h3 class="type-heading-h6 type-weight-semibold" id="alert-delay-title">Shipment Delays</h3>
+                        <span class="counter counter--notice counter--intense type-caption-sm type-weight-semibold" data-kn="alert-delay-total">0</span>
+                      </div>
+                      <p class="alert-card__lede type-caption-sm">Schedule slipped vs original ETA</p>
+                      <p class="alert-card__meta type-caption-sm" id="alert-delay-eta-wrap" hidden>Earliest ETA <span data-kn="alert-delay-eta">—</span></p>
+                    </div>
+                  </header>
+                  <p class="visually-hidden" data-kn="delay-desc"></p>
+                  <div class="alert-card__list-wrap" id="alert-delay-wrap">
+                    <ul class="alert-card__hits" id="alert-delay-hits"></ul>
+                    <p class="alert-card__empty type-caption-sm" id="alert-delay-empty" hidden>No delayed shipments right now.</p>
+                  </div>
+                  <footer class="alert-card__footer">
+                    <a class="btn btn--primary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-cta">Review delays</a>
+                    <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-viewall" hidden>View all</a>
+                  </footer>
+                </article>
+                <article class="alert-card alert-information" aria-labelledby="alert-hold-title" id="alert-hold-card">
+                  <header class="alert-card__head">
+                    <span class="alert-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="11" width="14" height="10" rx="2" />
+                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                      </svg>
+                    </span>
+                    <div class="alert-card__heading">
+                      <div class="alert-card__title-row">
+                        <h3 class="type-heading-h6 type-weight-semibold" id="alert-hold-title">Containers on Hold</h3>
+                        <span class="counter counter--information counter--intense type-caption-sm type-weight-semibold" data-kn="alert-hold-total">0</span>
+                      </div>
+                      <p class="alert-card__lede type-caption-sm">Release blocked by exam or documents</p>
+                    </div>
+                  </header>
+                  <div class="alert-card__list-wrap" id="alert-hold-wrap">
+                    <ul class="alert-card__hits" id="alert-hold-hits"></ul>
+                    <p class="alert-card__empty type-caption-sm" id="alert-hold-empty" hidden>No containers on hold.</p>
+                  </div>
+                  <footer class="alert-card__footer">
+                    <a class="btn btn--primary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-cta">Review Holds</a>
+                    <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-viewall" hidden>View all</a>
+                  </footer>
+                </article>
+              </div>
+            </section>
+
+            <section class="panel card dash-widget" data-widget="overview">
+              <div class="card-header">
+                <div class="card-header__leading">
+                  <span class="indicator indicator--positive" aria-hidden="true"></span>
+                  <h2 class="type-heading-h5 type-weight-semibold">Live snapshot</h2>
+                </div>
+                <div class="card-header__trailing">
+                  <a class="blade-link type-ui-sm" href="#klearhub-overview" data-kn-goto>By mode</a>
+                  <a class="btn btn--secondary btn--sm type-ui-sm" href="#klearhub-visibility">Open Visibility</a>
+                </div>
+              </div>
+              <div class="card-body overview-body">
+                <div class="kpi-grid" id="kpi-grid"></div>
+                <div class="split-grid">
+                  <article class="subpanel">
+                    <header class="subpanel__head">
+                      <h3 class="risk-title type-heading-h6 type-weight-semibold">Risk Management</h3>
+                      <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"risk":"action"}'>View all</a>
+                    </header>
+                    <ul class="metric-list" id="risk-list"></ul>
+                  </article>
+                  <article class="subpanel">
+                    <header class="subpanel__head">
+                      <h3 class="event-title type-heading-h6 type-weight-semibold">Container Events</h3>
+                      <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"container"}'>View all</a>
+                    </header>
+                    <ul class="metric-list" id="events-list"></ul>
+                  </article>
+                </div>
+                <article class="map-panel" id="map-panel">
+                  <div class="map-header">
+                    <div class="map-header__leading">
+                      <h3 class="type-heading-h6 type-weight-medium">Shipment Global View</h3>
+                      <span class="indicator-field" data-ais-status tabindex="0" data-tooltip="Vessel positions update as they report in">
+                        <span class="indicator indicator--positive" aria-hidden="true"></span>
+                        <span class="type-caption-sm" data-ais-label>Live positions</span>
+                      </span>
+                    </div>
+                    <button class="btn btn--secondary btn--sm type-ui-sm" id="map-expand" type="button">Expand Map</button>
+                  </div>
+                  <div class="map-stage">
+                    <div class="shipment-map" id="shipment-map" role="region" aria-label="Live shipment map"></div>
+                    <div class="map-basemap" role="group" aria-label="Map view">
+                      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-map-basemap="satellite" aria-pressed="false">Satellite</button>
+                      <button class="btn btn--primary btn--sm type-ui-sm" type="button" data-map-basemap="map" aria-pressed="true">Map</button>
+                    </div>
+                    <div class="map-zoom" role="group" aria-label="Map zoom">
+                      <button class="icon-btn" id="map-zoom-in" type="button" aria-label="Zoom in" data-tooltip="Zoom in">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                          <path d="M8 3.5v9M3.5 8h9" />
+                        </svg>
+                      </button>
+                      <button class="icon-btn" id="map-zoom-out" type="button" aria-label="Zoom out" data-tooltip="Zoom out">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                          <path d="M3.5 8h9" />
+                        </svg>
+                      </button>
+                    </div>
+                    <button class="icon-btn map-recenter" id="map-recenter" type="button" aria-label="Recenter map" data-tooltip="Recenter map">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+                      </svg>
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <div class="dash-stat-grid dash-widget" data-widget="stats">
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">Total Shipments</p>
+                <p class="type-heading-h5 type-weight-semibold" data-kn="active-total">12</p>
+                <p class="kpi-trend positive type-caption-sm">Visibility catalog</p>
+              </article>
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">In Transit</p>
+                <p class="type-heading-h5 type-weight-semibold" data-kn="in-transit">7</p>
+                <p class="kpi-trend positive type-caption-sm">Enroute and in motion</p>
+              </article>
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">On Hold</p>
+                <p class="type-heading-h5 type-weight-semibold" data-kn="on-hold">2</p>
+                <p class="kpi-trend negative type-caption-sm">Needs action</p>
+              </article>
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">Arrived this month</p>
+                <p class="type-heading-h5 type-weight-semibold" data-kn="arrived">2</p>
+                <p class="kpi-trend positive type-caption-sm">At POD or ready for pickup</p>
+              </article>
+            </div>
+
+            <div class="split-grid dash-widget" data-widget="feeds">
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <h2 class="type-heading-h6 type-weight-semibold">Upcoming Arrivals</h2>
+                  </div>
+                  <a class="blade-link type-ui-sm" href="#klearhub-visibility">View all</a>
+                </div>
+                <ul class="blade-list" id="dash-arrivals"></ul>
+              </article>
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <h2 class="type-heading-h6 type-weight-semibold">Recent Filings</h2>
+                  </div>
+                  <a class="blade-link type-ui-sm" href="#e-invoices">View all</a>
+                </div>
+                <ul class="blade-list" id="dash-filings"></ul>
+              </article>
+            </div>
+
+            <div class="dash-chart-grid dash-widget" data-widget="charts">
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <h2 class="type-heading-h6 type-weight-semibold">Shipments by lane</h2>
+                  </div>
+                </div>
+                <div class="dash-bars" id="dash-lanes" role="img" aria-label="Shipments by origin country"></div>
+                <p class="dash-legend type-caption-sm">
+                  <span class="dash-legend__swatch chart-cat--blue"></span> Ocean
+                  <span class="dash-legend__swatch chart-cat--green"></span> Air
+                  <span class="dash-legend__swatch chart-cat--gold"></span> Truck
+                </p>
+              </article>
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <h2 class="type-heading-h6 type-weight-semibold">Mode mix</h2>
+                  </div>
+                </div>
+                <div class="dash-donut-wrap">
+                  <div class="dash-donut" id="dash-donut" role="img" aria-label="Mode mix">
+                    <span class="dash-donut__center">
+                      <strong class="type-heading-h5" data-kn="active-total">12</strong>
+                      <span class="type-caption-sm">active</span>
+                    </span>
+                  </div>
+                  <ul class="dash-donut__legend" id="dash-mot-legend"></ul>
+                </div>
+              </article>
+            </div>
+
+            <section class="panel card dash-widget" data-widget="shipments">
+              <div class="card-header">
+                <div class="card-header__leading">
+                  <h2 class="type-heading-h6 type-weight-semibold">Recent shipments</h2>
+                </div>
+                <a class="blade-link type-ui-sm" href="#klearhub-visibility">Open Visibility</a>
+              </div>
+              <div class="vis-table-scroll">
+                <table class="vis-table dash-table">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="type-caption-sm type-weight-medium">Shipment</th>
+                      <th scope="col" class="type-caption-sm type-weight-medium">Lane</th>
+                      <th scope="col" class="type-caption-sm type-weight-medium">Consignee</th>
+                      <th scope="col" class="type-caption-sm type-weight-medium">Status</th>
+                      <th scope="col" class="vis-table__num type-caption-sm type-weight-medium">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-recent-body"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <div class="dash-stat-grid dash-widget" data-widget="finance">
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">Duty &amp; fees this month</p>
+                <p class="type-heading-h5 type-weight-semibold amount" data-kn="duty">$186,420</p>
+                <p class="kpi-trend positive type-caption-sm">+4.2% vs last month</p>
+              </article>
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">
+                  Demurrage exposure
+                  <button type="button" class="info-tip" aria-label="About demurrage exposure" data-tooltip="Estimated fees if containers stay at the terminal after free time ends.">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
+                  </button>
+                </p>
+                <p class="type-heading-h5 type-weight-semibold amount amount--negative" data-kn="demurrage-usd">$12,840</p>
+                <p class="kpi-trend negative type-caption-sm" data-kn="demurrage-trend">1 container exceeded</p>
+              </article>
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">Invoices collected</p>
+                <p class="type-heading-h5 type-weight-semibold amount" data-kn="collected">$94,210</p>
+                <p class="kpi-trend positive type-caption-sm" data-kn="collected-trend">18 paid this week</p>
+              </article>
+              <article class="panel card dash-stat-card">
+                <p class="type-caption-sm type-weight-medium">Service charges</p>
+                <p class="type-heading-h5 type-weight-semibold amount" data-kn="service">$6,480</p>
+                <p class="kpi-trend positive type-caption-sm">On track</p>
+              </article>
+            </div>
+
+            <div class="split-grid dash-widget" data-widget="health">
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <h2 class="type-heading-h6 type-weight-semibold">Shipment health</h2>
+                  </div>
+                </div>
+                <p class="type-body-sm" data-kn="health-copy">75% of active shipments are on track this month.</p>
+                <div class="progress-bar" id="dash-health-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="75" aria-label="Shipment health">
+                  <div class="progress-bar__meta">
+                    <span class="type-caption-sm">On track</span>
+                    <span class="type-caption-sm type-weight-semibold" data-kn="health-pct">75%</span>
+                  </div>
+                  <div class="progress-bar__track">
+                    <span class="progress-bar__fill" id="dash-health-fill" style="width: 75%"></span>
+                  </div>
+                </div>
+                <div class="info-group">
+                  <div class="info-item">
+                    <span class="info-item__key type-caption-sm">On track</span>
+                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="ontime">9</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-item__key type-caption-sm">Delayed</span>
+                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="delayed">2</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-item__key type-caption-sm">On hold</span>
+                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="on-hold">2</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-item__key type-caption-sm">Action needed</span>
+                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="action">3</span>
+                  </div>
+                </div>
+              </article>
+              <article class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <h2 class="type-heading-h6 type-weight-semibold">Outstanding invoices</h2>
+                  </div>
+                  <a class="blade-link type-ui-sm" href="#e-invoices">View all</a>
+                </div>
+                <ul class="blade-list" id="dash-invoices"></ul>
+              </article>
+            </div>
+            </div>
+          </section>
+
+          <section class="kh-overview" id="klearhub-overview-page" hidden>
+            <header class="hero kh-overview__hero">
+              <div class="hero-copy kh-overview__intro">
+                <h1 class="type-heading-h3">By mode</h1>
+                <p class="type-body-md">Ocean, air, truck, and rail. Start of shift lives on Dashboard.</p>
+                <div class="kh-tabs" role="tablist" aria-label="Mode view">
+                  <button
+                    class="btn btn--primary btn--sm type-ui-sm"
+                    id="kh-tab-klearview"
+                    type="button"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="kh-panel-klearview"
+                    data-kh-tab="klearview"
+                  >
+                    KlearView
+                  </button>
+                  <button
+                    class="btn btn--tertiary btn--sm type-ui-sm"
+                    id="kh-tab-container"
+                    type="button"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="kh-panel-container"
+                    data-kh-tab="container"
+                  >
+                    Container
+                  </button>
+                </div>
+              </div>
+              <div class="hero-actions kh-overview__actions">
+                <button class="btn btn--tertiary btn--sm type-ui-sm" id="kh-collapse-all" type="button">Collapse All</button>
+              </div>
+            </header>
+
+            <div class="kh-panel" id="kh-panel-klearview" role="tabpanel" aria-labelledby="kh-tab-klearview">
+              <section class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="indicator indicator--positive" aria-hidden="true"></span>
+                    <h2 class="type-heading-h5 type-weight-semibold">Snapshot</h2>
+                  </div>
+                </div>
+                <div class="kh-stat-grid">
+                  <article class="kpi-card">
+                    <div class="kpi-card__copy">
+                      <p class="kpi-value type-heading-h4" data-kn="kh-active">12</p>
+                      <p class="kpi-trend positive type-body-sm type-weight-medium">+12% <span class="metric-caption type-weight-regular">vs last month</span></p>
+                    </div>
+                    <span class="kpi-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 17h18l-2-6H8L3 17Z" />
+                        <path d="M8 11V7h8l2 4" />
+                        <circle cx="8" cy="19" r="1.5" />
+                        <circle cx="16" cy="19" r="1.5" />
+                      </svg>
+                    </span>
+                  </article>
+                  <article class="kpi-card">
+                    <div class="kpi-card__copy">
+                      <p class="kpi-value type-heading-h4" data-kn="kh-waiting">2</p>
+                      <p class="kpi-trend positive type-body-sm type-weight-medium">+5% <span class="metric-caption type-weight-regular">vs last month</span></p>
+                    </div>
+                    <span class="kpi-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 8.5 12 3.5 3 8.5v7l9 5 9-5v-7Z" />
+                        <path d="M3 8.5 12 13.5 21 8.5" />
+                        <path d="M12 13.5V20.5" />
+                      </svg>
+                    </span>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="indicator indicator--information" aria-hidden="true"></span>
+                    <h2 class="type-heading-h5 type-weight-semibold">Start of shift</h2>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="type-body-sm">Alerts, holds, and work for today are on Dashboard. Use this page for mode mix.</p>
+                  <div class="kh-launchpad">
+                    <a class="btn btn--primary btn--md type-ui-md" href="#dashboard" data-kn-goto>Open Dashboard</a>
+                    <a class="btn btn--secondary btn--md type-ui-md" href="#klearhub-visibility">Open Visibility</a>
+                  </div>
+                </div>
+              </section>
+
+              <div class="kh-mode-stack" id="kh-mode-stack"></div>
+            </div>
+
+            <div class="kh-panel" id="kh-panel-container" role="tabpanel" aria-labelledby="kh-tab-container" hidden>
+              <section class="panel card">
+                <div class="card-header">
+                  <div class="card-header__leading">
+                    <span class="indicator indicator--positive" aria-hidden="true"></span>
+                    <h2 class="type-heading-h5 type-weight-semibold">Snapshot</h2>
+                  </div>
+                </div>
+                <div class="kh-stat-grid kh-stat-grid--3">
+                  <article class="kpi-card">
+                    <div class="kpi-card__copy">
+                      <p class="kpi-value type-heading-h4" data-kn="kh-containers">12</p>
+                      <p class="kpi-trend positive type-body-sm type-weight-medium">+2.1% <span class="metric-caption type-weight-regular">vs last month</span></p>
+                    </div>
+                    <span class="kpi-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 8.5 12 3.5 3 8.5v7l9 5 9-5v-7Z" />
+                        <path d="M3 8.5 12 13.5 21 8.5" />
+                        <path d="M12 13.5V20.5" />
+                      </svg>
+                    </span>
+                  </article>
+                  <article class="kpi-card">
+                    <div class="kpi-card__copy">
+                      <p class="kpi-value type-heading-h4" data-kn="kh-in-transit">7</p>
+                      <p class="kpi-trend positive type-body-sm type-weight-medium">+2.1% <span class="metric-caption type-weight-regular">vs last month</span></p>
+                    </div>
+                    <span class="kpi-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 8.5 12 3.5 3 8.5v7l9 5 9-5v-7Z" />
+                        <path d="M3 8.5 12 13.5 21 8.5" />
+                        <path d="M12 13.5V20.5" />
+                      </svg>
+                    </span>
+                  </article>
+                  <article class="kpi-card">
+                    <div class="kpi-card__copy">
+                      <p class="kpi-value type-heading-h4" data-kn="kh-drayage">2</p>
+                      <p class="kpi-trend negative type-body-sm type-weight-medium">-8% <span class="metric-caption type-weight-regular">vs last month</span></p>
+                    </div>
+                    <span class="kpi-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 7h11v9H3V7Z" />
+                        <path d="M14 10h4l3 3v3h-7v-6Z" />
+                        <circle cx="7" cy="19" r="1.5" />
+                        <circle cx="17" cy="19" r="1.5" />
+                      </svg>
+                    </span>
+                  </article>
+                </div>
+              </section>
+
+              <div class="kh-mode-stack" id="kh-container-stack">
+                <details class="kh-accordion panel card" open>
+                  <summary class="kh-accordion__header">
+                    <span class="kh-accordion__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 17h18l-2-6H8L3 17Z" />
+                        <path d="M8 11V7h8l2 4" />
+                        <circle cx="8" cy="19" r="1.5" />
+                        <circle cx="16" cy="19" r="1.5" />
+                      </svg>
+                    </span>
+                    <span class="kh-accordion__title type-heading-h6 type-weight-semibold">Ocean Shipments</span>
+                    <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                      <path d="M4 6l4 4 4-4" />
+                    </svg>
+                  </summary>
+                  <div class="kh-accordion__body">
+                    <div class="split-grid kh-group-grid">
+                      <article class="subpanel">
+                        <h3 class="risk-title type-heading-h6 type-weight-semibold">Risk Management</h3>
+                        <ul class="metric-list">
+                          <li>
+                            <a class="metric-row danger" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Demurrage Exceeded</span>
+                              <strong class="type-heading-h5" data-kn="kh-risk-demurrage-exceeded">1</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Per Diem Exceeded</span>
+                              <strong class="type-heading-h5" data-kn="kh-risk-per-diem-exceeded">0</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row notice" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Demurrage Risk</span>
+                              <strong class="type-heading-h5" data-kn="kh-risk-demurrage">2</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">In Per Diem Risk</span>
+                              <strong class="type-heading-h5" data-kn="kh-risk-per-diem">0</strong>
+                            </a>
+                          </li>
+                        </ul>
+                      </article>
+                      <article class="subpanel">
+                        <h3 class="event-title type-heading-h6 type-weight-semibold">Container Lifecycle</h3>
+                        <ul class="metric-list">
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Container not Released</span>
+                              <strong class="type-heading-h5" data-kn="kh-not-released">3</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility" data-vis-open='{"record":"container","risk":"hold"}'>
+                              <span class="metric-label type-heading-h5 type-weight-medium">Container on Hold</span>
+                              <strong class="type-heading-h5" data-kn="kh-hold">2</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Ready for Pickup</span>
+                              <strong class="type-heading-h5" data-kn="kh-ready">1</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Container Gate Out</span>
+                              <strong class="type-heading-h5" data-kn="kh-gate-out">0</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Container Gate In Empty</span>
+                              <strong class="type-heading-h5" data-kn="kh-gate-in">0</strong>
+                            </a>
+                          </li>
+                        </ul>
+                      </article>
+                      <article class="subpanel">
+                        <h3 class="type-heading-h6 type-weight-semibold">Port of Lading</h3>
+                        <ul class="metric-list">
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">Waiting to Depart POL</span>
+                              <strong class="type-heading-h5" data-kn="kh-pol-wait">2</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">POL ETD change in last 4 days</span>
+                              <strong class="type-heading-h5" data-kn="kh-pol-etd">1</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">At Transship Port</span>
+                              <strong class="type-heading-h5" data-kn="kh-transship">0</strong>
+                            </a>
+                          </li>
+                        </ul>
+                      </article>
+                      <article class="subpanel">
+                        <h3 class="type-heading-h6 type-weight-semibold">Port of Unlading</h3>
+                        <ul class="metric-list">
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">POU ETA change in last 4 days</span>
+                              <strong class="type-heading-h5" data-kn="kh-pou-eta">2</strong>
+                            </a>
+                          </li>
+                          <li>
+                            <a class="metric-row" href="#klearhub-visibility">
+                              <span class="metric-label type-heading-h5 type-weight-medium">AT Port of Unlading</span>
+                              <strong class="type-heading-h5" data-kn="kh-pou-at">1</strong>
+                            </a>
+                          </li>
+                        </ul>
+                      </article>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </section>
+
+          <section class="kh-overview vis-page" id="klearhub-visibility-page" hidden>
+            <div class="vis-skeleton dash-skeleton" id="vis-skeleton" hidden role="status" aria-live="polite">
+              <span class="visually-hidden">Loading visibility</span>
+              <header class="hero kh-overview__hero">
+                <div class="skeleton-stack">
+                  <span class="skeleton skeleton--title" style="width: 10rem"></span>
+                  <span class="skeleton skeleton--line" style="width: 22rem; max-width: 100%"></span>
+                </div>
+                <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 9.5rem"></span>
+              </header>
+              <section class="panel card vis-workspace" aria-hidden="true">
+                <div class="vis-toolbar">
+                  <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 7.25rem"></span>
+                  <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 5.5rem"></span>
+                  <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 9rem"></span>
+                  <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 12rem"></span>
+                  <span class="skeleton skeleton--btn skeleton--btn-md" style="flex: 1 1 14rem; max-width: 18rem"></span>
+                </div>
+                <div class="vis-quickfilters">
+                  <span class="skeleton skeleton--badge" style="width: 4.25rem"></span>
+                  <span class="skeleton skeleton--badge" style="width: 8.25rem"></span>
+                  <span class="skeleton skeleton--badge" style="width: 5.5rem"></span>
+                  <span class="skeleton skeleton--badge" style="width: 5.75rem"></span>
+                  <span class="skeleton skeleton--badge" style="width: 6rem"></span>
+                </div>
+                <div class="vis-split vis-skeleton__split">
+                  <div class="skeleton-stack vis-skeleton__list">
+                    <span class="skeleton skeleton--row vis-skeleton__card"></span>
+                    <span class="skeleton skeleton--row vis-skeleton__card"></span>
+                    <span class="skeleton skeleton--row vis-skeleton__card"></span>
+                    <span class="skeleton skeleton--row vis-skeleton__card"></span>
+                    <span class="skeleton skeleton--row vis-skeleton__card"></span>
+                  </div>
+                  <span class="skeleton skeleton--map vis-skeleton__map"></span>
+                </div>
+              </section>
+            </div>
+            <div id="vis-list-shell">
+            <header class="hero kh-overview__hero">
+              <div class="hero-copy kh-overview__intro">
+                <div class="vis-title-row">
+                  <h1 class="type-heading-h3" id="vis-page-title">Visibility</h1>
+                  <span class="live-status">
+                    <span class="indicator indicator--positive" aria-hidden="true"></span>
+                    <span class="type-caption-sm">Live</span>
+                  </span>
+                </div>
+                <p class="type-body-md">Track live shipments across ocean, air, truck, and rail.</p>
+              </div>
+              <div class="hero-actions kh-overview__actions">
+                <button
+                  class="btn btn--tertiary btn--sm type-ui-sm"
+                  id="vis-old-view"
+                  type="button"
+                  title="Legacy Visibility is not available in this workspace"
+                >
+                  Switch to old view
+                </button>
+              </div>
+            </header>
+
+            <p class="visually-hidden" id="vis-live" aria-live="polite"></p>
+
+            <section class="panel card vis-workspace" aria-labelledby="vis-page-title">
+              <div class="vis-toolbar">
+                <div class="kh-tabs" role="tablist" aria-label="Visibility view">
+                  <button
+                    class="btn btn--primary btn--sm type-ui-sm"
+                    id="vis-tab-cards"
+                    type="button"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="vis-panel-cards"
+                    data-vis-tab="cards"
+                  >
+                    Card &amp; Map
+                  </button>
+                  <button
+                    class="btn btn--tertiary btn--sm type-ui-sm"
+                    id="vis-tab-table"
+                    type="button"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="vis-panel-table"
+                    data-vis-tab="table"
+                  >
+                    Table
+                  </button>
+                </div>
+
+                <div class="vis-toolbar__filters">
+                  <div class="vis-menu">
+                    <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-mot-trigger" type="button" aria-label="Mode of transport" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-mot-menu">
+                      MOT: All
+                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 6l4 4 4-4" />
+                      </svg>
+                    </button>
+                    <div class="menu-overlay vis-menu__list" id="vis-mot-menu" hidden role="listbox" aria-labelledby="vis-mot-trigger">
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-mot="all" aria-selected="true">All</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-mot="ocean" aria-selected="false">Ocean</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-mot="air" aria-selected="false">Air</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-mot="truck" aria-selected="false">Truck</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-mot="rail" aria-selected="false">Rail</button>
+                    </div>
+                  </div>
+
+                  <div class="vis-menu">
+                    <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-record-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-record-menu">
+                      View: Consolidated
+                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 6l4 4 4-4" />
+                      </svg>
+                    </button>
+                    <div class="menu-overlay vis-menu__list" id="vis-record-menu" hidden role="listbox" aria-labelledby="vis-record-trigger">
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-record="all" aria-selected="true">Consolidated</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-record="shipment" aria-selected="false">Shipments</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-record="container" aria-selected="false">Containers</button>
+                    </div>
+                  </div>
+
+                  <div class="vis-menu">
+                    <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-sort-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-sort-menu">
+                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                        <path d="M5 4v8M3.5 5.5 5 4l1.5 1.5M11 12V4M9.5 10.5 11 12l1.5-1.5" />
+                      </svg>
+                      Created date (newest first)
+                    </button>
+                    <div class="menu-overlay vis-menu__list" id="vis-sort-menu" hidden role="listbox" aria-labelledby="vis-sort-trigger">
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-sort="newest" aria-selected="true">Created date (newest first)</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-sort="oldest" aria-selected="false">Created date (oldest first)</button>
+                    </div>
+                  </div>
+
+                  <div class="vis-menu">
+                    <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-direction-trigger" type="button" aria-label="Direction" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-direction-menu">
+                      All
+                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 6l4 4 4-4" />
+                      </svg>
+                    </button>
+                    <div class="menu-overlay vis-menu__list" id="vis-direction-menu" hidden role="listbox" aria-labelledby="vis-direction-trigger">
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="all" aria-selected="true">All</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="Import" aria-selected="false">Import</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="Export" aria-selected="false">Export</button>
+                    </div>
+                  </div>
+
+                  <div class="search-input vis-search">
+                    <span class="search-input__icon" aria-hidden="true">
+                      <img src="./assets/quick-actions/search.svg" width="16" height="16" alt="" />
+                    </span>
+                    <input
+                      class="search-input__field type-body-sm"
+                      id="vis-search"
+                      type="search"
+                      placeholder="Search ID, container, PO, or port"
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-label="Search shipments by ID, container, PO, or port"
+                    />
+                    <button class="search-input__clear icon-btn" type="button" id="vis-search-clear" hidden aria-label="Clear search" data-tooltip="Clear search">
+                      <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
+                    </button>
+                  </div>
+
+                  <div class="vis-toolbar__icons">
+                    <div class="vis-menu vis-menu--end">
+                      <button class="icon-btn" id="vis-filter-trigger" type="button" aria-label="Reset filters" data-tooltip="Reset filters" aria-haspopup="menu" aria-expanded="false" aria-controls="vis-filter-menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M4 6h16M7 12h10M10 18h4" />
+                        </svg>
+                      </button>
+                      <div class="menu-overlay vis-menu__list" id="vis-filter-menu" hidden role="menu" aria-labelledby="vis-filter-trigger">
+                        <button class="action-list-item type-ui-sm" type="button" role="menuitem" data-vis-reset>Reset all filters</button>
+                      </div>
+                    </div>
+
+                    <div class="vis-menu vis-menu--end">
+                      <button class="icon-btn" id="vis-more-trigger" type="button" aria-label="More actions" data-tooltip="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="vis-more-menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+                          <circle cx="12" cy="5" r="1.25" />
+                          <circle cx="12" cy="12" r="1.25" />
+                          <circle cx="12" cy="19" r="1.25" />
+                        </svg>
+                      </button>
+                      <div class="menu-overlay vis-menu__list" id="vis-more-menu" hidden role="menu" aria-labelledby="vis-more-trigger">
+                        <button class="action-list-item type-ui-sm" type="button" role="menuitem" id="vis-refresh">Refresh list</button>
+                        <button class="action-list-item type-ui-sm" type="button" role="menuitem" id="vis-reset-filters">Reset filters</button>
+                        <span class="menu-divider" role="separator"></span>
+                        <button class="action-list-item type-ui-sm" type="button" role="menuitem" id="vis-export-data">Export data</button>
+                        <button class="action-list-item type-ui-sm" type="button" role="menuitem" id="vis-export-docs" aria-disabled="true" data-tooltip="Export documents is not connected yet.">Export documents</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="vis-quickfilters" id="vis-quickfilters" role="radiogroup" aria-label="Risk filter">
+                  <button class="vis-chip is-selected" type="button" role="radio" data-vis-risk="all" aria-checked="true">
+                    All
+                    <span class="counter" data-vis-count="all">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="action" aria-checked="false">
+                    Action needed
+                    <span class="counter" data-vis-count="action">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="arrived" aria-checked="false">
+                    At destination
+                    <span class="counter" data-vis-count="arrived">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="hold" aria-checked="false">
+                    On hold
+                    <span class="counter" data-vis-count="hold">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="delayed" aria-checked="false">
+                    Delayed
+                    <span class="counter" data-vis-count="delayed">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="transit" aria-checked="false">
+                    In transit
+                    <span class="counter" data-vis-count="transit">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="waiting" aria-checked="false">
+                    Waiting
+                    <span class="counter" data-vis-count="waiting">0</span>
+                  </button>
+                  <button class="vis-chip" type="button" role="radio" data-vis-risk="ontime" aria-checked="false">
+                    On track
+                    <span class="counter" data-vis-count="ontime">0</span>
+                  </button>
+                </div>
+
+                <div class="vis-split" id="vis-panel-cards" role="tabpanel" aria-labelledby="vis-tab-cards" tabindex="0">
+                <div class="vis-list">
+                  <div class="vis-card-list" id="vis-card-list" role="listbox" aria-label="Shipments" aria-activedescendant=""></div>
+                  <nav class="vis-pagination" id="vis-pagination" aria-label="Shipment pages"></nav>
+                </div>
+                <article class="map-panel vis-map-panel" id="vis-map-panel">
+                  <div class="map-stage">
+                    <div class="shipment-map" id="visibility-map" role="region" aria-label="Live shipment map"></div>
+                    <span class="map-ais-chip indicator-field" data-ais-status tabindex="0" data-tooltip="Vessel positions update as they report in">
+                      <span class="indicator indicator--positive" aria-hidden="true"></span>
+                      <span class="type-caption-sm" data-ais-label>Live positions</span>
+                    </span>
+                    <div class="map-basemap vis-map-basemap" role="group" aria-label="Map view">
+                      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-vis-basemap="satellite" aria-pressed="false">Satellite</button>
+                      <button class="btn btn--primary btn--sm type-ui-sm" type="button" data-vis-basemap="map" aria-pressed="true">Map</button>
+                    </div>
+                    <div class="map-zoom" role="group" aria-label="Map zoom">
+                      <button class="icon-btn" id="vis-map-zoom-in" type="button" aria-label="Zoom in" data-tooltip="Zoom in">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                          <path d="M8 3.5v9M3.5 8h9" />
+                        </svg>
+                      </button>
+                      <button class="icon-btn" id="vis-map-zoom-out" type="button" aria-label="Zoom out" data-tooltip="Zoom out">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                          <path d="M3.5 8h9" />
+                        </svg>
+                      </button>
+                    </div>
+                    <button class="icon-btn vis-map-refresh" id="vis-map-refresh" type="button" aria-label="Refresh map" data-tooltip="Reset map view">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 12a9 9 0 1 1-3-6.7" />
+                        <path d="M21 3v6h-6" />
+                      </svg>
+                    </button>
+                    <button class="icon-btn vis-map-expand" id="vis-map-expand" type="button" aria-label="Expand map" data-tooltip="Expand map">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 4H4v5M15 4h5v5M4 15v5h5M20 15v5h-5" />
+                      </svg>
+                    </button>
+                  </div>
+                </article>
+              </div>
+
+              <div class="vis-table-wrap" id="vis-panel-table" role="tabpanel" aria-labelledby="vis-tab-table" hidden tabindex="0">
+                <div class="vis-table-scroll">
+                  <table class="vis-table vis-table--klearhub vis-table--compact" id="vis-table" aria-label="Shipments table">
+                    <thead>
+                      <tr class="vis-table__labels">
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Shipment ID</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Container(s)</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Master Bill</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">House Bill</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">MOT</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">PO Number</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Status</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Port of Lading</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Departure Date</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Port of Unlading</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Arrival Date</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Country</span></th>
+                        <th scope="col"><span class="type-caption-sm type-weight-medium">Company</span></th>
+                      </tr>
+                      <tr class="vis-table__filters">
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="id" type="search" placeholder="Search" aria-label="Filter shipment ID" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="container" type="search" placeholder="Search" aria-label="Filter containers" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="masterBill" type="search" placeholder="Search" aria-label="Filter master bill" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="hbol" type="search" placeholder="Search" aria-label="Filter house bill" /></th>
+                        <th scope="col" aria-hidden="true"></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="po" type="search" placeholder="Search" aria-label="Filter PO number" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="status" type="search" placeholder="Search" aria-label="Filter status" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="pol" type="search" placeholder="Search" aria-label="Filter port of lading" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="etd" type="search" placeholder="Search" aria-label="Filter departure date" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="pou" type="search" placeholder="Search" aria-label="Filter port of unlading" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="eta" type="search" placeholder="Search" aria-label="Filter arrival date" /></th>
+                        <th scope="col" aria-hidden="true"></th>
+                        <th scope="col" aria-hidden="true"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="vis-table-body"></tbody>
+                  </table>
+                </div>
+                <nav class="vis-pagination" id="vis-table-pagination" aria-label="Table pages"></nav>
+              </div>
+            </section>
+            </div>
+          </section>
+
+          <section class="empty-page" id="empty-page" hidden>
+            <div class="empty-state empty-state--page">
+              <span class="empty-state__asset" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="7" width="18" height="13" rx="2" />
+                  <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M3 12h18" />
+                </svg>
+              </span>
+              <h1 class="type-heading-h4 type-weight-semibold" id="empty-page-title">Page</h1>
+              <p class="type-body-sm" id="empty-page-description">This workspace section is not available yet.</p>
+              <a class="btn btn--primary btn--md type-ui-md" id="empty-page-cta" href="#dashboard">Back to Dashboard</a>
+            </div>
+          </section>
+        </main>
+      </div>
+      </div>
+    </div>
+
+    <div class="blade-drawer-root" id="dash-layout-drawer" hidden>
+      <div class="blade-drawer__overlay" data-drawer-dismiss tabindex="-1"></div>
+      <aside
+        class="blade-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dash-layout-title"
+        aria-describedby="dash-layout-subtitle"
+      >
+        <header class="blade-drawer__header">
+          <span class="blade-drawer__header-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0 1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </span>
+          <div class="blade-drawer__titles">
+            <h2 class="type-heading-h5 type-weight-semibold" id="dash-layout-title">Customize dashboard</h2>
+            <p class="type-body-sm" id="dash-layout-subtitle">Drag widgets to reorder them. Toggle to show or hide.</p>
+          </div>
+          <button class="icon-btn" type="button" id="dash-layout-close" data-drawer-dismiss aria-label="Close">
+            <img src="./assets/quick-actions/close.svg" width="20" height="20" alt="" />
+          </button>
+        </header>
+        <div class="blade-drawer__body">
+          <ul class="widget-sort-list" id="dash-widget-list"></ul>
+        </div>
+        <footer class="blade-drawer__footer">
+          <button class="btn btn--tertiary btn--md type-ui-md" type="button" id="dash-layout-reset" aria-label="Reset widgets to the original dashboard layout">Reset to default</button>
+          <div class="blade-drawer__footer-actions">
+            <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-drawer-dismiss>Cancel</button>
+            <button class="btn btn--primary btn--md type-ui-md" type="button" id="dash-layout-save">Save</button>
+          </div>
+        </footer>
+      </aside>
+    </div>
+
+    <div class="blade-drawer-root" id="hold-list-drawer" hidden>
+      <div class="blade-drawer__overlay" data-hold-drawer-dismiss tabindex="-1"></div>
+      <aside
+        class="blade-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hold-drawer-title"
+        aria-describedby="hold-drawer-subtitle"
+      >
+        <header class="blade-drawer__header">
+          <span class="blade-drawer__header-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="7" width="18" height="13" rx="2" />
+              <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </span>
+          <div class="blade-drawer__titles">
+            <h2 class="type-heading-h5 type-weight-semibold" id="hold-drawer-title">Containers on Hold</h2>
+            <p class="type-body-sm" id="hold-drawer-subtitle">Review every hold, then open the shipment or Visibility.</p>
+          </div>
+          <button class="icon-btn" type="button" id="hold-drawer-close" data-hold-drawer-dismiss aria-label="Close">
+            <img src="./assets/quick-actions/close.svg" width="20" height="20" alt="" />
+          </button>
+        </header>
+        <div class="blade-drawer__body">
+          <ul class="action-feed__list" id="hold-drawer-list"></ul>
+        </div>
+        <footer class="blade-drawer__footer">
+          <a class="btn btn--primary btn--md type-ui-md" href="#klearhub-visibility" data-vis-open='{"record":"container","risk":"hold"}' data-hold-drawer-dismiss>Open in Visibility</a>
+        </footer>
+      </aside>
+    </div>
+
+    <div class="blade-drawer-root kn-detail-drawer" id="kn-detail-drawer" hidden>
+      <div class="blade-drawer__overlay" data-kn-detail-close tabindex="-1"></div>
+      <aside
+        class="blade-drawer kn-detail"
+        id="kn-detail-page"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="kn-detail-id"
+      ></aside>
+    </div>
+
+    <div class="blade-toast-container" id="blade-toast-container" aria-live="polite" aria-relevant="additions"></div>
+
+    <script src="./theme.js?v=8"></script>
+    <script src="./breakpoints.js?v=8"></script>
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="./map-config.js?v=3"></script>
+    <script src="./shipments-data.js?v=6"></script>
+    <script src="./map-ux.js?v=3"></script>
+    <script src="./ais-live.js?v=4"></script>
+    <script src="./visibility.js?v=28"></script>
+    <script src="./shipment-detail.js?v=11"></script>
+    <script src="./script.js?v=65"></script>
+  </body>
+</html>

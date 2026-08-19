@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./tokens.css?v=36" />
-    <link rel="stylesheet" href="./styles.css?v=128" />
+    <link rel="stylesheet" href="./styles.css?v=134" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -900,6 +900,7 @@
                           </button>
                         </h3>
                         <span class="counter counter--negative counter--intense type-caption-sm type-weight-semibold" data-kn="alert-demurrage-total">0</span>
+                        <a class="blade-link type-ui-sm alert-card__all" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-viewall" hidden>View all</a>
                       </div>
                       <p class="alert-card__lede type-caption-sm">Terminal free time is ending</p>
                     </div>
@@ -911,7 +912,6 @@
                   </div>
                   <footer class="alert-card__footer">
                     <a class="btn btn--primary btn--sm btn--color-negative type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-cta">Request Drayage</a>
-                    <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-viewall" hidden>View all</a>
                   </footer>
                 </article>
                 <article class="alert-card alert-notice" aria-labelledby="alert-delay-title" id="alert-delay-card">
@@ -926,6 +926,7 @@
                       <div class="alert-card__title-row">
                         <h3 class="type-heading-h6 type-weight-semibold" id="alert-delay-title">Shipment Delays</h3>
                         <span class="counter counter--notice counter--intense type-caption-sm type-weight-semibold" data-kn="alert-delay-total">0</span>
+                        <a class="blade-link type-ui-sm alert-card__all" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-viewall" hidden>View all</a>
                       </div>
                       <p class="alert-card__lede type-caption-sm">Schedule slipped vs original ETA</p>
                       <p class="alert-card__meta type-caption-sm" id="alert-delay-eta-wrap" hidden>Earliest ETA <span data-kn="alert-delay-eta">—</span></p>
@@ -938,7 +939,6 @@
                   </div>
                   <footer class="alert-card__footer">
                     <a class="btn btn--primary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-cta">Review delays</a>
-                    <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-viewall" hidden>View all</a>
                   </footer>
                 </article>
                 <article class="alert-card alert-information" aria-labelledby="alert-hold-title" id="alert-hold-card">
@@ -953,6 +953,7 @@
                       <div class="alert-card__title-row">
                         <h3 class="type-heading-h6 type-weight-semibold" id="alert-hold-title">Containers on Hold</h3>
                         <span class="counter counter--information counter--intense type-caption-sm type-weight-semibold" data-kn="alert-hold-total">0</span>
+                        <a class="blade-link type-ui-sm alert-card__all" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-viewall" hidden>View all</a>
                       </div>
                       <p class="alert-card__lede type-caption-sm">Release blocked by exam or documents</p>
                     </div>
@@ -963,7 +964,6 @@
                   </div>
                   <footer class="alert-card__footer">
                     <a class="btn btn--primary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-cta">Review Holds</a>
-                    <a class="blade-link type-ui-sm" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-viewall" hidden>View all</a>
                   </footer>
                 </article>
               </div>
@@ -1923,6 +1923,6 @@
     <script src="./ais-live.js?v=4"></script>
     <script src="./visibility.js?v=28"></script>
     <script src="./shipment-detail.js?v=11"></script>
-    <script src="./script.js?v=65"></script>
+    <script src="./script.js?v=69"></script>
   </body>
 </html>

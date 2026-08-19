@@ -84,6 +84,19 @@ function holdItemHtml(row, index) {
   `;
 }
 
+const ALERT_BODY_LIMIT = 3;
+
+function previewAlertRows(rows) {
+  return rows.slice(0, ALERT_BODY_LIMIT);
+}
+
+function syncAlertViewAll(linkId, total) {
+  const link = document.getElementById(linkId);
+  if (link) {
+    link.hidden = total <= ALERT_BODY_LIMIT;
+  }
+}
+
 function alertHitHtml(id, reason, meta, stamp, tooltip, tone = "neutral", visOpen = { record: "all", risk: "hold" }) {
   const tip = tooltip ? ` data-tooltip="${tooltip}"` : "";
   const indicator = tone === "neutral" ? "" : `<span class="indicator indicator--${tone}" aria-hidden="true"></span>`;
@@ -99,24 +112,12 @@ function alertHitHtml(id, reason, meta, stamp, tooltip, tone = "neutral", visOpe
   </li>`;
 }
 
-function clipAlertLists() {
-  document.querySelectorAll("#alerts-body .alert-card__list-wrap").forEach((wrap) => {
-    wrap.classList.toggle("is-clipped", wrap.querySelectorAll(".alert-hit").length > 2);
-  });
-}
-
 const holdDrawerList = document.getElementById("hold-drawer-list");
 holdRows.forEach((row, index) => {
   const li = document.createElement("li");
   li.innerHTML = holdItemHtml(row, index);
   holdDrawerList?.appendChild(li);
 });
-
-const holdViewAll = document.getElementById("alert-hold-viewall");
-if (holdRows.length > 2 && holdViewAll) {
-  holdViewAll.hidden = false;
-  holdViewAll.textContent = `View all (${holdRows.length})`;
-}
 
 // ── Demurrage Risk ───────────────────────────────────────────────────────────
 const demurrageRows = (visSummary.rows || visSummary.arrivals || []).filter((item) =>
@@ -125,42 +126,34 @@ const demurrageRows = (visSummary.rows || visSummary.arrivals || []).filter((ite
 
 const demurrageHits = document.getElementById("alert-demurrage-hits");
 const demurrageEmpty = document.getElementById("alert-demurrage-empty");
-const demurrageViewAll = document.getElementById("alert-demurrage-viewall");
 if (demurrageHits) {
   if (demurrageRows.length === 0) {
     if (demurrageEmpty) demurrageEmpty.hidden = false;
   } else {
     const fmt = typeof window.knFormatEta === "function" ? window.knFormatEta : (d) => d;
-    demurrageHits.innerHTML = demurrageRows
+    demurrageHits.innerHTML = previewAlertRows(demurrageRows)
       .map((item) => {
         const statusLabel = /ready for pickup/i.test(item.status || "") ? "Ready for pickup" : "At port of delivery";
         return alertHitHtml(item.id, statusLabel, item.dest.city, fmt(item.dest.date), "", "negative", { record: "all", risk: "arrived" });
       })
       .join("");
-    if (demurrageViewAll && demurrageRows.length > 2) {
-      demurrageViewAll.hidden = false;
-      demurrageViewAll.textContent = `View all (${demurrageRows.length})`;
-    }
+    syncAlertViewAll("alert-demurrage-viewall", demurrageRows.length);
   }
 }
 
 // ── Shipment Delays ──────────────────────────────────────────────────────────
 const delayHits = document.getElementById("alert-delay-hits");
 const delayEmpty = document.getElementById("alert-delay-empty");
-const delayViewAll = document.getElementById("alert-delay-viewall");
 const delayedRows = visSummary.delayedRows || [];
 if (delayHits) {
   if (delayedRows.length === 0) {
     if (delayEmpty) delayEmpty.hidden = false;
   } else {
     const fmt = typeof window.knFormatEta === "function" ? window.knFormatEta : (d) => d;
-    delayHits.innerHTML = delayedRows
+    delayHits.innerHTML = previewAlertRows(delayedRows)
       .map((item) => alertHitHtml(item.id, item.delay, item.dest.city, fmt(item.dest.date), "", "notice", { record: "all", risk: "delayed" }))
       .join("");
-    if (delayViewAll && delayedRows.length > 2) {
-      delayViewAll.hidden = false;
-      delayViewAll.textContent = `View all (${delayedRows.length})`;
-    }
+    syncAlertViewAll("alert-delay-viewall", delayedRows.length);
   }
 }
 
@@ -171,13 +164,12 @@ if (holdHits) {
   if (holdRows.length === 0) {
     if (holdEmpty) holdEmpty.hidden = false;
   } else {
-    holdHits.innerHTML = holdRows
+    holdHits.innerHTML = previewAlertRows(holdRows)
       .map((row) => alertHitHtml(row.id, row.reason, `${row.container} · ${row.location}`, row.release, holdHints[row.reason], "information", { record: "all", risk: "hold" }))
       .join("");
+    syncAlertViewAll("alert-hold-viewall", holdRows.length);
   }
 }
-
-clipAlertLists();
 
 const kpiGrid = document.getElementById("kpi-grid");
 const riskList = document.getElementById("risk-list");
@@ -3037,13 +3029,13 @@ function hydrateDashFromVisibility() {
         const pct = (value) => `${Math.round((value / max) * 100)}%`;
         return `
           <div class="dash-bars__row">
-            <span class="type-caption-sm">${country}</span>
+            <span class="dash-bars__label type-caption-sm" data-tooltip="${country}">${country}</span>
             <div class="dash-bars__track">
               <span class="dash-bars__seg chart-cat--blue" style="width: ${pct(counts.ocean)}"></span>
               <span class="dash-bars__seg chart-cat--green" style="width: ${pct(counts.air)}"></span>
               <span class="dash-bars__seg chart-cat--gold" style="width: ${pct(counts.truck)}"></span>
             </div>
-            <strong class="type-caption-sm">${counts.total}</strong>
+            <strong class="dash-bars__value type-caption-sm">${counts.total}</strong>
           </div>
         `;
       })

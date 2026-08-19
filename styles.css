@@ -20,8 +20,7 @@
 .blade-drawer__body,
 #kn-detail-panel,
 .vis-card-list,
-.vis-table-scroll,
-.alert-card__list-wrap.is-clipped .alert-card__hits {
+.vis-table-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--kn-color-border-surface-gray-normal) transparent;
 }
@@ -29,8 +28,7 @@
 .blade-drawer__body::-webkit-scrollbar,
 #kn-detail-panel::-webkit-scrollbar,
 .vis-card-list::-webkit-scrollbar,
-.vis-table-scroll::-webkit-scrollbar,
-.alert-card__list-wrap.is-clipped .alert-card__hits::-webkit-scrollbar {
+.vis-table-scroll::-webkit-scrollbar {
   display: block;
   width: var(--theme-spacing-3);
   height: var(--theme-spacing-3);
@@ -39,8 +37,7 @@
 .blade-drawer__body::-webkit-scrollbar-thumb,
 #kn-detail-panel::-webkit-scrollbar-thumb,
 .vis-card-list::-webkit-scrollbar-thumb,
-.vis-table-scroll::-webkit-scrollbar-thumb,
-.alert-card__list-wrap.is-clipped .alert-card__hits::-webkit-scrollbar-thumb {
+.vis-table-scroll::-webkit-scrollbar-thumb {
   background: var(--kn-color-border-surface-gray-normal);
   border-radius: var(--radius-control);
 }
@@ -1195,9 +1192,24 @@ button:focus-visible {
 
 .dash-bars__row {
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr) 2rem;
+  grid-template-columns: 8rem minmax(0, 1fr) 2rem;
   align-items: center;
   gap: var(--theme-spacing-3);
+}
+
+.dash-bars__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-bars__value {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .dash-bars__track {
@@ -2255,8 +2267,6 @@ p:has(.info-tip) {
 .alert-card {
   --alert-row-h: 3.375rem;
   --alert-row-gap: var(--theme-spacing-2);
-  --alert-peek: 2.35;
-  --alert-fade: var(--kn-color-background-interactive-staticWhite-default);
   position: relative;
   isolation: isolate;
   border-radius: var(--radius-surface-large);
@@ -2317,19 +2327,16 @@ p:has(.info-tip) {
 }
 
 .alert-negative {
-  --alert-fade: var(--kn-color-background-feedback-negative-subtle);
   background: var(--kn-color-background-feedback-negative-subtle);
   border-color: var(--kn-color-border-feedback-negative-subtle);
 }
 
 .alert-notice {
-  --alert-fade: var(--kn-color-background-feedback-notice-subtle);
   background: var(--kn-color-background-feedback-notice-subtle);
   border-color: var(--kn-color-border-feedback-notice-subtle);
 }
 
 .alert-information {
-  --alert-fade: var(--kn-color-background-feedback-information-subtle);
   background: var(--kn-color-background-feedback-information-subtle);
   border-color: var(--kn-color-border-feedback-information-subtle);
 }
@@ -2420,40 +2427,12 @@ p:has(.info-tip) {
 
 .alert-card__list-wrap {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--alert-row-gap);
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  max-height: calc(var(--alert-row-h) * var(--alert-peek) + var(--alert-row-gap) * 2);
-  overflow: hidden;
-}
-
-/* Reserve space only when list items are present */
-.alert-card__list-wrap:has(.alert-hit) {
-  min-height: calc(var(--alert-row-h) * var(--alert-peek) + var(--alert-row-gap) * 2);
-}
-
-.alert-card__list-wrap.is-clipped,
-.alert-card__list-wrap.is-clipped:has(.alert-hit) {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.alert-card__list-wrap.is-clipped .alert-card__hits {
-  max-height: 100%;
-  overflow-y: auto;
-  padding-bottom: var(--theme-spacing-8);
-}
-
-.alert-card__list-wrap.is-clipped::after {
-  content: "";
-  position: absolute;
-  left: var(--theme-spacing-0);
-  right: var(--theme-spacing-0);
-  bottom: var(--theme-spacing-0);
-  height: var(--theme-spacing-10);
-  pointer-events: none;
-  z-index: 1;
-  background: linear-gradient(to bottom, transparent, var(--alert-fade));
 }
 
 .alert-card__empty {
@@ -2529,7 +2508,6 @@ p:has(.info-tip) {
 #alerts-body {
   --alert-row-h: 3.75rem;
   --alert-row-gap: var(--theme-spacing-3);
-  --alert-peek: 2.2;
   align-items: stretch;
   gap: var(--theme-spacing-4);
 }
@@ -2568,6 +2546,11 @@ p:has(.info-tip) {
 #alerts-body .alert-card__title-row .counter {
   margin-left: var(--theme-spacing-0);
   flex-shrink: 0;
+}
+
+#alerts-body .alert-card__all {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 #alerts-body .alert-card__icon {
@@ -2639,7 +2622,7 @@ p:has(.info-tip) {
 #alerts-body .alert-card__footer {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--theme-spacing-4);
   margin-top: auto;
@@ -2652,6 +2635,10 @@ p:has(.info-tip) {
 }
 
 .alert-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--theme-spacing-4);
   margin-top: auto;
   padding-top: var(--theme-spacing-4);
   border-top: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);

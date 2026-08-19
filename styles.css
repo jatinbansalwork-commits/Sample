@@ -162,23 +162,11 @@ button:focus-visible {
   height: 100%;
 }
 
-.top-nav-brand-divider {
-  width: var(--theme-border-width-thin);
-  height: var(--theme-spacing-5);
-  flex-shrink: 0;
-  background: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
-}
-
 .top-nav-logo {
   display: block;
   height: var(--theme-spacing-6);
   width: auto;
   object-fit: contain;
-}
-
-.top-nav-logo--klearnow {
-  max-width: 8.75rem;
-  mix-blend-mode: screen;
 }
 
 .top-nav-logo--slb {

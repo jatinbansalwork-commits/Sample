@@ -2873,14 +2873,17 @@ button.action-feed__item {
   color: var(--kn-color-text-feedback-information-intense);
 }
 
-.badge--negative.badge--intense {
-  background: var(--kn-color-icon-feedback-negative-intense);
+.badge.badge--negative.badge--intense,
+.badge.badge--notice.badge--intense {
   color: var(--kn-color-text-surface-staticWhite-normal);
 }
 
-.badge--notice.badge--intense {
+.badge.badge--negative.badge--intense {
+  background: var(--kn-color-icon-feedback-negative-intense);
+}
+
+.badge.badge--notice.badge--intense {
   background: var(--kn-color-icon-feedback-notice-intense);
-  color: var(--kn-color-text-surface-staticWhite-normal);
 }
 
 #kpi-grid.kpi-grid {
@@ -5754,7 +5757,7 @@ body.is-widget-sorting * {
   align-items: center;
 }
 
-.kn-section-card__head .type-caption-sm {
+.kn-section-card__head .type-caption-sm:not(.badge) {
   color: var(--kn-color-text-surface-gray-muted);
 }
 

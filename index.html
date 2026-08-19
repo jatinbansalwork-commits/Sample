@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./tokens.css?v=36" />
-    <link rel="stylesheet" href="./styles.css?v=134" />
+    <link rel="stylesheet" href="./styles.css?v=138" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -1166,38 +1166,40 @@
             </div>
 
             <div class="split-grid dash-widget" data-widget="health">
-              <article class="panel card">
+              <article class="panel card dash-health">
                 <div class="card-header">
                   <div class="card-header__leading">
                     <h2 class="type-heading-h6 type-weight-semibold">Shipment health</h2>
                   </div>
                 </div>
                 <p class="type-body-sm" data-kn="health-copy">75% of active shipments are on track this month.</p>
-                <div class="progress-bar" id="dash-health-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="75" aria-label="Shipment health">
-                  <div class="progress-bar__meta">
-                    <span class="type-caption-sm">On track</span>
-                    <span class="type-caption-sm type-weight-semibold" data-kn="health-pct">75%</span>
+                <div class="dash-health__metrics">
+                  <div class="progress-bar" id="dash-health-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="75" aria-label="Shipment health">
+                    <div class="progress-bar__meta">
+                      <span class="type-caption-sm">On track</span>
+                      <span class="type-caption-sm type-weight-semibold" data-kn="health-pct">75%</span>
+                    </div>
+                    <div class="progress-bar__track">
+                      <span class="progress-bar__fill" id="dash-health-fill" style="width: 75%"></span>
+                    </div>
                   </div>
-                  <div class="progress-bar__track">
-                    <span class="progress-bar__fill" id="dash-health-fill" style="width: 75%"></span>
-                  </div>
-                </div>
-                <div class="info-group">
-                  <div class="info-item">
-                    <span class="info-item__key type-caption-sm">On track</span>
-                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="ontime">9</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-item__key type-caption-sm">Delayed</span>
-                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="delayed">2</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-item__key type-caption-sm">On hold</span>
-                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="on-hold">2</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-item__key type-caption-sm">Action needed</span>
-                    <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="action">3</span>
+                  <div class="info-group">
+                    <div class="info-item">
+                      <span class="info-item__key type-caption-sm">On track</span>
+                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="ontime">9</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-item__key type-caption-sm">Delayed</span>
+                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="delayed">2</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-item__key type-caption-sm">On hold</span>
+                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="on-hold">2</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-item__key type-caption-sm">Action needed</span>
+                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="action">3</span>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -1922,7 +1924,7 @@
     <script src="./map-ux.js?v=3"></script>
     <script src="./ais-live.js?v=4"></script>
     <script src="./visibility.js?v=28"></script>
-    <script src="./shipment-detail.js?v=11"></script>
-    <script src="./script.js?v=69"></script>
+    <script src="./shipment-detail.js?v=14"></script>
+    <script src="./script.js?v=71"></script>
   </body>
 </html>

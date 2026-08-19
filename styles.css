@@ -1136,6 +1136,17 @@ button:focus-visible {
   background: var(--kn-color-icon-feedback-positive-intense);
 }
 
+.dash-health {
+  height: 100%;
+}
+
+.dash-health__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-5);
+  margin-top: auto;
+}
+
 .info-group {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1223,6 +1234,7 @@ button:focus-visible {
 .dash-bars__seg {
   display: block;
   height: 100%;
+  cursor: default;
 }
 
 .dash-bars__seg--primary {
@@ -6207,6 +6219,12 @@ body.is-widget-sorting * {
   border-width: var(--theme-border-width-none);
   box-shadow: none;
   border-radius: var(--theme-spacing-0);
+}
+
+.kn-refs__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-8);
 }
 
 .kn-refs__cards {

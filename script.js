@@ -90,6 +90,71 @@ function previewAlertRows(rows) {
   return rows.slice(0, ALERT_BODY_LIMIT);
 }
 
+function attrTip(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+}
+
+function motPlaces(country, counts) {
+  const namesByMot = { ocean: [], air: [], truck: [], rail: [] };
+  ["ocean", "air", "truck", "rail"].forEach((mot) => {
+    if (counts[mot]) {
+      namesByMot[mot].push(country);
+    }
+  });
+  return namesByMot;
+}
+
+function originLaneRows(origin, limit = 5) {
+  const ranked = Object.entries(origin || {}).sort((a, b) => b[1].total - a[1].total);
+  if (ranked.length <= limit) {
+    return ranked.map(([country, counts]) => ({
+      label: country,
+      hint: country,
+      counts,
+      namesByMot: motPlaces(country, counts)
+    }));
+  }
+  const head = ranked.slice(0, limit - 1);
+  const rest = ranked.slice(limit - 1);
+  const counts = { total: 0, ocean: 0, air: 0, truck: 0, rail: 0 };
+  const namesByMot = { ocean: [], air: [], truck: [], rail: [] };
+  const names = rest.map(([country, item]) => {
+    counts.total += item.total;
+    counts.ocean += item.ocean;
+    counts.air += item.air;
+    counts.truck += item.truck;
+    counts.rail += item.rail;
+    ["ocean", "air", "truck", "rail"].forEach((mot) => {
+      if (item[mot]) {
+        namesByMot[mot].push(country);
+      }
+    });
+    return country;
+  });
+  return [
+    ...head.map(([country, item]) => ({
+      label: country,
+      hint: country,
+      counts: item,
+      namesByMot: motPlaces(country, item)
+    })),
+    { label: "Other", hint: names.join(" · "), counts, namesByMot }
+  ];
+}
+
+function laneSegHtml(tone, mot, value, max, places) {
+  if (!value || !max) {
+    return "";
+  }
+  const mode = typeof knMotLabel === "function" ? knMotLabel(mot) : mot;
+  const where = (places || []).join(", ");
+  const tip = where ? `${mode} · ${where}` : `${mode} · ${value}`;
+  return `<span class="dash-bars__seg chart-cat--${tone}" style="width: ${Math.round((value / max) * 100)}%" data-tooltip="${attrTip(tip)}"></span>`;
+}
+
 function syncAlertViewAll(linkId, total) {
   const link = document.getElementById(linkId);
   if (link) {
@@ -3021,21 +3086,22 @@ function hydrateDashFromVisibility() {
 
   const lanes = document.getElementById("dash-lanes");
   if (lanes) {
-    const countries = Object.entries(summary.origin || {}).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
-    const max = countries[0]?.[1].total || 1;
+    const rows = originLaneRows(summary.origin);
+    const max = rows[0]?.counts.total || 1;
     lanes.setAttribute("aria-label", "Shipments by origin country");
-    lanes.innerHTML = countries
-      .map(([country, counts]) => {
-        const pct = (value) => `${Math.round((value / max) * 100)}%`;
+    lanes.innerHTML = rows
+      .map((row) => {
+        const rowTip = row.label === "Other" ? ` data-tooltip="${attrTip(row.hint)}" tabindex="0"` : "";
         return `
-          <div class="dash-bars__row">
-            <span class="dash-bars__label type-caption-sm" data-tooltip="${country}">${country}</span>
+          <div class="dash-bars__row"${rowTip}>
+            <span class="dash-bars__label type-caption-sm">${row.label}</span>
             <div class="dash-bars__track">
-              <span class="dash-bars__seg chart-cat--blue" style="width: ${pct(counts.ocean)}"></span>
-              <span class="dash-bars__seg chart-cat--green" style="width: ${pct(counts.air)}"></span>
-              <span class="dash-bars__seg chart-cat--gold" style="width: ${pct(counts.truck)}"></span>
+              ${laneSegHtml("blue", "ocean", row.counts.ocean, max, row.namesByMot?.ocean)}
+              ${laneSegHtml("green", "air", row.counts.air, max, row.namesByMot?.air)}
+              ${laneSegHtml("gold", "truck", row.counts.truck, max, row.namesByMot?.truck)}
+              ${laneSegHtml("sky", "rail", row.counts.rail, max, row.namesByMot?.rail)}
             </div>
-            <strong class="dash-bars__value type-caption-sm">${counts.total}</strong>
+            <strong class="dash-bars__value type-caption-sm">${row.counts.total}</strong>
           </div>
         `;
       })

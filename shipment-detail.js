@@ -906,7 +906,7 @@
   }
 
   function renderRefGroups(fields, recordId) {
-    return groupRefFields(fields)
+    const sections = groupRefFields(fields)
       .map(
         (group) => `<section class="kn-refs__block" data-kn-ref-section data-kn-ref-type="${group.type}">
         <h3 class="type-caption-sm type-weight-semibold">${escapeHtml(group.title)}</h3>
@@ -916,6 +916,31 @@
       </section>`
       )
       .join("");
+    return `<div class="kn-refs__stack">${sections}</div>`;
+  }
+
+  function renderRefCard(record) {
+    const isMerch = Boolean(record.sku);
+    const isInvoice = Boolean(record.invoice) && !isMerch;
+    const title = isMerch ? record.sku : isInvoice ? record.invoice : refsUi.shipmentId;
+    const subtitle = isMerch
+      ? `${escapeHtml(record.id)} · ${escapeHtml(record.invoice)}`
+      : isInvoice
+        ? "Invoice references"
+        : "Shipment references";
+    const trailing = isMerch
+      ? `<span class="badge badge--information type-caption-sm type-weight-medium">SKU</span>`
+      : `<span class="code type-caption-sm">${escapeHtml(isInvoice ? record.invoice : refsUi.shipmentId)}</span>`;
+    return `<article class="panel card kn-refs__card" data-kn-ref-card>
+            <header class="kn-refs__card-head">
+              <div>
+                <p class="type-ui-sm type-weight-semibold">${escapeHtml(title)}</p>
+                <p class="type-caption-sm">${subtitle}</p>
+              </div>
+              ${trailing}
+            </header>
+            ${renderRefGroups(record.fields, record.id)}
+          </article>`;
   }
 
   function applyRefsFilter() {
@@ -1031,16 +1056,29 @@
     field?.classList.add("is-active");
   }
 
-  function focusRefValue(control, { select = true } = {}) {
+  function focusRefValue(control, { select = true, scroll = true } = {}) {
     if (!control) {
       return;
     }
-    control.focus();
-    control.scrollIntoView({ block: "nearest", inline: "nearest" });
+    control.focus({ preventScroll: !scroll });
+    if (scroll) {
+      control.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
     markActiveRefField(refFieldOf(control));
     if (select && control.select && control.type !== "date" && control.tagName !== "TEXTAREA") {
       control.select();
     }
+  }
+
+  function resetRefsPanelScroll() {
+    const panel = document.getElementById("kn-detail-panel");
+    if (!panel) {
+      return;
+    }
+    panel.scrollTop = 0;
+    requestAnimationFrame(() => {
+      panel.scrollTop = 0;
+    });
   }
 
   function findRefControl(record, key, part = "value") {
@@ -1361,12 +1399,13 @@
     applyRefsFilter();
     syncRefsFooter();
     syncRefScopeTabs();
+    resetRefsPanelScroll();
     if (opts.focus === "first-empty") {
-      focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
+      focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0], { scroll: false });
       return;
     }
     if (opts.focus === "first") {
-      focusRefValue(refsValueControls()[0]);
+      focusRefValue(refsValueControls()[0], { scroll: false });
       return;
     }
     if (opts.record && opts.key) {
@@ -1396,24 +1435,7 @@
         : refsUi.scope === "merchandise"
           ? `${refsUi.catalog.merchandise.length} SKUs`
           : "Shipment-level fields";
-    const cards =
-      refsUi.scope === "shipment"
-        ? `<div data-kn-ref-form>${renderRefGroups(records[0].fields, records[0].id)}</div>`
-        : `<div class="kn-refs__cards" data-kn-ref-form>${records
-            .map((record) => {
-              const isMerch = Boolean(record.sku);
-              return `<article class="panel card kn-refs__card" data-kn-ref-card>
-            <header class="kn-refs__card-head">
-              <div>
-                <p class="type-ui-sm type-weight-semibold">${escapeHtml(isMerch ? record.sku : record.invoice)}</p>
-                <p class="type-caption-sm">${isMerch ? `${escapeHtml(record.id)} · ${escapeHtml(record.invoice)}` : "Invoice references"}</p>
-              </div>
-              ${isMerch ? `<span class="badge badge--information type-caption-sm type-weight-medium">SKU</span>` : `<span class="code type-caption-sm">${escapeHtml(record.invoice)}</span>`}
-            </header>
-            ${renderRefGroups(record.fields, record.id)}
-          </article>`;
-            })
-            .join("")}</div>`;
+    const cards = `<div class="kn-refs__cards" data-kn-ref-form>${records.map(renderRefCard).join("")}</div>`;
     return `<div class="kn-refs" id="kn-refs" aria-describedby="kn-refs-hint">
       <div class="kn-refs__toolbar">
         <div class="kh-tabs kn-refs__scopes" role="tablist" aria-label="Reference set">
@@ -1745,7 +1767,10 @@
       applyRefsFilter();
       syncRefsFooter();
       syncRefScopeTabs();
-      queueMicrotask(() => focusRefValue(refsValueControls()[0], { select: !refsPointerFocus }));
+      queueMicrotask(() => {
+        resetRefsPanelScroll();
+        focusRefValue(refsValueControls()[0], { select: !refsPointerFocus, scroll: false });
+      });
     }
   }
 

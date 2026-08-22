@@ -89,7 +89,8 @@
     showUnused: false,
     catalog: null,
     saved: null,
-    draftSavedAt: ""
+    draftSavedAt: "",
+    selectOpen: ""
   };
   const REFS_DRAFT_KEY = "kn-ref-drafts";
 
@@ -308,7 +309,7 @@
   const emptyState = (icon, title, description, action = "") =>
     `<div class="empty-state vis-empty-state kn-empty">
       <span class="empty-state__asset" aria-hidden="true">${icon}</span>
-      <p class="type-heading-h6 type-weight-semibold">${escapeHtml(title)}</p>
+      <p class="type-heading-h5 type-weight-semibold">${escapeHtml(title)}</p>
       <p class="type-body-sm">${escapeHtml(description)}</p>
       ${action}
     </div>`;
@@ -363,16 +364,18 @@
     const air = item.mot === "air";
     const departLabel = air ? "PLANE TOOK OFF" : item.mot === "truck" ? "TRUCK DEPARTED" : item.mot === "rail" ? "RAIL DEPARTED" : "VESSEL DEPARTED";
     const arriveLabel = air ? "PLANE LANDED" : item.mot === "truck" ? "TRUCK ARRIVED" : item.mot === "rail" ? "RAIL ARRIVED" : "VESSEL ARRIVED";
+    const released = arrived && item.status !== "On Hold";
+    const delivered = /ready for pickup/i.test(item.status || "");
     return [
       { title: "SHIPMENT CREATED", done: true, at: created },
-      { title: "INTAKE IN PROCESS", done: false },
+      { title: "INTAKE COMPLETE", done: departed || arrived, at: departed || arrived ? addHours(created, air ? 4 : 12) : "" },
       { title: departLabel, done: departed, at: departed ? addHours(created, air ? 18 : 72) : "" },
-      { title: "BROKER TO BE ASSIGNED", done: false },
-      { title: "ENTRY SUMMARY TO BE FILED", done: arrived && item.status !== "On Hold" },
-      { title: "CARGO RELEASE TO BE FILED", done: false },
-      { title: "PGA STATUS", done: false },
+      { title: "BROKER ASSIGNED", done: departed, at: departed ? addHours(created, air ? 20 : 80) : "" },
+      { title: "ENTRY SUMMARY FILED", done: released, at: released ? addHours(created, air ? 26 : 220) : "" },
+      { title: "CARGO RELEASE FILED", done: released, at: released ? addHours(created, air ? 28 : 230) : "" },
+      { title: "PGA STATUS", done: released, at: released ? addHours(created, air ? 29 : 236) : "" },
       { title: arriveLabel, done: arrived, at: arrived ? addHours(created, air ? 30 : 240) : "" },
-      { title: "SHIPMENT TO BE DELIVERED", done: /ready for pickup/i.test(item.status || "") }
+      { title: "SHIPMENT DELIVERED", done: delivered, at: delivered ? addHours(created, air ? 36 : 260) : "" }
     ].map((step) => ({
       ...step,
       stamp: step.done && step.at ? formatStamp(step.at) : ""
@@ -621,6 +624,17 @@
     </span>`;
   }
 
+  function copyableCode(value, label) {
+    if (!value) {
+      return "";
+    }
+    return `<span class="vis-copy-cluster kn-journey-id">
+      <span class="type-caption-sm kn-journey-id__key">${escapeHtml(label)}</span>
+      <button class="code vis-copy-value type-caption-sm" type="button" data-copy="${escapeHtml(value)}" data-copy-label="${escapeHtml(label)}">${escapeHtml(value)}</button>
+      ${copyControl(value, label)}
+    </span>`;
+  }
+
   function renderDl(rows) {
     return `<dl class="kn-detail-dl">${rows
       .map(
@@ -632,35 +646,66 @@
       .join("")}</dl>`;
   }
 
+  function renderProgress(done, total) {
+    const max = Math.max(1, total || 0);
+    const pct = Math.round((done / max) * 100);
+    return `<div class="kn-progress" aria-label="${done} of ${max} complete">
+      <span class="kn-progress__track" aria-hidden="true"><span class="kn-progress__fill" style="width: ${pct}%"></span></span>
+      <span class="badge badge--${pct === 100 ? "positive" : pct ? "information" : "neutral"} type-caption-sm type-weight-medium">${pct}%</span>
+    </div>`;
+  }
+
   function renderSteps(steps) {
     const done = steps.filter((step) => step.done).length;
+    const currentIndex = steps.findIndex((step) => !step.done);
     return `<div class="kn-steps-wrap">
-      <p class="type-caption-sm kn-section-meta">${done} of ${steps.length} complete</p>
+      <div class="kn-steps-wrap__meta">
+        <p class="type-caption-sm kn-section-meta">${done} of ${steps.length} complete</p>
+        ${renderProgress(done, steps.length)}
+      </div>
       <ol class="kn-steps">${steps
-        .map(
-          (step) => `<li class="kn-steps__item${step.done ? " is-done" : " is-pending"}">
-        <span class="kn-steps__marker" aria-hidden="true">${step.done ? MOT_ICONS.check : ""}</span>
+        .map((step, index) => {
+          const current = index === currentIndex;
+          const state = step.done ? "is-done" : current ? "is-current" : "is-pending";
+          return `<li class="kn-steps__item ${state}">
+        <span class="kn-steps__marker" aria-hidden="true">${step.done ? MOT_ICONS.check : current ? String(index + 1) : ""}</span>
         <div class="kn-steps__copy">
-          <p class="type-ui-sm type-weight-semibold">${escapeHtml(titleCase(step.title))}</p>
-          <p class="type-caption-sm">${step.stamp ? escapeHtml(step.stamp) : "Pending"}</p>
+          <div class="kn-steps__title">
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(titleCase(step.title))}</p>
+            ${current ? `<span class="badge badge--notice type-caption-sm type-weight-medium">In progress</span>` : ""}
+          </div>
+          <p class="type-caption-sm">${step.stamp ? escapeHtml(step.stamp) : current ? "Waiting on the next milestone" : "Pending"}</p>
         </div>
-      </li>`
-        )
+      </li>`;
+        })
         .join("")}</ol>
     </div>`;
+  }
+
+  function journeyKindTone(kind) {
+    if (kind === "Destination") {
+      return "positive";
+    }
+    if (kind === "Origin") {
+      return "information";
+    }
+    return "neutral";
   }
 
   function renderJourneyStops(item) {
     const stops = buildJourneys(item);
     const ordered = journeyDescending ? stops : [...stops].reverse();
     return `<ol class="kn-journey">${ordered
-      .map((stop) => {
+      .map((stop, index) => {
         const events = journeyExpanded || !stop.extra ? stop.events : stop.events.slice(0, 3);
-        const more = stop.extra && !journeyExpanded ? `<button class="blade-link type-caption-sm" type="button" data-kn-detail-more>Show More (${stop.extra})</button>` : "";
+        const more = stop.extra && !journeyExpanded ? `<button class="blade-link type-caption-sm" type="button" data-kn-detail-more>Show ${stop.extra} more events</button>` : "";
         return `<li class="kn-journey__item${stop.highlight ? " is-highlight" : ""}">
           <span class="kn-journey__marker" aria-hidden="true">${MOT_ICONS[item.mot] || MOT_ICONS.air}</span>
           <div class="kn-journey__body">
-            <p class="type-caption-sm kn-journey__kind">${escapeHtml(stop.kind)}</p>
+            <div class="kn-journey__topline">
+              <span class="badge badge--${journeyKindTone(stop.kind)} type-caption-sm type-weight-medium">${escapeHtml(stop.kind)}</span>
+              <span class="type-caption-sm kn-section-meta">Stop ${index + 1} of ${ordered.length}</span>
+            </div>
             <p class="type-ui-sm type-weight-semibold">${escapeHtml(stop.place)}</p>
             <dl class="kn-journey__events">${events
               .map(
@@ -681,26 +726,68 @@
     if (item.mot === "air" || !item.container) {
       return emptyState(MOT_ICONS.ocean, "No container on this shipment", "Air and some truck moves do not carry an ocean container record.");
     }
-    return `<article class="panel card kn-section-card">
-      <header class="kn-section-card__head">
-        <div>
-          <h2 class="type-heading-h6 type-weight-semibold">Container</h2>
-          <p class="type-caption-sm">${escapeHtml(item.container)} · ${item.record === "container" ? "Container" : "FCL"}</p>
+    const loadType = item.record === "container" ? "Container" : "FCL";
+    const equipment = hashNum(item.id) % 2 ? "40HC" : "20GP";
+    const seal = `SEAL${String(hashNum(`${item.id}-seal`) % 900000 + 100000)}`;
+    const terminal = item.pouLabel || item.dest.city;
+    const lastFree = (item.etaLabel || "—").replace(/^ETA\s+/i, "");
+    return `<div class="kn-container">
+      <article class="panel card kn-section-card kn-container__hero">
+        <header class="kn-section-card__head">
+          <div class="kn-container__id">
+            <p class="type-caption-sm kn-section-meta">Container number</p>
+            ${copyableCode(item.container, "Container number")}
+          </div>
+          <div class="kn-container__tags">
+            <span class="${badgeClass(item.statusTone)}">${escapeHtml(item.status)}</span>
+            <span class="badge type-caption-sm type-weight-medium">${escapeHtml(loadType)}</span>
+          </div>
+        </header>
+        <div class="kn-info kn-info--summary kn-info--three">
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Equipment</p>
+            <p class="type-ui-sm type-weight-semibold">${equipment}</p>
+            <p class="type-caption-sm">ISO dry van</p>
+          </div>
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Last free date</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(lastFree)}</p>
+            <p class="type-caption-sm">At ${escapeHtml(terminal)}</p>
+          </div>
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Carrier</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(CARRIERS[item.mot] || "—")}</p>
+            <p class="type-caption-sm">${escapeHtml(MOT_LABELS[item.mot] || item.mot)}</p>
+          </div>
         </div>
-        <span class="${badgeClass(item.statusTone)}">${escapeHtml(item.status)}</span>
-      </header>
-      ${renderDl([
-        ["Container #", codeChip(item.container)],
-        ["Type", item.record === "container" ? "Container" : "FCL"],
-        ["Equipment", "40HC"],
-        ["Last free date", escapeHtml(item.etaLabel || "—")],
-        ["Per diem date", "—"],
-        ["Hazmat", "No"],
-        ["Delivery", escapeHtml(item.dest.city)],
-        ["Ocean carrier", escapeHtml(CARRIERS[item.mot] || "—")],
-        ["Terminal", escapeHtml(item.pouLabel || item.dest.city)]
-      ])}
-    </article>`;
+      </article>
+      <div class="kn-detail-grid kn-container__grid">
+        <article class="panel card kn-section-card">
+          <header class="kn-section-card__head">
+            <h3 class="type-heading-h6 type-weight-semibold">Equipment</h3>
+          </header>
+          ${renderDl([
+            ["Container #", codeChip(item.container)],
+            ["Load type", escapeHtml(loadType)],
+            ["Equipment", equipment],
+            ["Seal", codeChip(seal)],
+            ["Hazmat", "No"]
+          ])}
+        </article>
+        <article class="panel card kn-section-card">
+          <header class="kn-section-card__head">
+            <h3 class="type-heading-h6 type-weight-semibold">Location and dates</h3>
+          </header>
+          ${renderDl([
+            ["Delivery", escapeHtml(item.dest.city)],
+            ["Terminal", escapeHtml(terminal)],
+            ["Last free date", escapeHtml(lastFree)],
+            ["Per diem date", "—"],
+            ["Ocean carrier", escapeHtml(CARRIERS[item.mot] || "—")]
+          ])}
+        </article>
+      </div>
+    </div>`;
   }
 
   function renderDocuments(item) {
@@ -720,8 +807,8 @@
             <span class="kn-doc__icon" aria-hidden="true">${MOT_ICONS.file}</span>
             <span class="kn-doc__copy">
               <span class="kn-file">
-                <span class="kn-file__chip badge badge--${doc.tone} type-caption-sm type-weight-medium">${escapeHtml(doc.type)}</span>
                 <strong class="type-ui-sm type-weight-semibold">${escapeHtml(doc.name)}</strong>
+                <span class="kn-file__chip badge badge--${doc.tone} type-caption-sm type-weight-medium">${escapeHtml(doc.type)}</span>
               </span>
               <span class="type-caption-sm">Ingested ${escapeHtml(doc.date)}</span>
             </span>
@@ -732,7 +819,7 @@
       </ul>
       <div class="empty-state vis-empty-state kn-empty" data-kn-doc-empty hidden>
         <span class="empty-state__asset" aria-hidden="true">${MOT_ICONS.search}</span>
-        <p class="type-heading-h6 type-weight-semibold">No matching files</p>
+        <p class="type-heading-h5 type-weight-semibold">No matching files</p>
         <p class="type-body-sm">Nothing in this shipment matches that search.</p>
         <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-kn-doc-clear>Clear search</button>
       </div>
@@ -836,7 +923,8 @@
       showUnused: false,
       catalog: stored ? stored.catalog : cloneRefs(published),
       saved: published,
-      draftSavedAt: stored?.savedAt || ""
+      draftSavedAt: stored?.savedAt || "",
+      selectOpen: ""
     };
   }
 
@@ -852,7 +940,8 @@
       showUnused: false,
       catalog: null,
       saved: null,
-      draftSavedAt: ""
+      draftSavedAt: "",
+      selectOpen: ""
     };
   }
 
@@ -1426,6 +1515,27 @@
     footer.querySelector("[data-kn-ref-reset]")?.toggleAttribute("disabled", !dirty);
   }
 
+  function renderRefTypeSelect() {
+    return window.KNAdminUX.select({
+      id: "kn-ref-type",
+      name: "refType",
+      value: refsUi.type,
+      options: REF_TYPES,
+      placeholder: "All",
+      openKey: "refType",
+      open: refsUi.selectOpen,
+      compact: true,
+      includeEmpty: false
+    });
+  }
+
+  function patchRefTypeSelect() {
+    const wrap = refsRoot()?.querySelector("[data-kn-ref-type-wrap]");
+    if (wrap) {
+      wrap.innerHTML = renderRefTypeSelect();
+    }
+  }
+
   function renderReferences(item) {
     ensureRefsState(item);
     const records = activeRefRecords();
@@ -1461,11 +1571,9 @@
         </div>
       </div>
       <div class="kn-ref-search">
-        <label class="kn-ref-search__type">
+        <label class="kn-ref-search__type" data-kn-ref-type-wrap>
           <span class="visually-hidden">Reference type</span>
-          <select class="type-ui-sm type-weight-semibold" data-kn-ref-type aria-label="Filter by type">
-            ${REF_TYPES.map((entry) => `<option value="${entry.id}" ${entry.id === refsUi.type ? "selected" : ""}>${escapeHtml(entry.label)}</option>`).join("")}
-          </select>
+          ${renderRefTypeSelect()}
         </label>
         <span class="kn-ref-search__rule" aria-hidden="true"></span>
         <label class="search-input kn-ref-search__input">
@@ -1477,7 +1585,7 @@
       ${cards}
       <div class="empty-state vis-empty-state" data-kn-ref-empty-state hidden>
         <span class="empty-state__asset" aria-hidden="true">${MOT_ICONS.search}</span>
-        <p class="type-heading-h6 type-weight-semibold" data-kn-ref-empty-title>No matching references</p>
+        <p class="type-heading-h5 type-weight-semibold" data-kn-ref-empty-title>No matching references</p>
         <p class="type-body-sm" data-kn-ref-empty-copy>Nothing in this set matches that search.</p>
         <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-kn-ref-clear-filters>Clear search</button>
         <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-kn-ref-show-empty hidden>Show empty fields</button>
@@ -1534,31 +1642,65 @@
     const activities = buildActivities(item);
     const lastEvent = `Destination schedule arrival updated`;
     if (tab === "activities") {
-      return `<article class="panel card kn-section-card">
-        <header class="kn-section-card__head">
-          <h2 class="type-heading-h6 type-weight-semibold">Shipment activities</h2>
-        </header>
-        ${renderSteps(activities)}
-      </article>`;
+      const current = activities.find((step) => !step.done);
+      const latest = [...activities].reverse().find((step) => step.done);
+      return `<div class="kn-activity">
+        <div class="kn-info kn-info--summary kn-info--two">
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Latest completed</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(titleCase(latest?.title || lastEvent))}</p>
+            <p class="type-caption-sm">${latest?.stamp ? escapeHtml(latest.stamp) : "No timestamp yet"}</p>
+          </div>
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Next milestone</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(titleCase(current?.title || "Shipment complete"))}</p>
+            <p class="type-caption-sm">${current ? "In progress" : "All milestones complete"}</p>
+          </div>
+        </div>
+        <article class="panel card kn-section-card">
+          <header class="kn-section-card__head">
+            <h3 class="type-heading-h6 type-weight-semibold">Shipment timeline</h3>
+          </header>
+          ${renderSteps(activities)}
+        </article>
+      </div>`;
     }
     if (tab === "journeys") {
-      return `<article class="panel card kn-section-card">
-        <header class="kn-section-card__head kn-section-card__head--stack">
-          <div>
-            <h2 class="type-heading-h6 type-weight-semibold">Master journey</h2>
-            <p class="type-caption-sm">${codeChip(item.masterBill || item.mbol)}</p>
+      const bill = item.masterBill || item.mbol || "";
+      const stops = buildJourneys(item);
+      return `<div class="kn-journey-page">
+        <div class="kn-info kn-info--summary kn-info--two">
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Origin</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(item.polLabel || item.origin.city)}</p>
+            <p class="type-caption-sm">${escapeHtml((item.etdLabel || item.origin.date || "").replace(/^ETD\s+/i, "") || "—")}</p>
           </div>
-          <label class="kn-order">
-            <span class="type-caption-sm">Newest first</span>
-            <span class="blade-switch">
-              <input type="checkbox" role="switch" ${journeyDescending ? "checked" : ""} data-kn-journey-order aria-label="Order journeys newest first" />
-              <span class="blade-switch__ui"></span>
-            </span>
-          </label>
-        </header>
-        <p class="type-caption-sm kn-section-meta">Last update ${escapeHtml(formatStamp(item.created).replace(/ \d{2}:\d{2}:\d{2}$/, ""))} · ${escapeHtml(lastEvent)}</p>
-        ${renderJourneyStops(item)}
-      </article>`;
+          <div class="kn-info__item">
+            <p class="type-caption-sm kn-info__key">Destination</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(item.pouLabel || item.dest.city)}</p>
+            <p class="type-caption-sm">${escapeHtml((item.etaLabel || item.dest.date || "").replace(/^ETA\s+/i, "") || "—")}</p>
+          </div>
+        </div>
+        <article class="panel card kn-section-card">
+          <header class="kn-section-card__head kn-journey-head">
+            <div class="kn-journey-head__lead">
+              <div class="kn-journey-title">
+                <h3 class="type-heading-h6 type-weight-semibold">Master journey</h3>
+                ${copyableCode(bill, "Master bill")}
+              </div>
+              <p class="type-caption-sm kn-section-meta">${stops.length} stops · Last update ${escapeHtml(formatStamp(item.created).replace(/ \d{2}:\d{2}:\d{2}$/, ""))} · ${escapeHtml(lastEvent)}</p>
+            </div>
+            <label class="kn-order">
+              <span class="type-caption-sm">Newest first</span>
+              <span class="blade-switch">
+                <input type="checkbox" role="switch" ${journeyDescending ? "checked" : ""} data-kn-journey-order aria-label="Order journeys newest first" />
+                <span class="blade-switch__ui"></span>
+              </span>
+            </label>
+          </header>
+          ${renderJourneyStops(item)}
+        </article>
+      </div>`;
     }
     if (tab === "container") {
       return renderContainerTable(item);
@@ -1601,7 +1743,7 @@
       <div class="kn-detail-grid">
         <article class="panel card kn-section-card">
           <header class="kn-section-card__head">
-            <h2 class="type-heading-h6 type-weight-semibold">Shipment information</h2>
+            <h2 class="type-heading-h5 type-weight-semibold">Shipment information</h2>
           </header>
           ${renderDl(
             [
@@ -1617,7 +1759,7 @@
         </article>
         <article class="panel card kn-section-card">
           <header class="kn-section-card__head">
-            <h2 class="type-heading-h6 type-weight-semibold">Bills of lading</h2>
+            <h2 class="type-heading-h5 type-weight-semibold">Bills of lading</h2>
           </header>
           ${renderDl(
             [
@@ -1630,7 +1772,7 @@
         </article>
         <article class="panel card kn-detail-map-card kn-section-card" id="kn-detail-map-panel">
           <header class="kn-section-card__head">
-            <h2 class="type-heading-h6 type-weight-semibold">Route</h2>
+            <h2 class="type-heading-h5 type-weight-semibold">Route</h2>
             <button class="blade-link type-ui-sm" type="button" id="kn-detail-map-expand">Expand map</button>
           </header>
           <div class="kn-detail-map" id="kn-detail-map" role="img" aria-label="Shipment route map"></div>
@@ -1884,6 +2026,13 @@
     }
     bound = true;
     const root = document.getElementById("kn-detail-drawer");
+    document.addEventListener("kn-close-selects", () => {
+      if (!refsUi.selectOpen) {
+        return;
+      }
+      refsUi.selectOpen = "";
+      patchRefTypeSelect();
+    });
     root?.addEventListener("pointerdown", () => {
       refsPointerFocus = true;
     });
@@ -1962,6 +2111,22 @@
         toast(toastBtn.getAttribute("data-kn-detail-toast"), toastBtn.getAttribute("data-kn-toast-color") || "information");
         return;
       }
+      const refTypeHandled = window.KNAdminUX?.handleSelectClick(event, {
+        open: refsUi.selectOpen,
+        setOpen: (next) => {
+          refsUi.selectOpen = next;
+          patchRefTypeSelect();
+        },
+        onChange: (_key, value) => {
+          refsUi.type = value || "all";
+          refsUi.selectOpen = "";
+          patchRefTypeSelect();
+          applyRefsFilter();
+        }
+      });
+      if (refTypeHandled) {
+        return;
+      }
       const refScope = event.target.closest("[data-kn-ref-scope]");
       if (refScope) {
         refsUi.scope = refScope.getAttribute("data-kn-ref-scope");
@@ -2024,11 +2189,6 @@
       }
     });
     root?.addEventListener("change", (event) => {
-      if (event.target.matches("[data-kn-ref-type]")) {
-        refsUi.type = event.target.value;
-        applyRefsFilter();
-        return;
-      }
       if (event.target.matches("[data-kn-ref-unused]")) {
         refsUi.showUnused = event.target.checked;
         applyRefsFilter();

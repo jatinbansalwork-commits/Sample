@@ -459,6 +459,18 @@
   --blade-sidenav-l2: calc(var(--blade-sidenav-expanded) - var(--blade-sidenav-collapsed));
   --blade-sidenav-item-height: 2.5rem; /* size.40 */
 
+  /* One width for every side drawer (shipment detail, admin, dashboard). 50.4rem = 806px at 16px root. */
+  --blade-drawer-width: 50.4rem;
+
+  /* Admin ListView / FormGroup widths, from Blade spacing tokens. */
+  --blade-admin-search-width: calc(var(--theme-spacing-8) * 8);
+  --blade-admin-search-max: calc(var(--theme-spacing-8) * 9);
+  --blade-admin-field-width: calc(var(--theme-spacing-8) * 14);
+  --blade-admin-name-col: calc(var(--theme-spacing-8) * 8);
+  --blade-admin-name-col-wide: calc(var(--theme-spacing-8) * 9);
+  --blade-admin-perm-col: calc(var(--theme-spacing-11) + var(--theme-spacing-8));
+  --blade-admin-coverage-min: calc(var(--theme-spacing-8) * 4);
+
   /* Blade TopNav — TOP_NAV_HEIGHT = size[56] */
   --blade-topnav-height: 3.5rem;
 
@@ -519,6 +531,11 @@
   --radius-input: var(--theme-border-radius-xsmall);
   --radius-pill: var(--theme-border-radius-max);
   --radius-round: var(--theme-border-radius-round);
+
+  /* Table / ListView chrome — Blade Table + Card medium */
+  --kn-table-radius: var(--theme-border-radius-medium);
+  --kn-table-cell-pad-y: var(--theme-spacing-4);
+  --kn-table-cell-pad-x: var(--theme-spacing-5);
 
   --theme-opacity-0: 0;
   --theme-opacity-100: 0.09;
@@ -724,8 +741,9 @@
 }
 
 .type-heading-h6 {
-  font-size: var(--kn-type-heading-h6-size);
-  line-height: var(--kn-type-heading-h6-line);
+  /* Same step as h5 (Blade Heading small). Do not treat h6 as a smaller title. */
+  font-size: var(--kn-type-heading-h5-size);
+  line-height: var(--kn-type-heading-h5-line);
 }
 
 .type-body-lg,

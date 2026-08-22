@@ -1,26 +1,29 @@
-const visSummary =
+let visSummary =
   typeof window.knSummarizeShipments === "function"
     ? window.knSummarizeShipments(window.KNShipments)
     : { total: 0, shipments: 0, containers: 0, inTransit: 0, hold: 0, waiting: 0, arrived: 0, action: 0, delayed: 0, ontime: 0, demurrageExceeded: 0, demurrageRisk: 0, perDiemExceeded: 0, perDiemRisk: 0, notReleased: 0, readyPickup: 0, gateOut: 0, mot: {}, motPct: {}, origin: {}, holdRows: [], delayedRows: [], arrivals: [], newest: [], amounts: {}, earliestDelayEta: "", rows: [] };
 
-const holdRows = visSummary.holdRows;
+let holdRows = visSummary.holdRows;
 
 const kpis = [
   {
+    key: "shipment",
     label: "Active Shipments",
-    value: String(visSummary.total),
+    value: String(visSummary.shipments),
     trend: "From Visibility",
     trendClass: "positive",
     open: { record: "shipment" }
   },
   {
+    key: "container",
     label: "Active Containers",
-    value: String(visSummary.total),
+    value: String(visSummary.containers),
     trend: "From Visibility",
     trendClass: "positive",
     open: { record: "container" }
   },
   {
+    key: "transit",
     label: "In Transit",
     value: String(visSummary.inTransit),
     trend: `${visSummary.ontime} on track`,
@@ -28,6 +31,7 @@ const kpis = [
     open: { risk: "transit" }
   },
   {
+    key: "waiting",
     label: "Waiting to Depart",
     value: String(visSummary.waiting),
     trend: visSummary.delayed ? `${visSummary.delayed} delayed` : "On schedule",
@@ -35,27 +39,14 @@ const kpis = [
     open: { risk: "waiting" }
   },
   {
+    key: "arrived",
     label: "Drayage Pending",
     value: String(visSummary.arrived),
-    trend: visSummary.hold ? `${visSummary.hold} on hold` : "On track",
-    trendClass: visSummary.hold ? "negative" : "positive",
+    trend: visSummary.arrived ? "At terminal" : "None waiting",
+    trendClass: visSummary.arrived ? "notice" : "positive",
     hint: "Containers waiting for a short-haul truck move from the terminal to a warehouse or rail ramp.",
     open: { risk: "arrived" }
   }
-];
-
-const risks = [
-  { label: "Demurrage Exceeded", count: String(visSummary.demurrageExceeded), styleClass: visSummary.demurrageExceeded ? "danger" : "", hint: "Free time at the terminal has ended. Daily storage fees are accruing.", open: { risk: "hold" } },
-  { label: "Per Diem Exceeded", count: String(visSummary.perDiemExceeded), styleClass: visSummary.perDiemExceeded ? "danger" : "", hint: "The container is still out past the allowed days. Daily rental fees are accruing.", open: { risk: "action" } },
-  { label: "Demurrage Risk", count: String(visSummary.demurrageRisk), styleClass: visSummary.demurrageRisk ? "notice" : "", hint: "Free time ends soon. Request drayage to avoid extra fees.", open: { risk: "arrived" } },
-  { label: "In Per Diem Risk", count: String(visSummary.perDiemRisk), styleClass: "", hint: "The container is approaching the last free day of use.", open: { risk: "action" } }
-];
-
-const events = [
-  { label: "Container not Released", count: String(visSummary.notReleased), open: { risk: "hold" } },
-  { label: "Container on Hold", count: String(visSummary.hold), open: { record: "container", risk: "hold" } },
-  { label: "Ready for Pickup", count: String(visSummary.readyPickup), open: { risk: "arrived" } },
-  { label: "Container Gate Out", count: String(visSummary.gateOut), hint: "The container has left the terminal.", open: { record: "container" } }
 ];
 
 const holdHints = {
@@ -184,113 +175,220 @@ holdRows.forEach((row, index) => {
   holdDrawerList?.appendChild(li);
 });
 
-// ── Demurrage Risk ───────────────────────────────────────────────────────────
-const demurrageRows = (visSummary.rows || visSummary.arrivals || []).filter((item) =>
-  /port of delivery|ready for pickup/i.test(item.status || "")
-);
+function knParseStamp(value) {
+  if (!value) {
+    return null;
+  }
+  const iso = Date.parse(value);
+  if (!Number.isNaN(iso)) {
+    return new Date(iso);
+  }
+  const match = /(?:ETA|ETD)\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/.exec(String(value));
+  if (!match) {
+    return null;
+  }
+  const parsed = Date.parse(`${match[2]} ${match[1]}, ${match[3]}`);
+  return Number.isNaN(parsed) ? null : new Date(parsed);
+}
 
-const demurrageHits = document.getElementById("alert-demurrage-hits");
-const demurrageEmpty = document.getElementById("alert-demurrage-empty");
-if (demurrageHits) {
-  if (demurrageRows.length === 0) {
-    if (demurrageEmpty) demurrageEmpty.hidden = false;
-  } else {
-    const fmt = typeof window.knFormatEta === "function" ? window.knFormatEta : (d) => d;
-    demurrageHits.innerHTML = previewAlertRows(demurrageRows)
-      .map((item) => {
-        const statusLabel = /ready for pickup/i.test(item.status || "") ? "Ready for pickup" : "At port of delivery";
-        return alertHitHtml(item.id, statusLabel, item.dest.city, fmt(item.dest.date), "", "negative", { record: "all", risk: "arrived" });
-      })
-      .join("");
-    syncAlertViewAll("alert-demurrage-viewall", demurrageRows.length);
+function knShipmentInRange(item, start, end) {
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+  const points = [item.created, item.origin?.date, item.dest?.date].map(knParseStamp).filter(Boolean);
+  if (!points.length) {
+    return true;
+  }
+  return points.some((point) => point >= start && point <= endDay);
+}
+
+function applyDashSummary(rows) {
+  if (typeof window.knSummarizeShipments !== "function") {
+    return;
+  }
+  visSummary = window.knSummarizeShipments(rows);
+  holdRows = visSummary.holdRows;
+  if (holdDrawerList) {
+    holdDrawerList.innerHTML = "";
+    holdRows.forEach((row, index) => {
+      const li = document.createElement("li");
+      li.innerHTML = holdItemHtml(row, index);
+      holdDrawerList.appendChild(li);
+    });
+  }
+  hydrateDashFromVisibility();
+  refreshDashAlerts();
+  syncDashKpiCards(visSummary);
+  const ids = new Set(rows.map((item) => item.id));
+  if (typeof window.KNAis?.setFilter === "function" && shipmentMap) {
+    window.KNAis.setFilter(shipmentMap, (vessel) => !vessel?.id || ids.has(vessel.id));
   }
 }
 
-// ── Shipment Delays ──────────────────────────────────────────────────────────
-const delayHits = document.getElementById("alert-delay-hits");
-const delayEmpty = document.getElementById("alert-delay-empty");
-const delayedRows = visSummary.delayedRows || [];
-if (delayHits) {
-  if (delayedRows.length === 0) {
-    if (delayEmpty) delayEmpty.hidden = false;
-  } else {
-    const fmt = typeof window.knFormatEta === "function" ? window.knFormatEta : (d) => d;
-    delayHits.innerHTML = previewAlertRows(delayedRows)
-      .map((item) => alertHitHtml(item.id, item.delay, item.dest.city, fmt(item.dest.date), "", "notice", { record: "all", risk: "delayed" }))
-      .join("");
-    syncAlertViewAll("alert-delay-viewall", delayedRows.length);
-  }
+function syncDashKpiCards(summary) {
+  const values = {
+    shipment: String(summary.shipments),
+    container: String(summary.containers),
+    transit: String(summary.inTransit),
+    waiting: String(summary.waiting),
+    arrived: String(summary.arrived)
+  };
+  document.querySelectorAll(".kpi-stat[data-map-filter]").forEach((card) => {
+    const key = card.getAttribute("data-map-filter");
+    const value = values[key];
+    if (value == null) {
+      return;
+    }
+    const node = card.querySelector(".kpi-stat__value");
+    if (node) {
+      node.textContent = value;
+    }
+    card.setAttribute("aria-label", `Show ${card.querySelector(".kpi-stat__label")?.textContent || key} on the map, ${value}`);
+  });
 }
 
-// ── Containers on Hold ───────────────────────────────────────────────────────
-const holdHits = document.getElementById("alert-hold-hits");
-const holdEmpty = document.getElementById("alert-hold-empty");
-if (holdHits) {
-  if (holdRows.length === 0) {
-    if (holdEmpty) holdEmpty.hidden = false;
-  } else {
-    holdHits.innerHTML = previewAlertRows(holdRows)
-      .map((row) => alertHitHtml(row.id, row.reason, `${row.container} · ${row.location}`, row.release, holdHints[row.reason], "information", { record: "all", risk: "hold" }))
-      .join("");
+function refreshDashAlerts() {
+  const fmt = typeof window.knFormatEta === "function" ? window.knFormatEta : (value) => value;
+  const demurrage = (visSummary.rows || []).filter((item) => /port of delivery|ready for pickup/i.test(item.status || ""));
+  const demurrageHits = document.getElementById("alert-demurrage-hits");
+  const demurrageEmpty = document.getElementById("alert-demurrage-empty");
+  if (demurrageHits) {
+    if (!demurrage.length) {
+      demurrageHits.innerHTML = "";
+      if (demurrageEmpty) {
+        demurrageEmpty.hidden = false;
+      }
+    } else {
+      if (demurrageEmpty) {
+        demurrageEmpty.hidden = true;
+      }
+      demurrageHits.innerHTML = previewAlertRows(demurrage)
+        .map((item) => {
+          const statusLabel = /ready for pickup/i.test(item.status || "") ? "Ready for pickup" : "At port of delivery";
+          return alertHitHtml(item.id, statusLabel, item.dest.city, fmt(item.dest.date), "", "negative", { record: "all", risk: "arrived" });
+        })
+        .join("");
+    }
+    syncAlertViewAll("alert-demurrage-viewall", demurrage.length);
+  }
+
+  const delayHits = document.getElementById("alert-delay-hits");
+  const delayEmpty = document.getElementById("alert-delay-empty");
+  const delayed = visSummary.delayedRows || [];
+  if (delayHits) {
+    if (!delayed.length) {
+      delayHits.innerHTML = "";
+      if (delayEmpty) {
+        delayEmpty.hidden = false;
+      }
+    } else {
+      if (delayEmpty) {
+        delayEmpty.hidden = true;
+      }
+      delayHits.innerHTML = previewAlertRows(delayed)
+        .map((item) => alertHitHtml(item.id, item.delay, item.dest.city, fmt(item.dest.date), "", "notice", { record: "all", risk: "delayed" }))
+        .join("");
+    }
+    syncAlertViewAll("alert-delay-viewall", delayed.length);
+  }
+
+  const holdHits = document.getElementById("alert-hold-hits");
+  const holdEmpty = document.getElementById("alert-hold-empty");
+  if (holdHits) {
+    if (!holdRows.length) {
+      holdHits.innerHTML = "";
+      if (holdEmpty) {
+        holdEmpty.hidden = false;
+      }
+    } else {
+      if (holdEmpty) {
+        holdEmpty.hidden = true;
+      }
+      holdHits.innerHTML = previewAlertRows(holdRows)
+        .map((row) => alertHitHtml(row.id, row.reason, `${row.container} · ${row.location}`, row.release, holdHints[row.reason], "information", { record: "all", risk: "hold" }))
+        .join("");
+    }
     syncAlertViewAll("alert-hold-viewall", holdRows.length);
   }
 }
 
+refreshDashAlerts();
+
 const kpiGrid = document.getElementById("kpi-grid");
-const riskList = document.getElementById("risk-list");
-const eventsList = document.getElementById("events-list");
 let shipmentMap = null;
+let dashMapFilter = "";
 
 const NAV_CHEVRON =
   '<svg class="nav-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
 
+function dashShipmentsForFilter(key) {
+  const rows = window.KNShipments || [];
+  if (!key) {
+    return rows;
+  }
+  if (key === "shipment") {
+    return rows.filter((item) => item.record === "shipment");
+  }
+  if (key === "container") {
+    return rows.filter((item) => item.record === "container");
+  }
+  if (key === "transit") {
+    return rows.filter((item) => (typeof knIsInTransit === "function" ? knIsInTransit(item) : /enroute|in transit/i.test(item.status || "")));
+  }
+  if (key === "waiting") {
+    return rows.filter((item) => /waiting to depart/i.test(item.status || ""));
+  }
+  if (key === "arrived") {
+    return rows.filter((item) => /ready for pickup|port of delivery/i.test(item.status || ""));
+  }
+  return rows;
+}
+
+function badgeToneForKpi(trendClass) {
+  if (trendClass === "negative") {
+    return "negative";
+  }
+  if (trendClass === "notice") {
+    return "notice";
+  }
+  return "positive";
+}
+
 kpis.forEach((kpi) => {
-  const card = document.createElement("a");
+  const card = document.createElement("button");
+  card.type = "button";
   card.className = "kpi-stat";
-  card.href = "#klearhub-visibility";
-  card.setAttribute("data-vis-open", JSON.stringify(kpi.open));
-  card.setAttribute("aria-label", `Open Visibility for ${kpi.label}, ${kpi.value}`);
+  card.setAttribute("data-map-filter", kpi.key);
+  card.setAttribute("aria-pressed", "false");
+  card.setAttribute("aria-label", `Show ${kpi.label} on the map, ${kpi.value}`);
   if (kpi.hint) {
     card.setAttribute("data-tooltip", kpi.hint);
   }
-  const trendTone = kpi.trendClass === "negative" ? "negative" : "positive";
   card.innerHTML = `
     <span class="kpi-stat__label type-caption-sm type-weight-medium">${kpi.label}</span>
     <span class="kpi-stat__metrics">
       <span class="kpi-stat__value type-heading-h4 type-weight-semibold">${kpi.value}</span>
-      <span class="badge badge--${trendTone} type-caption-sm type-weight-medium">${kpi.trend}</span>
+      <span class="badge badge--${badgeToneForKpi(kpi.trendClass)} type-caption-sm type-weight-medium">${kpi.trend}</span>
     </span>
     ${NAV_CHEVRON}
   `;
-  kpiGrid.appendChild(card);
+  kpiGrid?.appendChild(card);
 });
 
-risks.forEach((risk) => {
-  const li = document.createElement("li");
-  li.innerHTML = `
-    <a class="metric-row ${risk.styleClass}" href="#klearhub-visibility" data-vis-open='${JSON.stringify(risk.open)}' aria-label="Open Visibility for ${risk.label}"${risk.hint ? ` data-tooltip="${risk.hint}"` : ""}>
-      <span class="metric-label type-ui-md type-weight-medium">${risk.label}</span>
-      <span class="metric-row__end">
-        <strong class="type-heading-h6 type-weight-semibold">${risk.count}</strong>
-        ${NAV_CHEVRON}
-      </span>
-    </a>
-  `;
-  riskList.appendChild(li);
+kpiGrid?.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-map-filter]");
+  if (!card) {
+    return;
+  }
+  const key = card.getAttribute("data-map-filter") || "";
+  dashMapFilter = dashMapFilter === key ? "" : key;
+  applyDashMapFilter();
 });
 
-events.forEach((eventRow) => {
-  const li = document.createElement("li");
-  li.innerHTML = `
-    <a class="metric-row" href="#klearhub-visibility" data-vis-open='${JSON.stringify(eventRow.open)}' aria-label="Open Visibility for ${eventRow.label}"${eventRow.hint ? ` data-tooltip="${eventRow.hint}"` : ""}>
-      <span class="metric-label type-ui-md type-weight-medium">${eventRow.label}</span>
-      <span class="metric-row__end">
-        <span class="count type-ui-sm type-weight-medium">${eventRow.count}</span>
-        ${NAV_CHEVRON}
-      </span>
-    </a>
-  `;
-  eventsList.appendChild(li);
+document.getElementById("map-panel")?.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-map-filter-clear]")) {
+    return;
+  }
+  dashMapFilter = "";
+  applyDashMapFilter();
 });
 
 const shell = document.querySelector(".app-shell");
@@ -533,7 +631,67 @@ function isDashboardRoute() {
   return !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
 }
 
+function isRoleManagementRoute() {
+  return getHashPath().startsWith("#kn-role-management");
+}
+
+function isUserManagementRoute() {
+  return getHashPath().startsWith("#kn-user-management");
+}
+
+function isDefaultRoleManagementRoute() {
+  return getHashPath().startsWith("#default-role-management");
+}
+
+function nestedAdminNavHash(path = getHashPath()) {
+  if (path.startsWith("#kn-role-management")) {
+    return "#kn-role-management";
+  }
+  if (path.startsWith("#kn-user-management")) {
+    return "#kn-user-management";
+  }
+  if (path.startsWith("#default-role-management")) {
+    return "#default-role-management";
+  }
+  return path;
+}
+
+function adminModuleApi(navHash) {
+  if (navHash === "#kn-role-management") {
+    return window.KNRoles;
+  }
+  if (navHash === "#kn-user-management") {
+    return window.KNUsers;
+  }
+  if (navHash === "#default-role-management") {
+    return window.KNDefaultRoles;
+  }
+  return null;
+}
+
+function adminStoredName(storageKey, id) {
+  try {
+    const rows = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
+    return rows.find((row) => row.id === id)?.name || id;
+  } catch (error) {
+    return id;
+  }
+}
+
 function getCurrentPageTitle() {
+  const path = getHashPath();
+  const roleDetail = path.match(/^#kn-role-management\/([^/]+)$/);
+  if (roleDetail && roleDetail[1] !== "add") {
+    return adminStoredName("kn-roles-v2", decodeURIComponent(roleDetail[1]));
+  }
+  const userDetail = path.match(/^#kn-user-management\/([^/]+)$/);
+  if (userDetail && userDetail[1] !== "add") {
+    return adminStoredName("kn-users-v2", decodeURIComponent(userDetail[1]));
+  }
+  const defDetail = path.match(/^#default-role-management\/([^/]+)$/);
+  if (defDetail && defDetail[1] !== "add") {
+    return adminStoredName("kn-default-roles-v2", decodeURIComponent(defDetail[1]));
+  }
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   if (l2Current) {
     return getNavTitle(l2Current);
@@ -577,6 +735,9 @@ function syncPageView() {
   const dashboardInner = document.querySelector(".dashboard-inner");
   const overviewPage = document.getElementById("klearhub-overview-page");
   const visibilityPage = document.getElementById("klearhub-visibility-page");
+  const rolePage = document.getElementById("kn-role-page");
+  const userPage = document.getElementById("kn-user-page");
+  const defaultRolePage = document.getElementById("kn-default-role-page");
   const emptyPage = document.getElementById("empty-page");
   const emptyTitle = document.getElementById("empty-page-title");
   const emptyDescription = document.getElementById("empty-page-description");
@@ -584,6 +745,10 @@ function syncPageView() {
   const isDashboard = isDashboardRoute();
   const isOverview = isKlearhubOverviewRoute();
   const isVisibility = isKlearhubVisibilityRoute();
+  const isRoles = isRoleManagementRoute();
+  const isUsers = isUserManagementRoute();
+  const isDefaultRoles = isDefaultRoleManagementRoute();
+  const isAdminModule = isRoles || isUsers || isDefaultRoles;
 
   if (dashboardInner) {
     dashboardInner.hidden = !isDashboard;
@@ -593,6 +758,15 @@ function syncPageView() {
   }
   if (visibilityPage) {
     visibilityPage.hidden = !isVisibility;
+  }
+  if (rolePage) {
+    rolePage.hidden = !isRoles;
+  }
+  if (userPage) {
+    userPage.hidden = !isUsers;
+  }
+  if (defaultRolePage) {
+    defaultRolePage.hidden = !isDefaultRoles;
   }
   if (isVisibility && typeof persistVisViewHash === "function") {
     persistVisViewHash(visState?.view || "cards");
@@ -604,9 +778,21 @@ function syncPageView() {
     window.closeKnShipmentDetail({ persistHash: false });
   }
   if (emptyPage) {
-    emptyPage.hidden = isDashboard || isOverview || isVisibility;
+    emptyPage.hidden = isDashboard || isOverview || isVisibility || isAdminModule;
   }
-  if (!isDashboard && !isOverview && isVisibility === false) {
+  if (isRoles) {
+    window.KNRoles?.init?.();
+    window.KNRoles?.sync?.();
+  }
+  if (isUsers) {
+    window.KNUsers?.init?.();
+    window.KNUsers?.sync?.();
+  }
+  if (isDefaultRoles) {
+    window.KNDefaultRoles?.init?.();
+    window.KNDefaultRoles?.sync?.();
+  }
+  if (!isDashboard && !isOverview && !isVisibility && !isAdminModule) {
     const title = getCurrentPageTitle();
     const toVisibility = /ops|notification|transaction|shipments/i.test(title);
     if (emptyTitle) {
@@ -706,6 +892,9 @@ breadcrumbList.addEventListener("click", (event) => {
   }
   event.preventDefault();
   const href = link.getAttribute("href");
+  if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
+    return;
+  }
   const navLink = sideNav.querySelector(`.side-nav-link[href="${href}"]`);
   if (navLink) {
     navLink.click();
@@ -800,8 +989,12 @@ sideNav.addEventListener("click", (event) => {
   if (!link || !sideNav.contains(link)) {
     return;
   }
-  event.preventDefault();
   const href = link.getAttribute("href");
+  if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
+    event.preventDefault();
+    return;
+  }
+  event.preventDefault();
   if (href?.startsWith("#")) {
     setRouteHash(href);
   }
@@ -912,11 +1105,55 @@ renderBreadcrumb();
 
 if (getHashPath() && getHashPath() !== "#dashboard") {
   const hashPath = getHashPath();
+  const navHash = nestedAdminNavHash(hashPath);
   const deepLink =
-    sideNav.querySelector(`.side-nav-link[data-level="2"][href="${hashPath}"]`) ||
-    sideNav.querySelector(`.side-nav-link[data-level="1"][href="${hashPath}"]`);
+    sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
+    sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
   deepLink?.click();
+  if (navHash !== hashPath) {
+    history.replaceState(null, "", hashPath);
+    adminModuleApi(navHash)?.sync?.();
+  }
 }
+
+window.addEventListener("hashchange", (event) => {
+  if (!window.KNAdminUX?.consumeNavigation()) {
+    const oldHash = event.oldURL ? new URL(event.oldURL).hash || "#dashboard" : "#dashboard";
+    const newHash = event.newURL ? new URL(event.newURL).hash || "#dashboard" : getHashPath();
+    const oldApi = window.KNAdminUX.adminApiForHash(oldHash);
+    if (oldApi?.isDirty?.()) {
+      history.replaceState(null, "", oldHash);
+      oldApi.requestLeave(newHash);
+      oldApi.sync?.();
+      return;
+    }
+  }
+  const path = getHashPath();
+  const navHash = nestedAdminNavHash(path);
+  const api = adminModuleApi(navHash);
+  if (api) {
+    const link = sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`);
+    if (link && link.getAttribute("aria-current") !== "page") {
+      const nested = path;
+      window.KNAdminUX?.beginNavigation();
+      link.click();
+      if (nested !== navHash) {
+        history.replaceState(null, "", nested);
+      }
+    } else {
+      api.sync?.();
+    }
+  } else {
+    const link =
+      sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
+      sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
+    if (link && link.getAttribute("aria-current") !== "page") {
+      window.KNAdminUX?.beginNavigation();
+      link.click();
+    }
+  }
+  renderBreadcrumb();
+});
 
 document.querySelector(".breadcrumb").addEventListener("click", (event) => {
   const link = event.target.closest("a.breadcrumb-link");
@@ -925,6 +1162,9 @@ document.querySelector(".breadcrumb").addEventListener("click", (event) => {
   }
   event.preventDefault();
   const href = link.getAttribute("href");
+  if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
+    return;
+  }
   const navLink = sideNav.querySelector(`.side-nav-link[href="${href}"]`);
   if (navLink) {
     navLink.click();
@@ -946,6 +1186,17 @@ profileTriggers.forEach((trigger) => {
     event.stopPropagation();
     setProfileMenuOpen(profileMenu.hidden);
   });
+});
+
+document.getElementById("profile-logout")?.addEventListener("click", () => {
+  setProfileMenuOpen(false);
+  try {
+    window.localStorage.removeItem("kn-dash-layout");
+  } catch (error) {
+    /* ignore */
+  }
+  location.hash = "#dashboard";
+  location.reload();
 });
 
 const quickActionsTrigger = document.getElementById("quick-actions-trigger");
@@ -1090,6 +1341,14 @@ function selectQuickAction(item) {
     } else if (href === "#dashboard") {
       sideNav.querySelector('.side-nav-link[href="#dashboard"]')?.click();
     }
+  }
+  const rolePath = item.getAttribute("data-role-path");
+  if (rolePath) {
+    window.requestAnimationFrame(() => window.KNRoles?.open(rolePath));
+  }
+  const userPath = item.getAttribute("data-user-path");
+  if (userPath) {
+    window.requestAnimationFrame(() => window.KNUsers?.open(userPath));
   }
   window.requestAnimationFrame(() => {
     if (scrollSel) {
@@ -1391,7 +1650,7 @@ function renderKlearhubModes() {
         <span class="kh-accordion__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${KH_ICONS[mode.icon]}</svg>
         </span>
-        <span class="kh-accordion__title type-heading-h6 type-weight-semibold">${mode.title}</span>
+        <span class="kh-accordion__title type-heading-h5 type-weight-semibold">${mode.title}</span>
         <span class="kh-accordion__meta">${meta}</span>
         <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
           <path d="M4 6l4 4 4-4" />
@@ -1401,11 +1660,11 @@ function renderKlearhubModes() {
         ${stages}
         <div class="split-grid">
           <article class="subpanel">
-            <h3 class="type-heading-h6 type-weight-semibold">Shipments Overview</h3>
+            <h3 class="type-heading-h5 type-weight-semibold">Shipments Overview</h3>
             <ul class="metric-list">${renderMetricList(mode.shipments)}</ul>
           </article>
           <article class="subpanel">
-            <h3 class="type-heading-h6 type-weight-semibold">Ingestion Overview</h3>
+            <h3 class="type-heading-h5 type-weight-semibold">Ingestion Overview</h3>
             <ul class="metric-list">${renderMetricList(mode.ingestion)}</ul>
           </article>
         </div>
@@ -1522,6 +1781,91 @@ function shipmentMarkerIcon(item) {
   });
 }
 
+function dashMapFilterIds() {
+  return new Set(dashShipmentsForFilter(dashMapFilter).map((item) => item.id));
+}
+
+function ensureDashMapFilterUi() {
+  const leading = document.querySelector("#map-panel .map-header__leading");
+  if (leading && !document.getElementById("map-filter-caption")) {
+    const caption = document.createElement("span");
+    caption.id = "map-filter-caption";
+    caption.className = "type-caption-sm";
+    caption.setAttribute("aria-live", "polite");
+    leading.appendChild(caption);
+  }
+  const stage = document.querySelector("#map-panel .map-stage");
+  if (stage && !document.getElementById("map-empty")) {
+    const empty = document.createElement("div");
+    empty.id = "map-empty";
+    empty.className = "empty-state map-empty";
+    empty.hidden = true;
+    empty.innerHTML = `
+      <div class="empty-state__asset" aria-hidden="true">${SHIP_ICON}</div>
+      <h3 class="type-heading-h5 type-weight-semibold">No shipments in this view</h3>
+      <p class="type-body-sm">Nothing matches this snapshot. Show all shipments on the map, or pick another KPI.</p>
+      <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-map-filter-clear>Show all shipments</button>
+    `;
+    stage.appendChild(empty);
+  }
+}
+
+function fitDashMap() {
+  if (!shipmentMap) {
+    return;
+  }
+  const livePoints = window.KNAis?.getFitPoints(shipmentMap) || [];
+  const fallback = dashShipmentsForFilter(dashMapFilter).map((item) => [item.lat, item.lng]);
+  const points = livePoints.length ? livePoints : fallback;
+  if (points.length) {
+    fitMapToPoints(shipmentMap, points);
+  }
+}
+
+function applyDashMapFilter() {
+  const kpi = kpis.find((item) => item.key === dashMapFilter);
+  const rows = dashShipmentsForFilter(dashMapFilter);
+  const ids = dashMapFilterIds();
+  ensureDashMapFilterUi();
+  kpiGrid?.querySelectorAll("[data-map-filter]").forEach((card) => {
+    const selected = card.getAttribute("data-map-filter") === dashMapFilter && Boolean(dashMapFilter);
+    card.classList.toggle("is-selected", selected);
+    card.setAttribute("aria-pressed", String(selected));
+  });
+  const caption = document.getElementById("map-filter-caption");
+  if (caption) {
+    caption.textContent = kpi ? `Showing ${rows.length} · ${kpi.label}` : "";
+  }
+  const empty = document.getElementById("map-empty");
+  if (empty) {
+    empty.hidden = rows.length > 0;
+  }
+  window.KNMapUx?.close?.();
+  window.KNAis?.setFilter(shipmentMap, dashMapFilter ? (vessel) => ids.has(vessel.id) : null);
+  if (rows.length) {
+    fitDashMap();
+  }
+  refreshShipmentMap();
+}
+
+function openShipmentFromDashboard(id) {
+  if (!id) {
+    return;
+  }
+  window.KNMapUx?.close?.();
+  const kpi = kpis.find((item) => item.key === dashMapFilter);
+  if (typeof applyVisibilityFilters === "function") {
+    applyVisibilityFilters(kpi?.open || {});
+  }
+  if (typeof window.startVisibilityLoading === "function") {
+    window.startVisibilityLoading("page");
+  }
+  sideNav.querySelector('.side-nav-link[data-level="2"][href="#klearhub-visibility"]')?.click();
+  if (typeof window.openKnShipmentDetail === "function") {
+    window.openKnShipmentDetail(id);
+  }
+}
+
 function refreshShipmentMap() {
   if (!shipmentMap) {
     return;
@@ -1566,9 +1910,12 @@ function initShipmentMap() {
   window.KNAis?.bindMap(shipmentMap, {
     fallbackShips: shipmentMarkers,
     icon: (vessel) =>
-      window.KNMapUx ? window.KNMapUx.createPillIcon(vessel) : shipmentMarkerIcon(vessel)
+      window.KNMapUx ? window.KNMapUx.createPillIcon(vessel) : shipmentMarkerIcon(vessel),
+    onClick: (data) => openShipmentFromDashboard(data.id)
   });
   window.KNMapUx?.bindList(document.getElementById("dash-live"));
+  ensureDashMapFilterUi();
+  applyDashMapFilter();
 
   document.querySelectorAll("#map-panel [data-map-basemap]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1605,11 +1952,7 @@ function initShipmentMap() {
     document.getElementById("map-zoom-out")
   );
   document.getElementById("map-recenter")?.addEventListener("click", () => {
-    const livePoints = window.KNAis?.getFitPoints(shipmentMap) || [];
-    const portPoints = shipmentMarkers
-      .filter((item) => item.kind !== "ship")
-      .map((item) => [item.lat, item.lng]);
-    fitMapToPoints(shipmentMap, livePoints.length ? [...portPoints, ...livePoints] : shipmentMarkers.map((item) => [item.lat, item.lng]));
+    fitDashMap();
   });
 
   const mapPanel = document.getElementById("map-panel");
@@ -1661,14 +2004,7 @@ function initShipmentMap() {
 
   refreshShipmentMap();
   requestAnimationFrame(() => {
-    const livePoints = window.KNAis?.getFitPoints(shipmentMap) || [];
-    const portPoints = shipmentMarkers
-      .filter((item) => item.kind !== "ship")
-      .map((item) => [item.lat, item.lng]);
-    fitMapToPoints(
-      shipmentMap,
-      livePoints.length ? [...portPoints, ...livePoints] : shipmentMarkers.map((item) => [item.lat, item.lng])
-    );
+    fitDashMap();
   });
 }
 
@@ -1814,10 +2150,8 @@ function initBladeTooltips() {
 
 const DASH_LAYOUT_KEY = "kn-dashboard-layout";
 const DASH_WIDGETS = [
-  { id: "actions", title: "Quick actions", description: "Request Drayage, holds, documents, and visibility" },
-  { id: "alerts", title: "Critical alerts", description: "Demurrage risk, delays, and containers on hold" },
-  { id: "overview", title: "Live snapshot", description: "KPIs, risk, events, and the global shipment map" },
-  { id: "stats", title: "Shipment snapshot", description: "Total, in transit, on hold, and delivered" },
+  { id: "alerts", title: "Needs attention", description: "Demurrage, delays, and holds that need a decision" },
+  { id: "overview", title: "Live snapshot", description: "Active volume, stages, and the shipment map" },
   { id: "feeds", title: "Arrivals and filings", description: "Upcoming arrivals and recent filings" },
   { id: "charts", title: "Lane and mode mix", description: "Shipments by lane and transport mode" },
   { id: "shipments", title: "Recent shipments", description: "Latest shipment table" },
@@ -2151,6 +2485,7 @@ function initDashDatePicker() {
     label.textContent = text;
     trigger.setAttribute("aria-label", `Date range, ${text}`);
     setOpen(false);
+    applyDashSummary((window.KNShipments || []).filter((item) => knShipmentInRange(item, applied[0], applied[1])));
     if (persist) {
       showBladeToast({ content: `Showing ${text}`, color: "information" });
     }
@@ -2917,6 +3252,7 @@ function hydrateDashFromVisibility() {
   const duty = (summary.rows || []).reduce((sum, item) => sum + (summary.amounts[item.id] || 0), 0);
   const demurrageUsd = summary.demurrageExceeded * 4280 + summary.demurrageRisk * 960;
   const invoiceRows = (summary.newest || []).slice(0, 3);
+  const demurrageRows = (summary.rows || []).filter((item) => /port of delivery|ready for pickup/i.test(item.status || ""));
   const collected = (summary.rows || [])
     .filter((item) => !window.knIsActionNeeded?.(item))
     .reduce((sum, item) => sum + Math.round((summary.amounts[item.id] || 0) * 0.35), 0);
@@ -2935,9 +3271,6 @@ function hydrateDashFromVisibility() {
   setKnText("delayed", String(summary.delayed));
   setKnText("ontime", String(summary.ontime));
   setKnText("health-pct", `${health}%`);
-  setKnText("drayage-caption", knPlural(summary.arrived, "container at destination", "containers at destination"));
-  setKnText("holds-caption", knPlural(summary.hold, "container on hold", "containers on hold"));
-  setKnText("visibility-caption", knPlural(summary.total, "active shipment", "active shipments"));
   setKnText(
     "demurrage-desc",
     demurrageRows.length
@@ -2958,7 +3291,7 @@ function hydrateDashFromVisibility() {
   setKnText("demurrage-usd", usd(demurrageUsd));
   setKnText("demurrage-trend", knPlural(summary.demurrageExceeded, "container exceeded", "containers exceeded"));
   setKnText("collected", usd(collected));
-  setKnText("collected-trend", `${summary.ontime} on track this week`);
+  setKnText("collected-trend", `${summary.ontime} on-track shipments · estimate`);
   setKnText("service", usd(service));
   setKnText("health-copy", `${health}% of active shipments are on track this month.`);
   setKnText("kh-active", String(summary.total));
@@ -3074,8 +3407,8 @@ function hydrateDashFromVisibility() {
       items.push(`
         <li class="blade-list__item" data-map-id="${invoiceItem.id}">
           <div>
-            <p class="type-ui-md type-weight-semibold">E-invoice · ${invoiceItem.po}</p>
-            <p class="type-caption-sm">${invoiceItem.company} · ${usd(summary.amounts[invoiceItem.id])}</p>
+            <p class="type-ui-md type-weight-semibold">Charge · ${invoiceItem.po}</p>
+            <p class="type-caption-sm">${invoiceItem.company} · ${usd(summary.amounts[invoiceItem.id])} est.</p>
           </div>
           <span class="${knBadgeClass("information")}">Pending</span>
         </li>
@@ -3140,7 +3473,7 @@ function hydrateDashFromVisibility() {
         <li class="blade-list__item" data-map-id="${item.id}">
           <div>
             <p class="type-ui-md type-weight-semibold">${item.po}</p>
-            <p class="type-caption-sm">${item.dest.date} · ${item.company}</p>
+            <p class="type-caption-sm">${item.id} · estimate</p>
           </div>
           <span class="amount type-ui-sm type-weight-semibold">${usd(summary.amounts[item.id])}</span>
         </li>

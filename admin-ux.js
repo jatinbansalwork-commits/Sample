@@ -479,6 +479,24 @@
     window.dispatchEvent(new CustomEvent("kn-ai-ops-flag-change", { detail: { id } }));
   }
 
+  function humanizeModuleId(id, catalog) {
+    const raw = String(id || "").trim();
+    if (!raw) {
+      return "";
+    }
+    for (const group of catalog || []) {
+      const match = (group.modules || []).find((mod) => mod.id === raw);
+      if (match?.title) {
+        return match.title;
+      }
+    }
+    return raw
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
   function viewerDeleteAnomaly(name, permissions) {
     const label = String(name || "").trim();
     if (!/viewer|read[ -]?only/i.test(label)) {
@@ -497,34 +515,50 @@
     if (!id || isOpsFlagDismissed(id)) {
       return "";
     }
+    const observe = tone === "observe";
     const link = href
       ? `<a class="ai-ops-flag__link blade-link type-caption-sm" href="${escapeHtml(href)}">${escapeHtml(hrefLabel || "Open")}</a>`
       : "";
-    return `<aside class="ai-ops-flag${tone === "observe" ? " ai-ops-flag--observe" : ""}" data-ai-ops-flag="${escapeHtml(id)}" role="status">
-      <div class="ai-ops-flag__head">
-        <p class="ai-ops-flag__title type-ui-sm type-weight-semibold">${title}</p>
-        <div class="ai-ops-flag__actions">
-          ${link}
-          <button class="icon-btn" type="button" data-ai-ops-dismiss="${escapeHtml(id)}" aria-label="Dismiss flag">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="14" height="14"><path d="M4 4l8 8M12 4l-8 8"/></svg>
-          </button>
+    const icon = observe
+      ? `<span class="ai-ops-flag__icon" aria-hidden="true">✦</span>`
+      : `<span class="ai-ops-flag__icon ai-ops-flag__icon--notice" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg>
+        </span>`;
+    return `<aside class="ai-ops-flag${observe ? " ai-ops-flag--observe" : ""}" data-ai-ops-flag="${escapeHtml(id)}" role="status">
+      ${icon}
+      <div class="ai-ops-flag__content">
+        <div class="ai-ops-flag__head">
+          <p class="ai-ops-flag__title type-ui-sm type-weight-semibold">${escapeHtml(title)}</p>
+          <div class="ai-ops-flag__actions">
+            ${link}
+            <button class="icon-btn" type="button" data-ai-ops-dismiss="${escapeHtml(id)}" aria-label="Dismiss flag">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="14" height="14"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            </button>
+          </div>
         </div>
+        <p class="ai-ops-flag__body type-caption-sm">${body}</p>
       </div>
-      <p class="ai-ops-flag__body type-caption-sm">${body}</p>
     </aside>`;
   }
 
-  function permissionAnomalyFlagHtml(name, permissions, { idPrefix = "perm-anomaly" } = {}) {
+  function permissionAnomalyFlagHtml(name, permissions, { idPrefix = "perm-anomaly", catalog } = {}) {
     const hit = viewerDeleteAnomaly(name, permissions);
     if (!hit) {
       return "";
     }
-    const modules = hit.modules.slice(0, 3).join(", ");
+    const moduleLabels = hit.modules
+      .slice(0, 3)
+      .map((id) => humanizeModuleId(id, catalog))
+      .filter(Boolean);
+    const modules = moduleLabels.join(", ");
+    const extra = hit.modules.length > 3 ? ` +${hit.modules.length - 3} more` : "";
     return opsFlagHtml({
       id: `${idPrefix}-${String(name || "").toLowerCase().replace(/\s+/g, "-")}`,
       tone: "observe",
       title: "Permission anomaly",
-      body: `<strong>${escapeHtml(hit.name)}</strong> includes <strong>Delete</strong>${modules ? ` on ${escapeHtml(modules)}` : ""}. Observation only — nothing was changed.`,
+      body: `<strong>${escapeHtml(hit.name)}</strong> includes <strong>Delete</strong>${
+        modules ? ` on <strong>${escapeHtml(modules)}${escapeHtml(extra)}</strong>` : ""
+      }. <span class="ai-ops-flag__note">Observation only — nothing was changed.</span>`,
       href: "",
       hrefLabel: ""
     });
@@ -1085,7 +1119,7 @@
     </div>`;
   }
 
-  function accordionItem({ id, title, trailing, open, body, modules, includesLabel, tone }) {
+  function accordionItem({ id, title, trailing, open, body, modules, includesLabel, tone, leadingExtra = "" }) {
     const panelId = `kn-acc-${id}`;
     const btnId = `${panelId}-btn`;
     const nameId = `${panelId}-name`;
@@ -1104,13 +1138,14 @@
           <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-accordion="${escapeHtml(id)}" aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}">
             <span class="role-perm__lead">
               <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
-              ${infoBtn}
-            </span>
-            <span class="role-perm__trailing">
-              ${trailing}
-              <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
+              ${leadingExtra || ""}
             </span>
           </button>
+          <span class="role-perm__trailing">
+            <span class="role-perm__info-slot">${infoBtn}</span>
+            <span class="role-perm__count-slot">${trailing || ""}</span>
+            <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
+          </span>
         </div>
       </h3>
       <div class="role-perm__body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>
@@ -1131,10 +1166,12 @@
             <span class="role-perm__lead">
               <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
             </span>
-            <span class="role-perm__trailing">
-              <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
-            </span>
           </button>
+          <span class="role-perm__trailing">
+            <span class="role-perm__info-slot" aria-hidden="true"></span>
+            <span class="role-perm__count-slot" aria-hidden="true"></span>
+            <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
+          </span>
         </div>
       </h3>
       <div class="role-perm__body role-perm__unused-body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>

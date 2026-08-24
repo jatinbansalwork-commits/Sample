@@ -520,7 +520,6 @@
           <td>
             <div class="admin-person-cell">
               ${window.KNAdminUX.personCell(user, `#kn-user-management/${encodeURIComponent(user.id)}`)}
-              ${!user.active && (user.roles || []).includes("KN Administrator") ? `<span class="badge badge--negative type-caption-sm type-weight-medium">Privileged</span>` : ""}
             </div>
           </td>
           <td class="type-body-sm">${escapeHtml(user.email)}</td>
@@ -652,6 +651,7 @@
             <div class="admin-drawer-title-row">
               <h2 class="type-heading-h5 type-weight-semibold" id="kn-user-profile-title" tabindex="-1">${escapeHtml(form.name || user.name)}</h2>
               ${window.KNAdminUX.statusBadge(user.active)}
+              ${!user.active && (user.roles || []).includes("KN Administrator") ? `<span class="badge badge--negative type-caption-sm type-weight-medium">Privileged</span>` : ""}
             </div>
             <p class="type-caption-sm">${escapeHtml(form.email || user.email)}</p>
           </div>

@@ -848,7 +848,7 @@
     const open = Boolean(state.openGroups?.has(group.id));
     const countTone = window.KNAdminUX.permCategoryTone(selected, keys.length);
     const aiCountBadge = hasAiInGroup
-      ? `<span class="badge badge--ai type-caption-sm type-weight-medium ai-suggest-count" aria-label="${aiGroupKeys.length} AI-suggested permissions in this category">✦ ${aiGroupKeys.length} suggested</span>`
+      ? `<span class="badge badge--ai type-caption-sm type-weight-medium ai-suggest-count" aria-label="${aiGroupKeys.length} AI-suggested permissions in this category"><span class="ai-suggest-mark" aria-hidden="true">✦</span> ${aiGroupKeys.length} suggested</span>`
       : "";
     return window.KNAdminUX.accordionItem({
       id: group.id,
@@ -857,7 +857,8 @@
       modules: group.modules,
       includesLabel: "Includes these KlearNow services:",
       tone: countTone,
-      trailing: `${aiCountBadge}<span class="badge badge--${countTone} type-caption-sm type-weight-medium">${selected}/${keys.length}</span>`,
+      leadingExtra: aiCountBadge,
+      trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count">${selected}/${keys.length}</span>`,
       body: `
         <div class="role-perm__row role-perm__row--head">
           <span class="type-caption-sm blade-field__hint">Permission</span>
@@ -1004,8 +1005,7 @@
     const submitDisabled = !canSubmitRole(form);
     const accessFields = !editing
       ? ""
-      : `<section class="role-form-zone role-form-zone--access" aria-labelledby="kn-role-access-title">
-            <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-access-title">Basics</h3>
+      : `<section class="role-form-zone role-form-zone--access" aria-label="Basics">
             <div class="blade-field">
               <label class="type-caption-sm type-weight-medium" for="kn-role-name">Name <span class="role-req" aria-hidden="true">*</span></label>
               <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="e.g. Billing reviewer" value="${escapeHtml(form.name)}" autocomplete="off" />
@@ -1031,7 +1031,7 @@
             <header class="role-perm__head">
               <h3 class="type-heading-h5 type-weight-semibold" id="kn-role-perm-title">What they can do</h3>
             </header>
-            ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-role" })}
+            ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-role", catalog: CATALOG })}
             <p class="visually-hidden" aria-live="polite" aria-atomic="true" data-ai-live-role></p>
             ${window.KNAdminUX.permFilters({
               query: state.permQuery,

@@ -927,8 +927,7 @@
 
   function resetDrawerChrome(existing) {
     state.formSnapshot = snapshotForm(existing ? blankForm(existing) : blankForm());
-    const heavy = existing && window.KNAdminUX?.isHeavyRole?.(state.form.permissions, ALL_KEYS.length);
-    state.drawerMode = heavy ? "view" : "edit";
+    state.drawerMode = "edit";
     state.detailsOpen = false;
     state.unusedOpen = false;
     state.permInputMode = "describe";
@@ -1248,7 +1247,6 @@
     const role = isEdit ? findRole(form.id) : null;
     const inherited = role ? inheritCount(role) : 0;
     const editing = !isEdit || state.drawerMode === "edit";
-    const heavy = isEdit && window.KNAdminUX?.isHeavyRole?.(form.permissions, ALL_KEYS.length);
     const title = isEdit ? role?.name || form.name || "Edit Default Role" : "Add Default Role";
     const coveragePct = ALL_KEYS.length ? Math.round((form.permissions.size / ALL_KEYS.length) * 100) : 0;
     const summary = window.KNAdminUX.accessSummary(form.permissions, CATALOG, ACTIONS);
@@ -1358,15 +1356,6 @@
               toggleAttr: "data-admin-details-toggle"
             })}
             <p class="role-access-summary type-body-sm">${escapeHtml(summary)}</p>
-            ${
-              heavy
-                ? window.KNAdminUX.roleViewEditToggle({
-                    expanded: editing,
-                    controlsId: "kn-drole-edit-panel",
-                    attr: "data-admin-drawer-mode"
-                  })
-                : ""
-            }
             ${editing ? "" : renderAccessReadonly(form)}
           </section>`
               : ""
@@ -1532,7 +1521,7 @@
       state.form = { ...state.form, ...snap, permissions: snap.permissions, error: "", serviceError: "" };
       state.formSnapshot = snapshotForm(state.form);
       state.dirty = false;
-      state.drawerMode = window.KNAdminUX?.isHeavyRole?.(snap.permissions, ALL_KEYS.length) ? "view" : "edit";
+      state.drawerMode = "edit";
       state.modal = "";
       state.pendingSaveSnap = null;
       state.permReduceMsg = "";

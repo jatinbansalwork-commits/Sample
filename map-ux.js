@@ -233,6 +233,50 @@
     `;
   }
 
+  /** Fields shown in the preview card — position/heading updates must not remount it. */
+  function previewSignature(data) {
+    return [
+      data.name || data.id || "",
+      data.status || "",
+      data.statusTone || "",
+      data.route || "",
+      data.company || "",
+      data.container || "",
+      data.mot || data.kind || "",
+      data.emphasis || "",
+      data.count || "",
+      Number.isFinite(Number(data.sog)) ? Number(data.sog).toFixed(1) : "",
+      Array.isArray(data.items) ? data.items.map((item) => item.id || item.container || "").join("|") : ""
+    ].join("\0");
+  }
+
+  function bindPreviewCard() {
+    preview.querySelector(".map-preview__close")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closePreview();
+    });
+    const card = preview.querySelector(".map-preview__card");
+    if (card && typeof L !== "undefined") {
+      L.DomEvent.disableClickPropagation(card);
+      L.DomEvent.disableScrollPropagation(card);
+    }
+    return card;
+  }
+
+  function writePreview(data, { animate = false } = {}) {
+    if (!preview) {
+      return null;
+    }
+    preview.innerHTML = previewHtml(data);
+    const card = bindPreviewCard();
+    if (animate && card && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      card.classList.add("is-entering");
+      card.addEventListener("animationend", () => card.classList.remove("is-entering"), { once: true });
+    }
+    return card;
+  }
+
   function openPreview(id) {
     const entry = pickEntry(id);
     if (!entry) {
@@ -249,7 +293,7 @@
       setElState(previous);
     }
     preview = ensurePreview(stage);
-    preview.innerHTML = previewHtml(entry.data);
+    writePreview(entry.data, { animate: true });
     preview.hidden = false;
     openId = String(id);
     openMapId = String(entry.map._leaflet_id);
@@ -257,16 +301,6 @@
     document.querySelectorAll("[data-map-id]").forEach((node) => {
       node.classList.toggle("is-map-active", node.getAttribute("data-map-id") === id);
     });
-    preview.querySelector(".map-preview__close")?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      closePreview();
-    });
-    const card = preview.querySelector(".map-preview__card");
-    if (card && typeof L !== "undefined") {
-      L.DomEvent.disableClickPropagation(card);
-      L.DomEvent.disableScrollPropagation(card);
-    }
     previewMap = entry.map;
     moveHandler = () => positionPreview(entry);
     entry.map.on("move", moveHandler);
@@ -342,13 +376,13 @@
 
   function refresh(id, data) {
     entriesFor(id).forEach((entry) => {
+      const prevSig = previewSignature(entry.data);
       entry.data = { ...entry.data, ...data, id: entry.data.id };
-      if (openId === entry.data.id && String(openMapId) === String(entry.map._leaflet_id) && preview) {
-        preview.innerHTML = previewHtml(entry.data);
-        preview.querySelector(".map-preview__close")?.addEventListener("click", (event) => {
-          event.preventDefault();
-          closePreview();
-        });
+      if (openId === entry.data.id && String(openMapId) === String(entry.map._leaflet_id) && preview && !preview.hidden) {
+        // Live AIS ticks mostly change lat/lng — remounting the card restarts map-preview-in and flickers.
+        if (prevSig !== previewSignature(entry.data)) {
+          writePreview(entry.data, { animate: false });
+        }
         positionPreview(entry);
       }
     });

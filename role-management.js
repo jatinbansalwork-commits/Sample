@@ -84,20 +84,138 @@
     sortDir: "asc",
     page: 1,
     pageSize: 10,
-    filters: { name: "", applicable: "", createdBy: "", status: "", q: "", chip: "all" },
+    filters: { name: "", applicable: "", createdBy: "", status: "", coverage: "", chip: "all" },
     form: null,
+    formSnapshot: null,
     dirty: false,
+    drawerMode: "edit",
+    detailsOpen: false,
+    unusedOpen: false,
+    permInputMode: "describe",
+    seenUsedGroups: null,
     selectOpen: "",
     modal: "",
     deleteId: "",
     deactivateId: "",
+    pendingSaveSnap: null,
+    permReduceMsg: "",
     leaveTo: "",
     restoreFocusId: "",
     openGroups: null,
     menuOpen: "",
     permQuery: "",
-    permSelectedOnly: false
+    permSelectedOnly: false,
+    aiDescribe: "",
+    aiLoading: false,
+    aiNoMatch: false,
+    aiSuggestions: {},
+    aiFieldMeta: {},
+    permAutoRead: {},
+    permBlockedMsg: {},
+    aiSeed: "new-role"
   };
+
+  // Shared AI Suggest & Draft engine (see ai-suggest.js).
+  function deriveAiSuggestions(description) {
+    if (!window.KNAiSuggest?.deriveRolePermissions) {
+      return { suggestions: new Map(), groups: new Set(), noMatch: false };
+    }
+    return window.KNAiSuggest.deriveRolePermissions(description, { actions: ACTIONS, keyOf });
+  }
+
+  function applyAiDescription(description) {
+    const root = document.getElementById("kn-role-root");
+    const formEl = root?.querySelector("#kn-role-form");
+    if (!formEl || !state.form) {
+      return;
+    }
+    state.aiDescribe = description;
+    clearTimeout(state._aiDebounce);
+    if (!description.trim()) {
+      state.aiLoading = false;
+      state.aiNoMatch = false;
+      state.aiSuggestions = {};
+      persistForm(readForm(formEl));
+      render();
+      requestAnimationFrame(() => {
+        document.getElementById("kn-role-root")?.querySelector("[data-ai-describe='role']")?.focus();
+      });
+      return;
+    }
+    state.aiLoading = true;
+    persistForm(readForm(formEl));
+    render();
+    requestAnimationFrame(() => {
+      const input = document.getElementById("kn-role-root")?.querySelector("[data-ai-describe='role']");
+      if (input) {
+        input.focus();
+        const end = input.value.length;
+        input.setSelectionRange(end, end);
+      }
+    });
+    state._aiDebounce = setTimeout(() => {
+      const liveRoot = document.getElementById("kn-role-root");
+      if (!state.form || !liveRoot?.querySelector("#kn-role-form")) {
+        state.aiLoading = false;
+        return;
+      }
+      const { suggestions, noMatch, edgeMessage, lowConfidence, ambiguous, multiIntent } = deriveAiSuggestions(description);
+      const suggestionsObj = {};
+      suggestions.forEach((reason, key) => {
+        suggestionsObj[key] = reason;
+      });
+      persistForm(readForm(liveRoot.querySelector("#kn-role-form")));
+      const snap = readForm(liveRoot.querySelector("#kn-role-form"));
+      suggestions.forEach((reason, key) => {
+        snap.permissions.add(key);
+      });
+      const ensured = window.KNAdminUX.ensureWriteImpliesRead(snap.permissions, ACTIONS);
+      syncPermSet(snap.permissions, ensured.permissions);
+      if (ensured.autoCheckedRead) {
+        applyPermDepFeedback(ensured);
+      }
+      state.aiSuggestions = suggestionsObj;
+      state.aiLoading = false;
+      state.aiNoMatch = noMatch;
+      window.KNAiSuggest?.logAudit?.({
+        action: "suggest-permissions",
+        context: "kn-role",
+        field: "permissions",
+        origin: "ai",
+        value: Object.keys(suggestionsObj).join(","),
+        meta: { noMatch, lowConfidence, ambiguous, multiIntent, edgeMessage: edgeMessage || "" }
+      });
+      const affectedGroups = new Set();
+      CATALOG.forEach((group) => {
+        const groupHasSuggestion = groupKeys(group).some((key) => suggestionsObj[key]);
+        if (groupHasSuggestion) {
+          affectedGroups.add(group.id);
+        }
+      });
+      state.openGroups = affectedGroups;
+      state.seenUsedGroups = new Set(usedGroupIds(snap.permissions));
+      state.unusedOpen = false;
+      persistForm(snap);
+      render();
+      requestAnimationFrame(() => {
+        const input = liveRoot.querySelector("[data-ai-describe='role']");
+        if (input) {
+          input.focus();
+          const end = input.value.length;
+          input.setSelectionRange(end, end);
+        }
+        const liveEl = liveRoot.querySelector("[data-ai-live-role]");
+        if (liveEl) {
+          if (noMatch) {
+            liveEl.textContent = edgeMessage || window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.";
+          } else if (suggestions.size > 0) {
+            const tip = edgeMessage ? ` ${edgeMessage}` : "";
+            liveEl.textContent = `${suggestions.size} permissions suggested. Review them below.${tip}`;
+          }
+        }
+      });
+    }, 600);
+  }
 
   function keyOf(moduleId, action) {
     return `${moduleId}:${action}`;
@@ -136,11 +254,21 @@
   function loadRoles() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
+      let roles;
       if (!raw) {
-        return seedRoles();
+        roles = seedRoles();
+      } else {
+        const parsed = JSON.parse(raw);
+        roles = Array.isArray(parsed) && parsed.length ? parsed : seedRoles();
       }
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length ? parsed : seedRoles();
+      const repaired = window.KNAdminUX?.repairNearEmptySeedRoles?.(roles, seedRoles());
+      if (repaired?.repairs?.length) {
+        saveRoles(repaired.roles);
+        const summary = repaired.repairs.map((item) => `${item.name} (${item.from}→${item.to})`).join(", ");
+        console.info(`[KNRoles] Restored near-empty seeded roles from catalog: ${summary}`);
+        return repaired.roles;
+      }
+      return roles;
     } catch (error) {
       return seedRoles();
     }
@@ -157,17 +285,17 @@
   function parseRoute(hash = location.hash) {
     const path = (hash || "#dashboard").split("?")[0];
     if (path === "#kn-role-management/add") {
-      return { view: "form", id: "" };
+      return { view: "form", id: "", preferEdit: true };
     }
     const edit = path.match(/^#kn-role-management\/edit\/([^/?#]+)/);
     if (edit) {
-      return { view: "form", id: decodeURIComponent(edit[1]) };
+      return { view: "form", id: decodeURIComponent(edit[1]), preferEdit: true };
     }
     const detail = path.match(/^#kn-role-management\/([^/?#]+)$/);
     if (detail && detail[1] !== "add") {
-      return { view: "form", id: decodeURIComponent(detail[1]) };
+      return { view: "form", id: decodeURIComponent(detail[1]), preferEdit: false };
     }
-    return { view: "list", id: "" };
+    return { view: "list", id: "", preferEdit: false };
   }
 
   function findRole(id) {
@@ -182,7 +310,7 @@
   }
 
   function requestLeave(hash) {
-    if (!state.dirty) {
+    if (!isFormDataDirty(state.form)) {
       finishLeave(hash);
       return true;
     }
@@ -222,6 +350,12 @@
       description: `${role?.name || "This role"} is assigned to ${people} ${people === 1 ? "person" : "people"}. They keep the role until you remove it.`,
       actionLabel: "Deactivate",
       actionAttr: "data-role-deactivate-confirm"
+    })}${window.KNAdminUX.confirmModal({
+      open: state.modal === "perm-reduce" && Boolean(state.pendingSaveSnap),
+      title: "Remove permissions?",
+      description: state.permReduceMsg || "This will significantly reduce permissions on this role.",
+      actionLabel: "Update Role",
+      actionAttr: "data-role-perm-reduce-confirm"
     })}`;
   }
 
@@ -258,30 +392,42 @@
 
   function filteredRoles() {
     const q = (value) => String(value || "").toLowerCase();
-    const search = q(state.filters.q);
     const rows = loadRoles().filter((role) => {
       const nameOk = !state.filters.name || q(role.name).includes(q(state.filters.name));
       const createdOk = !state.filters.createdBy || q(role.createdBy).includes(q(state.filters.createdBy));
-      const appOk = !state.filters.applicable || role.applicable.includes(state.filters.applicable);
-      const statusOk =
-        !state.filters.status ||
-        (state.filters.status === "active" ? role.active : !role.active);
-      const searchOk =
-        !search ||
-        q(role.name).includes(search) ||
-        q(role.createdBy).includes(search);
+      const applicableLabel = role.applicable.map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", ");
+      const appOk =
+        !state.filters.applicable ||
+        role.applicable.some((id) => q(id) === q(state.filters.applicable));
+      const statusHay = role.active ? "active" : "inactive";
+      const statusOk = !state.filters.status || statusHay === q(state.filters.status);
+      const coverageHay = `${(role.permissions || []).length} ${Math.round(((role.permissions || []).length / Math.max(1, ALL_KEYS.length)) * 100)}`;
+      const coverageOk = !state.filters.coverage || coverageHay.includes(q(state.filters.coverage));
       const unused = !(role.permissions || []).length;
       const chipOk =
         state.filters.chip === "all" ||
         (state.filters.chip === "active" && role.active) ||
         (state.filters.chip === "inactive" && !role.active) ||
         (state.filters.chip === "unused" && unused);
-      return nameOk && createdOk && appOk && statusOk && searchOk && chipOk;
+      return nameOk && createdOk && appOk && statusOk && coverageOk && chipOk;
     });
     const dir = state.sortDir === "desc" ? -1 : 1;
     rows.sort((a, b) => {
-      const av = state.sortKey === "status" ? Number(a.active) : String(a[state.sortKey] || "").toLowerCase();
-      const bv = state.sortKey === "status" ? Number(b.active) : String(b[state.sortKey] || "").toLowerCase();
+      let av;
+      let bv;
+      if (state.sortKey === "status") {
+        av = Number(a.active);
+        bv = Number(b.active);
+      } else if (state.sortKey === "coverage") {
+        av = (a.permissions || []).length;
+        bv = (b.permissions || []).length;
+      } else if (state.sortKey === "applicable") {
+        av = String(a.applicable.map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", ")).toLowerCase();
+        bv = String(b.applicable.map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", ")).toLowerCase();
+      } else {
+        av = String(a[state.sortKey] || "").toLowerCase();
+        bv = String(b[state.sortKey] || "").toLowerCase();
+      }
       if (av < bv) return -1 * dir;
       if (av > bv) return 1 * dir;
       return 0;
@@ -291,11 +437,11 @@
 
   function hasListFilters() {
     const filters = state.filters;
-    return Boolean(filters.q || filters.chip !== "all");
+    return Boolean(filters.name || filters.applicable || filters.createdBy || filters.status || filters.coverage || filters.chip !== "all");
   }
 
   function clearFilters() {
-    state.filters = { name: "", applicable: "", createdBy: "", status: "", q: "", chip: "all" };
+    state.filters = { name: "", applicable: "", createdBy: "", status: "", coverage: "", chip: "all" };
     state.page = 1;
     render();
   }
@@ -327,12 +473,15 @@
             const ux = window.KNAdminUX;
             return `<tr data-role-id="${escapeHtml(role.id)}" tabindex="0" class="${role.id === selectedId ? "is-selected" : ""}">
           <td>
-            <a class="blade-link admin-name-link" href="#kn-role-management/${encodeURIComponent(role.id)}" data-role-nav="detail" data-role-id="${escapeHtml(role.id)}">
-              <span class="type-body-sm type-weight-medium">${escapeHtml(role.name)}</span>
-              <span class="type-caption-sm">${people ? `<span data-role-people="${escapeHtml(role.name)}">${people} ${people === 1 ? "person" : "people"} assigned</span>` : "Not assigned yet"} · Updated ${escapeHtml(ux.relativeTime(role.updatedAt))}</span>
-            </a>
+            ${ux.titleCell({
+              title: role.name,
+              subtitle: `${people ? `${people} ${people === 1 ? "person" : "people"} assigned` : "Not assigned yet"} · Updated ${ux.relativeTime(role.updatedAt)}`,
+              href: `#kn-role-management/${encodeURIComponent(role.id)}`,
+              navAttr: `data-role-nav="detail" data-role-id="${escapeHtml(role.id)}"`,
+              initials: ux.initials(role.name)
+            })}
           </td>
-          <td class="type-body-sm">${escapeHtml(role.applicable.map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", "))}</td>
+          <td class="admin-table-chips">${window.KNAdminUX.chipsOverflow(role.applicable.map((id) => APPLICABLE.find((item) => item.id === id)?.label || id))}</td>
           <td class="type-body-sm">${escapeHtml(role.createdBy)}</td>
           <td>${ux.coverage(role.permissions, ALL_KEYS.length)}</td>
           <td>${ux.statusBadge(role.active)}</td>
@@ -378,13 +527,13 @@
       <a class="btn btn--primary btn--md type-ui-md" href="#kn-role-management/add" data-role-nav="add">Add Role</a>
     </header>
     ${ux.toolbar({
-      search: { value: state.filters.q, placeholder: "Search roles or owners", label: "Search KN roles" },
       chips: [
         { id: "all", label: "All", count: all.length, selected: chip === "all" },
         { id: "active", label: "Active", count: all.filter((role) => role.active).length, selected: chip === "active" },
         { id: "inactive", label: "Inactive", count: inactive.length, selected: chip === "inactive" },
         { id: "unused", label: "No permissions", count: unused, selected: chip === "unused" }
       ],
+      results: `${rows.length} ${rows.length === 1 ? "role" : "roles"}. Page ${state.page} of ${pages}. Sorted by ${state.sortKey}, ${state.sortDir === "desc" ? "descending" : "ascending"}.`,
       insight: unused
         ? { copy: "One or more roles have no permissions selected.", action: "Show empty roles", chip: "unused" }
         : null
@@ -397,9 +546,21 @@
               ${sortHeader("name", "Role Name")}
               ${sortHeader("applicable", "Applicable To")}
               ${sortHeader("createdBy", "Owner")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Coverage</span></th>
+              ${sortHeader("coverage", "Coverage")}
               ${sortHeader("status", "Status")}
               <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
+            </tr>
+            <tr class="vis-table__filters">
+              ${ux.colFilter({ attr: "data-role-filter", key: "name", value: state.filters.name, label: "role name", placeholder: "Search by role name" })}
+              ${ux.colBladeSelect({ attr: "data-role-filter", key: "applicable", value: state.filters.applicable, label: "applicable to", open: state.selectOpen, options: APPLICABLE.map(item => ({ value: item.id, label: item.label })) })}
+              ${ux.colFilter({ attr: "data-role-filter", key: "createdBy", value: state.filters.createdBy, label: "owner", placeholder: "Search by owner" })}
+              ${ux.colFilter({ attr: "data-role-filter", key: "coverage", value: state.filters.coverage, label: "coverage" })}
+              ${ux.colBladeSelect({ attr: "data-role-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [
+                { value: "Active", label: "Active" },
+                { value: "Inactive", label: "Inactive" },
+                { value: "Draft", label: "Draft" }
+              ] })}
+              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -442,16 +603,194 @@
     };
   }
 
+  /** Prefill Add Role from panel draft — never submits. */
+  function applyPendingAiDraft() {
+    const draft = window.KNAiSuggest?.consumeDraft?.("role");
+    if (!draft || !state.form) {
+      return;
+    }
+    state.form.name = draft.name || state.form.name;
+    if (Array.isArray(draft.applicable) && draft.applicable.length) {
+      state.form.applicable = draft.applicable.slice();
+    }
+    const suggestionsObj = { ...(draft.permissions || {}) };
+    Object.keys(suggestionsObj).forEach((key) => state.form.permissions.add(key));
+    if (window.KNAdminUX?.ensureWriteImpliesRead) {
+      const ensured = window.KNAdminUX.ensureWriteImpliesRead(state.form.permissions, ACTIONS);
+      syncPermSet(state.form.permissions, ensured.permissions);
+    }
+    state.aiSuggestions = suggestionsObj;
+    state.aiDescribe = draft.description || "";
+    state.permInputMode = "describe";
+    const affected = new Set();
+    CATALOG.forEach((group) => {
+      if (groupKeys(group).some((key) => suggestionsObj[key])) {
+        affected.add(group.id);
+      }
+    });
+    state.openGroups = affected;
+    state.seenUsedGroups = new Set(usedGroupIds(state.form.permissions));
+    state.unusedOpen = false;
+    state.aiFieldMeta = {
+      name: draft.nameReason || "Prefill from Klear Assistant draft",
+      applicable: draft.applicableReasons || {}
+    };
+    state.formSnapshot = snapshotForm(state.form);
+    state.dirty = isFormDataDirty(state.form);
+    window.KNAiSuggest?.logAudit?.({
+      action: "apply-draft-to-form",
+      context: "kn-role",
+      field: "form",
+      origin: "ai",
+      value: state.form.name
+    });
+    toast("AI draft applied to the form — review and click Add Role to save.", "notice");
+  }
+
+  function snapshotForm(form) {
+    return window.KNAdminUX.snapshotRoleForm(form);
+  }
+
+  function isFormDataDirty(formData) {
+    return window.KNAdminUX.isRoleFormDirty(formData, state.formSnapshot);
+  }
+
+  function canSubmitRole(formData = state.form) {
+    if (!formData) {
+      return false;
+    }
+    if (formData.id) {
+      return isFormDataDirty(formData);
+    }
+    return Boolean(String(formData.name || "").trim()) && (formData.permissions?.size || 0) > 0;
+  }
+
+  function syncSubmitBtn(root) {
+    const btn = (root || document).querySelector("#kn-role-submit-btn");
+    if (!btn) {
+      return;
+    }
+    const enabled = canSubmitRole();
+    btn.disabled = !enabled;
+    btn.setAttribute("aria-disabled", enabled ? "false" : "true");
+    state.dirty = isFormDataDirty(state.form);
+  }
+
+  function usedGroupIds(permissions) {
+    return CATALOG.filter((group) => groupKeys(group).some((key) => permissions.has(key))).map((group) => group.id);
+  }
+
+  function syncUsedGroupOpens(permissions) {
+    const used = usedGroupIds(permissions);
+    const next = new Set(state.openGroups || []);
+    used.forEach((id) => {
+      if (!state.seenUsedGroups?.has(id)) {
+        next.add(id);
+      }
+    });
+    state.openGroups = next;
+    state.seenUsedGroups = new Set(used);
+  }
+
+  function permSearchQuery() {
+    return state.permInputMode === "search" ? state.permQuery.trim().toLowerCase() : "";
+  }
+
+  function announceDrawerMode(root, editing) {
+    const live = (root || document).querySelector("[data-admin-mode-live]");
+    if (!live) {
+      return;
+    }
+    live.textContent = "";
+    requestAnimationFrame(() => {
+      live.textContent = editing ? "Editing permissions" : "Viewing role summary";
+    });
+  }
+
+  function restorePermSmartFocus(root, mode = state.permInputMode) {
+    const selector = mode === "describe" ? "[data-ai-describe='role']" : "[data-admin-perm-q]";
+    const input = (root || document).querySelector(selector);
+    if (!input) {
+      return;
+    }
+    input.focus();
+    if (typeof input.setSelectionRange === "function") {
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+    }
+  }
+
+  function resetDrawerChrome(existing) {
+    state.formSnapshot = snapshotForm(existing ? blankForm(existing) : blankForm());
+    const heavy = existing && window.KNAdminUX?.isHeavyRole?.(state.form.permissions, ALL_KEYS.length);
+    state.drawerMode = heavy ? "view" : "edit";
+    state.detailsOpen = false;
+    state.unusedOpen = false;
+    state.permInputMode = "describe";
+    state.openGroups = new Set(usedGroupIds(state.form.permissions));
+    state.seenUsedGroups = new Set(state.openGroups);
+    state.dirty = isFormDataDirty(state.form);
+  }
+
   function check(name, value, checked, label, extras = {}) {
     const labelClass = extras.labelClass || "type-body-sm";
     const text = extras.hideLabel
       ? `<span class="visually-hidden">${escapeHtml(label)}</span>`
       : `<span class="${labelClass}">${escapeHtml(label)}</span>`;
-    return `<label class="blade-check${extras.hideLabel ? " blade-check--bare" : ""}${extras.className ? ` ${extras.className}` : ""}"${extras.attr ? ` ${extras.attr}` : ""}>
-      <input type="checkbox"${name ? ` name="${escapeHtml(name)}" value="${escapeHtml(value)}"` : ""} ${checked ? "checked" : ""} ${extras.indeterminate ? "data-indeterminate" : ""} aria-label="${escapeHtml(extras.ariaLabel || label)}" />
+    const titleAttr = extras.title ? ` title="${escapeHtml(extras.title)}"` : "";
+    return `<label class="blade-check${extras.hideLabel ? " blade-check--bare" : ""}${extras.className ? ` ${extras.className}` : ""}"${extras.attr ? ` ${extras.attr}` : ""}${titleAttr}>
+      <input type="checkbox"${name ? ` name="${escapeHtml(name)}" value="${escapeHtml(value)}"` : ""} ${checked ? "checked" : ""} ${extras.indeterminate && !checked ? "data-indeterminate" : ""} aria-label="${escapeHtml(extras.ariaLabel || label)}"${titleAttr} />
       <span class="blade-check__box" aria-hidden="true"></span>
       ${text}
     </label>`;
+  }
+
+  function syncPermSet(target, next) {
+    return window.KNAdminUX.syncPermissionSet(target, next);
+  }
+
+  function applyPermDepFeedback(result, liveSelector = "[data-ai-live-role]") {
+    if (!result) {
+      return;
+    }
+    if (result.autoCheckedKeys?.length) {
+      const next = { ...(state.permAutoRead || {}) };
+      const trigger = result.triggerAction || "create";
+      result.autoCheckedKeys.forEach((key) => {
+        next[key] = trigger;
+      });
+      state.permAutoRead = next;
+      clearTimeout(state._permAutoReadTimer);
+      state._permAutoReadTimer = setTimeout(() => {
+        state.permAutoRead = {};
+        if (state.form && document.getElementById("kn-role-form")) {
+          render();
+        }
+      }, 1200);
+    }
+    if (result.blockedUncheckRead && result.blockedModules?.length) {
+      const next = { ...(state.permBlockedMsg || {}) };
+      result.blockedModules.forEach((moduleId) => {
+        next[moduleId] = window.KNAdminUX.PERM_BLOCKED_READ_MSG;
+      });
+      state.permBlockedMsg = next;
+      clearTimeout(state._permBlockedTimer);
+      state._permBlockedTimer = setTimeout(() => {
+        state.permBlockedMsg = {};
+        if (state.form && document.getElementById("kn-role-form")) {
+          render();
+        }
+      }, 2800);
+    }
+    const announcement = window.KNAdminUX.permDependencyMessage(result, ACTION_LABEL);
+    if (announcement) {
+      requestAnimationFrame(() => {
+        const liveEl = document.querySelector(liveSelector);
+        if (liveEl) {
+          liveEl.textContent = announcement;
+        }
+      });
+    }
   }
 
   function groupKeys(group) {
@@ -459,29 +798,26 @@
   }
 
   function allSelected(set, keys) {
-    return Boolean(keys.length) && keys.every((key) => set.has(key));
+    return window.KNAdminUX.allKeysSelected(set, keys);
   }
 
   function someSelected(set, keys) {
-    return keys.some((key) => set.has(key)) && !allSelected(set, keys);
+    return window.KNAdminUX.someKeysSelected(set, keys);
   }
 
   function toggleKeys(set, keys) {
-    if (allSelected(set, keys)) {
-      keys.forEach((key) => set.delete(key));
-      return;
-    }
-    keys.forEach((key) => set.add(key));
+    const result = window.KNAdminUX.applyPermDependencyToggle(set, keys, ACTIONS);
+    syncPermSet(set, result.permissions);
+    applyPermDepFeedback(result);
+    return result;
   }
 
   function bindIndeterminate(root) {
-    root.querySelectorAll("input[data-indeterminate]").forEach((input) => {
-      input.indeterminate = true;
-    });
+    window.KNAdminUX.bindIndeterminate(root);
   }
 
   function visibleModules(group, permissions) {
-    const q = state.permQuery.trim().toLowerCase();
+    const q = permSearchQuery();
     return group.modules.filter((mod) => {
       const keys = ACTIONS.map((action) => keyOf(mod.id, action));
       const anySelected = keys.some((key) => permissions.has(key));
@@ -502,14 +838,23 @@
     }
     const keys = groupKeys(group);
     const selected = keys.filter((key) => permissions.has(key)).length;
-    const q = state.permQuery.trim();
-    const open = Boolean(state.openGroups?.has(group.id)) || Boolean(q);
-    const countTone = selected === keys.length ? "positive" : selected ? "information" : "neutral";
+    const q = permSearchQuery();
+    const aiSuggestions = state.aiSuggestions || {};
+    const aiGroupKeys = keys.filter((key) => aiSuggestions[key]);
+    const hasAiInGroup = aiGroupKeys.length > 0;
+    const open = Boolean(state.openGroups?.has(group.id)) || Boolean(q) || hasAiInGroup;
+    const countTone = window.KNAdminUX.permCategoryTone(selected, keys.length);
+    const aiCountBadge = hasAiInGroup
+      ? `<span class="badge badge--ai type-caption-sm type-weight-medium ai-suggest-count" aria-label="${aiGroupKeys.length} AI-suggested permissions in this category">✦ ${aiGroupKeys.length} suggested</span>`
+      : "";
     return window.KNAdminUX.accordionItem({
       id: group.id,
       title: group.title,
       open,
-      trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium">${selected}/${keys.length}</span>`,
+      modules: group.modules,
+      includesLabel: "Includes these KlearNow services:",
+      tone: countTone,
+      trailing: `${aiCountBadge}<span class="badge badge--${countTone} type-caption-sm type-weight-medium">${selected}/${keys.length}</span>`,
       body: `
         <div class="role-perm__row role-perm__row--head">
           <span class="type-caption-sm blade-field__hint">Permission</span>
@@ -527,25 +872,111 @@
         ${mods
           .map((mod) => {
             const rowKeys = ACTIONS.map((action) => keyOf(mod.id, action));
-            return `<div class="role-perm__row">
-              ${check("", "", allSelected(permissions, rowKeys), mod.title, {
-                attr: `data-role-select-row="${escapeHtml(mod.id)}"`,
-                indeterminate: someSelected(permissions, rowKeys),
-                className: "role-perm__module",
-                labelClass: "type-ui-sm type-weight-medium"
-              })}
+            const modAiKeys = rowKeys.filter((key) => aiSuggestions[key]);
+            const isAiRow = modAiKeys.length > 0;
+            const firstReason = isAiRow ? aiSuggestions[modAiKeys[0]] : "";
+            const blockedMsg = state.permBlockedMsg?.[mod.id] || "";
+            const autoReadTrigger = state.permAutoRead?.[keyOf(mod.id, "read")];
+            return `<div class="role-perm__row${isAiRow ? " is-ai-suggested" : ""}${blockedMsg ? " has-perm-dep-msg" : ""}" data-perm-module="${escapeHtml(mod.id)}">
+              <div class="role-perm__module-wrap">
+                ${check("", "", allSelected(permissions, rowKeys), mod.title, {
+                  attr: `data-role-select-row="${escapeHtml(mod.id)}"`,
+                  indeterminate: someSelected(permissions, rowKeys),
+                  className: "role-perm__module",
+                  labelClass: "type-ui-sm type-weight-medium"
+                })}
+                ${isAiRow ? `<span class="ai-suggest-tag type-caption-sm" aria-label="AI suggestion: ${escapeHtml(firstReason)}">✦ ${escapeHtml(firstReason)}</span>` : ""}
+                ${blockedMsg ? `<p class="role-perm__dep-msg type-caption-sm" role="status">${escapeHtml(blockedMsg)}</p>` : ""}
+              </div>
               <div class="role-perm__actions">
-                ${ACTIONS.map((action) =>
-                  check("perm", keyOf(mod.id, action), permissions.has(keyOf(mod.id, action)), ACTION_LABEL[action], {
+                ${ACTIONS.map((action) => {
+                  const key = keyOf(mod.id, action);
+                  const isAiPerm = Boolean(aiSuggestions[key]);
+                  const isAutoRead = action === "read" && Boolean(autoReadTrigger);
+                  const autoHint = isAutoRead
+                    ? `Auto-selected because ${ACTION_LABEL[autoReadTrigger] || autoReadTrigger} requires Read`
+                    : "";
+                  const classNames = [
+                    isAiPerm ? "is-ai-suggested-check" : "",
+                    isAutoRead ? "blade-check--auto-read" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+                  return check("perm", key, permissions.has(key), ACTION_LABEL[action], {
                     hideLabel: true,
-                    ariaLabel: `${ACTION_LABEL[action]} ${mod.title}`
-                  })
-                ).join("")}
+                    ariaLabel: `${ACTION_LABEL[action]} ${mod.title}${isAiPerm ? " (AI suggested)" : ""}${isAutoRead ? ` (${autoHint})` : ""}`,
+                    className: classNames,
+                    title: autoHint
+                  });
+                }).join("")}
               </div>
             </div>`;
           })
           .join("")}`
     });
+  }
+
+  function renderPermBrowser(permissions) {
+    syncUsedGroupOpens(permissions);
+    const stats = window.KNAdminUX.permCategoryStats(permissions, CATALOG, ACTIONS);
+    const searching = Boolean(permSearchQuery()) || state.permSelectedOnly;
+    const groupUnused = !searching && stats.used.length > 0 && stats.unused.length > 0;
+    const featured = groupUnused ? stats.used : stats.all;
+    const featuredHtml = featured.map((item) => renderPermGroup(item.group, permissions)).filter(Boolean);
+    if (!groupUnused) {
+      return featuredHtml.length ? featuredHtml.join("") : `<p class="type-caption-sm">No permissions match this scan.</p>`;
+    }
+    const unusedHtml = stats.unused.map((item) => renderPermGroup(item.group, permissions)).filter(Boolean);
+    return `${featuredHtml.join("")}${
+      unusedHtml.length
+        ? window.KNAdminUX.unusedCategoriesBlock({
+            count: unusedHtml.length,
+            open: Boolean(state.unusedOpen),
+            body: unusedHtml.join(""),
+            suffix: "role",
+            label: `Other categories (${unusedHtml.length})`
+          })
+        : ""
+    }`;
+  }
+
+  function renderDetailsGrid(role, people) {
+    return `<div class="role-details-strip">
+              <div class="form-display-field">
+                <span class="form-display-field__label">OWNER</span>
+                <span class="form-display-field__value">${escapeHtml(role.createdBy)}</span>
+              </div>
+              <div class="form-display-field">
+                <span class="form-display-field__label">UPDATED</span>
+                <span class="form-display-field__value">${escapeHtml(window.KNAdminUX.relativeTime(role.updatedAt))}</span>
+              </div>
+              <div class="form-display-field">
+                <span class="form-display-field__label">PEOPLE ASSIGNED</span>
+                <span class="form-display-field__value">${
+                  people
+                    ? `<a class="blade-link type-body-sm" href="#kn-user-management?role=${encodeURIComponent(role.name)}">${people} ${people === 1 ? "person" : "people"}</a>`
+                    : `—`
+                }</span>
+              </div>
+              <div class="form-display-field">
+                <span class="form-display-field__label">COVERAGE</span>
+                <span class="form-display-field__value">${window.KNAdminUX.coverage(role.permissions, ALL_KEYS.length)}</span>
+              </div>
+            </div>`;
+  }
+
+  function renderAccessReadonly(form) {
+    const applicable = (form.applicable || []).map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", ");
+    return `<div class="role-access-readonly" aria-label="Access">
+      <div class="form-display-field">
+        <span class="form-display-field__label">NAME</span>
+        <span class="form-display-field__value">${escapeHtml(form.name || "Untitled role")}</span>
+      </div>
+      <div class="form-display-field">
+        <span class="form-display-field__label">WHO IT APPLIES TO</span>
+        <span class="form-display-field__value">${escapeHtml(applicable || "—")}</span>
+      </div>
+    </div>`;
   }
 
   function formLeaveHash() {
@@ -557,9 +988,64 @@
     const isEdit = Boolean(form.id);
     const role = isEdit ? findRole(form.id) : null;
     const people = role ? assignedCount(role.name) : 0;
+    const editing = !isEdit || state.drawerMode === "edit";
+    const heavy = isEdit && window.KNAdminUX?.isHeavyRole?.(form.permissions, ALL_KEYS.length);
     const title = isEdit ? role?.name || form.name || "Edit Role" : "Add Role";
     const applicable = (role?.applicable || form.applicable || []).map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", ");
-    const permGroups = CATALOG.map((group) => renderPermGroup(group, form.permissions)).filter(Boolean);
+    const coveragePct = ALL_KEYS.length ? Math.round((form.permissions.size / ALL_KEYS.length) * 100) : 0;
+    const summary = window.KNAdminUX.accessSummary(form.permissions, CATALOG, ACTIONS);
+    const submitDisabled = !canSubmitRole(form);
+    const accessFields = !editing
+      ? ""
+      : `<section class="role-form-zone role-form-zone--access" aria-labelledby="kn-role-access-title">
+            <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-access-title">Basics</h3>
+            <div class="blade-field">
+              <label class="type-caption-sm type-weight-medium" for="kn-role-name">Name <span class="role-req" aria-hidden="true">*</span></label>
+              <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="e.g. Billing reviewer" value="${escapeHtml(form.name)}" autocomplete="off" />
+              ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name) : ""}
+              <p class="type-caption-sm blade-field__hint">What people will see when assigning this access.</p>
+              ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
+            </div>
+            <div class="blade-field role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
+              ${window.KNAdminUX.applicableHead({
+                titleId: "kn-role-applicable-title",
+                title: "Who this applies to",
+                allSelected: form.applicable.length === APPLICABLE.length,
+                attr: "data-role-select-applicable"
+              })}
+              <div class="role-applicable__row">
+                ${APPLICABLE.map((item) => check("applicable", item.id, form.applicable.includes(item.id), item.label)).join("")}
+              </div>
+            </div>
+          </section>`;
+    const permFields = !editing
+      ? ""
+      : `<section class="role-form-zone role-form-zone--perms role-perm" aria-labelledby="kn-role-perm-title">
+            <header class="role-perm__head">
+              <h3 class="type-heading-h5 type-weight-semibold" id="kn-role-perm-title">What they can do</h3>
+            </header>
+            ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-role" })}
+            <p class="visually-hidden" aria-live="polite" aria-atomic="true" data-ai-live-role></p>
+            ${window.KNAdminUX.permFilters({
+              query: state.permQuery,
+              selectedOnly: state.permSelectedOnly,
+              aiDescribe: state.aiDescribe,
+              aiLoading: state.aiLoading,
+              aiNoMatch: state.aiNoMatch,
+              aiAttr: "role",
+              inputMode: state.permInputMode,
+              selectedCount: form.permissions.size,
+              totalCount: ALL_KEYS.length,
+              ...window.KNAdminUX.aiRoleAssist({
+                name: form.name,
+                permissions: form.permissions,
+                catalog: CATALOG,
+                mode: "role",
+                seed: state.aiSeed
+              })
+            })}
+            ${renderPermBrowser(form.permissions)}
+          </section>`;
     return `<div class="blade-drawer-root ${isEdit ? "admin-profile-drawer" : "admin-form-drawer"} is-open" id="admin-role-form-drawer">
       <div class="blade-drawer__overlay" data-role-form-close tabindex="-1"></div>
       <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-role-form-title">
@@ -583,69 +1069,49 @@
           <button class="icon-btn" type="button" data-role-form-close aria-label="Close">${iconClose()}</button>
         </header>
         <form class="blade-drawer__body role-form" id="kn-role-form" novalidate>
+          <p class="visually-hidden" aria-live="polite" data-admin-mode-live></p>
           ${
             role
-              ? `<section class="user-form-section admin-drawer-section--muted" aria-labelledby="kn-role-details-title">
-            <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-details-title">Details</h3>
-            <div class="user-form-grid">
-              <div class="blade-field">
-                <label class="type-caption-sm type-weight-medium" for="kn-role-owner">Owner</label>
-                <input class="blade-field__control type-body-sm" id="kn-role-owner" type="text" disabled value="${escapeHtml(role.createdBy)}" />
-              </div>
-              <div class="blade-field">
-                <label class="type-caption-sm type-weight-medium" for="kn-role-updated">Updated</label>
-                <input class="blade-field__control type-body-sm" id="kn-role-updated" type="text" disabled value="${escapeHtml(window.KNAdminUX.relativeTime(role.updatedAt))}" />
-              </div>
-              <div class="blade-field">
-                <span class="type-caption-sm type-weight-medium">People assigned</span>
-                ${
-                  people
-                    ? `<a class="blade-link type-body-sm" href="#kn-user-management?role=${encodeURIComponent(role.name)}">${people} ${people === 1 ? "person" : "people"}</a>`
-                    : `<p class="type-body-sm">None yet</p>`
-                }
-              </div>
-              <div class="blade-field">
-                <span class="type-caption-sm type-weight-medium">Coverage</span>
-                ${window.KNAdminUX.coverage(role.permissions, ALL_KEYS.length)}
-              </div>
-            </div>
+              ? `<section class="role-form-zone role-form-zone--summary" aria-label="Role summary">
+            ${window.KNAdminUX.roleMetaLine({
+              owner: role.createdBy,
+              updatedAt: role.updatedAt,
+              count: people,
+              countSingular: "person",
+              countPlural: "people",
+              countHref: people ? `#kn-user-management?role=${encodeURIComponent(role.name)}` : "",
+              coveragePct,
+              detailsOpen: state.detailsOpen,
+              detailsId: "kn-role-meta-details",
+              detailsHtml: renderDetailsGrid(role, people),
+              toggleAttr: "data-admin-details-toggle"
+            })}
+            <p class="role-access-summary type-body-sm">${escapeHtml(summary)}</p>
+            ${
+              heavy
+                ? window.KNAdminUX.roleViewEditToggle({
+                    expanded: editing,
+                    controlsId: "kn-role-edit-panel",
+                    attr: "data-admin-drawer-mode"
+                  })
+                : ""
+            }
+            ${editing ? "" : renderAccessReadonly(form)}
           </section>`
               : ""
           }
-          <section class="user-form-section" aria-labelledby="kn-role-access-title">
-            <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-access-title">Access</h3>
-            <div class="blade-field">
-              <label class="type-caption-sm type-weight-medium" for="kn-role-name">Role Name <span class="role-req" aria-hidden="true">*</span></label>
-              <input class="blade-field__control type-body-sm" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="Enter role name" value="${escapeHtml(form.name)}" autocomplete="off" />
-              <p class="type-caption-sm blade-field__hint">Shown to KlearNow operators when assigning access.</p>
-              ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
-            </div>
-            <div class="blade-field role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
-              ${window.KNAdminUX.applicableHead({
-                titleId: "kn-role-applicable-title",
-                title: "Applicable to",
-                allSelected: form.applicable.length === APPLICABLE.length,
-                attr: "data-role-select-applicable"
-              })}
-              <div class="role-applicable__row">
-                ${APPLICABLE.map((item) => check("applicable", item.id, form.applicable.includes(item.id), item.label)).join("")}
-              </div>
-            </div>
-            <section class="role-perm" aria-labelledby="kn-role-perm-title">
-              <header class="role-perm__head">
-                <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-perm-title">Permissions</h3>
-                <p class="type-caption-sm blade-field__hint">${form.permissions.size} of ${ALL_KEYS.length} selected</p>
-              </header>
-              ${window.KNAdminUX.permFilters({ query: state.permQuery, selectedOnly: state.permSelectedOnly })}
-              ${permGroups.length ? permGroups.join("") : `<p class="type-caption-sm">No permissions match this scan.</p>`}
-            </section>
-          </section>
+          <div id="kn-role-edit-panel">
+            ${accessFields}${permFields}
+          </div>
         </form>
         <footer class="blade-drawer__footer">
-          ${isEdit ? `<button class="btn btn--tertiary btn--color-negative btn--md type-ui-md" type="button" data-role-delete="${escapeHtml(form.id)}">Delete Role</button>` : ""}
+          ${isEdit ? `<div class="role-delete-action"><button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-role-delete="${escapeHtml(form.id)}">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15"><path d="M3 4h10M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4M5.5 4l.5 8M10.5 4l-.5 8M7.5 4v8M8.5 4v8"/></svg>
+            Delete Role
+          </button></div>` : ""}
           <div class="blade-drawer__footer-actions">
             <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-role-form-close>Cancel</button>
-            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-role-form">${isEdit ? "Update Role" : "Add Role"}</button>
+            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-role-form" id="kn-role-submit-btn" ${window.KNAdminUX.submitButtonAttrs(submitDisabled)}>${isEdit ? "Update Role" : "Add Role"}</button>
           </div>
         </footer>
       </aside>
@@ -661,6 +1127,9 @@
     const route = parseRoute();
     const scroller = document.querySelector(".content");
     const top = scroller?.scrollTop || 0;
+    const drawerScroll = window.KNAdminUX.captureDrawerScroll(page);
+    const drawerFocus = window.KNAdminUX.captureDrawerFocus(page);
+    const filterFocus = window.KNAdminUX.captureColFilterFocus(page);
     if (route.view === "form") {
       if (!state.form || state.form.id !== route.id) {
         const existing = route.id ? loadRoles().find((role) => role.id === route.id) : null;
@@ -670,14 +1139,28 @@
           return;
         }
         state.form = blankForm(existing);
-        state.dirty = false;
-        state.openGroups = new Set();
+        resetDrawerChrome(existing);
+        if (route.preferEdit) {
+          state.drawerMode = "edit";
+        }
         state.permQuery = "";
         state.permSelectedOnly = false;
         state.menuOpen = "";
+        state.aiDescribe = "";
+        state.aiLoading = false;
+        state.aiNoMatch = false;
+        state.aiSuggestions = {};
+        state.aiFieldMeta = {};
+        state.aiSeed = existing?.id || `new-role-${Date.now()}`;
+        if (!existing) {
+          applyPendingAiDraft();
+        }
+      } else if (!route.id && window.KNAiSuggest?.peekDraft?.("role")) {
+        applyPendingAiDraft();
       }
     } else {
       state.form = null;
+      state.formSnapshot = null;
       state.dirty = false;
     }
     root.innerHTML = renderList();
@@ -685,7 +1168,10 @@
     if (scroller) {
       scroller.scrollTop = top;
     }
+    window.KNAdminUX.restoreDrawerScroll(page, drawerScroll, { focusSelector: drawerFocus });
+    window.KNAdminUX.restoreColFilterFocus(page, filterFocus);
     window.KNAdminUX.syncOverlayFocus(page);
+    syncSubmitBtn(root);
     if (state.restoreFocusId && !window.KNAdminUX.activeOverlay(page)) {
       const id = state.restoreFocusId;
       state.restoreFocusId = "";
@@ -696,15 +1182,78 @@
   }
 
   function readForm(formEl) {
-    const name = formEl.querySelector("#kn-role-name")?.value.trim() || "";
+    if (!formEl) {
+      return {
+        name: state.form?.name || "",
+        applicable: [...(state.form?.applicable || [])],
+        permissions: new Set(state.form?.permissions || [])
+      };
+    }
+    const nameInput = formEl.querySelector("#kn-role-name");
+    if (!nameInput && state.form) {
+      return {
+        name: state.form.name || "",
+        applicable: [...(state.form.applicable || [])],
+        permissions: new Set(state.form.permissions || [])
+      };
+    }
+    const name = nameInput?.value.trim() || "";
     const applicable = [...formEl.querySelectorAll('input[name="applicable"]:checked')].map((input) => input.value);
-    const permissions = new Set([...formEl.querySelectorAll('input[name="perm"]:checked')].map((input) => input.value));
+    const permInputs = [...formEl.querySelectorAll('input[name="perm"]')];
+    const permissions = window.KNAdminUX.mergePermissionSelections(
+      state.form?.permissions,
+      permInputs.filter((input) => input.checked).map((input) => input.value),
+      permInputs.map((input) => input.value)
+    );
     return { name, applicable, permissions };
   }
 
   function persistForm(next) {
-    state.form = { ...state.form, ...next, permissions: next.permissions };
-    state.dirty = true;
+    const permissions =
+      next && next.permissions != null ? next.permissions : state.form?.permissions || new Set();
+    state.form = { ...state.form, ...next, permissions: new Set(permissions) };
+    state.dirty = isFormDataDirty(state.form);
+  }
+
+  function commitRoleSave(snap) {
+    const roles = loadRoles();
+    if (state.form.id) {
+      const current = roles.find((role) => role.id === state.form.id);
+      if (current) {
+        current.name = snap.name;
+        current.applicable = snap.applicable;
+        current.permissions = [...snap.permissions];
+        current.updatedAt = new Date().toISOString();
+      }
+      saveRoles(roles);
+      state.form = { ...state.form, ...snap, permissions: snap.permissions, error: "" };
+      state.formSnapshot = snapshotForm(state.form);
+      state.dirty = false;
+      state.drawerMode = window.KNAdminUX?.isHeavyRole?.(snap.permissions, ALL_KEYS.length) ? "view" : "edit";
+      state.modal = "";
+      state.pendingSaveSnap = null;
+      state.permReduceMsg = "";
+      toast(`${snap.name} saved.`);
+      goto(`#kn-role-management/${encodeURIComponent(state.form.id)}`);
+      return;
+    }
+    const id = uid();
+    roles.unshift({
+      id,
+      name: snap.name,
+      applicable: snap.applicable,
+      createdBy: "Tanya Agrawal",
+      active: true,
+      updatedAt: new Date().toISOString(),
+      permissions: [...snap.permissions]
+    });
+    saveRoles(roles);
+    state.dirty = false;
+    state.modal = "";
+    state.pendingSaveSnap = null;
+    state.permReduceMsg = "";
+    toast(`${snap.name} added.`);
+    goto(`#kn-role-management/${encodeURIComponent(id)}`);
   }
 
   function bind(root) {
@@ -725,6 +1274,73 @@
       ) {
         return;
       }
+      if (event.target.closest("[data-ai-ops-dismiss]")) {
+        event.preventDefault();
+        window.KNAdminUX.dismissOpsFlag(event.target.closest("[data-ai-ops-dismiss]").getAttribute("data-ai-ops-dismiss"));
+        render();
+        return;
+      }
+      if (window.KNAdminUX.resolvePermHeaderControl(event, "[data-admin-unused-toggle]")) {
+        event.preventDefault();
+        const formEl = root.querySelector("#kn-role-form");
+        if (formEl && state.form) {
+          const snap = readForm(formEl);
+          state.form = { ...state.form, ...snap, permissions: snap.permissions };
+        }
+        state.unusedOpen = !state.unusedOpen;
+        render();
+        requestAnimationFrame(() => root.querySelector("[data-admin-unused-toggle]")?.focus());
+        return;
+      }
+      if (event.target.closest("[data-admin-details-toggle]")) {
+        event.preventDefault();
+        state.detailsOpen = !state.detailsOpen;
+        render();
+        requestAnimationFrame(() => root.querySelector("[data-admin-details-toggle]")?.focus());
+        return;
+      }
+      if (event.target.closest("[data-admin-drawer-mode]")) {
+        event.preventDefault();
+        const formEl = root.querySelector("#kn-role-form");
+        if (formEl && state.form && state.drawerMode === "edit") {
+          const snap = readForm(formEl);
+          state.form = { ...state.form, ...snap, permissions: snap.permissions };
+          state.dirty = isFormDataDirty(state.form);
+        }
+        state.drawerMode = state.drawerMode === "edit" ? "view" : "edit";
+        if (state.drawerMode === "edit") {
+          state.unusedOpen = false;
+          state.openGroups = new Set(usedGroupIds(state.form.permissions));
+          state.seenUsedGroups = new Set(state.openGroups);
+        }
+        render();
+        announceDrawerMode(root, state.drawerMode === "edit");
+        requestAnimationFrame(() => {
+          if (state.drawerMode === "edit") {
+            const describe = document.getElementById("kn-role-root")?.querySelector("[data-ai-describe='role']");
+            (describe || document.getElementById("kn-role-name"))?.focus();
+          } else {
+            root.querySelector("[data-admin-drawer-mode]")?.focus();
+          }
+        });
+        return;
+      }
+      if (
+        window.KNAdminUX.handlePermInputModeClick(event, {
+          mode: state.permInputMode,
+          setMode: (next) => {
+            const formEl = root.querySelector("#kn-role-form");
+            if (formEl && state.form) {
+              persistForm(readForm(formEl));
+            }
+            state.permInputMode = next;
+            render();
+            restorePermSmartFocus(root, next);
+          }
+        })
+      ) {
+        return;
+      }
       if (event.target.closest("[data-role-select-group], [data-role-select-row], [data-role-select-col], [data-role-select-all], [data-role-select-applicable]")) {
         event.preventDefault();
         event.stopPropagation();
@@ -733,6 +1349,15 @@
         event.preventDefault();
         persistForm(readForm(root.querySelector("#kn-role-form")));
         state.permSelectedOnly = !state.permSelectedOnly;
+        render();
+        return;
+      }
+      if (event.target.closest("[data-admin-perm-clear-all]")) {
+        event.preventDefault();
+        if (state.form) {
+          state.form.permissions = new Set();
+          state.dirty = true;
+        }
         render();
         return;
       }
@@ -783,7 +1408,20 @@
         state.modal = "";
         state.deleteId = "";
         state.deactivateId = "";
+        state.pendingSaveSnap = null;
+        state.permReduceMsg = "";
         render();
+        return;
+      }
+      if (event.target.closest("[data-role-perm-reduce-confirm]")) {
+        event.preventDefault();
+        const snap = state.pendingSaveSnap;
+        if (snap) {
+          commitRoleSave(snap);
+        } else {
+          state.modal = "";
+          render();
+        }
         return;
       }
       if (event.target.closest("[data-role-profile-close], [data-role-form-close]")) {
@@ -856,7 +1494,7 @@
       }
       const edit = event.target.closest("[data-role-edit]");
       if (edit) {
-        goto(`#kn-role-management/${edit.getAttribute("data-role-edit")}`);
+        goto(`#kn-role-management/edit/${edit.getAttribute("data-role-edit")}`);
         return;
       }
       const duplicate = event.target.closest("[data-role-duplicate]");
@@ -865,7 +1503,14 @@
         if (source) {
           state.menuOpen = "";
           state.form = blankForm({ ...source, id: "", name: `${source.name} copy` });
-          state.dirty = true;
+          state.formSnapshot = snapshotForm(blankForm());
+          state.drawerMode = "edit";
+          state.detailsOpen = false;
+          state.unusedOpen = false;
+          state.permInputMode = "describe";
+          state.openGroups = new Set(usedGroupIds(state.form.permissions));
+          state.seenUsedGroups = new Set(state.openGroups);
+          state.dirty = isFormDataDirty(state.form);
           goto("#kn-role-management/add");
         }
         return;
@@ -908,12 +1553,6 @@
       const chip = event.target.closest("[data-admin-chip]");
       if (chip) {
         state.filters.chip = chip.getAttribute("data-admin-chip") || "all";
-        state.page = 1;
-        render();
-        return;
-      }
-      if (event.target.closest("[data-admin-q-clear]")) {
-        state.filters.q = "";
         state.page = 1;
         render();
         return;
@@ -1013,39 +1652,116 @@
         return;
       }
       if (event.target.closest("#kn-role-form")) {
-        persistForm(readForm(root.querySelector("#kn-role-form")));
+        const formEl = root.querySelector("#kn-role-form");
+        if (event.target.matches('input[name="perm"]')) {
+          const key = event.target.value;
+          const checked = event.target.checked;
+          const result = window.KNAdminUX.applyPermissionToggle(state.form?.permissions, key, checked, ACTIONS);
+          applyPermDepFeedback(result);
+          const snap = readForm(formEl);
+          snap.permissions = result.permissions;
+          persistForm(snap);
+          render();
+          return;
+        }
+        persistForm(readForm(formEl));
+        if (event.target.matches('input[name="applicable"]')) {
+          render();
+        } else {
+          syncSubmitBtn(root);
+        }
       }
     });
 
     root.addEventListener("input", (event) => {
-      if (event.target.matches("[data-admin-q]")) {
-        state.filters.q = event.target.value;
+      const filter = event.target.closest("[data-role-filter]");
+      if (filter) {
+        state.filters[filter.getAttribute("data-role-filter")] = filter.value;
         state.page = 1;
         render();
-        const search = root.querySelector("[data-admin-q]");
-        if (search) {
-          search.focus();
-          const end = search.value.length;
-          search.setSelectionRange(end, end);
-        }
         return;
       }
       if (event.target.matches("[data-admin-perm-q]")) {
         persistForm(readForm(root.querySelector("#kn-role-form")));
         state.permQuery = event.target.value;
         render();
-        const search = root.querySelector("[data-admin-perm-q]");
-        if (search) {
-          search.focus();
-          const end = search.value.length;
-          search.setSelectionRange(end, end);
-        }
+        restorePermSmartFocus(root, "search");
+        return;
+      }
+      if (event.target.matches("[data-ai-describe='role']")) {
+        applyAiDescription(event.target.value);
         return;
       }
       if (event.target.id === "kn-role-name") {
+        if (state.aiFieldMeta?.name) {
+          state.aiFieldMeta = { ...state.aiFieldMeta, name: "" };
+          window.KNAiSuggest?.logAudit?.({
+            action: "manual-edit",
+            context: "kn-role",
+            field: "name",
+            origin: "manual",
+            value: event.target.value
+          });
+        }
         persistForm(readForm(root.querySelector("#kn-role-form")));
+        syncSubmitBtn(root);
       }
     });
+
+    root.addEventListener("keydown", (event) => {
+      if (
+        window.KNAdminUX.handlePermInputModeKey(event, {
+          mode: state.permInputMode,
+          setMode: (next) => {
+            const formEl = root.querySelector("#kn-role-form");
+            if (formEl && state.form) {
+              persistForm(readForm(formEl));
+            }
+            state.permInputMode = next;
+            render();
+            requestAnimationFrame(() => {
+              root.querySelector(`[data-perm-input-mode="${next}"]`)?.focus();
+            });
+          }
+        })
+      ) {
+        return;
+      }
+    });
+
+    root.addEventListener("click", (event) => {
+      if (event.target.closest("[data-ai-prompt='role']")) {
+        event.preventDefault();
+        const chip = event.target.closest("[data-ai-prompt='role']");
+        applyAiDescription(chip.getAttribute("data-ai-prompt-text") || "");
+        return;
+      }
+      if (event.target.closest("[data-ai-describe-clear='role']")) {
+        event.preventDefault();
+        persistForm(readForm(root.querySelector("#kn-role-form")));
+        // Uncheck AI-suggested permissions that were auto-checked
+        const snap = readForm(root.querySelector("#kn-role-form"));
+        Object.keys(state.aiSuggestions).forEach((key) => snap.permissions.delete(key));
+        state.aiDescribe = "";
+        state.aiLoading = false;
+        state.aiNoMatch = false;
+        state.aiSuggestions = {};
+        state.aiFieldMeta = {};
+        window.KNAiSuggest?.logAudit?.({
+          action: "clear-ai-suggestions",
+          context: "kn-role",
+          field: "permissions",
+          origin: "manual",
+          value: ""
+        });
+        persistForm(snap);
+        render();
+        requestAnimationFrame(() => {
+          root.querySelector("[data-ai-describe='role']")?.focus();
+        });
+        return;
+      }
+    }, true);
 
     root.addEventListener("submit", (event) => {
       if (!event.target.matches("#kn-role-form")) {
@@ -1053,6 +1769,9 @@
       }
       event.preventDefault();
       const snap = readForm(event.target);
+      if (!canSubmitRole({ ...state.form, ...snap, permissions: snap.permissions })) {
+        return;
+      }
       if (!snap.name) {
         state.form = { ...state.form, ...snap, error: "Enter a role name." };
         render();
@@ -1074,32 +1793,56 @@
       if (state.form.id) {
         const current = roles.find((role) => role.id === state.form.id);
         if (current) {
-          current.name = snap.name;
-          current.applicable = snap.applicable;
-          current.permissions = [...snap.permissions];
-          current.updatedAt = new Date().toISOString();
+          const baseline = window.KNAdminUX.permissionBaselineForSave(
+            current.permissions,
+            state.formSnapshot
+          );
+          const risk = window.KNAdminUX.permissionReductionRisk(
+            baseline,
+            snap.permissions,
+            assignedCount(current.name)
+          );
+          if (risk) {
+            state.pendingSaveSnap = snap;
+            state.permReduceMsg = window.KNAdminUX.formatPermissionReductionConfirm(risk, "people");
+            state.modal = "perm-reduce";
+            render();
+            return;
+          }
         }
-        saveRoles(roles);
-        state.dirty = false;
-        toast(`${snap.name} saved.`);
-        goto(`#kn-role-management/${encodeURIComponent(state.form.id)}`);
-      } else {
-        const id = uid();
-        roles.unshift({
-          id,
-          name: snap.name,
-          applicable: snap.applicable,
-          createdBy: "Tanya Agrawal",
-          active: true,
-          updatedAt: new Date().toISOString(),
-          permissions: [...snap.permissions]
-        });
-        saveRoles(roles);
-        state.dirty = false;
-        toast(`${snap.name} added.`);
-        goto(`#kn-role-management/${encodeURIComponent(id)}`);
       }
+      commitRoleSave(snap);
     });
+  }
+
+  function suspend() {
+    clearTimeout(state._aiDebounce);
+    state.form = null;
+    state.formSnapshot = null;
+    state.dirty = false;
+    state.drawerMode = "edit";
+    state.detailsOpen = false;
+    state.unusedOpen = false;
+    state.permInputMode = "describe";
+    state.leaveTo = "";
+    state.modal = "";
+    state.deleteId = "";
+    state.deactivateId = "";
+    state.pendingSaveSnap = null;
+    state.permReduceMsg = "";
+    state.selectOpen = "";
+    state.menuOpen = "";
+    state.permQuery = "";
+    state.permSelectedOnly = false;
+    state.aiDescribe = "";
+    state.aiLoading = false;
+    state.aiNoMatch = false;
+    state.aiSuggestions = {};
+    state.aiFieldMeta = {};
+    document
+      .getElementById("kn-role-root")
+      ?.querySelectorAll(".blade-drawer-root, .blade-modal-root")
+      .forEach((node) => node.remove());
   }
 
   function sync() {
@@ -1157,7 +1900,17 @@
   window.KNRoles = {
     sync,
     init,
+    suspend,
     parseRoute,
+    list() {
+      return loadRoles();
+    },
+    permissionTotal() {
+      return ALL_KEYS.length;
+    },
+    permissionCatalog() {
+      return CATALOG;
+    },
     isDirty() {
       return Boolean(state.dirty);
     },

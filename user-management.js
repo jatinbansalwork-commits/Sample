@@ -41,8 +41,9 @@
     sortDir: "asc",
     page: 1,
     pageSize: 10,
-    filters: { name: "", email: "", level: "", entity: "", status: "", q: "", chip: "all", role: "", inherited: "" },
+    filters: { name: "", email: "", level: "", entity: "", status: "", chip: "all", role: "", inherited: "" },
     form: null,
+    formSnapshot: null,
     dirty: false,
     modal: "",
     reporterForm: { name: "", email: "", error: "" },
@@ -54,7 +55,14 @@
     menuOpen: "",
     roleQuery: "",
     leaveTo: "",
-    restoreFocusId: ""
+    restoreFocusId: "",
+    aiDescribe: "",
+    aiLoading: false,
+    aiNoMatch: false,
+    aiRoleSuggestions: [],
+    aiRoleOnly: [],
+    aiRoleReasons: {},
+    aiFieldMeta: {}
   };
 
   function escapeHtml(value) {
@@ -233,20 +241,13 @@
 
   function filteredUsers() {
     const q = (value) => String(value || "").toLowerCase();
-    const search = q(state.filters.q);
     const rows = loadUsers().filter((user) => {
       const nameOk = !state.filters.name || q(user.name).includes(q(state.filters.name));
       const emailOk = !state.filters.email || q(user.email).includes(q(state.filters.email));
-      const levelOk = !state.filters.level || user.level === state.filters.level;
+      const levelOk = !state.filters.level || q(user.level) === q(state.filters.level);
       const entityOk = !state.filters.entity || q(user.entity).includes(q(state.filters.entity));
-      const statusOk =
-        !state.filters.status || (state.filters.status === "active" ? user.active : !user.active);
-      const searchOk =
-        !search ||
-        q(user.name).includes(search) ||
-        q(user.email).includes(search) ||
-        q(user.entity).includes(search) ||
-        q(user.title).includes(search);
+      const statusHay = user.active ? "active" : "inactive";
+      const statusOk = !state.filters.status || statusHay === q(state.filters.status);
       const chip = state.filters.chip;
       const chipOk =
         chip === "all" ||
@@ -258,7 +259,7 @@
       const roleOk = !state.filters.role || (user.roles || []).includes(state.filters.role);
       const inheritedNames = inheritedEntities();
       const inheritedOk = !inheritedNames || inheritedNames.includes(user.entity);
-      return nameOk && emailOk && levelOk && entityOk && statusOk && searchOk && chipOk && roleOk && inheritedOk;
+      return nameOk && emailOk && levelOk && entityOk && statusOk && chipOk && roleOk && inheritedOk;
     });
     const dir = state.sortDir === "desc" ? -1 : 1;
     rows.sort((a, b) => {
@@ -284,22 +285,22 @@
     }
   }
 
-  function roleIdByName(name) {
-    try {
-      const rows = JSON.parse(window.localStorage.getItem(ROLE_STORAGE_KEY) || "[]");
-      return Array.isArray(rows) ? rows.find((role) => role.name === name)?.id || "" : "";
-    } catch (error) {
-      return "";
-    }
-  }
-
   function hasListFilters() {
     const filters = state.filters;
-    return Boolean(filters.q || filters.role || filters.inherited || filters.entity || filters.chip !== "all");
+    return Boolean(
+      filters.name ||
+        filters.email ||
+        filters.level ||
+        filters.entity ||
+        filters.status ||
+        filters.role ||
+        filters.inherited ||
+        filters.chip !== "all"
+    );
   }
 
   function clearFilters() {
-    state.filters = { name: "", email: "", level: "", entity: "", status: "", q: "", chip: "all", role: "", inherited: "" };
+    state.filters = { name: "", email: "", level: "", entity: "", status: "", chip: "all", role: "", inherited: "" };
     state.page = 1;
     if ((location.hash || "").includes("?")) {
       window.KNAdminUX.beginNavigation();
@@ -398,10 +399,15 @@
 
   function renderReviewDrawer() {
     const queue = privilegedInactive();
-    const user = state.reviewId && state.reviewId !== "done" ? findUser(state.reviewId) : null;
-    const open = Boolean(state.reviewId);
-    const index = Math.max(0, queue.findIndex((item) => item.id === user?.id));
-    const roles = (user?.roles || []).map((role) => `<span class="badge type-caption-sm">${escapeHtml(role)}</span>`).join("");
+    const user = state.reviewId ? findUser(state.reviewId) : null;
+    const queueIndex = user ? queue.findIndex((item) => item.id === user.id) : -1;
+    const inQueue = queueIndex >= 0;
+    if (state.reviewId && !inQueue) {
+      state.reviewId = "";
+    }
+    const open = inQueue;
+    const activeUser = inQueue ? user : null;
+    const roles = (activeUser?.roles || []).map((role) => `<span class="badge type-caption-sm">${escapeHtml(role)}</span>`).join("");
     return `<div class="blade-drawer-root admin-review-drawer${open ? " is-open" : ""}" id="admin-review-drawer" ${open ? "" : "hidden"}>
       <div class="blade-drawer__overlay" data-admin-review-close tabindex="-1"></div>
       <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
@@ -411,7 +417,7 @@
           </span>
           <div class="blade-drawer__titles">
             <h2 class="type-heading-h5 type-weight-semibold" id="admin-review-title" tabindex="-1">Review inactive access</h2>
-            <p class="type-caption-sm">${queue.length ? `${index + 1} of ${queue.length} privileged inactive ${queue.length === 1 ? "account" : "accounts"}` : "Queue is clear"}</p>
+            <p class="type-caption-sm">${activeUser ? `${queueIndex + 1} of ${queue.length} privileged inactive ${queue.length === 1 ? "account" : "accounts"}` : "Queue is clear"}</p>
           </div>
           <button class="icon-btn" type="button" data-admin-review-close aria-label="Close review">${iconClose()}</button>
         </header>
@@ -423,18 +429,18 @@
             <p class="type-body-sm blade-alert__desc">Inactive people should not keep KN Administrator. Remove the role or reactivate the account.</p>
           </aside>
           ${
-            user
+            activeUser
               ? `<div class="admin-review__person">
-            <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(window.KNAdminUX.initials(user.name))}</span>
+            <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(window.KNAdminUX.initials(activeUser.name))}</span>
             <div>
-              <p class="type-body-sm type-weight-semibold">${escapeHtml(user.name)}</p>
-              <p class="type-caption-sm">${escapeHtml(user.title || "")} · ${escapeHtml(user.entity)}</p>
+              <p class="type-body-sm type-weight-semibold">${escapeHtml(activeUser.name)}</p>
+              <p class="type-caption-sm">${escapeHtml(activeUser.title || "")} · ${escapeHtml(activeUser.entity)}</p>
             </div>
           </div>
           <dl class="admin-review__grid">
-            ${infoField("Email", escapeHtml(user.email))}
-            ${infoField("Last active", escapeHtml(window.KNAdminUX.relativeTime(user.lastActive)))}
-            ${infoField("Level", escapeHtml(levelLabel(user.level)))}
+            ${infoField("Email", escapeHtml(activeUser.email))}
+            ${infoField("Last active", escapeHtml(window.KNAdminUX.relativeTime(activeUser.lastActive)))}
+            ${infoField("Level", escapeHtml(levelLabel(activeUser.level)))}
             ${infoField("Status", "Inactive", "user-status-label--negative")}
           </dl>
           <div>
@@ -445,13 +451,13 @@
           }
         </div>
         ${
-          user
+          activeUser
             ? `<footer class="blade-drawer__footer">
           ${queue.length > 1 ? `<button class="btn btn--tertiary btn--md type-ui-md" type="button" data-admin-review-next>Next person</button>` : `<span></span>`}
           <div class="blade-drawer__footer-actions">
-            <a class="btn btn--tertiary btn--md type-ui-md" href="#kn-user-management/${encodeURIComponent(user.id)}" data-user-nav="detail" data-user-id="${escapeHtml(user.id)}">View user</a>
-            <button class="btn btn--secondary btn--md type-ui-md" type="button" data-admin-review-activate="${escapeHtml(user.id)}">Reactivate</button>
-            <button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-admin-review-revoke="${escapeHtml(user.id)}">Remove KN Administrator</button>
+            <a class="btn btn--tertiary btn--md type-ui-md" href="#kn-user-management/${encodeURIComponent(activeUser.id)}" data-user-nav="detail" data-user-id="${escapeHtml(activeUser.id)}">View user</a>
+            <button class="btn btn--secondary btn--md type-ui-md" type="button" data-admin-review-activate="${escapeHtml(activeUser.id)}">Reactivate</button>
+            <button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-admin-review-revoke="${escapeHtml(activeUser.id)}">Remove KN Administrator</button>
           </div>
         </footer>`
             : `<footer class="blade-drawer__footer">
@@ -465,7 +471,6 @@
   function startReview() {
     state.filters.chip = "inactive";
     state.filters.status = "";
-    state.filters.q = "";
     state.page = 1;
     const queue = privilegedInactive();
     state.reviewId = queue[0]?.id || "";
@@ -489,7 +494,7 @@
     if (queue[0]) {
       state.reviewId = queue[0].id;
     } else {
-      state.reviewId = "done";
+      state.reviewId = "";
       toast("Privileged inactive access is cleared.");
     }
     render();
@@ -561,7 +566,6 @@
       <a class="btn btn--primary btn--md type-ui-md" href="#kn-user-management/add" data-user-nav="add">Add User</a>
     </header>
     ${ux.toolbar({
-      search: { value: state.filters.q, placeholder: "Search people, email, or entity", label: "Search users" },
       chips: [
         { id: "all", label: "All", count: all.length, selected: chip === "all" },
         { id: "active", label: "Active", count: all.filter((user) => user.active).length, selected: chip === "active" },
@@ -570,9 +574,8 @@
         { id: "broker", label: "Brokers", count: all.filter((user) => user.level === "BROKER").length, selected: chip === "broker" }
       ],
       applied: appliedFilterItems(),
-      insight: inactiveAdmins.length
-        ? { copy: `<strong>${escapeHtml(inactiveAdmins[0].name)}</strong> is inactive but still holds KN Administrator.`, action: "Review inactive", chip: "inactive", review: true, tone: "notice" }
-        : null
+      results: `${rows.length} ${rows.length === 1 ? "person" : "people"}. Page ${state.page} of ${pages}. Sorted by ${state.sortKey}, ${state.sortDir === "desc" ? "descending" : "ascending"}.`,
+      insight: null
     })}
     <div class="vis-table-wrap role-table-card">
       <div class="vis-table-scroll">
@@ -585,6 +588,14 @@
               ${sortHeader("entity", "Entity Name")}
               ${sortHeader("status", "Status")}
               <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
+            </tr>
+            <tr class="vis-table__filters">
+              ${ux.colFilter({ attr: "data-user-filter", key: "name", value: state.filters.name, label: "full name", placeholder: "Enter full name" })}
+              ${ux.colFilter({ attr: "data-user-filter", key: "email", value: state.filters.email, label: "email address", placeholder: "Enter email address" })}
+              ${ux.colBladeSelect({ attr: "data-user-filter", key: "level", value: state.filters.level, label: "user level", open: state.selectOpen, options: [{ value: "KLEARNOW", label: "Klearnow" }, { value: "CUSTOMER", label: "Customer" }, { value: "BROKER", label: "Broker" }] })}
+              ${ux.colFilter({ attr: "data-user-filter", key: "entity", value: state.filters.entity, label: "entity name", placeholder: "Enter entity name" })}
+              ${ux.colBladeSelect({ attr: "data-user-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] })}
+              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -652,12 +663,20 @@
           <button class="icon-btn" type="button" data-user-profile-close aria-label="Close user details">${iconClose()}</button>
         </header>
         <form class="blade-drawer__body admin-review user-form" id="kn-user-form" novalidate>
-          <section class="user-form-section admin-drawer-section--muted" aria-labelledby="kn-user-details-title">
-            <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-details-title">Details</h3>
-            <div class="user-form-grid">
-              ${textField({ id: "kn-user-level", label: "User level", value: levelLabel(user.level), disabled: true })}
-              ${textField({ id: "kn-user-entity", label: "Entity", value: user.entity || "—", disabled: true })}
-              ${textField({ id: "kn-user-last-active", label: "Last active", value: window.KNAdminUX.relativeTime(user.lastActive), disabled: true })}
+          <section class="admin-drawer-section--muted" aria-label="Details">
+            <div class="user-details-strip">
+              <div class="form-display-field">
+                <span class="form-display-field__label">USER LEVEL</span>
+                <span class="form-display-field__value">${escapeHtml(levelLabel(user.level))}</span>
+              </div>
+              <div class="form-display-field">
+                <span class="form-display-field__label">ENTITY</span>
+                <span class="form-display-field__value">${escapeHtml(user.entity || "—")}</span>
+              </div>
+              <div class="form-display-field">
+                <span class="form-display-field__label">LAST ACTIVE</span>
+                <span class="form-display-field__value">${escapeHtml(window.KNAdminUX.relativeTime(user.lastActive))}</span>
+              </div>
             </div>
           </section>
           <section class="user-form-section" aria-labelledby="kn-user-access-title">
@@ -701,18 +720,6 @@
               <div class="blade-field blade-field--full">
                 <span class="type-caption-sm type-weight-medium" id="kn-user-role-label">User Role <span class="role-req" aria-hidden="true">*</span></span>
                 ${renderRoleSelect(form)}
-                ${
-                  form.roles.length
-                    ? `<div class="user-chips">${form.roles
-                        .map((name) => {
-                          const id = roleIdByName(name);
-                          return id
-                            ? `<a class="badge type-caption-sm" href="#kn-role-management/${encodeURIComponent(id)}">${escapeHtml(name)}</a>`
-                            : `<span class="badge type-caption-sm">${escapeHtml(name)}</span>`;
-                        })
-                        .join("")}</div>`
-                    : ""
-                }
               </div>
             </div>
           </section>
@@ -720,7 +727,7 @@
         <footer class="blade-drawer__footer">
           <button class="btn btn--tertiary btn--color-negative btn--md type-ui-md" type="button" data-user-delete="${escapeHtml(user.id)}">Delete User</button>
           <div class="blade-drawer__footer-actions">
-            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-user-form">Update User</button>
+            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-user-form" id="kn-update-user-btn" disabled>Update User</button>
           </div>
         </footer>
       </aside>
@@ -745,17 +752,155 @@
     };
   }
 
+  function resetAiUserState() {
+    clearTimeout(state._aiDebounce);
+    state.aiDescribe = "";
+    state.aiLoading = false;
+    state.aiNoMatch = false;
+    state.aiRoleSuggestions = [];
+    state.aiRoleOnly = [];
+    state.aiRoleReasons = {};
+    state.aiFieldMeta = {};
+  }
+
+  function applyAiUserDescribe(description) {
+    if (!state.form) {
+      return;
+    }
+    state.aiDescribe = description;
+    clearTimeout(state._aiDebounce);
+    if (!String(description || "").trim()) {
+      state.aiLoading = false;
+      state.aiNoMatch = false;
+      state.aiRoleSuggestions = [];
+      render();
+      return;
+    }
+    state.aiLoading = true;
+    render();
+    state._aiDebounce = setTimeout(() => {
+      if (!state.form) {
+        state.aiLoading = false;
+        return;
+      }
+      const text = [state.form.title, description].filter(Boolean).join(" ");
+      const result = window.KNAiSuggest.deriveUserRoles(text, roleCatalog());
+      state.aiRoleSuggestions = result.roles;
+      state.aiNoMatch = Boolean(result.noMatch);
+      state.aiLoading = false;
+      const reasons = {};
+      result.roles.forEach((item) => {
+        reasons[item.name] = item.reason;
+      });
+      state.aiRoleReasons = reasons;
+      window.KNAiSuggest?.logAudit?.({
+        action: "suggest-user-roles",
+        context: "kn-user",
+        field: "roles",
+        origin: "ai",
+        value: result.roles.map((r) => r.name).join(","),
+        meta: { noMatch: result.noMatch, edgeMessage: result.edgeMessage || "" }
+      });
+      render();
+      requestAnimationFrame(() => {
+        const input = document.getElementById("kn-user-root")?.querySelector("[data-ai-describe='user']");
+        if (input) {
+          input.focus();
+          const end = input.value.length;
+          input.setSelectionRange(end, end);
+        }
+      });
+    }, 450);
+  }
+
+  function toggleAiSuggestedRole(name) {
+    if (!state.form || !name) {
+      return;
+    }
+    const roles = new Set(state.form.roles || []);
+    const aiOnly = new Set(state.aiRoleOnly || []);
+    if (roles.has(name)) {
+      roles.delete(name);
+      aiOnly.delete(name);
+      window.KNAiSuggest?.logAudit?.({
+        action: "uncheck-role",
+        context: "kn-user",
+        field: "roles",
+        origin: aiOnly.has(name) ? "ai" : "manual",
+        value: name
+      });
+    } else {
+      roles.add(name);
+      aiOnly.add(name);
+      window.KNAiSuggest?.logAudit?.({
+        action: "accept-role-suggestion",
+        context: "kn-user",
+        field: "roles",
+        origin: "ai",
+        value: name
+      });
+    }
+    state.form = { ...state.form, roles: [...roles] };
+    state.aiRoleOnly = [...aiOnly];
+    state.dirty = isFormDataDirty(state.form);
+    render();
+  }
+
+  function clearAiOnlyRoles() {
+    if (!state.form) {
+      return;
+    }
+    const next = window.KNAiSuggest.clearAiOnly(state.form.roles, state.aiRoleOnly);
+    state.form = { ...state.form, roles: next };
+    state.aiRoleOnly = [];
+    state.aiDescribe = "";
+    state.aiRoleSuggestions = [];
+    state.aiNoMatch = false;
+    state.aiRoleReasons = {};
+    state.dirty = isFormDataDirty(state.form);
+    window.KNAiSuggest?.logAudit?.({
+      action: "clear-ai-roles",
+      context: "kn-user",
+      field: "roles",
+      origin: "manual",
+      value: ""
+    });
+    render();
+  }
+
+  /** Prefill Add User from panel draft — never submits. */
+  function applyPendingAiDraft() {
+    const draft = window.KNAiSuggest?.consumeDraft?.("user");
+    if (!draft || !state.form) {
+      return;
+    }
+    if (draft.title) {
+      state.form.title = draft.title;
+      state.aiFieldMeta = { title: draft.titleReason || "Prefill from Klear Assistant draft" };
+    }
+    const suggested = (draft.roles || []).map((r) => r.name).filter(Boolean);
+    const merge = window.KNAiSuggest.mergeAiSelections(state.form.roles, suggested, []);
+    state.form.roles = merge.next;
+    state.aiRoleOnly = merge.aiOnly;
+    state.aiRoleSuggestions = draft.roles || [];
+    state.aiRoleReasons = Object.fromEntries((draft.roles || []).map((r) => [r.name, r.reason]));
+    state.aiDescribe = draft.description || "";
+    state.formSnapshot = snapshotForm(state.form);
+    state.dirty = isFormDataDirty(state.form);
+    window.KNAiSuggest?.logAudit?.({
+      action: "apply-draft-to-form",
+      context: "kn-user",
+      field: "form",
+      origin: "ai",
+      value: suggested.join(",")
+    });
+    toast("AI draft applied to the form — review and click Add User to save.", "notice");
+  }
+
   function closeFormMenus() {
     state.roleMenuOpen = false;
     state.selectOpen = "";
     state.menuOpen = "";
-  }
-
-  function roleTriggerLabel(count) {
-    if (!count) {
-      return "Select user role";
-    }
-    return `${count} item${count === 1 ? "" : "s"} selected`;
   }
 
   function renderRoleSelect(form) {
@@ -763,10 +908,11 @@
     const query = state.roleQuery.trim().toLowerCase();
     const options = catalog.filter((name) => !query || name.toLowerCase().includes(query));
     const selected = new Set(form.roles);
+    const aiOnly = new Set(state.aiRoleOnly || []);
     return window.KNAdminUX.multiSelect({
       labelledBy: "kn-user-role-label",
-      triggerAttr: "data-user-role-toggle",
-      triggerLabel: roleTriggerLabel(form.roles.length),
+      triggerAttr: 'id="kn-user-role-toggle" data-user-role-toggle',
+      triggerLabel: "Select roles",
       open: state.roleMenuOpen,
       menuId: "kn-user-role-menu",
       searchId: "kn-user-role-search",
@@ -774,12 +920,62 @@
       searchPlaceholder: "Search roles",
       searchLabel: "Search user roles",
       emptyLabel: "No roles match.",
+      chipsInTrigger: true,
+      chips: (form.roles || []).map((name) => ({
+        label: `${aiOnly.has(name) ? "✦ " : ""}${name}`,
+        removeAttr: `data-user-role-remove="${escapeHtml(name)}"`
+      })),
       options: options.map((name) => ({
-        label: name,
+        label: `${aiOnly.has(name) ? "✦ " : ""}${name}`,
         checked: selected.has(name),
-        attr: `data-user-role="${escapeHtml(name)}"`
+        attr: `data-user-role="${escapeHtml(name)}"${aiOnly.has(name) ? ' data-ai-suggested="1"' : ""}`
       }))
     });
+  }
+
+  function renderUserAiAssist() {
+    const sparkleIcon = `<svg class="ai-describe-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" width="16" height="16">
+      <path d="M8 1.5 L9 6 L13.5 7 L9 8 L8 13.5 L7 8 L2.5 7 L7 6 Z" fill="currentColor" opacity="0.9"/>
+      <path d="M12.5 1 L13 3 L15 3.5 L13 4 L12.5 6 L12 4 L10 3.5 L12 3 Z" fill="currentColor" opacity="0.6"/>
+    </svg>`;
+    const loading = state.aiLoading
+      ? `<span class="ai-describe-loading" aria-live="polite" aria-label="Generating suggestions"><span></span><span></span><span></span></span>`
+      : "";
+    const noMatch = state.aiNoMatch
+      ? `<p class="ai-describe-no-match type-caption-sm" role="alert">${escapeHtml(window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.")}</p>`
+      : "";
+    return `<div class="ai-user-assist">
+      <label class="type-caption-sm type-weight-medium" for="ai-describe-input-user">Describe the user</label>
+      <div class="ai-describe-input-wrap${state.aiLoading ? " is-loading" : ""}">
+        <span class="ai-describe-input-icon" aria-hidden="true">${sparkleIcon}</span>
+        <input
+          class="ai-describe-field type-body-sm"
+          id="ai-describe-input-user"
+          data-ai-describe="user"
+          type="text"
+          maxlength="200"
+          placeholder="e.g. New hire analytics viewer who should only read dashboards"
+          value="${escapeHtml(state.aiDescribe || "")}"
+          aria-label="Describe the user to get AI-suggested roles"
+          aria-describedby="ai-describe-hint-user"
+          autocomplete="off"
+        />
+        ${loading}
+        ${
+          state.aiDescribe
+            ? `<button class="ai-describe-clear icon-btn" type="button" data-ai-describe-clear="user" aria-label="Clear AI suggestions">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="14" height="14"><path d="M4 4 L12 12 M12 4 L4 12"/></svg>
+        </button>`
+            : ""
+        }
+      </div>
+      ${window.KNAiSuggest?.reviewHint?.() || `<p class="type-caption-sm ai-describe-hint" id="ai-describe-hint-user">AI only suggests — review and adjust before saving.</p>`}
+      ${noMatch}
+      ${window.KNAiSuggest?.userRoleChipsHtml?.(state.aiRoleSuggestions, {
+        selected: state.form?.roles || [],
+        aiOnly: state.aiRoleOnly || []
+      }) || ""}
+    </div>`;
   }
 
   function formLeaveHash() {
@@ -832,7 +1028,8 @@
               </div>
               <div class="blade-field">
                 <label class="type-caption-sm type-weight-medium" for="kn-user-title">Title</label>
-                <input class="blade-field__control type-body-sm" id="kn-user-title" name="title" type="text" maxlength="80" placeholder="Enter title" value="${escapeHtml(form.title)}" />
+                <input class="blade-field__control type-body-sm${state.aiFieldMeta?.title ? " is-ai-suggested-field" : ""}" id="kn-user-title" name="title" type="text" maxlength="80" placeholder="Enter title" value="${escapeHtml(form.title)}" />
+                ${state.aiFieldMeta?.title ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.title) : ""}
               </div>
               <div class="blade-field">
                 <span class="type-caption-sm type-weight-medium" id="kn-user-reports-label">Reports To</span>
@@ -854,6 +1051,7 @@
           </section>
           <section class="user-form-section" aria-labelledby="kn-user-role-title">
             <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-role-title">User Role</h3>
+            ${renderUserAiAssist()}
             <div class="blade-field">
               <span class="type-caption-sm type-weight-medium" id="kn-user-role-label">Select User Role <span class="role-req" aria-hidden="true">*</span></span>
               ${renderRoleSelect(form)}
@@ -932,6 +1130,9 @@
     const route = parseRoute();
     const scroller = document.querySelector(".content");
     const top = scroller?.scrollTop || 0;
+    const drawerScroll = window.KNAdminUX.captureDrawerScroll(page);
+    const drawerFocus = window.KNAdminUX.captureDrawerFocus(page);
+    const filterFocus = window.KNAdminUX.captureColFilterFocus(page);
     if (route.view === "form") {
       state.reviewId = "";
       if (!state.form || state.form.id !== route.id) {
@@ -942,9 +1143,16 @@
           return;
         }
         state.form = blankForm(existing);
+        state.formSnapshot = snapshotForm(existing || state.form);
         state.dirty = false;
         closeFormMenus();
         state.roleQuery = "";
+        resetAiUserState();
+        if (!existing) {
+          applyPendingAiDraft();
+        }
+      } else if (!route.id && window.KNAiSuggest?.peekDraft?.("user")) {
+        applyPendingAiDraft();
       }
     } else if (route.view === "detail") {
       const user = findUser(route.id);
@@ -956,21 +1164,26 @@
       state.reviewId = "";
       if (!state.form || state.form.id !== route.id) {
         state.form = blankForm(user);
+        state.formSnapshot = snapshotForm(user);
         state.dirty = false;
         closeFormMenus();
         state.roleQuery = "";
       }
     } else {
       state.form = null;
+      state.formSnapshot = null;
       state.dirty = false;
       closeFormMenus();
     }
     root.innerHTML = renderList();
     restoreScroll(scroller, top);
+    window.KNAdminUX.restoreDrawerScroll(page, drawerScroll, { focusSelector: drawerFocus });
+    window.KNAdminUX.restoreColFilterFocus(page, filterFocus);
     if (route.view === "form" || route.view === "detail") {
       restoreRoleSearch();
     }
     window.KNAdminUX.syncOverlayFocus(page);
+    syncUpdateBtn(root);
     if (state.restoreFocusId && !window.KNAdminUX.activeOverlay(page)) {
       const id = state.restoreFocusId;
       state.restoreFocusId = "";
@@ -1003,21 +1216,33 @@
     if (!formEl) {
       return state.form;
     }
-    const roles = [...formEl.querySelectorAll("[data-user-role]:checked")].map((input) => input.getAttribute("data-user-role"));
+    const prior = state.form || {};
+    const nameEl = formEl.querySelector("#kn-user-name");
+    const emailEl = formEl.querySelector("#kn-user-email");
+    const phoneCountryEl = formEl.querySelector("#kn-user-phone-country");
+    const phoneEl = formEl.querySelector("#kn-user-phone");
+    const titleEl = formEl.querySelector("#kn-user-title");
+    const reportsEl = formEl.querySelector("#kn-user-reports");
+    const roleInputs = [...formEl.querySelectorAll("[data-user-role]")];
+    const roles = window.KNAdminUX.mergeDomMultiSelect(
+      prior.roles,
+      roleInputs.filter((input) => input.checked).map((input) => input.getAttribute("data-user-role")),
+      roleInputs.map((input) => input.getAttribute("data-user-role"))
+    );
     return {
-      name: formEl.querySelector("#kn-user-name")?.value.trim() || "",
-      email: formEl.querySelector("#kn-user-email")?.value.trim() || "",
-      phoneCountry: formEl.querySelector("#kn-user-phone-country")?.value || "",
-      phone: formEl.querySelector("#kn-user-phone")?.value.trim() || "",
-      title: formEl.querySelector("#kn-user-title")?.value.trim() || "",
-      reportsTo: formEl.querySelector("#kn-user-reports")?.value || "",
+      name: nameEl ? nameEl.value.trim() : prior.name || "",
+      email: emailEl ? emailEl.value.trim() : prior.email || "",
+      phoneCountry: phoneCountryEl ? phoneCountryEl.value || "" : prior.phoneCountry || "",
+      phone: phoneEl ? phoneEl.value.trim() : prior.phone || "",
+      title: titleEl ? titleEl.value.trim() : prior.title || "",
+      reportsTo: reportsEl ? reportsEl.value || "" : prior.reportsTo || "",
       roles
     };
   }
 
   function persistForm(next) {
     state.form = { ...state.form, ...next };
-    state.dirty = true;
+    state.dirty = isFormDataDirty(state.form);
   }
 
   function validEmail(value) {
@@ -1058,6 +1283,65 @@
       return;
     }
     render();
+  }
+
+  function snapshotForm(form) {
+    return {
+      name: form.name || "",
+      email: form.email || "",
+      phoneCountry: form.phoneCountry || "",
+      phone: form.phone || "",
+      title: form.title || "",
+      reportsTo: form.reportsTo || "",
+      roles: (form.roles || []).slice().sort().join("\0")
+    };
+  }
+
+  function formComparable(form) {
+    return {
+      name: String(form?.name || "").trim(),
+      email: String(form?.email || "").trim(),
+      phoneCountry: String(form?.phoneCountry || ""),
+      phone: String(form?.phone || "").trim(),
+      title: String(form?.title || "").trim(),
+      reportsTo: String(form?.reportsTo || ""),
+      roles: (form?.roles || []).slice().sort().join("\0")
+    };
+  }
+
+  function isFormDataDirty(formData) {
+    if (!state.formSnapshot) {
+      return false;
+    }
+    const current = formComparable(formData);
+    return (
+      current.name !== state.formSnapshot.name ||
+      current.email !== state.formSnapshot.email ||
+      current.phoneCountry !== state.formSnapshot.phoneCountry ||
+      current.phone !== state.formSnapshot.phone ||
+      current.title !== state.formSnapshot.title ||
+      current.reportsTo !== state.formSnapshot.reportsTo ||
+      current.roles !== state.formSnapshot.roles
+    );
+  }
+
+  function isFormDirty(formEl) {
+    return isFormDataDirty(readForm(formEl));
+  }
+
+  function syncUpdateBtn(root) {
+    const drawer = root.querySelector("#admin-profile-drawer");
+    if (!drawer) {
+      return;
+    }
+    const btn = drawer.querySelector("#kn-update-user-btn");
+    if (!btn) {
+      return;
+    }
+    const formEl = root.querySelector("#kn-user-form");
+    const dirty = isFormDirty(formEl);
+    state.dirty = dirty;
+    btn.disabled = !dirty;
   }
 
   function bind(root) {
@@ -1212,8 +1496,14 @@
             render();
             return;
           }
+          const current = readForm(root.querySelector("#kn-user-form"));
+          if ((key === "country" && current.phoneCountry === value) || (key === "reports" && current.reportsTo === value)) {
+            state.selectOpen = "";
+            render();
+            return;
+          }
           persistForm({
-            ...readForm(root.querySelector("#kn-user-form")),
+            ...current,
             ...(key === "country" ? { phoneCountry: value } : {}),
             ...(key === "reports" ? { reportsTo: value } : {})
           });
@@ -1233,6 +1523,43 @@
       if (event.target.closest("[data-admin-leave-confirm]")) {
         event.preventDefault();
         finishLeave();
+        return;
+      }
+      const removeRole = event.target.closest("[data-user-role-remove]");
+      if (removeRole) {
+        event.preventDefault();
+        event.stopPropagation();
+        const name = removeRole.getAttribute("data-user-role-remove") || "";
+        const snap = readForm(root.querySelector("#kn-user-form"));
+        state.aiRoleOnly = (state.aiRoleOnly || []).filter((role) => role !== name);
+        persistForm({
+          ...snap,
+          roles: (snap.roles || []).filter((role) => role !== name)
+        });
+        window.KNAiSuggest?.logAudit?.({
+          action: "remove-role-chip",
+          context: "kn-user",
+          field: "roles",
+          origin: "manual",
+          value: name
+        });
+        render();
+        if (!state.roleMenuOpen) {
+          requestAnimationFrame(() => {
+            root.querySelector("[data-user-role-toggle]")?.focus();
+          });
+        }
+        return;
+      }
+      if (event.target.closest("[data-ai-user-role-chip]")) {
+        event.preventDefault();
+        const chip = event.target.closest("[data-ai-user-role-chip]");
+        toggleAiSuggestedRole(chip.getAttribute("data-ai-user-role-chip") || "");
+        return;
+      }
+      if (event.target.closest("[data-ai-user-roles-clear], [data-ai-describe-clear='user']")) {
+        event.preventDefault();
+        clearAiOnlyRoles();
         return;
       }
       const roleToggle = event.target.closest("[data-user-role-toggle]");
@@ -1335,12 +1662,6 @@
         clearFilters();
         return;
       }
-      if (event.target.closest("[data-admin-q-clear]")) {
-        state.filters.q = "";
-        state.page = 1;
-        render();
-        return;
-      }
       const edit = event.target.closest("[data-user-edit]");
       if (edit) {
         goto(`#kn-user-management/${encodeURIComponent(edit.getAttribute("data-user-edit"))}`);
@@ -1370,26 +1691,35 @@
       }
       const role = event.target.closest("[data-user-role]");
       if (role) {
+        const name = role.getAttribute("data-user-role") || "";
+        const checked = role.checked;
+        if (!checked) {
+          state.aiRoleOnly = (state.aiRoleOnly || []).filter((item) => item !== name);
+        } else if (!(state.aiRoleOnly || []).includes(name)) {
+          window.KNAiSuggest?.logAudit?.({
+            action: "manual-role-check",
+            context: "kn-user",
+            field: "roles",
+            origin: "manual",
+            value: name
+          });
+        }
         persistForm(readForm(root.querySelector("#kn-user-form")));
         render();
         return;
       }
       if (event.target.closest("#kn-user-form")) {
         persistForm(readForm(root.querySelector("#kn-user-form")));
+        syncUpdateBtn(root);
       }
     });
 
     root.addEventListener("input", (event) => {
-      if (event.target.matches("[data-admin-q]")) {
-        state.filters.q = event.target.value;
+      const filter = event.target.closest("[data-user-filter]");
+      if (filter) {
+        state.filters[filter.getAttribute("data-user-filter")] = filter.value;
         state.page = 1;
         render();
-        const search = root.querySelector("[data-admin-q]");
-        if (search) {
-          search.focus();
-          const end = search.value.length;
-          search.setSelectionRange(end, end);
-        }
         return;
       }
       if (event.target.id === "kn-user-role-search") {
@@ -1398,9 +1728,66 @@
         render();
         return;
       }
-      if (event.target.closest("#kn-user-form")) {
-        persistForm(readForm(root.querySelector("#kn-user-form")));
+      if (event.target.matches("[data-ai-describe='user']")) {
+        applyAiUserDescribe(event.target.value);
+        return;
       }
+      if (event.target.id === "kn-user-title") {
+        if (state.aiFieldMeta?.title) {
+          state.aiFieldMeta = { ...state.aiFieldMeta, title: "" };
+          window.KNAiSuggest?.logAudit?.({
+            action: "manual-edit",
+            context: "kn-user",
+            field: "title",
+            origin: "manual",
+            value: event.target.value
+          });
+        }
+        persistForm(window.KNAdminUX.applyUserField(readForm(root.querySelector("#kn-user-form")), "title", event.target.value.trim()));
+        if (state.aiDescribe || event.target.value.trim()) {
+          applyAiUserDescribe(state.aiDescribe || event.target.value);
+        } else {
+          syncUpdateBtn(root);
+        }
+        return;
+      }
+      if (event.target.closest("#kn-user-form")) {
+        const field = event.target;
+        const formEl = root.querySelector("#kn-user-form");
+        const keyMap = {
+          "kn-user-name": "name",
+          "kn-user-email": "email",
+          "kn-user-phone": "phone",
+          "kn-user-phone-country": "phoneCountry",
+          "kn-user-reports": "reportsTo"
+        };
+        const key = keyMap[field.id];
+        if (key && state.form) {
+          const value = key === "phoneCountry" || key === "reportsTo" ? field.value || "" : field.value.trim();
+          persistForm(window.KNAdminUX.applyUserField(readForm(formEl), key, value));
+        } else {
+          persistForm(readForm(formEl));
+        }
+        syncUpdateBtn(root);
+      }
+    });
+
+    root.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      if (event.target.closest("[data-user-role-remove]")) {
+        return;
+      }
+      const toggle = event.target.closest("[data-user-role-toggle]");
+      if (!toggle || toggle.tagName === "BUTTON" || event.target !== toggle) {
+        return;
+      }
+      event.preventDefault();
+      persistForm(readForm(root.querySelector("#kn-user-form")));
+      state.selectOpen = "";
+      state.roleMenuOpen = !state.roleMenuOpen;
+      render();
     });
 
     root.addEventListener("submit", (event) => {
@@ -1430,6 +1817,29 @@
       }
       event.preventDefault();
       const snap = readForm(event.target);
+      const baseline = state.formSnapshot
+        ? {
+            name: state.formSnapshot.name,
+            email: state.formSnapshot.email,
+            roles: String(state.formSnapshot.roles || "")
+              .split("\0")
+              .filter(Boolean)
+          }
+        : null;
+      const cleared = window.KNAdminUX.detectClearedRequiredUserFields(baseline, {
+        name: snap.name,
+        email: snap.email,
+        roles: snap.roles
+      });
+      if (cleared.length) {
+        toast(
+          `Save blocked: required field${cleared.length > 1 ? "s" : ""} ${cleared.join(", ")} would be cleared unexpectedly. Re-enter them before saving.`,
+          "negative"
+        );
+        state.form = { ...state.form, ...snap, error: cleared.includes("name") ? "Full Name was cleared unexpectedly." : "", emailError: cleared.includes("email") ? "Email was cleared unexpectedly." : "" };
+        render();
+        return;
+      }
       if (!snap.name) {
         state.form = { ...state.form, ...snap, error: "Enter a full name.", emailError: "" };
         render();
@@ -1471,7 +1881,7 @@
         saveUsers(users);
         state.dirty = false;
         toast(`${snap.name} updated.`);
-        goto(`#kn-user-management/${encodeURIComponent(state.form.id)}`);
+        goto("#kn-user-management");
         return;
       }
       const id = uniqueId(snap.name, users);
@@ -1494,6 +1904,24 @@
       toast(`${snap.name} added.`);
       goto(`#kn-user-management/${encodeURIComponent(id)}`);
     });
+  }
+
+  function suspend() {
+    resetAiUserState();
+    state.form = null;
+    state.formSnapshot = null;
+    state.dirty = false;
+    state.leaveTo = "";
+    state.modal = "";
+    state.deleteId = "";
+    state.deactivateId = "";
+    state.reviewId = "";
+    state.reporterForm = { name: "", email: "", error: "" };
+    closeFormMenus();
+    document
+      .getElementById("kn-user-root")
+      ?.querySelectorAll(".blade-drawer-root, .blade-modal-root")
+      .forEach((node) => node.remove());
   }
 
   function sync() {
@@ -1571,8 +1999,12 @@
 
   window.KNUsers = {
     sync,
+    suspend,
     init,
     parseRoute,
+    list() {
+      return loadUsers();
+    },
     isDirty() {
       return Boolean(state.dirty);
     },

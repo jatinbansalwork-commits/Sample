@@ -133,7 +133,10 @@ function knSummarizeShipments(list) {
       container: item.container,
       reason: knHoldReason(item),
       location: item.dest.city,
-      release: knFormatEta(item.dest.date)
+      release: knFormatEta(item.dest.date),
+      document: item.mbol || item.document || "",
+      broker: item.broker || "",
+      brokerUserId: item.brokerUserId || ""
     })),
     delayedRows: delayed,
     earliestDelayEta: earliestDelayed ? knFormatEta(earliestDelayed.dest.date) : "",
@@ -261,6 +264,8 @@ window.KNShipments = [
     container: "TCLU4567890",
     po: "PO-33014",
     mbol: "MBOL-E1R6",
+    broker: "Priya Menon",
+    brokerUserId: "priya-menon",
     lat: 33.77,
     lng: -118.19,
     created: "2026-08-14T13:48:00Z"
@@ -375,6 +380,8 @@ window.KNShipments = [
     container: "KKFU1029384",
     po: "PO-61207",
     mbol: "MBOL-M3Q8",
+    broker: "Priya Menon",
+    brokerUserId: "priya-menon",
     lat: 35.0,
     lng: 139.8,
     created: "2026-08-10T12:12:00Z"
@@ -394,6 +401,8 @@ window.KNShipments = [
     container: "MSKU1122334",
     po: "PO-44190",
     mbol: "MBOL-P4W2",
+    broker: "Daniel Chen",
+    brokerUserId: "daniel-chen",
     lat: 40.64,
     lng: -73.78,
     created: "2026-08-12T08:20:00Z"
@@ -413,6 +422,8 @@ window.KNShipments = [
     container: "TCLU9080706",
     po: "PO-55218",
     mbol: "MBOL-R9C1",
+    broker: "Priya Menon",
+    brokerUserId: "priya-menon",
     lat: 29.76,
     lng: -95.37,
     created: "2026-08-11T15:05:00Z"

@@ -690,7 +690,7 @@ function getCurrentPageTitle() {
   }
   const defDetail = path.match(/^#default-role-management\/([^/]+)$/);
   if (defDetail && defDetail[1] !== "add") {
-    return adminStoredName("kn-default-roles-v2", decodeURIComponent(defDetail[1]));
+    return adminStoredName("kn-default-roles-v3", decodeURIComponent(defDetail[1]));
   }
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   if (l2Current) {
@@ -731,6 +731,20 @@ function setRouteHash(href) {
   history.replaceState(null, "", nextPath);
 }
 
+function setPageSectionVisibility(el, visible) {
+  if (!el) {
+    return;
+  }
+  el.hidden = !visible;
+  if (visible) {
+    el.removeAttribute("aria-hidden");
+    el.inert = false;
+  } else {
+    el.setAttribute("aria-hidden", "true");
+    el.inert = true;
+  }
+}
+
 function syncPageView() {
   const dashboardInner = document.querySelector(".dashboard-inner");
   const overviewPage = document.getElementById("klearhub-overview-page");
@@ -750,24 +764,25 @@ function syncPageView() {
   const isDefaultRoles = isDefaultRoleManagementRoute();
   const isAdminModule = isRoles || isUsers || isDefaultRoles;
 
-  if (dashboardInner) {
-    dashboardInner.hidden = !isDashboard;
+  if (!isUsers) {
+    window.KNUsers?.suspend?.();
   }
-  if (overviewPage) {
-    overviewPage.hidden = !isOverview;
+  if (!isRoles) {
+    window.KNRoles?.suspend?.();
   }
-  if (visibilityPage) {
-    visibilityPage.hidden = !isVisibility;
+  if (!isDefaultRoles) {
+    window.KNDefaultRoles?.suspend?.();
   }
-  if (rolePage) {
-    rolePage.hidden = !isRoles;
+  if (!isVisibility) {
+    window.suspendVisibility?.();
   }
-  if (userPage) {
-    userPage.hidden = !isUsers;
-  }
-  if (defaultRolePage) {
-    defaultRolePage.hidden = !isDefaultRoles;
-  }
+
+  setPageSectionVisibility(dashboardInner, isDashboard);
+  setPageSectionVisibility(overviewPage, isOverview);
+  setPageSectionVisibility(visibilityPage, isVisibility);
+  setPageSectionVisibility(rolePage, isRoles);
+  setPageSectionVisibility(userPage, isUsers);
+  setPageSectionVisibility(defaultRolePage, isDefaultRoles);
   if (isVisibility && typeof persistVisViewHash === "function") {
     persistVisViewHash(visState?.view || "cards");
   }
@@ -778,7 +793,7 @@ function syncPageView() {
     window.closeKnShipmentDetail({ persistHash: false });
   }
   if (emptyPage) {
-    emptyPage.hidden = isDashboard || isOverview || isVisibility || isAdminModule;
+    setPageSectionVisibility(emptyPage, !(isDashboard || isOverview || isVisibility || isAdminModule));
   }
   if (isRoles) {
     window.KNRoles?.init?.();
@@ -814,6 +829,7 @@ function syncPageView() {
     countUpOverview();
   }
   syncDocumentTitle();
+  window.KNAiOpsSurface?.sync?.();
 }
 
 function syncDocumentTitle() {
@@ -1117,6 +1133,7 @@ if (getHashPath() && getHashPath() !== "#dashboard") {
 }
 
 window.addEventListener("hashchange", (event) => {
+  window.clearBladeToasts?.();
   if (!window.KNAdminUX?.consumeNavigation()) {
     const oldHash = event.oldURL ? new URL(event.oldURL).hash || "#dashboard" : "#dashboard";
     const newHash = event.newURL ? new URL(event.newURL).hash || "#dashboard" : getHashPath();
@@ -1839,6 +1856,7 @@ function applyDashMapFilter() {
   const empty = document.getElementById("map-empty");
   if (empty) {
     empty.hidden = rows.length > 0;
+    empty.setAttribute("aria-hidden", String(rows.length > 0));
   }
   window.KNMapUx?.close?.();
   window.KNAis?.setFilter(shipmentMap, dashMapFilter ? (vessel) => ids.has(vessel.id) : null);
@@ -2259,7 +2277,6 @@ function copyKnValue(value, label = "value", sourceEl) {
 }
 
 window.copyKnValue = copyKnValue;
-window.showBladeToast = showBladeToast;
 
 const COPY_CHECK_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5"/></svg>';
@@ -2286,7 +2303,30 @@ function markKnCopied(sourceEl) {
   }, 1000);
 }
 
-function showBladeToast({ content, color = "positive" }) {
+let bladeToastTimer = 0;
+const BLADE_TOAST_DURATION_MS = 2800;
+
+function clearBladeToasts({ animate = false } = {}) {
+  window.clearTimeout(bladeToastTimer);
+  bladeToastTimer = 0;
+  const container = document.getElementById("blade-toast-container");
+  if (!container) {
+    return;
+  }
+  container.querySelectorAll(".blade-toast").forEach((el) => {
+    if (!animate) {
+      el.remove();
+      return;
+    }
+    if (el.classList.contains("is-leaving")) {
+      return;
+    }
+    el.classList.add("is-leaving");
+    window.setTimeout(() => el.remove(), 220);
+  });
+}
+
+function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DURATION_MS } = {}) {
   const container = document.getElementById("blade-toast-container") || (() => {
     const el = document.createElement("div");
     el.className = "blade-toast-container";
@@ -2296,7 +2336,7 @@ function showBladeToast({ content, color = "positive" }) {
     return el;
   })();
 
-  container.querySelectorAll(".blade-toast").forEach((el) => el.remove());
+  clearBladeToasts();
 
   const toast = document.createElement("div");
   toast.className = `blade-toast blade-toast--${color}`;
@@ -2317,6 +2357,8 @@ function showBladeToast({ content, color = "positive" }) {
   `;
 
   const remove = () => {
+    window.clearTimeout(bladeToastTimer);
+    bladeToastTimer = 0;
     if (toast.classList.contains("is-leaving")) {
       return;
     }
@@ -2326,8 +2368,11 @@ function showBladeToast({ content, color = "positive" }) {
 
   toast.querySelector("button")?.addEventListener("click", remove);
   container.appendChild(toast);
-  window.setTimeout(remove, 4000);
+  bladeToastTimer = window.setTimeout(remove, Math.max(1200, Number(duration) || BLADE_TOAST_DURATION_MS));
 }
+
+window.clearBladeToasts = clearBladeToasts;
+window.showBladeToast = showBladeToast;
 
 let setDashDatePickerOpen = () => {};
 
@@ -2502,11 +2547,31 @@ function initDashDatePicker() {
   apply.addEventListener("click", () => {
     const start = fromISODate(startInput.value);
     const end = fromISODate(endInput.value);
-    if (!start || !end || end < start) {
-      error.hidden = false;
-      (end && start && end < start ? endInput : startInput).focus();
+    if (!start || !end) {
+      if (error) {
+        error.hidden = false;
+        error.textContent = "Choose both a start date and an end date.";
+      }
+      startInput.setAttribute("aria-invalid", start ? "false" : "true");
+      endInput.setAttribute("aria-invalid", end ? "false" : "true");
+      (!start ? startInput : endInput).focus();
       return;
     }
+    if (end < start) {
+      if (error) {
+        error.hidden = false;
+        error.textContent = "End date must be after start date";
+      }
+      startInput.setAttribute("aria-invalid", "false");
+      endInput.setAttribute("aria-invalid", "true");
+      endInput.focus();
+      return;
+    }
+    if (error) {
+      error.hidden = true;
+    }
+    startInput.setAttribute("aria-invalid", "false");
+    endInput.setAttribute("aria-invalid", "false");
     applyRange(start, end);
   });
   menu.addEventListener("click", (event) => {
@@ -2559,6 +2624,7 @@ function initHoldDrawer() {
 
   const closeDrawer = () => {
     root.classList.remove("is-open");
+    window.clearBladeToasts?.();
     const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
     closeTimer = window.setTimeout(() => {
       root.hidden = true;
@@ -2696,6 +2762,8 @@ function initDashboardLayout() {
   };
 
   const renderList = () => {
+    const savedScroll = window.KNAdminUX?.captureDrawerScroll?.(root);
+    const focusSelector = window.KNAdminUX?.captureDrawerFocus?.(root);
     list.innerHTML = draft.order
       .map((id, index) => {
         const meta = widgetMeta(id);
@@ -2742,6 +2810,7 @@ function initDashboardLayout() {
       })
       .join("");
     syncResetButton();
+    window.KNAdminUX?.restoreDrawerScroll?.(root, savedScroll, { focusSelector });
   };
 
   const movePlaceholder = (placeholder, clientY, dragging) => {
@@ -2980,6 +3049,7 @@ function initDashboardLayout() {
     }
     root.classList.remove("is-open");
     trigger.setAttribute("aria-expanded", "false");
+    window.clearBladeToasts?.();
     const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
     closeTimer = window.setTimeout(() => {
       root.hidden = true;
@@ -3493,12 +3563,3044 @@ function hydrateDashFromVisibility() {
   }
 }
 
+function initAiAssistant() {
+  const triggers = [...document.querySelectorAll(".ai-assistant-trigger")];
+  const panel = document.getElementById("ai-assistant-panel");
+  const closeBtn = document.getElementById("ai-assistant-close");
+  const form = document.getElementById("ai-assistant-form");
+  const input = document.getElementById("ai-assistant-input");
+  const sendBtn = document.getElementById("ai-assistant-send");
+  const history = document.getElementById("ai-assistant-history");
+  const liveRegion = document.getElementById("ai-assistant-live");
+  const refChip = document.getElementById("ai-assistant-ref");
+  const refChipText = document.getElementById("ai-assistant-ref-text");
+  const refChipDismiss = document.getElementById("ai-assistant-ref-dismiss");
+  const resizeHandle = document.getElementById("ai-assistant-resize");
+  const helpBtn = document.getElementById("ai-assistant-help");
+  const introEl = document.getElementById("ai-assistant-intro");
+  const introHeading = document.getElementById("ai-assistant-intro-heading");
+  const introGreeting = document.getElementById("ai-assistant-intro-greeting");
+  const introPrompts = document.getElementById("ai-assistant-intro-prompts");
+  const flagsSlot = document.getElementById("ai-assistant-flags");
+  if (!shell || !panel || !form || !input || !history || !resizeHandle || !triggers.length) {
+    return;
+  }
+
+  const WIDTH_MIN = 360;
+  const WIDTH_MAX = 600;
+  const WIDTH_DEFAULT = 430;
+  const WIDTH_STEP = 20;
+  const WIDTH_STORAGE_KEY = "kn-ai-assistant-width";
+  const ACTION_INTENT = /\b(add|create|edit|update|delete|remove|assign|deactivate|activate|save|submit|change)\b/i;
+  const COACHMARK_SEEN_KEY = "kn-ai-assistant-coachmark-seen";
+  const INTRO_SEEN_KEY = "kn-ai-assistant-intro-seen";
+  const COACHMARK_COPY = "New: Klear Assistant flags holds and coverage on this page. Suggests only.";
+  const ELEVATED_ROLE = /administrator|access manager|user access/i;
+  const MSG_ACTION_COPY =
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M4.5 13V4.5A1.5 1.5 0 0 1 6 3h7"/></svg>';
+  const MSG_ACTION_UP =
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 17.5h7.2a1.5 1.5 0 0 0 1.45-1.12l1.1-4.38A1.2 1.2 0 0 0 15.1 10.5H12V5.8A1.8 1.8 0 0 0 10.2 4L7.5 10.5H5.2A1.2 1.2 0 0 0 4 11.7v4.6A1.2 1.2 0 0 0 5.2 17.5H6.5Z"/></svg>';
+  const MSG_ACTION_DOWN =
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 2.5H6.3A1.5 1.5 0 0 0 4.85 3.62l-1.1 4.38A1.2 1.2 0 0 0 4.9 9.5H8v4.7A1.8 1.8 0 0 0 9.8 16l2.7-6.5h2.3A1.2 1.2 0 0 0 16 8.3V3.7A1.2 1.2 0 0 0 14.8 2.5H13.5Z"/></svg>';
+  let isOpen = false;
+  let preferredWidth = WIDTH_DEFAULT;
+  let lastTrigger = null;
+  let coachmarkEl = null;
+  let ftueLive = null;
+  let coachmarkVisible = false;
+  let coachmarkListening = false;
+  let pendingDraftPayload = null;
+  let refChipDismissed = false;
+  let generationId = 0;
+  let isResponding = false;
+  let streamTimer = null;
+
+  function readStoredWidth() {
+    try {
+      const raw = window.localStorage.getItem(WIDTH_STORAGE_KEY);
+      if (raw == null) {
+        return WIDTH_DEFAULT;
+      }
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) {
+        return WIDTH_DEFAULT;
+      }
+      /* Reset L1 experiment widths (240/264) below the restored min. */
+      if (parsed < WIDTH_MIN) {
+        window.localStorage.removeItem(WIDTH_STORAGE_KEY);
+        return WIDTH_DEFAULT;
+      }
+      return parsed;
+    } catch (_error) {
+      return WIDTH_DEFAULT;
+    }
+  }
+
+  function persistWidth(px) {
+    try {
+      window.localStorage.setItem(WIDTH_STORAGE_KEY, String(px));
+    } catch (_error) {
+      /* private mode / quota */
+    }
+  }
+
+  function syncWidthBounds() {
+    resizeHandle.setAttribute("aria-valuemin", String(WIDTH_MIN));
+    resizeHandle.setAttribute("aria-valuemax", String(WIDTH_MAX));
+  }
+
+  syncWidthBounds();
+  preferredWidth = readStoredWidth();
+
+  function clampWidth(next) {
+    const viewportMax = Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.floor(window.innerWidth * 0.6)));
+    return Math.max(WIDTH_MIN, Math.min(viewportMax, next));
+  }
+
+  function updateWidth(next, { persist = true } = {}) {
+    preferredWidth = Math.max(WIDTH_MIN, Math.min(WIDTH_MAX, next));
+    const applied = clampWidth(preferredWidth);
+    shell.style.setProperty("--ai-assistant-width", `${applied}px`);
+    resizeHandle.setAttribute("aria-valuenow", String(applied));
+    if (persist) {
+      persistWidth(preferredWidth);
+    }
+  }
+
+  function setExpandedState(expanded) {
+    triggers.forEach((trigger) => {
+      trigger.setAttribute("aria-expanded", String(expanded));
+      trigger.setAttribute("aria-pressed", String(expanded));
+      trigger.setAttribute("aria-label", expanded ? "Close Klear Assistant" : "Open Klear Assistant");
+    });
+    panel.setAttribute("aria-hidden", String(!expanded));
+    panel.inert = !expanded;
+  }
+
+  function hasSeenFlag(key) {
+    try {
+      return window.localStorage.getItem(key) === "1";
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function markSeenFlag(key) {
+    try {
+      window.localStorage.setItem(key, "1");
+    } catch (_error) {
+      /* private mode / quota */
+    }
+  }
+
+  function announceFtue(text) {
+    if (!ftueLive) {
+      ftueLive = document.createElement("div");
+      ftueLive.className = "visually-hidden";
+      ftueLive.id = "ai-assistant-ftue-live";
+      ftueLive.setAttribute("role", "status");
+      ftueLive.setAttribute("aria-live", "polite");
+      document.body.appendChild(ftueLive);
+    }
+    ftueLive.textContent = "";
+    window.requestAnimationFrame(() => {
+      ftueLive.textContent = text;
+    });
+  }
+
+  function getVisibleTrigger() {
+    return (
+      triggers.find((trigger) => {
+        const style = window.getComputedStyle(trigger);
+        if (style.display === "none" || style.visibility === "hidden") {
+          return false;
+        }
+        const rect = trigger.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }) || triggers[0]
+    );
+  }
+
+  function setCoachmarkBadges(visible) {
+    triggers.forEach((trigger) => {
+      trigger.classList.toggle("has-ai-coachmark", visible);
+    });
+  }
+
+  function placeCoachmark() {
+    if (!coachmarkEl || !coachmarkVisible) {
+      return;
+    }
+    const trigger = getVisibleTrigger();
+    if (!trigger) {
+      return;
+    }
+    const rect = trigger.getBoundingClientRect();
+    const gap = 8;
+    const tipRect = coachmarkEl.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    left = Math.min(Math.max(8, left), window.innerWidth - tipRect.width - 8);
+    const top = Math.min(rect.bottom + gap, window.innerHeight - tipRect.height - 8);
+    coachmarkEl.style.top = `${Math.round(Math.max(8, top))}px`;
+    coachmarkEl.style.left = `${Math.round(left)}px`;
+    coachmarkEl.setAttribute("data-placement", "bottom");
+    coachmarkEl.style.setProperty("--coach-arrow-left", `${Math.round(rect.left + rect.width / 2 - left)}px`);
+  }
+
+  function onCoachmarkDocumentClick(event) {
+    if (!coachmarkVisible || !coachmarkEl) {
+      return;
+    }
+    if (coachmarkEl.contains(event.target)) {
+      return;
+    }
+    dismissCoachmark();
+  }
+
+  function dismissCoachmark() {
+    coachmarkVisible = false;
+    markSeenFlag(COACHMARK_SEEN_KEY);
+    setCoachmarkBadges(false);
+    if (coachmarkEl) {
+      coachmarkEl.hidden = true;
+    }
+    if (coachmarkListening) {
+      document.removeEventListener("click", onCoachmarkDocumentClick, true);
+      coachmarkListening = false;
+    }
+  }
+
+  function showCoachmark() {
+    if (hasSeenFlag(COACHMARK_SEEN_KEY)) {
+      setCoachmarkBadges(false);
+      return;
+    }
+    setCoachmarkBadges(true);
+    if (!coachmarkEl) {
+      coachmarkEl = document.createElement("div");
+      coachmarkEl.className = "blade-tooltip blade-tooltip--coachmark type-caption-sm";
+      coachmarkEl.id = "ai-assistant-coachmark";
+      coachmarkEl.innerHTML = `
+        <p id="ai-assistant-coachmark-copy">${COACHMARK_COPY}</p>
+        <button class="icon-btn icon-btn--on-dark" type="button" id="ai-assistant-coachmark-dismiss" aria-label="Dismiss">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      `;
+      coachmarkEl.hidden = true;
+      document.body.appendChild(coachmarkEl);
+      coachmarkEl.querySelector("#ai-assistant-coachmark-dismiss").addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dismissCoachmark();
+      });
+    }
+    coachmarkEl.hidden = false;
+    coachmarkVisible = true;
+    announceFtue(COACHMARK_COPY);
+    if (!coachmarkListening) {
+      document.addEventListener("click", onCoachmarkDocumentClick, true);
+      coachmarkListening = true;
+    }
+    window.requestAnimationFrame(() => placeCoachmark());
+  }
+
+  function getSignedInFirstName() {
+    const full =
+      document.querySelector(".profile-text__name")?.textContent?.trim() ||
+      document.querySelector("#profile-menu .type-ui-md.type-weight-semibold")?.textContent?.trim() ||
+      "";
+    if (full) {
+      return full.split(/\s+/)[0];
+    }
+    const initials = document.querySelector(".avatar-trigger .avatar")?.textContent?.trim() || "";
+    if (initials.length >= 1) {
+      return initials.charAt(0).toUpperCase();
+    }
+    return "there";
+  }
+
+  function greetingCopy() {
+    return `Hello, ${getSignedInFirstName()}`;
+  }
+
+  function introHeadline(context) {
+    if (context?.headline) {
+      return String(context.headline);
+    }
+    if (context?.kind === "role-detail" || context?.kind === "user-detail" || context?.kind === "default-detail" || context?.kind === "visibility-detail") {
+      return `Ask me anything about ${context.title}`;
+    }
+    if (context?.area && context.area !== "this page") {
+      return `Ask me anything on ${context.area}`;
+    }
+    return "Ask about holds, coverage, or this record";
+  }
+
+  const PROMPT_ICON_SVG = {
+    chart:
+      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 16.5V9.5M8.5 16.5V5.5M13.5 16.5v-4M18.5 16.5V7.5"/></svg>',
+    compare:
+      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4.5 3.5 7 6 9.5M14 10.5 16.5 13 14 15.5M4 7h8.5M7.5 13H16"/></svg>',
+    flag:
+      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 17V3.5M4.5 3.5h8.2l-1.4 3.2 1.4 3.2H4.5"/></svg>',
+    tip:
+      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5a5 5 0 0 1 3.2 8.8c-.5.4-.8 1-.8 1.6v.6H7.6v-.6c0-.6-.3-1.2-.8-1.6A5 5 0 0 1 10 3.5ZM8 16.5h4"/></svg>',
+    nav:
+      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10h11M11 5.5 15.5 10 11 14.5"/></svg>',
+    ask:
+      '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17a7 7 0 1 0-6.7-9.1L3 13l5.1-.3A7 7 0 0 0 10 17Z"/></svg>'
+  };
+
+  function resolvePromptIcon(item) {
+    const explicit = String(item?.icon || "").trim().toLowerCase();
+    if (PROMPT_ICON_SVG[explicit]) {
+      return explicit;
+    }
+    const text = `${item?.label || ""} ${item?.prompt || ""}`.toLowerCase();
+    if (/coverage|chart|volume|count|snapshot|split|inherit|permission coverage/.test(text)) {
+      return "chart";
+    }
+    if (/compare|vs |versus|differ|ocean vs|with the rest|with catalog/.test(text)) {
+      return "compare";
+    }
+    if (/inactive|status|flag|hold|delay|action|elevated|owner and status/.test(text)) {
+      return "flag";
+    }
+    if (/where|navigate|open|add a |go to|look first/.test(text)) {
+      return "nav";
+    }
+    if (/before|miss|confirm|check|review|know|should i/.test(text)) {
+      return "tip";
+    }
+    return "ask";
+  }
+
+  function fillPromptChips(container, context) {
+    if (!container) {
+      return;
+    }
+    container.replaceChildren();
+    starterPrompts(context).forEach((item) => {
+      const iconKey = resolvePromptIcon(item);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ai-prompt-chip type-body-sm";
+      button.setAttribute("data-ai-prompt", item.prompt);
+      const newSuffix = item.isNew ? ", new suggestion" : "";
+      button.setAttribute("aria-label", `Ask: ${item.prompt}${newSuffix}`);
+      button.innerHTML = `
+        <span class="ai-prompt-chip__icon" aria-hidden="true">${PROMPT_ICON_SVG[iconKey] || PROMPT_ICON_SVG.ask}</span>
+        <span class="ai-prompt-chip__body">
+          <span class="ai-prompt-chip__label">${escapeHtml(item.label)}</span>
+          ${
+            item.isNew
+              ? `<span class="ai-prompt-chip__new" aria-hidden="true">NEW</span><span class="visually-hidden">New suggestion</span>`
+              : ""
+          }
+        </span>
+      `;
+      container.appendChild(button);
+    });
+  }
+
+  function setGreetingAndHeadline(greetingEl, headingEl, context) {
+    if (greetingEl) {
+      greetingEl.textContent = greetingCopy();
+    }
+    if (headingEl) {
+      headingEl.textContent = introHeadline(context);
+    }
+  }
+
+  function fillIntro(context) {
+    setGreetingAndHeadline(introGreeting, introHeading, context);
+    fillPromptChips(introPrompts, context);
+  }
+
+  function showIntro() {
+    if (!introEl) {
+      hideIntro();
+      renderEmptyState();
+      window.requestAnimationFrame(() => input.focus());
+      return;
+    }
+    fillIntro(getContext());
+    introEl.hidden = false;
+    history.hidden = true;
+    form.hidden = false;
+    helpBtn?.setAttribute("aria-expanded", "true");
+    announceFtue("Klear Assistant. Answers use records on this page. Suggests only — it cannot change records.");
+    window.requestAnimationFrame(() => input.focus());
+  }
+
+  function hideIntro() {
+    if (introEl) {
+      introEl.hidden = true;
+    }
+    history.hidden = false;
+    form.hidden = false;
+    helpBtn?.setAttribute("aria-expanded", "false");
+  }
+
+  function finishIntro() {
+    markSeenFlag(INTRO_SEEN_KEY);
+    hideIntro();
+    if (!history.querySelector(".ai-msg--user")) {
+      renderEmptyState();
+    }
+    window.requestAnimationFrame(() => input.focus());
+  }
+
+  function dismissIntroIfNeeded() {
+    if (introEl && !introEl.hidden) {
+      markSeenFlag(INTRO_SEEN_KEY);
+      hideIntro();
+    }
+  }
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function readRows(storageKey) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function readAdminRows(storageKey, lister) {
+    const stored = readRows(storageKey);
+    if (stored.length) {
+      return stored;
+    }
+    try {
+      const listed = typeof lister === "function" ? lister() : null;
+      return Array.isArray(listed) ? listed : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function permCount(role) {
+    return Array.isArray(role?.permissions) ? role.permissions.length : 0;
+  }
+
+  function inheritCount(role) {
+    const named = Number(role?.inherited);
+    if (Number.isFinite(named) && named > 0) {
+      return named;
+    }
+    return Array.isArray(role?.customers) ? role.customers.length : 0;
+  }
+
+  const PARTY_LABELS = {
+    customer: "Customer",
+    "sub-customer": "Sub-customer",
+    company: "Company",
+    parties: "Parties",
+    klearnow: "KlearNow"
+  };
+
+  const SERVICE_LABELS = {
+    all: "ALL",
+    ai: "AI",
+    "customs-broker": "Customs Clearance Broker Service",
+    "customs-engine": "Customs Engine",
+    "data-engine": "Data Engine",
+    drayage: "Drayage",
+    "klear-360": "Klear 360"
+  };
+
+  const THINKING_CHEVRON =
+    '<svg class="ai-msg__thinking-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
+
+  function partyLabel(id) {
+    const key = String(id || "").toLowerCase();
+    return PARTY_LABELS[key] || id || "";
+  }
+
+  function serviceLabel(id) {
+    const key = String(id || "").toLowerCase();
+    return SERVICE_LABELS[key] || id || "";
+  }
+
+  function formatPartyList(ids) {
+    return formatList((ids || []).map(partyLabel).filter(Boolean));
+  }
+
+  function formatServiceList(ids) {
+    return formatList((ids || []).map(serviceLabel).filter(Boolean));
+  }
+
+  function getSignedInPersona() {
+    const role =
+      document.querySelector(".profile-text__role")?.textContent?.trim() ||
+      document.querySelector("#profile-menu .menu-profile__copy .type-caption-sm")?.textContent?.trim() ||
+      "";
+    return {
+      firstName: getSignedInFirstName(),
+      role
+    };
+  }
+
+  function permissionApiFor(kind) {
+    if (String(kind || "").startsWith("default")) {
+      return {
+        total: () => Number(window.KNDefaultRoles?.permissionTotal?.()) || 0,
+        catalog: () => window.KNDefaultRoles?.permissionCatalog?.() || null
+      };
+    }
+    if (String(kind || "").startsWith("role")) {
+      return {
+        total: () => Number(window.KNRoles?.permissionTotal?.()) || 0,
+        catalog: () => window.KNRoles?.permissionCatalog?.() || null
+      };
+    }
+    return { total: () => 0, catalog: () => null };
+  }
+
+  function coverageFacts(role, kind) {
+    const count = permCount(role);
+    const api = permissionApiFor(kind);
+    const total = api.total();
+    const catalog = api.catalog();
+    const summary =
+      catalog && window.KNAdminUX?.accessSummary
+        ? window.KNAdminUX.accessSummary(role?.permissions || [], catalog, ["create", "update", "delete", "read"])
+        : "";
+    const ratio = total ? `${count}/${total}` : String(count);
+    let mostly = "";
+    if (summary) {
+      const mostlyMatch = summary.match(/mostly in (.+)$/i);
+      const mainlyMatch = summary.match(/mainly in (.+)$/i);
+      const acrossMatch = summary.match(/across (.+)$/i);
+      mostly = (mostlyMatch || mainlyMatch || acrossMatch)?.[1] || "";
+    }
+    return { count, total, ratio, summary, mostly };
+  }
+
+  function textAnswer({ title, thinking, text, followUps, sources, evidence }) {
+    return {
+      mode: "text",
+      title: title || "",
+      thinking: Array.isArray(thinking) ? thinking.filter(Boolean) : [],
+      evidence: Array.isArray(evidence) ? evidence.filter(Boolean) : [],
+      sources: Array.isArray(sources) ? sources.filter(Boolean) : [],
+      text: text || "",
+      followUps: Array.isArray(followUps) ? followUps.filter(Boolean) : []
+    };
+  }
+
+  function followUpsFromContext(context, excludePrompt = "") {
+    const skip = String(excludePrompt || "").toLowerCase();
+    return starterPrompts(context)
+      .filter((item) => item.prompt.toLowerCase() !== skip)
+      .slice(0, 3);
+  }
+
+  function findNamedAccess(name) {
+    const needle = String(name || "").trim().toLowerCase();
+    if (!needle) {
+      return null;
+    }
+    const defaults = readAdminRows("kn-default-roles-v3", () => window.KNDefaultRoles?.list?.());
+    const roles = readAdminRows("kn-roles-v2", () => window.KNRoles?.list?.());
+    const defHit = defaults.find((item) => String(item.name || "").toLowerCase() === needle);
+    if (defHit) {
+      return {
+        role: defHit,
+        kind: "default",
+        catalog: window.KNDefaultRoles?.permissionCatalog?.() || [],
+        href: `#default-role-management/${encodeURIComponent(defHit.id)}`,
+        page: "Default Role Management",
+        pageHref: "#default-role-management"
+      };
+    }
+    const knHit = roles.find((item) => String(item.name || "").toLowerCase() === needle);
+    if (knHit) {
+      return {
+        role: knHit,
+        kind: "role",
+        catalog: window.KNRoles?.permissionCatalog?.() || [],
+        href: `#kn-role-management/${encodeURIComponent(knHit.id)}`,
+        page: "KN Role Management",
+        pageHref: "#kn-role-management"
+      };
+    }
+    return null;
+  }
+
+  function parseCompareNames(question) {
+    const q = String(question || "").trim();
+    const between = q.match(/different between\s+(.+?)\s+and\s+(.+?)\??$/i);
+    if (between) {
+      return [between[1], between[2]].map((part) => part.replace(/^["']|["']$/g, "").trim());
+    }
+    const vs = q.match(/compare\s+(.+?)\s+(?:vs\.?|versus|and|with)\s+(.+?)\??$/i);
+    if (vs) {
+      return [vs[1], vs[2]].map((part) => part.replace(/^["']|["']$/g, "").trim());
+    }
+    if (/customer administrator/i.test(q) && /full customer access/i.test(q)) {
+      return ["Customer Administrator", "Full Customer Access"];
+    }
+    return null;
+  }
+
+  function answerCategoryDiff(question) {
+    const names = parseCompareNames(question);
+    if (!names) {
+      return null;
+    }
+    const left = findNamedAccess(names[0]);
+    const right = findNamedAccess(names[1]);
+    if (!left && !right) {
+      return textAnswer({
+        title: "Those templates are not in this session",
+        thinking: ["Looked up both names in Default Role Management and KN Role Management"],
+        evidence: ["Used catalogs: kn-default-roles-v3, kn-roles-v2"],
+        text: `No records named **${names[0]}** or **${names[1]}** are stored in this session.\n\nOpen **Default Role Management** (templates) or **KN Role Management** (internal roles) and ask again.`,
+        sources: [
+          { label: "Default Role Management", href: "#default-role-management", type: "page", id: "defaults" },
+          { label: "KN Role Management", href: "#kn-role-management", type: "page", id: "roles" }
+        ]
+      });
+    }
+    if (!left || !right) {
+      const missing = left ? names[1] : names[0];
+      const found = left || right;
+      return textAnswer({
+        title: `${missing} is not in this session`,
+        thinking: [`Found ${found.role.name} on ${found.page}`, `Did not find ${missing} in stored catalogs`],
+        evidence: [`Used record: ${found.role.name} (${found.page})`],
+        text: `**${found.role.name}** is on **${found.page}**. **${missing}** is not in this session, so I cannot invent a side-by-side.\n\nOpen **Default Role Management** if that name is a customer template.`,
+        sources: [
+          { label: found.role.name, href: found.href, type: found.kind === "default" ? "default-role" : "role", id: found.role.id },
+          { label: found.page, href: found.pageHref, type: "page", id: found.pageHref }
+        ]
+      });
+    }
+    const catalog = left.catalog?.length ? left.catalog : right.catalog;
+    const diffs = window.KNAdminUX?.diffRoleCategories?.(left.role.permissions, right.role.permissions, catalog) || [];
+    const leftCov = coverageFacts(left.role, left.kind === "default" ? "defaults" : "roles");
+    const rightCov = coverageFacts(right.role, right.kind === "default" ? "defaults" : "roles");
+    const lines = diffs.length
+      ? diffs
+          .slice(0, 8)
+          .map((row) => `- **${row.title}**: **${left.role.name}** **${row.a}/${row.total}** · **${right.role.name}** **${row.b}/${row.total}**`)
+          .join("\n")
+      : "- Category counts match on the catalogs in this session.";
+    return textAnswer({
+      title: `${left.role.name} vs ${right.role.name}`,
+      thinking: [
+        `Opened ${left.role.name} on ${left.page}`,
+        `Opened ${right.role.name} on ${right.page}`,
+        "Diffed permission counts by category"
+      ],
+      evidence: [
+        `Used record: ${left.role.name} (${leftCov.ratio})`,
+        `Used record: ${right.role.name} (${rightCov.ratio})`
+      ],
+      text: `**${left.role.name}** has **${leftCov.ratio}** permissions. **${right.role.name}** has **${rightCov.ratio}**.\n\n${lines}\n\nOpen either name to review the drawer. I will not change permissions.`,
+      sources: [
+        { label: left.role.name, href: left.href, type: left.kind === "default" ? "default-role" : "role", id: left.role.id },
+        { label: right.role.name, href: right.href, type: right.kind === "default" ? "default-role" : "role", id: right.role.id }
+      ]
+    });
+  }
+
+  function holdChainFromStats(stats) {
+    const row =
+      (stats?.holdRows || []).find((item) => item.document && item.broker) ||
+      (stats?.holdRows || [])[0] ||
+      null;
+    if (!row) {
+      return null;
+    }
+    const full = (stats?.rows || window.KNShipments || []).find((item) => item.id === row.id) || row;
+    return {
+      ...row,
+      document: row.document || full.mbol || "",
+      broker: row.broker || full.broker || "",
+      brokerUserId: row.brokerUserId || full.brokerUserId || "",
+      container: row.container || full.container || ""
+    };
+  }
+
+  function answerHoldChain(stats, context) {
+    const row = holdChainFromStats(stats);
+    if (!row) {
+      return textAnswer({
+        title: "No hold rows on this view",
+        thinking: [`Checked hold rows on ${context.area || "this page"}`],
+        evidence: [`Used view: ${context.area || "this page"}`],
+        text: `This view lists **${stats?.hold || 0}** holds, but no hold row with a linked bill and broker is in the current session.\n\nOpen **Visibility** and select a hold.`,
+        sources: [{ label: "Visibility", href: "#klearhub-visibility", type: "page", id: "visibility" }]
+      });
+    }
+    const amount = typeof knShipmentAmount === "function" ? knFormatUsd(knShipmentAmount(row.id)) : "";
+    return textAnswer({
+      title: `${row.id}: hold → document → broker`,
+      thinking: [
+        `Used shipment ${row.id}`,
+        row.document ? `Used document ${row.document}` : "No master bill on this hold row",
+        row.broker ? `Used responsible broker ${row.broker}` : "No broker on this hold row"
+      ],
+      evidence: [
+        `Used record: ${row.id}`,
+        row.document ? `Used document: ${row.document}` : "",
+        row.broker ? `Used broker: ${row.broker}` : ""
+      ],
+      text: `**${row.id}** is on hold${row.container ? ` (**${row.container}**)` : ""}${row.reason ? ` — **${row.reason}**` : ""}.\n\n- Linked document: **${row.document || "not on this record"}**\n- Responsible broker: **${row.broker || "not on this record"}**${amount ? `\n- Estimated value on file: **${amount}**` : ""}\n\nI cannot release the hold from here.`,
+      sources: [
+        { label: row.id, href: "#klearhub-visibility", type: "shipment", id: row.id },
+        row.brokerUserId
+          ? { label: row.broker, href: `#kn-user-management/${encodeURIComponent(row.brokerUserId)}`, type: "user", id: row.brokerUserId }
+          : null,
+        { label: "Visibility", href: "#klearhub-visibility", type: "page", id: "visibility" }
+      ].filter(Boolean)
+    });
+  }
+
+  function pageHrefFor(context) {
+    const kind = context?.kind || "";
+    if (kind.startsWith("default")) {
+      return "#default-role-management";
+    }
+    if (kind.startsWith("role")) {
+      return "#kn-role-management";
+    }
+    if (kind.startsWith("user")) {
+      return "#kn-user-management";
+    }
+    if (kind === "visibility" || kind === "visibility-detail") {
+      return "#klearhub-visibility";
+    }
+    if (kind === "overview") {
+      return "#klearhub-overview";
+    }
+    if (kind === "dashboard") {
+      return "#dashboard";
+    }
+    return "";
+  }
+
+  function sortByPerm(roles, dir = "asc") {
+    return [...roles].sort((a, b) => {
+      const delta = permCount(a) - permCount(b);
+      return dir === "asc" ? delta : -delta;
+    });
+  }
+
+  function isElevatedRoleName(name) {
+    return ELEVATED_ROLE.test(String(name || ""));
+  }
+
+  function formatList(names, max = 3) {
+    const items = (names || []).filter(Boolean);
+    if (!items.length) {
+      return "none";
+    }
+    if (items.length === 1) {
+      return items[0];
+    }
+    if (items.length === 2) {
+      return `${items[0]} and ${items[1]}`;
+    }
+    if (items.length <= max) {
+      return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+    }
+    return `${items.slice(0, max).join(", ")}, and ${items.length - max} more`;
+  }
+
+  function visStats() {
+    const summary = visSummary || {};
+    return {
+      total: Number(summary.total) || 0,
+      hold: Number(summary.hold) || 0,
+      delayed: Number(summary.delayed) || 0,
+      action: Number(summary.action) || 0,
+      ontime: Number(summary.ontime) || 0,
+      arrived: Number(summary.arrived) || 0,
+      inTransit: Number(summary.inTransit) || 0,
+      mot: summary.mot || {},
+      motPct: summary.motPct || {},
+      holdRows: summary.holdRows || [],
+      delayedRows: summary.delayedRows || [],
+      rows: summary.rows || []
+    };
+  }
+
+  function topMode(stats) {
+    const mot = stats?.motPct || stats?.mot || {};
+    const entries = Object.entries(mot).filter(([, value]) => Number(value) > 0);
+    if (!entries.length) {
+      return null;
+    }
+    entries.sort((a, b) => Number(b[1]) - Number(a[1]));
+    return { id: entries[0][0], value: Number(entries[0][1]) };
+  }
+
+  function emptyDestination(title) {
+    const toVisibility = /ops|notification|transaction|shipments/i.test(title || "");
+    return {
+      name: toVisibility ? "Visibility" : "Dashboard",
+      path: toVisibility ? "KlearHub -> Visibility" : "Dashboard"
+    };
+  }
+
+  function levelLabel(level) {
+    const key = String(level || "").toUpperCase();
+    if (key === "KLEARNOW") {
+      return "KlearNow";
+    }
+    if (key === "CUSTOMER") {
+      return "customer";
+    }
+    if (key === "BROKER") {
+      return "broker";
+    }
+    return level || "workspace";
+  }
+
+  function contextOf(partial) {
+    return {
+      kind: "generic",
+      area: "this page",
+      title: "this page",
+      summary: "",
+      hint: "I explain what is on screen. I do not create, edit, or delete records.",
+      details: [],
+      prompts: [],
+      manualPath: "Use the left navigation to open the relevant module",
+      facts: {},
+      ...partial
+    };
+  }
+
+  function rolesContext(hash) {
+    const roles = readAdminRows("kn-roles-v2", () => window.KNRoles?.list?.());
+    const lowest = sortByPerm(roles, "asc")[0] || null;
+    const highest = sortByPerm(roles, "desc")[0] || null;
+    const inactive = roles.filter((role) => role.active === false);
+    const addForm = hash === "#kn-role-management/add";
+    const editMatch = hash.match(/^#kn-role-management\/edit\/([^/]+)/);
+    const detailMatch = hash.match(/^#kn-role-management\/([^/]+)$/);
+    const recordId = editMatch
+      ? decodeURIComponent(editMatch[1])
+      : detailMatch && detailMatch[1] !== "add"
+        ? decodeURIComponent(detailMatch[1])
+        : "";
+    const role = recordId ? roles.find((row) => row.id === recordId) : null;
+
+    if (addForm) {
+      return contextOf({
+        kind: "role-add",
+        area: "KN Role Management",
+        title: "New role",
+        summary: "You're on the new-role form, not the catalog. I can explain fields and permission groups; saving still happens with the actions on this page.",
+        hint: "I will not create the role. Ask what is easy to miss before you save.",
+        details: ["Permission groups map to KlearNow modules. Applicability is required before save."],
+        prompts: [
+          { label: "Before you save", prompt: "What should I know before saving a new KN role?" },
+          { label: "Permission groups", prompt: "How do permission groups on this form map to KlearNow modules?" },
+          { label: "Easy to miss", prompt: "What is easy to miss on this form?" }
+        ],
+        manualPath: "Administration -> KN Role Management -> Add Role -> Save",
+        facts: { roles, lowest, highest }
+      });
+    }
+
+    if (role) {
+      return contextOf({
+        kind: "role-detail",
+        area: "KN Role Management",
+        title: role.name,
+        summary: `${role.name} is on the canvas with ${permCount(role)} permissions, ${role.active ? "and it is active" : "and it is currently inactive"}. I can walk through owner, applicability, and coverage without touching the record.`,
+        hint: "Ask what this role actually grants. Editing still happens in the form.",
+        details: [
+          `Owner: ${role.createdBy || "Unknown"}`,
+          `Status: ${role.active ? "Active" : "Inactive"}`,
+          `Coverage: ${permCount(role)} permissions for ${(role.applicable || []).join(", ") || "KlearNow"}`
+        ],
+        prompts: [
+          { label: "What this role grants", prompt: `What does ${role.name} actually grant?` },
+          { label: "Owner and status", prompt: `Who owns this role, and is it active?` },
+          {
+            label: "Coverage vs others",
+            prompt: lowest && lowest.id !== role.id
+              ? `How does its coverage compare with ${lowest.name}?`
+              : "How does its coverage compare with other KN roles?"
+          }
+        ],
+        manualPath: "Administration -> KN Role Management -> open role -> Edit Role",
+        facts: { roles, role, lowest, highest, inactive }
+      });
+    }
+
+    if (!roles.length) {
+      return contextOf({
+        kind: "roles",
+        area: "KN Role Management",
+        title: "KN Role Management",
+        summary: "KN Role Management is open, but this workspace does not have a saved role catalog yet. I can still explain how coverage and status work once roles appear.",
+        hint: "There is no catalog to compare yet. Ask what coverage means, or where to add a role.",
+        details: ["Roles persist in kn-roles-v2 after the catalog is saved."],
+        prompts: [
+          { label: "Lowest permission coverage", prompt: "Which role has the lowest permission coverage on this page?" },
+          { label: "What coverage means", prompt: "What does permission coverage mean on this page?" },
+          { label: "Where to add a role", prompt: "Where do I go to add a KN role once the catalog is ready?" }
+        ],
+        manualPath: "Administration -> KN Role Management",
+        facts: { roles, lowest, highest, inactive }
+      });
+    }
+
+    return contextOf({
+      kind: "roles",
+      area: "KN Role Management",
+      title: "KN Role Management",
+      summary: `You're in the KN Role catalog — ${roles.length} internal roles${inactive.length ? `, ${inactive.length} inactive` : ", all marked active"}. Coverage is uneven; ${lowest.name} currently carries the fewest permissions.`,
+      hint: "Ask about coverage, owners, or status. I will not change who has which role.",
+      details: [
+        `${lowest.name} has ${permCount(lowest)} permissions.`,
+        highest && highest.id !== lowest.id ? `${highest.name} has the broadest set, with ${permCount(highest)}.` : "",
+        inactive.length ? `Inactive: ${formatList(inactive.map((item) => item.name))}.` : "No inactive roles on this page."
+      ].filter(Boolean),
+      prompts: [
+        { label: "Lowest permission coverage", prompt: "Which role has the lowest permission coverage on this page?", icon: "chart", new: true },
+        { label: "Roles needing review", prompt: "Which roles need review — inactive, stale, or low coverage?", icon: "flag", new: true },
+        { label: "Draft a read-only role", prompt: "Draft a read-only analytics role for a new hire", icon: "tip", new: true }
+      ],
+      manualPath: "Administration -> KN Role Management",
+      facts: { roles, lowest, highest, inactive }
+    });
+  }
+
+  function usersContext(hash) {
+    const users = readAdminRows("kn-users-v2", () => window.KNUsers?.list?.());
+    const elevatedInactive = users.filter(
+      (user) => !user.active && (user.roles || []).some((name) => isElevatedRoleName(name))
+    );
+    const split = {
+      kn: users.filter((user) => String(user.level).toUpperCase() === "KLEARNOW").length,
+      customer: users.filter((user) => String(user.level).toUpperCase() === "CUSTOMER").length,
+      broker: users.filter((user) => String(user.level).toUpperCase() === "BROKER").length,
+      inactive: users.filter((user) => !user.active).length
+    };
+    const addForm = hash === "#kn-user-management/add";
+    const editMatch = hash.match(/^#kn-user-management\/([^/]+)\/edit$/);
+    const detailMatch = hash.match(/^#kn-user-management\/([^/]+)$/);
+    const recordId = editMatch
+      ? decodeURIComponent(editMatch[1])
+      : detailMatch && detailMatch[1] !== "add"
+        ? decodeURIComponent(detailMatch[1])
+        : "";
+    const user = recordId ? users.find((row) => row.id === recordId) : null;
+
+    if (addForm) {
+      return contextOf({
+        kind: "user-add",
+        area: "KN User Management",
+        title: "New user",
+        summary: "This is the add-user form. I can explain level, entity, and role assignment; creating the person still happens with Save on this page.",
+        hint: "I will not create the account. Ask what to check before you send the invite.",
+        details: ["Level, entity, and at least one role are the usual gaps on this form."],
+        prompts: [
+          { label: "Before you save", prompt: "What should I confirm before saving a new user?" },
+          { label: "Suggest roles from title", prompt: "Suggest roles for a Visibility Engineer who should track shipments" },
+          { label: "Common role mistakes", prompt: "Which role mistakes are common when adding someone?" }
+        ],
+        manualPath: "Administration -> KN User Management -> Add User -> Save",
+        facts: { users, elevatedInactive, split }
+      });
+    }
+
+    if (user) {
+      return contextOf({
+        kind: "user-detail",
+        area: "KN User Management",
+        title: user.name,
+        summary: `${user.name} is a ${levelLabel(user.level)} user in ${user.entity || "the selected entity"}, assigned to ${formatList(user.roles || [])}. ${user.active ? "The account is active." : "The account is inactive."}`,
+        hint: "I can unpack access and status. I cannot edit the profile.",
+        details: [
+          `Email: ${user.email || "Unavailable"}`,
+          `Title: ${user.title || "Not set"}`,
+          `Status: ${user.active ? "Active" : "Inactive"}`
+        ],
+        prompts: [
+          { label: "Current access", prompt: `What access does ${user.name} currently hold?` },
+          { label: "Active status", prompt: `Is this account active, and when were they last seen?` },
+          { label: "Roles to review", prompt: "Which roles would I review before changing anything?" }
+        ],
+        manualPath: "Administration -> KN User Management -> open user -> Edit User",
+        facts: { users, user, elevatedInactive, split }
+      });
+    }
+
+    if (!users.length) {
+      return contextOf({
+        kind: "users",
+        area: "KN User Management",
+        title: "KN User Management",
+        summary: "KN User Management is open, but no people are stored in this workspace yet. I can still explain inactive access and how the list is grouped once users load.",
+        hint: "There is no roster to inspect yet. Ask what elevated access means, or where to add someone.",
+        details: ["Users persist in kn-users-v2 after the roster is saved."],
+        prompts: [
+          { label: "Inactive users with elevated access", prompt: "Which users are inactive but still hold elevated access?" },
+          { label: "KlearNow vs customer vs broker", prompt: "How are KlearNow, customer, and broker users split on this list?" },
+          { label: "Where to add a user", prompt: "Where do I add a user when the roster is ready?" }
+        ],
+        manualPath: "Administration -> KN User Management",
+        facts: { users, elevatedInactive, split }
+      });
+    }
+
+    return contextOf({
+      kind: "users",
+      area: "KN User Management",
+      title: "KN User Management",
+      summary: elevatedInactive.length
+        ? `KN User Management is listing ${users.length} people across KlearNow, customers, and brokers. ${formatList(elevatedInactive.map((item) => item.name))} ${elevatedInactive.length === 1 ? "is" : "are"} inactive while still holding elevated access.`
+        : `KN User Management is listing ${users.length} people — ${split.kn} KlearNow, ${split.customer} customer, ${split.broker} broker. No inactive accounts currently keep elevated roles.`,
+      hint: "Ask about inactive access or how the roster is split. I will not change assignments.",
+      details: [
+        `${split.inactive} inactive on this page.`,
+        elevatedInactive.length
+          ? `Elevated while inactive: ${formatList(elevatedInactive.map((item) => `${item.name} (${formatList(item.roles || [])})`))}.`
+          : "No inactive users with administrator-level roles."
+      ],
+      prompts: [
+        { label: "Inactive users with elevated access", prompt: "Which users are inactive but still hold elevated access?" },
+        {
+          label: elevatedInactive[0] ? "Why elevated while inactive" : "Elevated while inactive?",
+          prompt: elevatedInactive[0]
+            ? `Why does ${elevatedInactive[0].name} still show ${formatList(elevatedInactive[0].roles || [])} while inactive?`
+            : "Are any inactive users still holding elevated roles?"
+        },
+        { label: "KlearNow vs customer vs broker", prompt: "How are KlearNow, customer, and broker users split on this list?" }
+      ],
+      manualPath: "Administration -> KN User Management",
+      facts: { users, elevatedInactive, split }
+    });
+  }
+
+  function defaultsContext(hash) {
+    const roles = readAdminRows("kn-default-roles-v3", () => window.KNDefaultRoles?.list?.());
+    const ranked = [...roles].sort((a, b) => inheritCount(b) - inheritCount(a));
+    const top = ranked[0] || null;
+    const inactiveInherited = roles.filter((role) => role.active === false && inheritCount(role) > 0);
+    const addForm = hash === "#default-role-management/add";
+    const editMatch = hash.match(/^#default-role-management\/edit\/([^/]+)/);
+    const detailMatch = hash.match(/^#default-role-management\/([^/]+)$/);
+    const recordId = editMatch
+      ? decodeURIComponent(editMatch[1])
+      : detailMatch && detailMatch[1] !== "add"
+        ? decodeURIComponent(detailMatch[1])
+        : "";
+    const role = recordId ? roles.find((row) => row.id === recordId) : null;
+
+    if (addForm) {
+      return contextOf({
+        kind: "default-add",
+        area: "Default Role Management",
+        title: "New default role",
+        summary: "You're drafting a customer/broker template, not an internal KN role. I can explain inheritance, services, and applicability; publishing still happens on this form.",
+        hint: "I will not create the template. Ask what customers would inherit if you save it.",
+        details: ["Inheritance starts after customers are attached to the published template."],
+        prompts: [
+          { label: "Before you publish", prompt: "What should I check before publishing a default role?" },
+          { label: "Vs KN internal role", prompt: "How is this template different from a KN internal role?" },
+          { label: "What inheritance means", prompt: "What does inheritance mean once customers join?" }
+        ],
+        manualPath: "Administration -> Default Role Management -> Add Default Role -> Save",
+        facts: { roles, top, inactiveInherited }
+      });
+    }
+
+    if (role) {
+      const inherited = inheritCount(role);
+      return contextOf({
+        kind: "default-detail",
+        area: "Default Role Management",
+        title: role.name,
+        summary: `${role.name} is a default template with ${permCount(role)} permissions. ${inherited} workspace${inherited === 1 ? "" : "s"} currently inherit it.`,
+        hint: "I can explain who inherits this and which services it covers. I cannot change the template.",
+        details: [
+          `Applicable: ${(role.applicable || []).join(", ") || "Not set"}`,
+          `Services: ${(role.services || []).join(", ") || "Not set"}`,
+          `Coverage: ${permCount(role)} permissions`
+        ],
+        prompts: [
+          { label: "Who inherits this", prompt: `How many customers inherit ${role.name}?` },
+          { label: "Services and parties", prompt: "Which services and parties does this template apply to?" },
+          { label: "Permission coverage", prompt: "What's the permission coverage on this template?" }
+        ],
+        manualPath: "Administration -> Default Role Management -> open template -> Edit Default Role",
+        facts: { roles, role, top, inactiveInherited }
+      });
+    }
+
+    if (!roles.length) {
+      return contextOf({
+        kind: "defaults",
+        area: "Default Role Management",
+        title: "Default Role Management",
+        summary: "Default Role Management is open, but no templates are stored yet. I can still explain inheritance — how customers pick up access when they join — once templates load.",
+        hint: "There is no inheritance table to rank yet. Ask what a default role is for.",
+        details: ["Templates persist in kn-default-roles-v3 after they are saved."],
+        prompts: [
+          { label: "Most inherited template", prompt: "Which default role has the most customers inheriting it?" },
+          { label: "What inheritance means", prompt: "What does inheritance mean on this page?" },
+          { label: "Where to add a template", prompt: "Where do I add a default role when templates are ready?" }
+        ],
+        manualPath: "Administration -> Default Role Management",
+        facts: { roles, top, inactiveInherited }
+      });
+    }
+
+    return contextOf({
+      kind: "defaults",
+      area: "Default Role Management",
+      title: "Default Role Management",
+      summary: `This is the inheritance layer for customers and brokers — ${roles.length} default templates. ${top.name} currently leads with ${inheritCount(top)} workspaces inheriting it.`,
+      hint: "Ask who inherits what. I will not attach or detach customers from a template.",
+      details: [
+        `${top.name}: ${inheritCount(top)} inheriting workspaces.`,
+        inactiveInherited.length
+          ? `Inactive yet still inherited: ${formatList(inactiveInherited.map((item) => item.name))}.`
+          : "No inactive templates currently show inheritance."
+      ],
+      prompts: [
+        { label: "Most inherited template", prompt: "Which default role has the most customers inheriting it?" },
+        { label: "Admin vs full access", prompt: "What's different between Customer Administrator and Full Customer Access", icon: "compare", new: true },
+        { label: "Who inherits the leader", prompt: `Who inherits ${top.name}, and is that expected?` }
+      ],
+      manualPath: "Administration -> Default Role Management",
+      facts: { roles, top, inactiveInherited }
+    });
+  }
+
+  function operationsContext(kind) {
+    const stats = visStats();
+    const mode = topMode(stats);
+    const modeLabel = mode ? knMotLabel(mode.id) : "";
+    const modeShare = mode ? (mode.value <= 1 ? Math.round(mode.value * 100) : Math.round(mode.value)) : 0;
+    const holdSample = stats.holdRows.slice(0, 3).map((row) => row.id || row.container).filter(Boolean);
+    const detailId = typeof visState !== "undefined" ? visState.detailId : "";
+
+    if (kind === "dashboard") {
+      return contextOf({
+        kind: "dashboard",
+        area: "Dashboard",
+        title: "Dashboard",
+        summary: `You're on the operations dashboard, not an admin table. ${stats.action} of ${stats.total} active shipments need attention${modeLabel ? `, and ${modeLabel} is the largest mode share` : ""}.`,
+        hint: "I can unpack holds, delays, and where to drill in. I cannot clear exceptions from here.",
+        details: [
+          `${stats.hold} on hold, ${stats.delayed} delayed, ${stats.ontime} on track.`,
+          modeLabel ? `${modeLabel} is about ${modeShare}% of the book.` : "Mode split is not available yet."
+        ],
+        prompts: [
+          { label: "Shipments needing action", prompt: "How many shipments currently need action on this dashboard?" },
+          { label: "Hold → document → broker", prompt: "For a shipment on hold, what is the linked document and responsible broker?", icon: "flag", new: true },
+          { label: "Largest transport mode", prompt: "Which transport mode accounts for the largest share of active shipments?" }
+        ],
+        manualPath: "Dashboard tiles, or KlearHub -> Visibility for the live board",
+        facts: { stats, mode, modeLabel, modeShare, holdSample }
+      });
+    }
+
+    if (kind === "overview") {
+      return contextOf({
+        kind: "overview",
+        area: "By mode",
+        title: "By mode",
+        summary: `KlearHub By mode splits the book across ocean, air, truck, and rail. ${stats.total} active shipments feed these counts — I can compare volume and delay risk from what is on this page.`,
+        hint: "Ask for a mode comparison. I will not change filters on the overview.",
+        details: [
+          modeLabel ? `${modeLabel} currently leads volume.` : "Mode shares are not populated yet.",
+          `${stats.delayed} delayed, ${stats.arrived} arrived pending drayage.`
+        ],
+        prompts: [
+          { label: "Ocean vs air volume", prompt: "How does ocean volume compare with air on this page?" },
+          { label: "Mode with most delay", prompt: "Which mode is carrying the most delay risk?" },
+          { label: "Snapshot counts", prompt: "What do the KlearHub snapshot counts represent?" }
+        ],
+        manualPath: "KlearHub -> By mode, or open Visibility for shipment-level work",
+        facts: { stats, mode, modeLabel, modeShare }
+      });
+    }
+
+    if (detailId) {
+      const row = stats.rows.find((item) => item.id === detailId || item.container === detailId);
+      return contextOf({
+        kind: "visibility-detail",
+        area: "Visibility",
+        title: detailId,
+        summary: `You've opened ${detailId} in Visibility. I can explain the status on this record; I cannot clear holds or edit milestones.`,
+        hint: "Ask about this shipment's status. Action still happens in Visibility.",
+        details: [
+          row ? `Status: ${row.status || "Not set"}` : "Shipment details are on the record panel.",
+          `${stats.hold} holds and ${stats.delayed} delays in the current board.`
+        ],
+        prompts: [
+          { label: "Current status", prompt: `What is the current status of ${detailId}?` },
+          { label: "Why flagged", prompt: "Why would this shipment be flagged in this view?" },
+          { label: "Where to take action", prompt: "Where do I go if I need to take action on it?" }
+        ],
+        manualPath: "KlearHub -> Visibility -> open shipment",
+        facts: { stats, detailId, row, holdSample }
+      });
+    }
+
+    return contextOf({
+      kind: "visibility",
+      area: "Visibility",
+      title: "Visibility",
+      summary: `Visibility is the live shipment board. ${stats.hold} on hold, ${stats.delayed} delayed, ${stats.ontime} on track. I can stay with this view and explain what the exceptions mean.`,
+      hint: "Ask about holds, delays, or arrived containers. I cannot update a shipment.",
+      details: [
+        holdSample.length ? `Hold examples: ${formatList(holdSample)}.` : "No hold rows are listed in the current summary.",
+        `${stats.inTransit} in transit, ${stats.arrived} arrived.`
+      ],
+      prompts: [
+        { label: "Shipments on hold", prompt: "Which shipments are on hold in this Visibility view?" },
+        { label: "Hold → document → broker", prompt: "For a shipment on hold, what is the linked document and responsible broker?", icon: "flag", new: true },
+        { label: "Arrived containers first", prompt: "Where should I look first among containers that have arrived?" }
+      ],
+      manualPath: "KlearHub -> Visibility",
+      facts: { stats, holdSample }
+    });
+  }
+
+  function unavailableContext() {
+    const title = getCurrentPageTitle();
+    const dest = emptyDestination(title);
+    return contextOf({
+      kind: "unavailable",
+      area: title,
+      title,
+      summary: `${title} is not available in this workspace yet — that empty state is intentional, not a loading error. I can explain what that means and point you toward ${dest.name}.`,
+      hint: "There is no table to analyze here. Ask why it is unavailable, or where to continue.",
+      details: [
+        `This workspace has not enabled ${title}.`,
+        `Continue in ${dest.name} (${dest.path}).`
+      ],
+      prompts: [
+        { label: "Why unavailable", prompt: `Why isn't ${title} available in this workspace yet?` },
+        { label: "Where to go instead", prompt: `Where should I go instead of ${title}?` },
+        { label: "Access or workspace?", prompt: "Does this empty page mean I lack access, or that the module is not in this workspace?" }
+      ],
+      manualPath: `Left navigation -> ${dest.path}`,
+      facts: { destination: dest }
+    });
+  }
+
+  function getContext() {
+    const hash = getHashPath();
+    if (hash.startsWith("#kn-role-management")) {
+      return rolesContext(hash);
+    }
+    if (hash.startsWith("#kn-user-management")) {
+      return usersContext(hash);
+    }
+    if (hash.startsWith("#default-role-management")) {
+      return defaultsContext(hash);
+    }
+    if (isDashboardRoute()) {
+      return operationsContext("dashboard");
+    }
+    if (isKlearhubOverviewRoute() || hash.startsWith("#klearhub-overview")) {
+      return operationsContext("overview");
+    }
+    if (isKlearhubVisibilityRoute() || hash.startsWith("#klearhub-visibility")) {
+      return operationsContext("visibility");
+    }
+    return unavailableContext();
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, prefersReducedMotion() ? 0 : ms);
+    });
+  }
+
+  function announceAssistant(text) {
+    const target = liveRegion || ftueLive;
+    if (!target) {
+      announceFtue(text);
+      return;
+    }
+    target.textContent = "";
+    window.requestAnimationFrame(() => {
+      target.textContent = text;
+    });
+  }
+
+  function referencingCopy(context) {
+    if (!context) {
+      return "Referencing: this page";
+    }
+    const kind = context.kind || "";
+    const facts = context.facts || {};
+    if (kind === "role-detail" && facts.role?.name) {
+      return `Referencing: ${facts.role.name} role`;
+    }
+    if (kind === "user-detail" && facts.user?.name) {
+      return `Referencing: ${facts.user.name}`;
+    }
+    if (kind === "default-detail" && facts.role?.name) {
+      return `Referencing: ${facts.role.name} template`;
+    }
+    if (kind === "visibility-detail" && (facts.detailId || context.title)) {
+      return `Referencing: shipment ${facts.detailId || context.title}`;
+    }
+    if (kind === "roles" || kind === "role-add") {
+      const count = Array.isArray(facts.roles) ? facts.roles.length : 0;
+      return count
+        ? `Referencing: KN Role Management — ${count} role${count === 1 ? "" : "s"} visible`
+        : "Referencing: KN Role Management";
+    }
+    if (kind === "users" || kind === "user-add") {
+      const count = Array.isArray(facts.users) ? facts.users.length : 0;
+      return count
+        ? `Referencing: KN User Management — ${count} user${count === 1 ? "" : "s"} visible`
+        : "Referencing: KN User Management";
+    }
+    if (kind === "defaults" || kind === "default-add") {
+      const count = Array.isArray(facts.roles) ? facts.roles.length : 0;
+      return count
+        ? `Referencing: Default Role Management — ${count} template${count === 1 ? "" : "s"} visible`
+        : "Referencing: Default Role Management";
+    }
+    if (kind === "visibility" || kind === "dashboard" || kind === "overview") {
+      const total = Number(facts.stats?.total) || 0;
+      return total
+        ? `Referencing: ${context.area} — ${total} shipment${total === 1 ? "" : "s"} in view`
+        : `Referencing: ${context.area || context.title}`;
+    }
+    return `Referencing: ${context.area || context.title || "this page"}`;
+  }
+
+  function lookingCopy(context) {
+    const kind = context?.kind || "";
+    if ((kind === "role-detail" || kind === "default-detail" || kind === "user-detail") && context?.title) {
+      return `Checking ${context.title}…`;
+    }
+    if (kind === "visibility-detail" && context?.title) {
+      return `Looking at ${context.title}…`;
+    }
+    if (kind === "defaults" || kind === "default-add") {
+      return "Looking at Default Role Management…";
+    }
+    if (kind === "roles" || kind === "role-add") {
+      return "Looking at KN Role Management…";
+    }
+    if (kind === "users" || kind === "user-add") {
+      return "Looking at KN User Management…";
+    }
+    if (kind === "visibility") {
+      return "Looking at Visibility…";
+    }
+    if (kind === "dashboard") {
+      return "Looking at Dashboard…";
+    }
+    if (kind === "overview") {
+      return "Looking at By mode…";
+    }
+    const area = context?.area || context?.title || "this page";
+    return `Looking at ${area}…`;
+  }
+
+  function buildThinkingSteps(question, context, result) {
+    if (Array.isArray(result?.thinking) && result.thinking.length) {
+      const extra = Array.isArray(result.evidence) ? result.evidence : [];
+      return [...result.thinking, ...extra].filter(Boolean).slice(0, 6);
+    }
+    const lower = String(question || "").toLowerCase();
+    const facts = context?.facts || {};
+    const role = facts.role;
+    const user = facts.user;
+    const steps = [];
+    const kind = context?.kind || "";
+
+    if (kind === "default-detail" && role?.name) {
+      steps.push(`Checking ${role.name}'s permission structure and inheritance settings`);
+      if (/inherit|customer|workspace/.test(lower)) {
+        steps.push(`Reading how many workspaces currently inherit ${role.name}`);
+      }
+      if (/permission|coverage|grant|access/.test(lower)) {
+        steps.push(`Comparing selected permissions against the Default Role catalog total`);
+      }
+      if (/applicable|party|service/.test(lower)) {
+        steps.push(`Reviewing Applicable to parties and services on this template`);
+      }
+    } else if (kind === "defaults" || kind === "default-add") {
+      steps.push("Checking Default Role Management templates and inheritance counts");
+      if (/inherit/.test(lower) && facts.top?.name) {
+        steps.push(`Ranking templates by workspaces inheriting ${facts.top.name} and peers`);
+      }
+    } else if (kind === "role-detail" && role?.name) {
+      steps.push(`Checking ${role.name}'s permission coverage and applicability`);
+      if (/compare|lowest|coverage/.test(lower) && facts.lowest?.name) {
+        steps.push(`Comparing coverage with ${facts.lowest.name} on this catalog`);
+      }
+    } else if (kind === "roles" || kind === "role-add") {
+      steps.push("Checking KN Role Management catalog coverage and status");
+    } else if (kind === "user-detail" && user?.name) {
+      steps.push(`Checking ${user.name}'s level, entity, and assigned roles`);
+    } else if (kind === "users" || kind === "user-add") {
+      steps.push("Checking KN User Management roster status and elevated access");
+    } else if (kind === "visibility" || kind === "visibility-detail" || kind === "dashboard" || kind === "overview") {
+      steps.push(`Checking live shipment counts on ${context.area || "this page"}`);
+    } else {
+      steps.push(`Checking what is available on ${context?.area || "this page"}`);
+    }
+    const extra = Array.isArray(result?.evidence) ? [...result.evidence] : [];
+    if (!extra.length && context?.title) {
+      extra.push(`Used record: ${context.title} on ${context.area || "this page"}`);
+    }
+    return [...steps, ...extra].filter(Boolean).slice(0, 6);
+  }
+
+  function buildResponseTitle(question, context, result) {
+    if (result?.title) {
+      return result.title;
+    }
+    const lower = String(question || "").toLowerCase();
+    const facts = context?.facts || {};
+    const role = facts.role;
+    const user = facts.user;
+
+    if (role?.name) {
+      if (/inherit/.test(lower)) {
+        return `How ${role.name} Inherits Access`;
+      }
+      if (/permission|coverage|grant/.test(lower)) {
+        return `${role.name} Permission Coverage`;
+      }
+      if (/applicable|party|service/.test(lower)) {
+        return `Who ${role.name} Applies To`;
+      }
+      return `About ${role.name}`;
+    }
+    if (user?.name) {
+      if (/access|role/.test(lower)) {
+        return `Access held by ${user.name}`;
+      }
+      return `About ${user.name}`;
+    }
+    if (context?.kind === "defaults" && /inherit/.test(lower)) {
+      return "Inheritance on Default Role Management";
+    }
+    if (context?.kind === "roles" && /coverage|lowest/.test(lower)) {
+      return "Permission coverage on KN Role Management";
+    }
+    if (context?.area && context.area !== "this page") {
+      return `On ${context.area}`;
+    }
+    return context?.title || "On this page";
+  }
+
+  function syncContextChip(context = getContext()) {
+    if (!refChip || !refChipText) {
+      return;
+    }
+    if (refChipDismissed) {
+      refChip.hidden = true;
+      return;
+    }
+    const copy = referencingCopy(context);
+    refChipText.textContent = copy;
+    refChip.hidden = false;
+  }
+
+  function buildEntityIndex(context) {
+    const entities = [];
+    const facts = context?.facts || {};
+    const pushPage = (label, href) => {
+      if (!label || !href) {
+        return;
+      }
+      entities.push({ type: "page", id: href, label: String(label), href: String(href) });
+    };
+    const pushRole = (role, type = "role") => {
+      if (!role?.id || !role?.name) {
+        return;
+      }
+      entities.push({
+        type,
+        id: String(role.id),
+        label: String(role.name),
+        href:
+          type === "default-role"
+            ? `#default-role-management/${encodeURIComponent(role.id)}`
+            : `#kn-role-management/${encodeURIComponent(role.id)}`
+      });
+    };
+    const pushUser = (user) => {
+      if (!user?.id || !user?.name) {
+        return;
+      }
+      entities.push({
+        type: "user",
+        id: String(user.id),
+        label: String(user.name),
+        href: `#kn-user-management/${encodeURIComponent(user.id)}`
+      });
+    };
+    const pushShipment = (id) => {
+      if (!id) {
+        return;
+      }
+      entities.push({
+        type: "shipment",
+        id: String(id),
+        label: String(id),
+        href: `#klearhub-visibility`
+      });
+    };
+
+    const kind = context?.kind || "";
+    if (kind.startsWith("default")) {
+      pushPage("Default Role Management", "#default-role-management");
+    } else if (kind.startsWith("role")) {
+      pushPage("KN Role Management", "#kn-role-management");
+    } else if (kind.startsWith("user")) {
+      pushPage("KN User Management", "#kn-user-management");
+    } else if (kind === "visibility" || kind === "visibility-detail") {
+      pushPage("Visibility", "#klearhub-visibility");
+    } else if (kind === "dashboard") {
+      pushPage("Dashboard", "#dashboard");
+    } else if (kind === "overview") {
+      pushPage("By mode", "#klearhub-overview");
+    }
+
+    (facts.roles || []).forEach((role) =>
+      pushRole(role, kind.startsWith("default") ? "default-role" : "role")
+    );
+    if (facts.role) {
+      pushRole(facts.role, kind.startsWith("default") ? "default-role" : "role");
+    }
+    if (facts.lowest) {
+      pushRole(facts.lowest, kind.startsWith("default") ? "default-role" : "role");
+    }
+    if (facts.highest) {
+      pushRole(facts.highest, kind.startsWith("default") ? "default-role" : "role");
+    }
+    if (facts.top) {
+      pushRole(facts.top, kind.startsWith("default") ? "default-role" : "role");
+    }
+    (facts.users || []).forEach(pushUser);
+    if (facts.user) {
+      pushUser(facts.user);
+    }
+    (facts.holdSample || []).forEach(pushShipment);
+    if (facts.detailId) {
+      pushShipment(facts.detailId);
+    }
+    (facts.stats?.holdRows || []).slice(0, 8).forEach((row) => pushShipment(row.id || row.container));
+    entities.sort((a, b) => b.label.length - a.label.length);
+    return entities;
+  }
+
+  function applyInlineMarkup(escaped, entities) {
+    let html = escaped.replace(/\*\*(.+?)\*\*/g, '<strong class="ai-msg__strong">$1</strong>');
+    const used = new Set();
+    entities.forEach((entity) => {
+      const key = `${entity.type}:${entity.id}`;
+      if (used.has(key)) {
+        return;
+      }
+      const needle = escapeHtml(entity.label);
+      if (!needle || !html.includes(needle)) {
+        return;
+      }
+      used.add(key);
+      const icon =
+        entity.type === "page"
+          ? '<span class="ai-entity-link__icon" aria-hidden="true">↗</span>'
+          : '<span class="ai-entity-link__icon" aria-hidden="true">↗</span>';
+      const link = `<a class="ai-entity-link" href="${escapeHtml(entity.href)}" data-ai-entity="${escapeHtml(entity.type)}" data-ai-entity-id="${escapeHtml(entity.id)}">${needle}${icon}</a>`;
+      html = html.replace(needle, link);
+    });
+    return html;
+  }
+
+  function renderAssistantMarkdown(text, context) {
+    const source = String(text || "").trim();
+    if (!source) {
+      return "<p></p>";
+    }
+    const entities = buildEntityIndex(context);
+    const lines = source.split(/\n/);
+    const blocks = [];
+    let listType = null;
+    let listItems = [];
+
+    const flushList = () => {
+      if (!listItems.length) {
+        return;
+      }
+      const tag = listType === "ol" ? "ol" : "ul";
+      blocks.push(
+        `<${tag} class="ai-msg__list">${listItems
+          .map((item) => `<li>${applyInlineMarkup(escapeHtml(item), entities)}</li>`)
+          .join("")}</${tag}>`
+      );
+      listItems = [];
+      listType = null;
+    };
+
+    lines.forEach((rawLine) => {
+      const line = rawLine.trimEnd();
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flushList();
+        return;
+      }
+      const heading = trimmed.match(/^#{1,3}\s+(.+)$/);
+      if (heading) {
+        flushList();
+        const level = Math.min(3, (trimmed.match(/^#+/) || ["#"])[0].length);
+        const tag = level === 1 ? "h3" : level === 2 ? "h4" : "h5";
+        blocks.push(
+          `<${tag} class="ai-msg__heading type-ui-md type-weight-semibold">${applyInlineMarkup(
+            escapeHtml(heading[1]),
+            entities
+          )}</${tag}>`
+        );
+        return;
+      }
+      const bullet = trimmed.match(/^[-•*]\s+(.+)$/);
+      if (bullet) {
+        if (listType && listType !== "ul") {
+          flushList();
+        }
+        listType = "ul";
+        listItems.push(bullet[1]);
+        return;
+      }
+      const numbered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+      if (numbered) {
+        if (listType && listType !== "ol") {
+          flushList();
+        }
+        listType = "ol";
+        listItems.push(numbered[1]);
+        return;
+      }
+      flushList();
+      blocks.push(`<p>${applyInlineMarkup(escapeHtml(trimmed), entities)}</p>`);
+    });
+    flushList();
+    return blocks.join("") || `<p>${applyInlineMarkup(escapeHtml(source), entities)}</p>`;
+  }
+
+  function plainTextFromHtml(html) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return (tmp.textContent || "").replace(/\s+\n/g, "\n").trim();
+  }
+
+  function messageActionsHtml() {
+    return `<div class="ai-msg__actions" role="group" aria-label="Response actions">
+      <button type="button" class="ai-msg__action" data-ai-msg-copy aria-label="Copy response">${MSG_ACTION_COPY}</button>
+      <button type="button" class="ai-msg__action" data-ai-msg-feedback="up" aria-pressed="false" aria-label="Helpful response">${MSG_ACTION_UP}</button>
+      <button type="button" class="ai-msg__action" data-ai-msg-feedback="down" aria-pressed="false" aria-label="Unhelpful response">${MSG_ACTION_DOWN}</button>
+    </div>`;
+  }
+
+  function updateSendControl() {
+    if (!sendBtn) {
+      return;
+    }
+    if (isResponding) {
+      sendBtn.disabled = false;
+      sendBtn.type = "button";
+      sendBtn.className = "btn btn--secondary btn--md type-ui-md ai-assistant-send--stop";
+      sendBtn.textContent = "Stop";
+      sendBtn.setAttribute("aria-label", "Stop generating");
+      form.classList.add("is-responding");
+      input.setAttribute("aria-disabled", "true");
+      return;
+    }
+    sendBtn.type = "submit";
+    sendBtn.className = "btn btn--primary btn--md type-ui-md";
+    sendBtn.textContent = "Send";
+    sendBtn.setAttribute("aria-label", "Send message");
+    const hasText = Boolean(input.value.trim());
+    sendBtn.disabled = !hasText;
+    sendBtn.classList.toggle("is-muted", !hasText);
+    form.classList.remove("is-responding");
+    input.removeAttribute("aria-disabled");
+  }
+
+  function setResponding(next) {
+    isResponding = next;
+    updateSendControl();
+  }
+
+  function stopGeneration() {
+    generationId += 1;
+    if (streamTimer) {
+      window.clearTimeout(streamTimer);
+      streamTimer = null;
+    }
+    const status = history.querySelector(".ai-msg--status");
+    status?.remove();
+    const streaming = history.querySelector(".ai-msg--streaming");
+    if (streaming) {
+      streaming.classList.remove("ai-msg--streaming");
+      const note = document.createElement("p");
+      note.className = "ai-msg__stopped type-caption-sm";
+      note.textContent = "Generation stopped.";
+      streaming.querySelector(".ai-msg__body")?.appendChild(note);
+      if (!streaming.querySelector(".ai-msg__actions")) {
+        streaming.insertAdjacentHTML("beforeend", messageActionsHtml());
+      }
+    }
+    setResponding(false);
+    announceAssistant("Generation stopped.");
+    window.requestAnimationFrame(() => input.focus());
+  }
+
+  function fadeOutEmptySurfaces() {
+    const welcome = history.querySelector(".ai-assistant-welcome");
+    const introVisible = introEl && !introEl.hidden;
+    if (welcome) {
+      welcome.classList.add("is-leaving");
+      if (prefersReducedMotion()) {
+        welcome.remove();
+      } else {
+        window.setTimeout(() => welcome.remove(), 180);
+      }
+    }
+    if (introVisible) {
+      introEl.classList.add("is-leaving");
+      markSeenFlag(INTRO_SEEN_KEY);
+      const finish = () => {
+        introEl.hidden = true;
+        introEl.classList.remove("is-leaving");
+        history.hidden = false;
+        helpBtn?.setAttribute("aria-expanded", "false");
+      };
+      if (prefersReducedMotion()) {
+        finish();
+      } else {
+        window.setTimeout(finish, 180);
+      }
+    } else {
+      history.hidden = false;
+    }
+  }
+
+  function highlightEntity(type, id) {
+    if (!id) {
+      return false;
+    }
+    let selector = "";
+    if (type === "role") {
+      selector = `#kn-role-root tr[data-role-id="${CSS.escape(id)}"]`;
+    } else if (type === "default-role") {
+      selector = `#kn-default-role-root tr[data-drole-id="${CSS.escape(id)}"]`;
+    } else if (type === "user") {
+      selector = `#kn-user-root tr[data-user-id="${CSS.escape(id)}"]`;
+    } else if (type === "shipment") {
+      selector = `#vis-table-body tr[data-vis-id="${CSS.escape(id)}"], .vis-card[data-vis-id="${CSS.escape(id)}"]`;
+    }
+    const row = selector ? document.querySelector(selector) : null;
+    if (row) {
+      document.querySelectorAll(".is-ai-focus").forEach((node) => node.classList.remove("is-ai-focus"));
+      row.classList.add("is-ai-focus", "is-selected");
+      row.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+      if (typeof row.focus === "function") {
+        row.focus({ preventScroll: true });
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function openEntityLink(type, id, href) {
+    if (type === "page") {
+      if (href) {
+        setRouteHash(href);
+      }
+      return;
+    }
+    if (type === "shipment") {
+      if (isKlearhubVisibilityRoute() && highlightEntity("shipment", id)) {
+        return;
+      }
+      openShipmentFromDashboard(id);
+      window.setTimeout(() => highlightEntity("shipment", id), 400);
+      return;
+    }
+    if (href) {
+      setRouteHash(href);
+    }
+    window.setTimeout(() => highlightEntity(type, id), 280);
+  }
+
+  function sourcesHtml(sources) {
+    const items = (sources || []).filter((item) => item?.label && item?.href);
+    if (!items.length) {
+      return "";
+    }
+    return `<div class="ai-msg__sources" aria-label="Sources">
+      <span class="ai-msg__sources-label type-caption-sm">Sources</span>
+      ${items
+        .map(
+          (item) =>
+            `<a class="ai-entity-link ai-source-link type-caption-sm" href="${escapeHtml(item.href)}" data-ai-entity="${escapeHtml(item.type || "page")}" data-ai-entity-id="${escapeHtml(item.id || item.href)}">${escapeHtml(item.label)}<span class="ai-entity-link__icon" aria-hidden="true">↗</span></a>`
+        )
+        .join("")}
+    </div>`;
+  }
+
+  function thinkingPanelHtml(steps, expanded = false) {
+    const items = (steps || []).filter(Boolean);
+    if (!items.length) {
+      return "";
+    }
+    const traceId = `ai-thinking-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    return `
+      <div class="ai-msg__thinking-panel">
+        <button
+          type="button"
+          class="ai-msg__thinking-toggle type-caption-sm"
+          aria-expanded="${expanded ? "true" : "false"}"
+          aria-controls="${traceId}"
+        >
+          ${THINKING_CHEVRON}
+          <span class="ai-msg__thinking-toggle-label">${expanded ? "Hide thinking" : "Show thinking"}</span>
+        </button>
+        <div class="ai-msg__thinking-trace" id="${traceId}" ${expanded ? "" : "hidden"}>
+          <ol class="ai-msg__thinking-list type-caption-sm">
+            ${items.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+          </ol>
+        </div>
+      </div>
+    `;
+  }
+
+  function followUpsHtml(items) {
+    const prompts = (items || []).filter((item) => item?.label && item?.prompt).slice(0, 3);
+    if (!prompts.length) {
+      return "";
+    }
+    return `<div class="ai-msg__followups" role="group" aria-label="Follow-up suggestions">${prompts
+      .map((item) => {
+        const iconKey = resolvePromptIcon(item);
+        return `<button type="button" class="ai-prompt-chip ai-prompt-chip--followup type-body-sm" data-ai-prompt="${escapeHtml(item.prompt)}" aria-label="Ask: ${escapeHtml(item.prompt)}">
+          <span class="ai-prompt-chip__icon" aria-hidden="true">${PROMPT_ICON_SVG[iconKey] || PROMPT_ICON_SVG.ask}</span>
+          <span class="ai-prompt-chip__body"><span class="ai-prompt-chip__label">${escapeHtml(item.label)}</span></span>
+        </button>`;
+      })
+      .join("")}</div>`;
+  }
+
+  function addMessage(kind, text, { html = "", actions = false, streaming = false, title = "", thinking = [], followUps = [], sources = [] } = {}) {
+    history.querySelector(".ai-assistant-welcome")?.remove();
+    const node = document.createElement("article");
+    node.className = `ai-msg ai-msg--${kind}${streaming ? " ai-msg--streaming" : ""}`;
+    if (kind === "user") {
+      node.innerHTML = `<div class="ai-msg__body type-body-sm">${html || `<p>${escapeHtml(text)}</p>`}</div>`;
+    } else {
+      const titleHtml = title
+        ? `<h3 class="ai-msg__response-title type-ui-md type-weight-semibold">${escapeHtml(title)}</h3>`
+        : "";
+      node.innerHTML = `
+        ${thinkingPanelHtml(thinking)}
+        ${titleHtml}
+        <div class="ai-msg__body type-body-sm">${html || `<p>${escapeHtml(text)}</p>`}</div>
+        ${sourcesHtml(sources)}
+        ${followUpsHtml(followUps)}
+        ${actions ? messageActionsHtml() : ""}
+      `;
+    }
+    history.appendChild(node);
+    history.scrollTop = history.scrollHeight;
+    return node;
+  }
+
+  function addDraftMessage(draft, leadIn, context, meta = {}) {
+    pendingDraftPayload = window.KNAiSuggest.stageDraft(draft);
+    const leadHtml = renderAssistantMarkdown(leadIn, context);
+    const body = `${leadHtml}${window.KNAiSuggest.draftCardHtml(pendingDraftPayload)}`;
+    return addMessage("assistant", leadIn, {
+      html: body,
+      actions: true,
+      title: meta.title || "Draft ready for review",
+      thinking: meta.thinking || ["Drafted from your request without saving anything"],
+      followUps: meta.followUps || []
+    });
+  }
+
+  function addReviewMessage(items, leadIn, context, meta = {}) {
+    const leadHtml = renderAssistantMarkdown(leadIn, context);
+    const body = `${leadHtml}${window.KNAiSuggest.reviewChecklistHtml(items)}`;
+    return addMessage("assistant", leadIn, {
+      html: body,
+      actions: true,
+      title: meta.title || "Roles to review",
+      thinking: meta.thinking || ["Scanned the KN Role catalog for inactive, stale, or thin coverage"],
+      followUps: meta.followUps || []
+    });
+  }
+
+  function setThinking(isThinking, context) {
+    const existing = history.querySelector(".ai-msg--status");
+    if (!isThinking) {
+      if (existing) {
+        existing.classList.add("is-leaving");
+        if (prefersReducedMotion()) {
+          existing.remove();
+        } else {
+          window.setTimeout(() => existing.remove(), 160);
+        }
+      }
+      return;
+    }
+    const labelText = lookingCopy(context);
+    if (existing) {
+      const label = existing.querySelector(".ai-msg__thinking-label");
+      if (label) {
+        label.textContent = labelText;
+      }
+      announceAssistant(labelText);
+      return;
+    }
+    const status = document.createElement("article");
+    status.className = "ai-msg ai-msg--assistant ai-msg--status";
+    status.setAttribute("aria-hidden", "true");
+    status.innerHTML = `
+      <div class="ai-msg__thinking">
+        <span class="ai-msg__spark" aria-hidden="true">✦</span>
+        <p class="ai-msg__thinking-label type-caption-sm">${escapeHtml(labelText)}</p>
+      </div>
+      <div class="ai-msg__skeleton" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    `;
+    history.appendChild(status);
+    history.scrollTop = history.scrollHeight;
+    announceAssistant(labelText);
+  }
+
+  function streamChunks(text) {
+    const source = String(text || "");
+    if (!source) {
+      return [""];
+    }
+    const parts = [];
+    let buffer = "";
+    const tokens = source.split(/(\s+)/);
+    tokens.forEach((token) => {
+      buffer += token;
+      if (buffer.length >= 18 || /\n$/.test(buffer)) {
+        parts.push(buffer);
+        buffer = "";
+      }
+    });
+    if (buffer) {
+      parts.push(buffer);
+    }
+    return parts.length ? parts : [source];
+  }
+
+  async function streamAssistantText(text, context, genId, meta = {}) {
+    const title = meta.title || "";
+    const thinking = meta.thinking || [];
+    const followUps = meta.followUps || [];
+    const sources = meta.sources || [];
+    const node = addMessage("assistant", "", {
+      html: "",
+      streaming: true,
+      title,
+      thinking,
+      followUps: [],
+      sources: []
+    });
+    const body = node.querySelector(".ai-msg__body");
+    const fullHtml = renderAssistantMarkdown(text, context);
+    if (prefersReducedMotion()) {
+      body.innerHTML = fullHtml;
+      node.classList.remove("ai-msg--streaming");
+      if (followUps.length) {
+        node.insertAdjacentHTML("beforeend", followUpsHtml(followUps));
+      }
+      if (sources.length) {
+        node.insertAdjacentHTML("beforeend", sourcesHtml(sources));
+      }
+      node.insertAdjacentHTML("beforeend", messageActionsHtml());
+      announceAssistant([title, plainTextFromHtml(fullHtml)].filter(Boolean).join(". "));
+      return node;
+    }
+    const chunks = streamChunks(text);
+    let visible = "";
+    for (let i = 0; i < chunks.length; i += 1) {
+      if (genId !== generationId) {
+        return node;
+      }
+      visible += chunks[i];
+      body.innerHTML = renderAssistantMarkdown(visible, context);
+      history.scrollTop = history.scrollHeight;
+      await new Promise((resolve) => {
+        streamTimer = window.setTimeout(resolve, 28 + (i % 3) * 8);
+      });
+      streamTimer = null;
+    }
+    if (genId !== generationId) {
+      return node;
+    }
+    body.innerHTML = fullHtml;
+    node.classList.remove("ai-msg--streaming");
+    node.classList.add("ai-msg--settled");
+    if (followUps.length) {
+      node.insertAdjacentHTML("beforeend", followUpsHtml(followUps));
+    }
+    if (sources.length) {
+      node.insertAdjacentHTML("beforeend", sourcesHtml(sources));
+    }
+    node.insertAdjacentHTML("beforeend", messageActionsHtml());
+    announceAssistant([title, plainTextFromHtml(fullHtml)].filter(Boolean).join(". "));
+    return node;
+  }
+
+  async function presentResult(result, context, genId, question = "") {
+    const thinking = buildThinkingSteps(question, context, result);
+    const title = buildResponseTitle(question, context, result);
+    setThinking(false);
+    await delay(prefersReducedMotion() ? 0 : 140);
+    if (genId !== generationId) {
+      return;
+    }
+    if (result?.mode === "draft") {
+      const node = addDraftMessage(result.draft, result.leadIn, context, {
+        title: title || "Draft ready for review",
+        thinking,
+        followUps: result.followUps || []
+      });
+      node.classList.add("ai-msg--settled");
+      announceAssistant([title, result.leadIn].filter(Boolean).join(". "));
+      return;
+    }
+    if (result?.mode === "review") {
+      const node = addReviewMessage(result.items, result.leadIn, context, {
+        title: title || "Roles to review",
+        thinking,
+        followUps: result.followUps || []
+      });
+      node.classList.add("ai-msg--settled");
+      announceAssistant([title, result.leadIn].filter(Boolean).join(". "));
+      return;
+    }
+    await streamAssistantText(result?.text || "I could not process that request right now. Please try again.", context, genId, {
+      title,
+      thinking,
+      followUps: result?.followUps || followUpsFromContext(context, question),
+      sources: result?.sources || []
+    });
+  }
+
+  function starterPrompts(context) {
+    return (context.prompts || [])
+      .filter(Boolean)
+      .slice(0, 3)
+      .map((item) => {
+        if (typeof item === "string") {
+          return { label: item, prompt: item, icon: "", isNew: false };
+        }
+        const label = String(item.label || item.prompt || "").trim();
+        const prompt = String(item.prompt || item.label || "").trim();
+        return {
+          label: label || prompt,
+          prompt: prompt || label,
+          icon: String(item.icon || "").trim(),
+          isNew: Boolean(item.new)
+        };
+      })
+      .filter((item) => item.label && item.prompt);
+  }
+
+  function renderEmptyState() {
+    const context = getContext();
+    history.innerHTML = "";
+    const welcome = document.createElement("div");
+    welcome.className = "ai-assistant-welcome";
+    welcome.innerHTML = `
+      <p class="ai-assistant-greeting type-heading-h6" data-ai-welcome-greeting></p>
+      <h2 class="ai-assistant-headline type-heading-h5 type-weight-semibold" data-ai-welcome-heading></h2>
+      <div class="ai-assistant-prompts" role="group" aria-label="Suggestions"></div>
+    `;
+    setGreetingAndHeadline(
+      welcome.querySelector("[data-ai-welcome-greeting]"),
+      welcome.querySelector("[data-ai-welcome-heading]"),
+      context
+    );
+    fillPromptChips(welcome.querySelector(".ai-assistant-prompts"), context);
+    history.appendChild(welcome);
+  }
+
+  function noWriteResponse(question, context) {
+    return `I cannot make that change from here. Use ${context.manualPath}. I can explain impact only.`;
+  }
+
+  function answerDraftOrReview(question) {
+    if (!window.KNAiSuggest?.detectIntent) {
+      return null;
+    }
+    const intent = window.KNAiSuggest.detectIntent(question);
+    if (intent.type === "review-roles") {
+      const roles = readAdminRows("kn-roles-v2", () => window.KNRoles?.list?.());
+      const items = window.KNAiSuggest.rolesNeedingReview(roles);
+      window.KNAiSuggest.logAudit({
+        action: "panel-review-checklist",
+        context: "assistant",
+        field: "roles",
+        origin: "ai",
+        value: items.map((item) => item.name).join(",")
+      });
+      return {
+        mode: "review",
+        leadIn:
+          "KN roles that look inactive, stale, or thin. Opening one loads the form — nothing is saved.",
+        items
+      };
+    }
+    if (intent.type === "draft-role" || intent.type === "draft-default-role") {
+      const draft = window.KNAiSuggest.deriveRoleDraft(question);
+      if (intent.type === "draft-default-role") {
+        draft.type = "default-role";
+      }
+      window.KNAiSuggest.logAudit({
+        action: "panel-draft",
+        context: "assistant",
+        field: "draft",
+        origin: "ai",
+        value: draft.name
+      });
+      return {
+        mode: "draft",
+        leadIn:
+          "Draft only. Apply prefills the drawer — it does not save. Use Add Role / Add Default Role to persist.",
+        draft
+      };
+    }
+    if (intent.type === "draft-user") {
+      const draft = window.KNAiSuggest.deriveUserDraft(question);
+      window.KNAiSuggest.logAudit({
+        action: "panel-draft",
+        context: "assistant",
+        field: "draft",
+        origin: "ai",
+        value: (draft.roles || []).map((r) => r.name).join(",")
+      });
+      return {
+        mode: "draft",
+        leadIn:
+          "Draft only. Apply prefills Add User — it does not create the account.",
+        draft
+      };
+    }
+    if (intent.type === "action-blocked") {
+      return { mode: "text", text: null, blocked: true };
+    }
+    return null;
+  }
+
+  function answer(question, pageContext) {
+    const context = pageContext || getContext();
+    const q = String(question || "").trim();
+    const draftOrReview = answerDraftOrReview(q);
+    if (draftOrReview?.mode === "draft" || draftOrReview?.mode === "review") {
+      return draftOrReview;
+    }
+    if (draftOrReview?.blocked || (ACTION_INTENT.test(q) && !/\b(where|how do i|how to|what should i|before|draft|suggest)\b/i.test(q))) {
+      return textAnswer({
+        title: "I cannot change records here",
+        thinking: [`Checked whether “${q}” requires a write on ${context.area || "this page"}`],
+        text: noWriteResponse(q, context),
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+    const compared = answerCategoryDiff(q);
+    if (compared) {
+      return compared;
+    }
+    const lower = q.toLowerCase();
+    const facts = context.facts || {};
+    const persona = getSignedInPersona();
+    const opsQuestion =
+      /\b(shipment|shipments|container|containers|demurrage|hold|holds|delay|delayed|drayage|eta|in transit|on track|transport mode|ocean|air freight|visibility board)\b/i.test(
+        q
+      );
+    const adminKind = /^(roles|role-detail|role-add|users|user-detail|user-add|defaults|default-detail|default-add)$/.test(
+      context.kind || ""
+    );
+    if (opsQuestion && adminKind) {
+      return textAnswer({
+        title: "Not on this page",
+        thinking: [
+          `Checked the active page: ${context.area || context.title || "Administration"}`,
+          "This question needs Dashboard or Visibility shipment data, which is not on the current page"
+        ],
+        text: `I am grounded on **${context.area || context.title || "this Administration page"}**, so I cannot answer shipment or container questions from here without inventing Dashboard data.\n\nNavigate to **Dashboard** or **KlearHub → Visibility**, then ask again.`,
+        followUps: [
+          { label: "Open Dashboard", prompt: "Where do I open the Dashboard?" },
+          { label: "What can I ask here?", prompt: "What can you tell me about this page?" }
+        ]
+      });
+    }
+    const genericEncyclopedia =
+      /\b(what is (a |an )?(rbac|role[- ]based|permission system|access control)|explain (rbac|role inheritance) in general|encyclopedia|generally speaking)\b/i.test(
+        q
+      );
+
+    if (genericEncyclopedia && !facts.role && !facts.roles?.length && context.kind === "unavailable") {
+      return textAnswer({
+        title: "Stay on a KlearNow page",
+        thinking: ["Checked that this question needs product context, not a general definition"],
+        text: "Klear Assistant is not a general knowledge tool. Open **Default Role Management** or **KN Role Management**, select a record, and ask about that template or role.",
+        followUps: []
+      });
+    }
+
+    if (context.kind === "unavailable") {
+      if (/where|instead|go|navigate|open/.test(lower)) {
+        return textAnswer({
+          title: `Where to go instead of ${context.title}`,
+          thinking: [`Checked that ${context.title} is unavailable in this workspace`],
+          text: `**${context.title}** has no module in this workspace, so there is nothing to open here. Continue in **${facts.destination?.name || "Dashboard"}** (${context.manualPath}).`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/access|permission|lack/.test(lower)) {
+        return textAnswer({
+          title: "Workspace availability, not your permissions",
+          thinking: [`Checked whether ${context.title} is missing because of access or workspace setup`],
+          text: `This empty state is about the workspace, not your permissions${persona.role ? ` as **${persona.role}**` : ""}. **${context.title}** has not been enabled here. You still have **${facts.destination?.name || "Dashboard"}** and the Administration modules listed in the left navigation.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      return textAnswer({
+        title: `${context.title} is unavailable`,
+        thinking: [`Checked the empty state for ${context.title}`],
+        text: `${context.summary}\n\n${(context.details || []).map((item) => `- ${item}`).join("\n")}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    if (context.kind === "roles" || context.kind === "role-detail" || context.kind === "role-add") {
+      const lowest = facts.lowest;
+      const highest = facts.highest;
+      const role = facts.role;
+      const roles = facts.roles || [];
+      const cov = role ? coverageFacts(role, context.kind) : null;
+
+      if (genericEncyclopedia && !role) {
+        return textAnswer({
+          title: "Use a role on this page",
+          thinking: ["Checked KN Role Management instead of answering with a generic definition"],
+          text: `I do not keep encyclopedia-style definitions. On **KN Role Management**, open a role and ask about its coverage, owner, or status${lowest ? ` — for example **${lowest.name}** currently has the thinnest set` : ""}.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+
+      if (/list|which roles|all roles|catalog/.test(lower) && roles.length) {
+        const lines = roles.slice(0, 8).map((item, index) => {
+          const status = item.active === false ? "Inactive" : "Active";
+          const itemCov = coverageFacts(item, "roles");
+          return `${index + 1}. **${item.name}** — **${itemCov.ratio}** permissions · ${status}`;
+        });
+        const more = roles.length > 8 ? `\n\n…and **${roles.length - 8}** more on this page.` : "";
+        return textAnswer({
+          title: "Roles on KN Role Management",
+          thinking: ["Listed roles visible on KN Role Management with permission counts"],
+          text: `**${roles.length}** roles are visible in **KN Role Management**.\n\n${lines.join("\n")}${more}\n\nOpen a role name to jump to that row. I will not edit permissions from here.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/lowest|fewest|thin|coverage|compare/.test(lower) && lowest) {
+        const lowestCov = coverageFacts(lowest, "roles");
+        const extra =
+          highest && highest.id !== lowest.id
+            ? `\n- Broadest today: **${highest.name}** with **${coverageFacts(highest, "roles").ratio}** permissions`
+            : "";
+        if (role && /compare/.test(lower)) {
+          return textAnswer({
+            title: `${role.name} vs catalog coverage`,
+            thinking: [
+              `Checking ${role.name}'s permission coverage`,
+              `Comparing with ${lowest.name} on KN Role Management`
+            ],
+            text: `**${role.name}** grants **${cov.ratio}** permissions${cov.mostly ? `, mostly in **${cov.mostly}**` : ""}.\n\n- Thinnest catalog entry: **${lowest.name}** (**${lowestCov.ratio}**)${extra}\n\nI can explain the gap; I cannot widen it from this panel.`,
+            followUps: followUpsFromContext(context, q)
+          });
+        }
+        return textAnswer({
+          title: `Lowest coverage: ${lowest.name}`,
+          thinking: ["Ranked KN Role Management by permission coverage"],
+          text: `**${lowest.name}** has the lowest coverage on this page, with **${lowestCov.ratio}** permission${lowestCov.count === 1 ? "" : "s"}${lowestCov.mostly ? `, mostly in **${lowestCov.mostly}**` : ""}.\n\n- Status: **${lowest.active === false ? "Inactive" : "Active"}**${extra}\n\nI can explain the gap; I cannot widen it from this panel.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/inactive/.test(lower) && facts.inactive?.length) {
+        const lines = facts.inactive.map((item) => {
+          const itemCov = coverageFacts(item, "roles");
+          return `- **${item.name}** — still lists **${itemCov.ratio}** permissions`;
+        });
+        return textAnswer({
+          title: "Inactive roles on this page",
+          thinking: ["Checked inactive roles in KN Role Management"],
+          text: `**${facts.inactive.length}** inactive role${facts.inactive.length === 1 ? "" : "s"} on **KN Role Management**:\n\n${lines.join("\n")}\n\nStatus does not strip the permission set until someone edits the role.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (context.kind === "role-add") {
+        return textAnswer({
+          title: "Before you save a new KN role",
+          thinking: ["Checked the new-role form fields on KN Role Management"],
+          text: `${context.summary}\n\n- Applicability and a unique name are required\n- Permission groups follow KlearNow modules\n\n${context.manualPath}.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (role) {
+        const applicable = formatPartyList(role.applicable);
+        return textAnswer({
+          title: /permission|coverage|grant/.test(lower)
+            ? `${role.name} Permission Coverage`
+            : `About ${role.name}`,
+          thinking: [
+            `Checking ${role.name}'s permission coverage and applicability`,
+            `Reading coverage as ${cov.ratio} on KN Role Management`
+          ],
+          text: `**${role.name}** is **${role.active ? "active" : "inactive"}**, owned by **${role.createdBy || "an unknown owner"}**, and currently has **${cov.ratio}** permissions${cov.mostly ? `, mostly in **${cov.mostly}**` : ""}.\n\n- Applicable to: **${applicable || "KlearNow"}**\n- ${(context.details || []).join("\n- ")}\n\nOpen **${role.name}** to review the drawer. Editing still happens in **KN Role Management**.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      return textAnswer({
+        title: "On KN Role Management",
+        thinking: ["Checked the KN Role catalog on this page"],
+        text: `${context.summary}\n\n${(context.details || []).map((item) => `- ${item}`).join("\n")}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    if (context.kind === "users" || context.kind === "user-detail" || context.kind === "user-add") {
+      const elevated = facts.elevatedInactive || [];
+      const split = facts.split || {};
+      const user = facts.user;
+      if (/inactive|elevated/.test(lower)) {
+        if (!elevated.length) {
+          return textAnswer({
+            title: "Elevated access check",
+            thinking: ["Scanned KN User Management for inactive accounts with elevated roles"],
+            text: `I do not see inactive users who still hold administrator-level roles on this page.\n\n- Inactive accounts total: **${split.inactive || 0}**`,
+            followUps: followUpsFromContext(context, q)
+          });
+        }
+        const lines = elevated.map(
+          (item) => `- **${item.name}** — still assigned **${formatList(item.roles || [])}**`
+        );
+        return textAnswer({
+          title: "Inactive with elevated access",
+          thinking: ["Found inactive users who still hold elevated roles"],
+          text: `**${elevated.length}** user${elevated.length === 1 ? "" : "s"} ${elevated.length === 1 ? "is" : "are"} inactive while still holding elevated roles:\n\n${lines.join("\n")}\n\nInactive status does not automatically strip elevated roles — that change still happens in the user record.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/split|klearnow|customer|broker/.test(lower) && split) {
+        return textAnswer({
+          title: "Roster split on KN User Management",
+          thinking: ["Counted KlearNow, Customer, and Broker users on this list"],
+          text: `On **KN User Management**:\n\n- **KlearNow**: **${split.kn || 0}**\n- **Customer**: **${split.customer || 0}**\n- **Broker**: **${split.broker || 0}**\n- **Inactive**: **${split.inactive || 0}**`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (context.kind === "user-add") {
+        return textAnswer({
+          title: "Before you save a new user",
+          thinking: ["Checked the add-user form requirements"],
+          text: `${context.summary}\n\n- Confirm level, entity, and roles before save\n\n${context.manualPath}.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (user) {
+        return textAnswer({
+          title: `Access held by ${user.name}`,
+          thinking: [`Checking ${user.name}'s level, entity, and assigned roles`],
+          text: `**${user.name}** (${user.email || "no email on file"}) is a **${levelLabel(user.level)}** user in **${user.entity || "the selected entity"}**.\n\n- Status: **${user.active ? "Active" : "Inactive"}**\n- Roles: **${formatList(user.roles || [])}**\n- Last active: **${user.lastActive || "not recorded"}**\n\n${persona.role ? `Signed in as **${persona.role}**, you can review this record in **KN User Management**; edits still happen on the form.` : "Open the user record to edit — I will not change assignments from here."}`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      return textAnswer({
+        title: "On KN User Management",
+        thinking: ["Checked the user roster on this page"],
+        text: `${context.summary}\n\n${(context.details || []).map((item) => `- ${item}`).join("\n")}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    if (context.kind === "defaults" || context.kind === "default-detail" || context.kind === "default-add") {
+      const top = facts.top;
+      const role = facts.role;
+      const inactiveInherited = facts.inactiveInherited || [];
+      const cov = role ? coverageFacts(role, context.kind) : null;
+
+      if (genericEncyclopedia && !role) {
+        return textAnswer({
+          title: "Ask about a template on this page",
+          thinking: ["Checked Default Role Management instead of a generic inheritance definition"],
+          text: `I do not explain inheritance as a general concept. On **Default Role Management**, open a template${top ? ` such as **${top.name}**` : ""} and ask who inherits it, or what its coverage is.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+
+      if (role && (/inherit|who inherits|workspace|customer/.test(lower) || /permission|coverage|grant|access|applicable|service|party/.test(lower) || context.kind === "default-detail")) {
+        const inherited = inheritCount(role);
+        const names = Array.isArray(role.customers) ? role.customers.slice(0, 4) : [];
+        const applicable = formatPartyList(role.applicable);
+        const services = formatServiceList(role.services);
+        const wantsInherit = /inherit|who inherits|workspace|customer/.test(lower);
+        const wantsCoverage = /permission|coverage|grant|access/.test(lower);
+        const title = wantsInherit
+          ? `How ${role.name} Inherits Access`
+          : wantsCoverage
+            ? `${role.name} Permission Coverage`
+            : /applicable|service|party/.test(lower)
+              ? `Who ${role.name} Applies To`
+              : `About ${role.name}`;
+
+        const thinking = [
+          `Checking ${role.name}'s permission structure and inheritance settings`,
+          wantsInherit
+            ? `Reading how many workspaces currently inherit ${role.name}`
+            : `Comparing selected permissions against the Default Role catalog total`
+        ];
+
+        let body = `**${role.name}** currently has **${cov.ratio}** permissions${cov.mostly ? `, mostly in **${cov.mostly}**` : ""}, and is inherited by **${inherited}** workspace${inherited === 1 ? "" : "s"}.\n\n`;
+        body += `- Applicable to: **${applicable || "unset parties"}**\n`;
+        body += `- Services: **${services || "unset services"}**\n`;
+        body += `- Status: **${role.active === false ? "Inactive" : "Active"}**\n`;
+        if (names.length) {
+          body += `- Named inheriting workspaces include: **${formatList(names)}**\n`;
+        }
+        body += `\nInheritance here means customer and broker workspaces pick up this template’s access when attached — it is not a general RBAC lecture. Open **${role.name}** on **Default Role Management** to review the drawer.`;
+        if (persona.role) {
+          body += ` As **${persona.role}**, you can inspect coverage and inheritance, but publishing changes still happens on the form.`;
+        }
+
+        return textAnswer({
+          title,
+          thinking,
+          text: body.trim(),
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+
+      if (/most|inherit|lead/.test(lower) && (role || top)) {
+        const target = role || top;
+        const targetCov = coverageFacts(target, "defaults");
+        const names = Array.isArray(target.customers) ? target.customers.slice(0, 4) : [];
+        return textAnswer({
+          title: role ? `How ${target.name} Inherits Access` : `Most inherited: ${target.name}`,
+          thinking: [
+            "Checking Default Role Management templates and inheritance counts",
+            `Reading workspaces inheriting ${target.name}`
+          ],
+          text: `**${target.name}** has the ${role ? "current" : "highest"} inheritance on **Default Role Management**, with **${inheritCount(target)}** workspace${inheritCount(target) === 1 ? "" : "s"}.\n\n- Coverage: **${targetCov.ratio}** permissions${targetCov.mostly ? `, mostly in **${targetCov.mostly}**` : ""}\n${names.length ? `- Named examples: **${formatList(names)}**\n` : ""}${target.active === false ? "- The template is **inactive**, but inheritance counts can still show.\n" : ""}\nOpen **${target.name}** to inspect the drawer. I will not attach or detach customers from here.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/inactive/.test(lower) && inactiveInherited.length) {
+        const lines = inactiveInherited.map((item) => {
+          const itemCov = coverageFacts(item, "defaults");
+          return `- **${item.name}** — **${inheritCount(item)}** inheriting · **${itemCov.ratio}** permissions`;
+        });
+        return textAnswer({
+          title: "Inactive yet still inherited",
+          thinking: ["Checked inactive templates that still show inheritance"],
+          text: `${lines.join("\n")}\n\nTurning a template off does not automatically detach customers. Review them in **Default Role Management**.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (context.kind === "default-add") {
+        return textAnswer({
+          title: "Before you publish a default role",
+          thinking: ["Checked the new default-role form on Default Role Management"],
+          text: `${context.summary}\n\n- Default roles are inherited by **Customer**, **Sub-customer**, **Company**, and **Parties** workspaces when attached\n- **KN Role Management** is for internal staff\n\n${context.manualPath}.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      return textAnswer({
+        title: "On Default Role Management",
+        thinking: ["Checked Default Role Management templates and inheritance counts"],
+        text: `${context.summary}\n\n${(context.details || []).map((item) => `- ${item}`).join("\n")}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    if (context.kind === "dashboard" || context.kind === "visibility" || context.kind === "visibility-detail" || context.kind === "overview") {
+      const stats = facts.stats || visStats();
+      const mode = facts.mode || topMode(stats);
+      if (/action|need/.test(lower)) {
+        return textAnswer({
+          title: "Shipments needing action",
+          thinking: [`Checked live shipment counts on ${context.area}`],
+          text: `**${stats.action}** shipments need action out of **${stats.total}** active.\n\n- On hold: **${stats.hold}**\n- Delayed: **${stats.delayed}**\n\nOpen **Visibility** to work the exceptions; I cannot clear them here.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/hold/.test(lower) && /document|broker|responsible|linked|who owns|who is/.test(lower)) {
+        return answerHoldChain(stats, context);
+      }
+      if (/demurrage|free time|detention/.test(lower)) {
+        const chain = holdChainFromStats(stats);
+        const amount = chain && typeof knShipmentAmount === "function" ? knFormatUsd(knShipmentAmount(chain.id)) : "";
+        if (!chain) {
+          return textAnswer({
+            title: "No hold-to-demurrage row on this view",
+            thinking: [`Checked ocean holds on ${context.area}`],
+            evidence: [`Used view: ${context.area}`],
+            text: `No on-hold ocean shipment with a linked bill is in this session.\n\nOpen **Dashboard** or **Visibility**.`,
+            sources: [
+              { label: "Dashboard", href: "#dashboard", type: "page", id: "dashboard" },
+              { label: "Visibility", href: "#klearhub-visibility", type: "page", id: "visibility" }
+            ]
+          });
+        }
+        return textAnswer({
+          title: `${chain.id} nearing demurrage`,
+          thinking: [`Used shipment ${chain.id}`, "Used ocean hold + estimated value vs typical free-time exposure"],
+          evidence: [`Used record: ${chain.id}`, chain.document ? `Used document: ${chain.document}` : ""],
+          text: `**${chain.id}** is on hold${chain.container ? ` (**${chain.container}**)` : ""} at **${chain.location || "the terminal"}**.${amount ? ` Estimated value **${amount}**.` : ""}\n\n- Document: **${chain.document || "not on this record"}**\n- Broker: **${chain.broker || "not on this record"}**\n\nI cannot file a release from here.`,
+          sources: [
+            { label: chain.id, href: "#klearhub-visibility", type: "shipment", id: chain.id },
+            { label: "Visibility", href: "#klearhub-visibility", type: "page", id: "visibility" }
+          ]
+        });
+      }
+      if (/hold/.test(lower)) {
+        const names = (facts.holdSample || []).filter(Boolean);
+        const list = names.length ? `\n\nExamples:\n${names.map((id) => `- **${id}**`).join("\n")}` : "";
+        return textAnswer({
+          title: "Holds on this view",
+          thinking: [`Checked hold rows on ${context.area}`],
+          text: `**${stats.hold}** shipments are on hold.${list}\n\n- Linked bills and brokers are on the hold record in **Visibility**\n- I cannot clear a hold from here`,
+          sources: [
+            { label: "Visibility", href: "#klearhub-visibility", type: "page", id: "visibility" },
+            ...(facts.holdSample || []).slice(0, 2).map((id) => ({ label: id, href: "#klearhub-visibility", type: "shipment", id }))
+          ],
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/delay|on track|versus|vs/.test(lower)) {
+        return textAnswer({
+          title: "Delayed vs on track",
+          thinking: [`Compared delayed and on-track counts on ${context.area}`],
+          text: `- Delayed: **${stats.delayed}**\n- On track: **${stats.ontime}**\n- In transit: **${stats.inTransit}**\n\nEarliest delay handling still happens in **Visibility**.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/mode|ocean|air|truck|rail|share|compare/.test(lower)) {
+        const ocean = Number(stats.motPct?.ocean || stats.mot?.ocean || 0);
+        const air = Number(stats.motPct?.air || stats.mot?.air || 0);
+        const toPct = (value) => (value <= 1 ? Math.round(value * 100) : Math.round(value));
+        if (mode) {
+          return textAnswer({
+            title: "Mode share on this page",
+            thinking: [`Checked mode split on ${context.area}`],
+            text: `**${knMotLabel(mode.id)}** currently accounts for the largest share (**${toPct(mode.value)}%**).\n\n- Ocean: **${toPct(ocean)}%**\n- Air: **${toPct(air)}%**`,
+            followUps: followUpsFromContext(context, q)
+          });
+        }
+        return textAnswer({
+          title: "Mode share unavailable",
+          thinking: [`Checked mode split on ${context.area}`],
+          text: "Mode split is not available on this page yet.",
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/arrived|drayage|first/.test(lower)) {
+        return textAnswer({
+          title: "Arrived / pending drayage",
+          thinking: [`Checked arrived and hold counts on ${context.area}`],
+          text: `**${stats.arrived}** containers are arrived / pending drayage.\n\nStart with those plus the **${stats.hold}** holds if you are triaging exceptions.`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/snapshot|represent|count/.test(lower)) {
+        return textAnswer({
+          title: "Snapshot counts",
+          thinking: ["Checked snapshot counts tied to the live Visibility set"],
+          text: `Snapshot counts come from the same live shipment set as **Visibility**:\n\n- Active: **${stats.total}**\n- In transit: **${stats.inTransit}**\n- Arrived: **${stats.arrived}**\n- Delayed: **${stats.delayed}**`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (context.kind === "visibility-detail") {
+        const row = facts.row;
+        return textAnswer({
+          title: `Shipment ${facts.detailId}`,
+          thinking: [`Checking status for ${facts.detailId} on Visibility`],
+          text: row
+            ? `**${facts.detailId}** is showing status **${row.status || "not set"}**${row.location ? ` at **${row.location}**` : ""}.\n\n${context.hint}`
+            : `${context.summary}\n\n${(context.details || []).map((item) => `- ${item}`).join("\n")}`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      if (/where|navigate|open|find|next/.test(lower)) {
+        return textAnswer({
+          title: "Where to go next",
+          thinking: [`Checked navigation from ${context.area}`],
+          text: `${context.manualPath}.\n\n${context.hint}`,
+          followUps: followUpsFromContext(context, q)
+        });
+      }
+      return textAnswer({
+        title: `On ${context.area || context.title}`,
+        thinking: [`Checked live data on ${context.area || context.title}`],
+        text: `${context.summary}\n\n${(context.details || []).map((item) => `- ${item}`).join("\n")}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    if (/where|navigate|open|find|next/.test(lower)) {
+      return textAnswer({
+        title: "Where to go",
+        thinking: [`Checked navigation from ${context.area || "this page"}`],
+        text: `${context.manualPath}.\n\n${context.hint}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    if (genericEncyclopedia) {
+      const hrefHint = pageHrefFor(context);
+      return textAnswer({
+        title: "Need a page-grounded question",
+        thinking: ["Checked that only a general definition would answer this"],
+        text: `I do not have a general encyclopedia answer for that. ${hrefHint ? `Stay on **${context.area || "this page"}** and ask about a specific record or count you can see.` : "Open Default Role Management or KN Role Management, select a record, and ask again."}`,
+        followUps: followUpsFromContext(context, q)
+      });
+    }
+
+    return textAnswer({
+      title: context.title || "This page",
+      thinking: [`Checked what is available on ${context.area || "this page"}`],
+      text: `${context.summary} ${context.details?.[0] || ""}\n\nIf you need a specific record, open it in the table and ask again.`,
+      followUps: followUpsFromContext(context, q)
+    });
+  }
+
+  const DEMURRAGE_NEAR_USD = 12000;
+
+  function demurrageFlagPayload() {
+    const rows = visSummary?.rows || window.KNShipments || [];
+    const hit = rows.find(
+      (item) =>
+        item.status === "On Hold" &&
+        item.mot === "ocean" &&
+        typeof knShipmentAmount === "function" &&
+        knShipmentAmount(item.id) >= DEMURRAGE_NEAR_USD
+    );
+    if (!hit || !window.KNAdminUX?.opsFlagHtml) {
+      return "";
+    }
+    const amount = knFormatUsd(knShipmentAmount(hit.id));
+    return window.KNAdminUX.opsFlagHtml({
+      id: `demurrage-hold-${hit.id}`,
+      title: "Hold nearing demurrage",
+      body: `<strong>${escapeHtml(hit.id)}</strong> (${escapeHtml(hit.container || "container")}) is on hold at <strong>${escapeHtml(hit.dest?.city || "terminal")}</strong>. Estimated value <strong>${escapeHtml(amount)}</strong> — free time is at risk.`,
+      href: "#klearhub-visibility",
+      hrefLabel: "Visibility"
+    });
+  }
+
+  function syncOpsFlags() {
+    const pageHtml =
+      isDashboardRoute() || isKlearhubVisibilityRoute() ? demurrageFlagPayload() : "";
+    document.querySelectorAll("[data-ai-ops-page-slot]").forEach((node) => node.remove());
+    const mountAfter = isDashboardRoute()
+      ? document.querySelector(".dashboard-inner > .hero")
+      : isKlearhubVisibilityRoute()
+        ? document.querySelector("#vis-list-shell > .hero")
+        : null;
+    if (mountAfter && pageHtml) {
+      const wrap = document.createElement("div");
+      wrap.setAttribute("data-ai-ops-page-slot", "1");
+      wrap.innerHTML = pageHtml;
+      mountAfter.insertAdjacentElement("afterend", wrap);
+    }
+    if (flagsSlot) {
+      const panelHtml = pageHtml;
+      flagsSlot.innerHTML = panelHtml;
+      flagsSlot.hidden = !panelHtml;
+    }
+  }
+
+  function openPanel(trigger) {
+    lastTrigger = trigger || lastTrigger;
+    dismissCoachmark();
+    isOpen = true;
+    shell.classList.add("ai-assistant-open");
+    setExpandedState(true);
+    updateWidth(preferredWidth);
+    syncContextChip();
+    syncOpsFlags();
+    if (!hasSeenFlag(INTRO_SEEN_KEY)) {
+      showIntro();
+      return;
+    }
+    hideIntro();
+    if (!history.querySelector(".ai-msg--user")) {
+      renderEmptyState();
+    }
+    window.requestAnimationFrame(() => input.focus());
+  }
+
+  function closePanel() {
+    isOpen = false;
+    shell.classList.remove("ai-assistant-open");
+    setExpandedState(false);
+    if (hasSeenFlag(INTRO_SEEN_KEY)) {
+      hideIntro();
+    }
+    lastTrigger?.focus();
+  }
+
+  triggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      if (isOpen) {
+        closePanel();
+        return;
+      }
+      openPanel(trigger);
+    });
+  });
+
+  closeBtn?.addEventListener("click", closePanel);
+
+  helpBtn?.addEventListener("click", () => {
+    if (!isOpen) {
+      return;
+    }
+    showIntro();
+  });
+
+  function sendQuestion(raw) {
+    const question = String(raw || "").trim();
+    if (!question) {
+      return;
+    }
+    dismissIntroIfNeeded();
+    input.value = question;
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    }
+  }
+
+  panel.addEventListener("click", (event) => {
+    const applyBtn = event.target.closest("[data-ai-draft-apply]");
+    if (applyBtn && panel.contains(applyBtn)) {
+      event.preventDefault();
+      const type = applyBtn.getAttribute("data-ai-draft-apply");
+      const draft =
+        pendingDraftPayload && pendingDraftPayload.type === type
+          ? pendingDraftPayload
+          : window.KNAiSuggest?.peekDraft?.(type);
+      if (!draft) {
+        addMessage("assistant", "That draft is no longer available. Ask me to draft again.", { actions: true });
+        return;
+      }
+      window.KNAiSuggest.applyDraftNavigation(draft);
+      addMessage(
+        "assistant",
+        "Opened the form with the draft prefilled. Nothing is saved until you click the real Add / Update button on that form.",
+        { actions: true }
+      );
+      return;
+    }
+    const dismissBtn = event.target.closest("[data-ai-draft-dismiss]");
+    if (dismissBtn && panel.contains(dismissBtn)) {
+      event.preventDefault();
+      pendingDraftPayload = null;
+      try {
+        window.sessionStorage.removeItem(window.KNAiSuggest?.DRAFT_KEY || "kn-ai-draft-v1");
+      } catch (_error) {
+        /* ignore */
+      }
+      dismissBtn.closest(".ai-draft-card")?.remove();
+      addMessage("assistant", "Draft dismissed. Nothing was saved.", { actions: true });
+      return;
+    }
+    const reviewOpen = event.target.closest("[data-ai-review-open]");
+    if (reviewOpen && panel.contains(reviewOpen)) {
+      window.KNAiSuggest?.logAudit?.({
+        action: "open-role-for-review",
+        context: "assistant",
+        field: "role",
+        origin: "manual",
+        value: reviewOpen.getAttribute("data-ai-review-open") || ""
+      });
+      return;
+    }
+    const entityLink = event.target.closest("[data-ai-entity]");
+    if (entityLink && panel.contains(entityLink)) {
+      event.preventDefault();
+      openEntityLink(
+        entityLink.getAttribute("data-ai-entity"),
+        entityLink.getAttribute("data-ai-entity-id"),
+        entityLink.getAttribute("href")
+      );
+      return;
+    }
+    const thinkingToggle = event.target.closest(".ai-msg__thinking-toggle");
+    if (thinkingToggle && panel.contains(thinkingToggle)) {
+      event.preventDefault();
+      const panelEl = thinkingToggle.closest(".ai-msg__thinking-panel");
+      const trace = panelEl?.querySelector(".ai-msg__thinking-trace");
+      const label = thinkingToggle.querySelector(".ai-msg__thinking-toggle-label");
+      const expanded = thinkingToggle.getAttribute("aria-expanded") === "true";
+      const next = !expanded;
+      thinkingToggle.setAttribute("aria-expanded", String(next));
+      if (trace) {
+        trace.hidden = !next;
+      }
+      if (label) {
+        label.textContent = next ? "Hide thinking" : "Show thinking";
+      }
+      return;
+    }
+    const copyBtn = event.target.closest("[data-ai-msg-copy]");
+    if (copyBtn && panel.contains(copyBtn)) {
+      event.preventDefault();
+      const article = copyBtn.closest(".ai-msg");
+      const title = article?.querySelector(".ai-msg__response-title")?.textContent?.trim() || "";
+      const bodyText = plainTextFromHtml(article?.querySelector(".ai-msg__body")?.innerHTML || "");
+      const text = [title, bodyText].filter(Boolean).join("\n\n");
+      const done = () => {
+        copyBtn.classList.add("is-copied");
+        copyBtn.setAttribute("aria-label", "Copied");
+        announceAssistant("Response copied.");
+        window.setTimeout(() => {
+          copyBtn.classList.remove("is-copied");
+          copyBtn.setAttribute("aria-label", "Copy response");
+        }, 1600);
+      };
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => copyKnValue(text, "response", copyBtn));
+      } else {
+        copyKnValue(text, "response", copyBtn);
+        done();
+      }
+      return;
+    }
+    const feedbackBtn = event.target.closest("[data-ai-msg-feedback]");
+    if (feedbackBtn && panel.contains(feedbackBtn)) {
+      event.preventDefault();
+      const value = feedbackBtn.getAttribute("data-ai-msg-feedback");
+      const group = feedbackBtn.closest(".ai-msg__actions");
+      group?.querySelectorAll("[data-ai-msg-feedback]").forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn === feedbackBtn));
+        btn.classList.toggle("is-selected", btn === feedbackBtn);
+      });
+      announceAssistant(value === "up" ? "Marked helpful. AI suggests — review before saving." : "Marked unhelpful. Thanks for the feedback.");
+      return;
+    }
+    const chip = event.target.closest("[data-ai-prompt]");
+    if (!chip || !panel.contains(chip)) {
+      return;
+    }
+    event.preventDefault();
+    sendQuestion(chip.getAttribute("data-ai-prompt") || chip.textContent);
+  });
+
+  refChipDismiss?.addEventListener("click", (event) => {
+    event.preventDefault();
+    refChipDismissed = true;
+    if (refChip) {
+      refChip.hidden = true;
+    }
+  });
+
+  input.addEventListener("input", updateSendControl);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (isResponding) {
+        stopGeneration();
+        return;
+      }
+      if (input.value.trim()) {
+        form.requestSubmit();
+      }
+    }
+  });
+
+  sendBtn?.addEventListener("click", (event) => {
+    if (!isResponding) {
+      return;
+    }
+    event.preventDefault();
+    stopGeneration();
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (isResponding) {
+      stopGeneration();
+      return;
+    }
+    const question = input.value.trim();
+    if (!question) {
+      return;
+    }
+    const context = getContext();
+    const genId = ++generationId;
+    fadeOutEmptySurfaces();
+    addMessage("user", question);
+    input.value = "";
+    updateSendControl();
+    setResponding(true);
+    syncContextChip(context);
+    setThinking(true, context);
+    try {
+      await delay(160);
+      if (genId !== generationId) {
+        return;
+      }
+      const result = answer(question, context);
+      await presentResult(result, context, genId, question);
+    } catch (_error) {
+      if (genId === generationId) {
+        setThinking(false);
+        addMessage("assistant", "I could not process that request right now. Please try again.", { actions: true });
+        announceAssistant("I could not process that request right now.");
+      }
+    } finally {
+      if (genId === generationId) {
+        setResponding(false);
+        updateSendControl();
+      }
+    }
+  });
+
+  resizeHandle.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      return;
+    }
+    event.preventDefault();
+    const delta = event.key === "ArrowLeft" ? WIDTH_STEP : -WIDTH_STEP;
+    updateWidth(preferredWidth + delta);
+  });
+
+  resizeHandle.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = preferredWidth;
+    const onMove = (moveEvent) => {
+      const delta = startX - moveEvent.clientX;
+      updateWidth(startWidth + delta);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+
+  window.addEventListener("resize", () => {
+    syncWidthBounds();
+    updateWidth(preferredWidth, { persist: false });
+    placeCoachmark();
+  });
+
+  window.addEventListener("hashchange", () => {
+    refChipDismissed = false;
+    const context = getContext();
+    syncContextChip(context);
+    syncOpsFlags();
+    if (!isOpen) {
+      return;
+    }
+    if (introEl && !introEl.hidden) {
+      fillIntro(context);
+      return;
+    }
+    if (!history.querySelector(".ai-msg--user")) {
+      renderEmptyState();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (coachmarkVisible) {
+      event.preventDefault();
+      event.stopPropagation();
+      dismissCoachmark();
+      return;
+    }
+    if (isResponding && isOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      stopGeneration();
+      return;
+    }
+    if (!isOpen) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    closePanel();
+  });
+
+  document.addEventListener("click", (event) => {
+    const dismiss = event.target.closest("[data-ai-ops-dismiss]");
+    if (!dismiss) {
+      return;
+    }
+    event.preventDefault();
+    window.KNAdminUX?.dismissOpsFlag?.(dismiss.getAttribute("data-ai-ops-dismiss"));
+    syncOpsFlags();
+  });
+
+  window.KNAiOpsSurface = { sync: syncOpsFlags };
+  window.addEventListener("kn-ai-ops-flag-change", () => syncOpsFlags());
+
+  updateWidth(preferredWidth);
+  setExpandedState(false);
+  updateSendControl();
+  syncContextChip();
+  syncOpsFlags();
+  window.requestAnimationFrame(() => showCoachmark());
+}
+
 hydrateDashFromVisibility();
 initBladeTooltips();
 initDashboardLoader();
 initDashboardLayout();
 initHoldDrawer();
 initDashDatePicker();
+initAiAssistant();
 
 document.querySelector(".top-nav-brand-link")?.addEventListener("click", (event) => {
   event.preventDefault();

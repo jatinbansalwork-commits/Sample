@@ -100,3 +100,46 @@ const bladeTheme = {
 };
 
 window.bladeTheme = bladeTheme;
+
+function applyBladeThemeToDocument(root = document.documentElement) {
+  const pxToRem = (value) => `${value / 16}rem`;
+  const px = (value) => (value === 0 ? "0" : `${value}px`);
+  const ms = (value) => `${value}ms`;
+
+  Object.entries(bladeTheme.spacing).forEach(([key, value]) => {
+    root.style.setProperty(`--theme-spacing-${key}`, pxToRem(value));
+  });
+
+  Object.entries(bladeTheme.breakpoints).forEach(([key, value]) => {
+    root.style.setProperty(`--theme-breakpoints-${key}`, px(value));
+  });
+
+  Object.entries(bladeTheme.motion.duration).forEach(([key, value]) => {
+    root.style.setProperty(`--theme-motion-duration-${key}`, ms(value));
+  });
+
+  Object.entries(bladeTheme.motion.delay).forEach(([key, value]) => {
+    root.style.setProperty(`--theme-motion-delay-${key}`, ms(value));
+  });
+
+  Object.entries(bladeTheme.motion.easing).forEach(([key, value]) => {
+    root.style.setProperty(`--theme-motion-easing-${key}`, value);
+  });
+
+  Object.entries(bladeTheme.border.radius).forEach(([key, value]) => {
+    const cssValue = typeof value === "number" ? px(value) : value;
+    root.style.setProperty(`--theme-border-radius-${key}`, cssValue);
+  });
+
+  Object.entries(bladeTheme.typography.fonts.family).forEach(([key, value]) => {
+    root.style.setProperty(`--theme-typography-fonts-family-${key}`, value);
+  });
+}
+
+window.applyBladeThemeToDocument = applyBladeThemeToDocument;
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => applyBladeThemeToDocument(), { once: true });
+} else {
+  applyBladeThemeToDocument();
+}

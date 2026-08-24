@@ -10,8 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./tokens.css?v=42" />
-    <link rel="stylesheet" href="./styles.css?v=181" />
+    <link rel="stylesheet" href="./tokens.css?v=51" />
+    <link rel="stylesheet" href="./styles.css?v=243" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -21,6 +21,14 @@
   </head>
   <body>
     <div class="app-shell">
+      <svg class="ai-assistant-tint-defs" aria-hidden="true" focusable="false" width="0" height="0">
+        <defs>
+          <filter id="ai-accent-tint" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+            <feFlood result="flood" />
+            <feComposite in="flood" in2="SourceAlpha" operator="in" />
+          </filter>
+        </defs>
+      </svg>
       <header class="top-nav" data-variant="primary">
         <div class="top-nav-mobile">
           <button class="menu-toggle icon-btn icon-btn--on-dark" type="button" aria-label="Open navigation" data-tooltip="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
@@ -29,6 +37,12 @@
             </svg>
           </button>
           <p class="top-nav-mobile-title type-heading-h6" id="top-nav-mobile-title">Dashboard</p>
+          <button class="ai-assistant-trigger ai-assistant-trigger--mobile type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger-mobile" aria-label="Open Klear Assistant" aria-controls="ai-assistant-panel" aria-expanded="false">
+            <span class="ai-assistant-trigger__icon" aria-hidden="true">
+              <img class="klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" />
+            </span>
+            <span class="ai-assistant-trigger__label">Klear Assistant</span>
+          </button>
           <button class="avatar-trigger" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">
             <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">BN</span>
           </button>
@@ -42,6 +56,12 @@
           </div>
           <div class="top-nav-content"></div>
           <div class="top-nav-actions">
+            <button class="ai-assistant-trigger type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger" aria-label="Open Klear Assistant" aria-controls="ai-assistant-panel" aria-expanded="false">
+              <span class="ai-assistant-trigger__icon" aria-hidden="true">
+                <img class="klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" />
+              </span>
+              <span class="ai-assistant-trigger__label">Klear Assistant</span>
+            </button>
             <button class="avatar-trigger" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">
               <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">BN</span>
               <span class="profile-text">
@@ -73,6 +93,7 @@
 
       <div class="dashboard-workspace">
       <div class="main-layout">
+        <div class="main-column">
         <div class="sidebar-backdrop" hidden></div>
         <aside class="side-nav sidebar" id="app-sidebar" aria-label="Primary">
           <a class="skip-nav type-ui-sm" href="#blade-side-nav-skip">Skip to content</a>
@@ -576,11 +597,11 @@
                             <span class="action-list-item__why type-caption-sm" id="quick-action-holds-why">2 containers on hold</span>
                           </span>
                         </button>
-                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-drayage" type="button" role="option" data-href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' data-label="View at destination">
+                        <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-drayage" type="button" role="option" data-href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' data-label="View demurrage risk">
                           <span class="action-list-item__icon" aria-hidden="true">
                             <img src="./assets/quick-actions/truck.svg" width="20" height="20" alt="" />
                           </span>
-                          View at destination
+                          View demurrage risk
                         </button>
                         <button class="action-list-item type-ui-sm type-weight-medium" id="quick-action-docs" type="button" role="option" data-href="#klearhub-visibility" data-label="Open Visibility">
                           <span class="action-list-item__icon" aria-hidden="true">
@@ -663,14 +684,14 @@
                     <div class="kn-date-picker__fields">
                       <label class="kn-detail-field">
                         <span class="type-caption-sm">Start date</span>
-                        <input class="vis-th-filter type-body-sm" id="dash-date-start" type="date" />
+                        <input class="vis-th-filter type-body-sm" id="dash-date-start" type="date" aria-label="Start date" />
                       </label>
                       <label class="kn-detail-field">
                         <span class="type-caption-sm">End date</span>
-                        <input class="vis-th-filter type-body-sm" id="dash-date-end" type="date" />
+                        <input class="vis-th-filter type-body-sm" id="dash-date-end" type="date" aria-label="End date" />
                       </label>
                     </div>
-                    <p class="type-caption-sm kn-date-picker__error" id="dash-date-error" hidden>End date must be on or after the start date.</p>
+                    <p class="type-caption-sm kn-date-picker__error" id="dash-date-error" hidden>End date must be after start date</p>
                     <div class="kn-date-picker__footer">
                       <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" id="dash-date-cancel">Cancel</button>
                       <button class="btn btn--primary btn--sm type-ui-sm" type="button" id="dash-date-apply">Apply</button>
@@ -726,7 +747,7 @@
                     <p class="alert-card__empty type-caption-sm" id="alert-demurrage-empty" hidden>No containers at risk of demurrage.</p>
                   </div>
                   <footer class="alert-card__footer">
-                    <a class="btn btn--primary btn--md btn--color-negative type-ui-md" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-cta">View at destination</a>
+                    <a class="btn btn--primary btn--md btn--color-negative type-ui-md" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-cta">View demurrage risk</a>
                   </footer>
                 </article>
                 <article class="alert-card alert-notice" aria-labelledby="alert-delay-title" id="alert-delay-card">
@@ -1390,30 +1411,32 @@
                     </div>
                   </div>
 
-                  <div class="vis-menu">
-                    <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-sort-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-sort-menu">
-                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-                        <path d="M5 4v8M3.5 5.5 5 4l1.5 1.5M11 12V4M9.5 10.5 11 12l1.5-1.5" />
-                      </svg>
-                      Created date (newest first)
-                    </button>
-                    <div class="menu-overlay vis-menu__list" id="vis-sort-menu" hidden role="listbox" aria-labelledby="vis-sort-trigger">
-                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-sort="newest" aria-selected="true">Created date (newest first)</button>
-                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-sort="oldest" aria-selected="false">Created date (oldest first)</button>
+                  <div class="vis-toolbar__secondary">
+                    <div class="vis-menu">
+                      <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-sort-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-sort-menu">
+                        <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                          <path d="M5 4v8M3.5 5.5 5 4l1.5 1.5M11 12V4M9.5 10.5 11 12l1.5-1.5" />
+                        </svg>
+                        Newest first
+                      </button>
+                      <div class="menu-overlay vis-menu__list" id="vis-sort-menu" hidden role="listbox" aria-labelledby="vis-sort-trigger">
+                        <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-sort="newest" aria-selected="true">Created date (newest first)</button>
+                        <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-sort="oldest" aria-selected="false">Created date (oldest first)</button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div class="vis-menu">
-                    <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-direction-trigger" type="button" aria-label="Direction" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-direction-menu">
-                      All
-                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-                        <path d="M4 6l4 4 4-4" />
-                      </svg>
-                    </button>
-                    <div class="menu-overlay vis-menu__list" id="vis-direction-menu" hidden role="listbox" aria-labelledby="vis-direction-trigger">
-                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="all" aria-selected="true">All</button>
-                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="Import" aria-selected="false">Import</button>
-                      <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="Export" aria-selected="false">Export</button>
+                    <div class="vis-menu">
+                      <button class="btn btn--secondary btn--sm type-ui-sm" id="vis-direction-trigger" type="button" aria-label="Direction" aria-haspopup="listbox" aria-expanded="false" aria-controls="vis-direction-menu">
+                        All
+                        <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                          <path d="M4 6l4 4 4-4" />
+                        </svg>
+                      </button>
+                      <div class="menu-overlay vis-menu__list" id="vis-direction-menu" hidden role="listbox" aria-labelledby="vis-direction-trigger">
+                        <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="all" aria-selected="true">All</button>
+                        <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="Import" aria-selected="false">Import</button>
+                        <button class="action-list-item type-ui-sm" type="button" role="option" data-vis-direction="Export" aria-selected="false">Export</button>
+                      </div>
                     </div>
                   </div>
 
@@ -1433,6 +1456,34 @@
                     <button class="search-input__clear icon-btn" type="button" id="vis-search-clear" hidden aria-label="Clear search" data-tooltip="Clear search">
                       <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
                     </button>
+                  </div>
+
+                  <div class="vis-menu vis-menu--end vis-toolbar__overflow">
+                    <button
+                      class="btn btn--secondary btn--sm type-ui-sm vis-toolbar__overflow-trigger"
+                      id="vis-overflow-trigger"
+                      type="button"
+                      aria-label="More filters"
+                      data-tooltip="More filters"
+                      aria-haspopup="menu"
+                      aria-expanded="false"
+                      aria-controls="vis-overflow-menu"
+                    >
+                      More
+                      <svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 6l4 4 4-4" />
+                      </svg>
+                    </button>
+                    <div class="menu-overlay vis-menu__list" id="vis-overflow-menu" hidden role="menu" aria-labelledby="vis-overflow-trigger">
+                      <span class="vis-menu__label type-caption-sm">Sort</span>
+                      <button class="action-list-item type-ui-sm" type="button" role="menuitem" data-vis-sort="newest" aria-selected="true">Created date (newest first)</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="menuitem" data-vis-sort="oldest" aria-selected="false">Created date (oldest first)</button>
+                      <span class="menu-divider" role="separator"></span>
+                      <span class="vis-menu__label type-caption-sm">Direction</span>
+                      <button class="action-list-item type-ui-sm" type="button" role="menuitem" data-vis-direction="all" aria-selected="true">All directions</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="menuitem" data-vis-direction="Import" aria-selected="false">Import</button>
+                      <button class="action-list-item type-ui-sm" type="button" role="menuitem" data-vis-direction="Export" aria-selected="false">Export</button>
+                    </div>
                   </div>
 
                   <div class="vis-toolbar__icons">
@@ -1565,19 +1616,19 @@
                         <th scope="col"><span class="type-caption-sm type-weight-medium">Company</span></th>
                       </tr>
                       <tr class="vis-table__filters">
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="id" type="search" placeholder="Search" aria-label="Filter shipment ID" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="container" type="search" placeholder="Search" aria-label="Filter containers" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="masterBill" type="search" placeholder="Search" aria-label="Filter master bill" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="hbol" type="search" placeholder="Search" aria-label="Filter house bill" /></th>
-                        <th scope="col" aria-hidden="true"></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="po" type="search" placeholder="Search" aria-label="Filter PO number" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="status" type="search" placeholder="Search" aria-label="Filter status" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="pol" type="search" placeholder="Search" aria-label="Filter port of lading" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="etd" type="search" placeholder="Search" aria-label="Filter departure date" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="pou" type="search" placeholder="Search" aria-label="Filter port of unlading" /></th>
-                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="eta" type="search" placeholder="Search" aria-label="Filter arrival date" /></th>
-                        <th scope="col" aria-hidden="true"></th>
-                        <th scope="col" aria-hidden="true"></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="id" type="search" placeholder="Search shipment ID" aria-label="Filter shipment ID" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="container" type="search" placeholder="Search container" aria-label="Filter containers" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="masterBill" type="search" placeholder="Search master bill" aria-label="Filter master bill" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="hbol" type="search" placeholder="Search house bill" aria-label="Filter house bill" /></th>
+                        <th scope="col"><select class="vis-th-filter vis-th-filter--select type-caption-sm" data-vis-col="mot" aria-label="Filter mode of transport"><option value="">All MOT</option><option value="air">Air</option><option value="ocean">Ocean</option><option value="truck">Truck</option></select></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="po" type="search" placeholder="Search PO number" aria-label="Filter PO number" /></th>
+                        <th scope="col"><select class="vis-th-filter vis-th-filter--select type-caption-sm" data-vis-col="status" aria-label="Filter status"><option value="">All statuses</option><option value="At Port of Delivery">At Port of Delivery</option><option value="Enroute to POD">Enroute to POD</option><option value="Enroute to POU">Enroute to POU</option><option value="In Transit">In Transit</option><option value="On Hold">On Hold</option><option value="Ready for Pickup">Ready for Pickup</option><option value="Waiting to Depart POL">Waiting to Depart POL</option></select></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="pol" type="search" placeholder="Search by port of lading" aria-label="Filter port of lading" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="etd" type="search" placeholder="Search by departure date" aria-label="Filter departure date" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="pou" type="search" placeholder="Search by port of unlading" aria-label="Filter port of unlading" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="eta" type="search" placeholder="Search by arrival date" aria-label="Filter arrival date" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="country" type="search" placeholder="Search by country" aria-label="Filter country" /></th>
+                        <th scope="col"><input class="vis-th-filter type-caption-sm" data-vis-col="company" type="search" placeholder="Search by company" aria-label="Filter company" /></th>
                       </tr>
                     </thead>
                     <tbody id="vis-table-body"></tbody>
@@ -1616,6 +1667,80 @@
             </div>
           </section>
         </main>
+        </div>
+        <aside class="ai-assistant-panel" id="ai-assistant-panel" aria-labelledby="ai-assistant-title" aria-hidden="true">
+          <div
+            class="ai-assistant-panel__resize"
+            id="ai-assistant-resize"
+            role="separator"
+            aria-label="Resize Klear Assistant panel"
+            aria-orientation="vertical"
+            aria-valuemin="360"
+            aria-valuemax="600"
+            aria-valuenow="430"
+            tabindex="0"
+          >
+            <span class="ai-assistant-panel__resize-grip" aria-hidden="true"></span>
+          </div>
+          <div class="ai-assistant-panel__surface">
+            <header class="ai-assistant-panel__header">
+              <div class="ai-assistant-panel__title-wrap">
+                <span class="ai-assistant-mark" aria-hidden="true">
+                  <img class="ai-assistant-mark__img klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="32" height="32" />
+                </span>
+                <div class="ai-assistant-panel__heading">
+                  <h2 class="type-heading-h6 type-weight-semibold" id="ai-assistant-title">Klear Assistant</h2>
+                </div>
+              </div>
+              <div class="ai-assistant-panel__actions">
+                <button class="icon-btn" type="button" id="ai-assistant-help" aria-label="About Klear Assistant" aria-controls="ai-assistant-intro" aria-expanded="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </button>
+                <button class="icon-btn ai-assistant-close" type="button" id="ai-assistant-close" aria-label="Close Klear Assistant">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+            </header>
+            <div class="ai-assistant-flags" id="ai-assistant-flags" hidden></div>
+            <section class="ai-assistant-intro" id="ai-assistant-intro" hidden aria-labelledby="ai-assistant-intro-heading">
+              <div class="ai-assistant-intro__body">
+                <p class="ai-assistant-greeting type-heading-h6" id="ai-assistant-intro-greeting">Hello</p>
+                <h2 class="ai-assistant-headline type-heading-h5 type-weight-semibold" id="ai-assistant-intro-heading" tabindex="-1">Ask me anything on this page</h2>
+                <div class="ai-assistant-prompts" id="ai-assistant-intro-prompts" role="group" aria-label="Suggestions"></div>
+              </div>
+            </section>
+            <div class="ai-assistant-history" id="ai-assistant-history"></div>
+            <div class="visually-hidden" id="ai-assistant-live" role="status" aria-live="polite" aria-atomic="true"></div>
+            <div class="ai-assistant-composer">
+              <div class="ai-assistant-ref" id="ai-assistant-ref" hidden>
+                <span class="ai-assistant-ref__spark" aria-hidden="true">✦</span>
+                <p class="ai-assistant-ref__text type-caption-sm" id="ai-assistant-ref-text"></p>
+                <button class="ai-assistant-ref__dismiss icon-btn" type="button" id="ai-assistant-ref-dismiss" aria-label="Dismiss referencing chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+              <form class="ai-assistant-input" id="ai-assistant-form">
+                <label class="visually-hidden" for="ai-assistant-input">Ask Klear Assistant</label>
+                <textarea
+                  class="blade-field__control type-body-sm"
+                  id="ai-assistant-input"
+                  placeholder="Ask about a hold, role, or shipment on this page"
+                  rows="2"
+                  maxlength="500"
+                ></textarea>
+                <button class="btn btn--primary btn--md type-ui-md" id="ai-assistant-send" type="submit" disabled>Send</button>
+              </form>
+            </div>
+          </div>
+        </aside>
       </div>
       </div>
     </div>
@@ -1703,23 +1828,24 @@
 
     <div class="blade-toast-container" id="blade-toast-container" aria-live="polite" aria-relevant="additions"></div>
 
-    <script src="./theme.js?v=8"></script>
-    <script src="./breakpoints.js?v=8"></script>
+    <script src="./theme.js?v=9"></script>
+    <script src="./breakpoints.js?v=9"></script>
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
     <script src="./map-config.js?v=3"></script>
-    <script src="./shipments-data.js?v=7"></script>
-    <script src="./map-ux.js?v=4"></script>
+    <script src="./shipments-data.js?v=8"></script>
+    <script src="./map-ux.js?v=5"></script>
     <script src="./ais-live.js?v=5"></script>
-    <script src="./visibility.js?v=30"></script>
-    <script src="./shipment-detail.js?v=19"></script>
-    <script src="./admin-ux.js?v=20"></script>
-    <script src="./role-management.js?v=21"></script>
-    <script src="./user-management.js?v=24"></script>
-    <script src="./default-role-management.js?v=22"></script>
-    <script src="./script.js?v=82"></script>
+    <script src="./visibility.js?v=34"></script>
+    <script src="./shipment-detail.js?v=23"></script>
+    <script src="./admin-ux.js?v=46"></script>
+    <script src="./ai-suggest.js?v=2"></script>
+    <script src="./role-management.js?v=46"></script>
+    <script src="./user-management.js?v=34"></script>
+    <script src="./default-role-management.js?v=49"></script>
+    <script src="./script.js?v=105"></script>
   </body>
 </html>

@@ -46,6 +46,14 @@
   --kn-primitive-information-100: #d0e1fd;
   --kn-primitive-sea-50: #e6ecef;
 
+  /* Purple scale — Klear Assistant accents (--ai-assistant-accent*) */
+  --kn-primitive-purple-50: #f3f1fb;
+  --kn-primitive-purple-100: #e4dff6;
+  --kn-primitive-purple-200: #c9c0ed;
+  --kn-primitive-purple-400: #8b7de0;
+  --kn-primitive-purple-500: #6c5dd3;
+  --kn-primitive-purple-600: #5648b8;
+
   --kn-primitive-alpha-white-300: rgba(255, 255, 255, 0.18);
   --kn-primitive-alpha-black-500: rgba(40, 46, 56, 0.09);
 
@@ -237,6 +245,7 @@
   --kn-color-background-interactive-staticWhite-faded: var(--theme-colors-interactive-background-staticWhite-faded);
   --kn-color-background-interactive-staticWhite-fadedHighlighted: var(--theme-colors-interactive-background-staticWhite-fadedHighlighted);
   --kn-color-background-interactive-primary-default: var(--theme-colors-interactive-background-primary-default);
+  --kn-color-background-interactive-primary-disabled: var(--theme-colors-interactive-background-primary-disabled);
   --kn-color-background-interactive-gray-default: var(--theme-colors-interactive-background-gray-default);
   --kn-color-background-interactive-gray-highlighted: var(--theme-colors-interactive-background-gray-highlighted);
   --kn-color-background-interactive-gray-disabled: var(--theme-colors-interactive-background-gray-disabled);
@@ -254,6 +263,7 @@
   --kn-color-text-interactive-gray-normal: var(--theme-colors-interactive-text-gray-normal);
   --kn-color-text-interactive-gray-subtle: var(--theme-colors-interactive-text-gray-subtle);
   --kn-color-text-interactive-gray-muted: var(--theme-colors-interactive-text-gray-muted);
+  --kn-color-text-interactive-gray-disabled: var(--theme-colors-interactive-text-gray-disabled);
   --kn-color-text-interactive-primary-normal: var(--theme-colors-interactive-text-primary-normal);
   --kn-color-text-interactive-information-normal: var(--theme-colors-interactive-text-information-normal);
   --kn-color-text-interactive-onPrimary-normal: var(--theme-colors-interactive-text-onPrimary-normal);
@@ -266,9 +276,21 @@
   --kn-color-icon-interactive-staticWhite-normal: var(--theme-colors-interactive-icon-staticWhite-normal);
   --kn-color-icon-interactive-onPrimary-normal: var(--theme-colors-interactive-icon-onPrimary-normal);
   --kn-color-icon-interactive-information-normal: var(--theme-colors-interactive-icon-information-normal);
+
+  /* Brand / AI accent — Blade interactive primary (app chrome & primary buttons) */
+  --kn-color-brand-primary-default: var(--kn-color-background-interactive-primary-default);
+  --kn-color-brand-primary-highlighted: var(--theme-colors-interactive-background-primary-highlighted);
+  --kn-color-background-brand-primary-subtle: var(--kn-color-background-surface-sea-subtle);
+  --kn-color-background-brand-primary-faded: var(--theme-colors-interactive-background-primary-faded);
+  --kn-color-border-brand-primary-default: var(--kn-color-border-interactive-primary-default);
+  --kn-color-border-brand-primary-subtle: var(--theme-colors-feedback-border-information-subtle);
+  --kn-color-text-brand-primary-normal: var(--kn-color-text-interactive-primary-normal);
+  --kn-color-icon-brand-primary-normal: var(--kn-color-text-interactive-primary-normal);
+
   --kn-color-background-feedback-negative-subtle: var(--theme-colors-feedback-background-negative-subtle);
   --kn-color-background-feedback-notice-subtle: var(--theme-colors-feedback-background-notice-subtle);
   --kn-color-background-feedback-positive-subtle: var(--theme-colors-feedback-background-positive-subtle);
+  --kn-color-background-feedback-positive-intense: var(--theme-colors-feedback-background-positive-intense);
   --kn-color-background-feedback-information-subtle: var(--theme-colors-feedback-background-information-subtle);
   --kn-color-background-feedback-neutral-subtle: var(--theme-colors-feedback-background-neutral-subtle);
   --kn-color-border-feedback-negative-subtle: var(--theme-colors-feedback-border-negative-subtle);
@@ -462,6 +484,13 @@
   /* One width for every side drawer (shipment detail, admin, dashboard). 50.4rem = 806px at 16px root. */
   --blade-drawer-width: 50.4rem;
 
+  /* AI accent tokens (Klear Assistant / Suggest & Draft) — Blade interactive primary; WCAG AA with white/surface text */
+  --blade-ai-accent: var(--kn-color-icon-brand-primary-normal, #003f5b);
+  --blade-ai-accent-text: var(--kn-color-text-brand-primary-normal, #003f5b);
+  --blade-ai-accent-subtle: color-mix(in srgb, var(--blade-ai-accent) 12%, transparent);
+  --blade-ai-accent-border: color-mix(in srgb, var(--blade-ai-accent) 32%, transparent);
+  --blade-ai-accent-strong: color-mix(in srgb, var(--blade-ai-accent) 22%, transparent);
+
   /* Admin ListView / FormGroup widths, from Blade spacing tokens. */
   --blade-admin-search-width: calc(var(--theme-spacing-8) * 8);
   --blade-admin-search-max: calc(var(--theme-spacing-8) * 9);
@@ -470,6 +499,7 @@
   --blade-admin-name-col-wide: calc(var(--theme-spacing-8) * 9);
   --blade-admin-perm-col: calc(var(--theme-spacing-11) + var(--theme-spacing-8));
   --blade-admin-coverage-min: calc(var(--theme-spacing-8) * 4);
+  --blade-admin-chips-col: calc(var(--theme-spacing-8) * 7);
 
   /* Blade TopNav — TOP_NAV_HEIGHT = size[56] */
   --blade-topnav-height: 3.5rem;
@@ -630,6 +660,11 @@
   --blade-motion-easing-emphasized: var(--theme-motion-easing-emphasized);
   --blade-motion-easing-overshoot: var(--theme-motion-easing-overshoot);
   --blade-motion-easing-shake: var(--theme-motion-easing-shake);
+
+  /* Klear Assistant conversation motion aliases (map to Blade durations — no new hues) */
+  --kn-ai-motion-msg-enter: var(--blade-motion-duration-quick);
+  --kn-ai-motion-stream-chunk: var(--blade-motion-duration-2xquick);
+  --kn-ai-motion-thinking: var(--blade-motion-duration-xquick);
 }
 
 @media (prefers-reduced-motion: reduce) {

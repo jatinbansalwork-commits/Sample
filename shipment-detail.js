@@ -86,7 +86,7 @@
     scope: "shipment",
     type: "all",
     query: "",
-    showUnused: false,
+    hideEmpty: true,
     catalog: null,
     saved: null,
     draftSavedAt: "",
@@ -135,15 +135,29 @@
     if (Number.isNaN(date.getTime())) {
       return iso;
     }
+    return date
+      .toLocaleString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      })
+      .replace(/,/g, "");
+  };
+
+  const formatDocDate = (iso) => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return String(iso || "");
+    }
     return date.toLocaleString("en-US", {
       month: "short",
       day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    }).replace(",", "");
+      year: "numeric"
+    });
   };
 
   const addHours = (iso, hours) => {
@@ -175,10 +189,18 @@
     return `badge badge--${tone || "information"}${intense} type-caption-sm type-weight-medium`;
   };
 
+  const TITLE_CASE_ACRONYMS = new Set(["PGA", "ETA", "ETD", "POL", "POU", "POD", "PO", "ISF", "BOL", "HBOL"]);
+
   const titleCase = (value) =>
     String(value || "")
       .toLowerCase()
-      .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+      .replace(/\b[a-z0-9]+\b/g, (word) => {
+        const upper = word.toUpperCase();
+        if (TITLE_CASE_ACRONYMS.has(upper)) {
+          return upper;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      });
 
   const codeChip = (value) =>
     value ? `<span class="code type-caption-sm">${escapeHtml(value)}</span>` : "—";
@@ -450,8 +472,20 @@
 
   function buildDocuments(item) {
     return [
-      { type: "EML", tone: "information", name: "EML EMAIL DOC", date: formatStamp(item.created).replace(/ \d{2}:\d{2}:\d{2}$/, "") },
-      { type: "CERT", tone: "notice", name: "CERT CERT", date: formatStamp(addHours(item.created, 24)).replace(/ \d{2}:\d{2}:\d{2}$/, "") }
+      {
+        type: "EML",
+        tone: "information",
+        name: "EML EMAIL DOC",
+        date: formatDocDate(item.created),
+        source: "Email intake"
+      },
+      {
+        type: "CERT",
+        tone: "notice",
+        name: "CERT CERT",
+        date: formatDocDate(addHours(item.created, 24)),
+        source: "Certificate upload"
+      }
     ];
   }
 
@@ -514,6 +548,7 @@
     window.clearTimeout(closeTimer);
     root.classList.remove("is-open");
     root.hidden = true;
+    window.clearBladeToasts?.();
   }
 
   function stopVisibilityLoading() {
@@ -543,7 +578,7 @@
     root.setAttribute("aria-busy", "true");
     root.innerHTML = `
       <header class="blade-drawer__header kn-detail-head">
-        <span class="skeleton skeleton--icon" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-medium)"></span>
+        <span class="skeleton skeleton--icon" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-nested)"></span>
         <div class="blade-drawer__titles kn-detail-head__copy skeleton-stack">
           <span class="skeleton skeleton--title" style="width: 9.25rem"></span>
           <span class="skeleton skeleton--caption" style="width: 12rem"></span>
@@ -608,6 +643,7 @@
       return;
     }
     root.classList.remove("is-open");
+    window.clearBladeToasts?.();
     const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
     closeTimer = window.setTimeout(() => {
       root.hidden = true;
@@ -735,7 +771,6 @@
       <article class="panel card kn-section-card kn-container__hero">
         <header class="kn-section-card__head">
           <div class="kn-container__id">
-            <p class="type-caption-sm kn-section-meta">Container number</p>
             ${copyableCode(item.container, "Container number")}
           </div>
           <div class="kn-container__tags">
@@ -810,7 +845,7 @@
                 <strong class="type-ui-sm type-weight-semibold">${escapeHtml(doc.name)}</strong>
                 <span class="kn-file__chip badge badge--${doc.tone} type-caption-sm type-weight-medium">${escapeHtml(doc.type)}</span>
               </span>
-              <span class="type-caption-sm">Ingested ${escapeHtml(doc.date)}</span>
+              <span class="type-caption-sm">Ingested ${escapeHtml(doc.date)}, ${escapeHtml(doc.source)}</span>
             </span>
             <button class="icon-btn" type="button" aria-label="View ${escapeHtml(doc.name)}" data-tooltip="View" data-kn-detail-toast="Document preview opens when connected.">${MOT_ICONS.eye}</button>
           </li>`
@@ -831,7 +866,11 @@
   }
 
   function makeRefSeries(type, prefix, count, values = {}) {
-    const names = { TEXT: "Text", DATE: "Date", NUM: "Number" };
+    const names = {
+      TEXT: "Custom Text Field",
+      DATE: "Custom Date Field",
+      NUM: "Custom Number Field"
+    };
     return Array.from({ length: count }, (_, index) => {
       const key = `${prefix}${index + 1}`;
       const label = `${names[prefix] || prefix} ${index + 1}`;
@@ -863,18 +902,19 @@
         fields: [
           makeRefField("text", "invoiceno", "Invoice No", invoice),
           makeRefField("text", "text2", "PO number", item.po || ""),
-          makeRefField("text", "text3", "Text 3"),
-          makeRefField("text", "text4", "Text 4"),
-          makeRefField("text", "text5", "Text 5"),
+          makeRefField("text", "text3", "Custom Text Field 3"),
+          makeRefField("text", "text4", "Custom Text Field 4"),
+          makeRefField("text", "text5", "Custom Text Field 5"),
           makeRefField("text", "phone", "Phone"),
-          makeRefField("text", "text7", "Text 7"),
-          makeRefField("text", "text8", "Text 8"),
-          makeRefField("text", "test", "Test field"),
+          makeRefField("text", "text7", "Custom Text Field 7"),
+          makeRefField("text", "text8", "Custom Text Field 8"),
           makeRefField("text", "text10", "Notes", "", { multiline: true }),
           ...makeRefSeries("date", "DATE", 9, { DATE1: etaDate }),
-          makeRefField("number", "num1", "Number 1"),
+          makeRefField("number", "num1", "Custom Number Field 1"),
           makeRefField("number", "eta", "Transit days", etaDays),
-          ...Array.from({ length: 7 }, (_, index) => makeRefField("number", `num${index + 3}`, `Number ${index + 3}`))
+          ...Array.from({ length: 7 }, (_, index) =>
+            makeRefField("number", `num${index + 3}`, `Custom Number Field ${index + 3}`)
+          )
         ]
       },
       invoices: [
@@ -920,7 +960,7 @@
       scope: "shipment",
       type: "all",
       query: "",
-      showUnused: false,
+      hideEmpty: true,
       catalog: stored ? stored.catalog : cloneRefs(published),
       saved: published,
       draftSavedAt: stored?.savedAt || "",
@@ -937,7 +977,7 @@
       scope: "shipment",
       type: "all",
       query: "",
-      showUnused: false,
+      hideEmpty: true,
       catalog: null,
       saved: null,
       draftSavedAt: "",
@@ -1051,7 +1091,7 @@
       const hay = `${label} ${value} ${el.getAttribute("data-kn-ref-search") || ""}`.toLowerCase();
       const matchType = type === "all" || el.getAttribute("data-kn-ref-type") === type;
       const matchQuery = !query || hay.includes(query);
-      const matchFilled = refsUi.showUnused || !vacant || searching;
+      const matchFilled = !refsUi.hideEmpty || !vacant || searching;
       const show = matchType && matchQuery && matchFilled;
       el.hidden = !show;
       if (vacant) {
@@ -1083,13 +1123,13 @@
       if (copy) {
         copy.textContent = searching
           ? "Nothing in this set matches that search."
-          : "Turn on Empty fields to add PO numbers, dates, and notes.";
+          : "Turn off Hide empty to add PO numbers, dates, and notes.";
       }
       if (clear) {
         clear.hidden = !searching;
       }
       if (reveal) {
-        reveal.hidden = unused === 0 || refsUi.showUnused || searching;
+        reveal.hidden = unused === 0 || !refsUi.hideEmpty || searching;
       }
     }
     if (form) {
@@ -1104,7 +1144,7 @@
     const unusedSwitch = root.querySelector("[data-kn-ref-unused]");
     const unusedWrap = root.querySelector("[data-kn-ref-unused-wrap]");
     if (unusedSwitch) {
-      unusedSwitch.checked = refsUi.showUnused;
+      unusedSwitch.checked = refsUi.hideEmpty;
       unusedSwitch.disabled = unused === 0;
     }
     if (unusedWrap) {
@@ -1267,11 +1307,11 @@
   }
 
   function revealUnusedThen(focus = "first-empty") {
-    if (!refsUi.showUnused) {
-      refsUi.showUnused = true;
+    if (refsUi.hideEmpty) {
+      refsUi.hideEmpty = false;
       const unusedSwitch = refsRoot()?.querySelector("[data-kn-ref-unused]");
       if (unusedSwitch) {
-        unusedSwitch.checked = true;
+        unusedSwitch.checked = false;
       }
       applyRefsFilter();
     }
@@ -1436,7 +1476,7 @@
         focusRefValue(next);
         return;
       }
-      if (!event.shiftKey && !refsUi.showUnused) {
+      if (!event.shiftKey && refsUi.hideEmpty) {
         event.preventDefault();
         revealUnusedThen("first-empty");
       }
@@ -1447,7 +1487,7 @@
       if (next) {
         event.preventDefault();
         focusRefValue(next);
-      } else if (!refsUi.showUnused) {
+      } else if (refsUi.hideEmpty) {
         event.preventDefault();
         revealUnusedThen("first-empty");
       }
@@ -1484,11 +1524,18 @@
     if (!item || !panel || visState.detailTab !== "references") {
       return;
     }
+    const drawerRoot = document.getElementById("kn-detail-drawer");
+    const savedScroll = opts.resetScroll ? null : window.KNAdminUX?.captureDrawerScroll?.(drawerRoot);
+    const focusSelector = opts.focus ? null : window.KNAdminUX?.captureDrawerFocus?.(drawerRoot);
     panel.innerHTML = renderReferences(item);
     applyRefsFilter();
     syncRefsFooter();
     syncRefScopeTabs();
-    resetRefsPanelScroll();
+    if (opts.resetScroll) {
+      resetRefsPanelScroll();
+    } else if (savedScroll) {
+      window.KNAdminUX?.restoreDrawerScroll?.(drawerRoot, savedScroll, { focusSelector });
+    }
     if (opts.focus === "first-empty") {
       focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0], { scroll: false });
       return;
@@ -1562,9 +1609,9 @@
         <div class="kn-refs__toolbar-end">
           <p class="type-caption-sm kn-refs__meta"><span data-kn-ref-count></span> · ${escapeHtml(scopeMeta)}</p>
           <label class="kn-order kn-refs__empty-toggle" data-kn-ref-unused-wrap>
-            <span class="type-caption-sm">Empty fields</span>
+            <span class="type-caption-sm">Hide empty</span>
             <span class="blade-switch">
-              <input type="checkbox" role="switch" data-kn-ref-unused ${refsUi.showUnused ? "checked" : ""} aria-label="Show empty fields" />
+              <input type="checkbox" role="switch" data-kn-ref-unused ${refsUi.hideEmpty ? "checked" : ""} aria-label="Hide empty fields" />
               <span class="blade-switch__ui"></span>
             </span>
           </label>
@@ -1850,9 +1897,14 @@
     if (!root || !item) {
       return;
     }
+    const drawerRoot = document.getElementById("kn-detail-drawer");
+    const tab = visState.detailTab || "information";
+    const activeTab = root.querySelector(".kn-tab.is-active")?.getAttribute("data-kn-detail-tab");
+    const sameTab = Boolean(root.querySelector("#kn-detail-panel") && activeTab === tab);
+    const savedScroll = sameTab ? window.KNAdminUX?.captureDrawerScroll?.(drawerRoot) : null;
+    const focusSelector = sameTab ? window.KNAdminUX?.captureDrawerFocus?.(drawerRoot) : null;
     root.classList.remove("is-skeleton");
     root.removeAttribute("aria-busy");
-    const tab = visState.detailTab || "information";
     const secondary = item.statusSecondary
       ? `<span class="${badgeClass(item.statusSecondaryTone || "notice")}">${escapeHtml(item.statusSecondary)}</span>`
       : item.delay
@@ -1910,9 +1962,15 @@
       syncRefsFooter();
       syncRefScopeTabs();
       queueMicrotask(() => {
+        if (savedScroll) {
+          window.KNAdminUX?.restoreDrawerScroll?.(drawerRoot, savedScroll, { focusSelector });
+          return;
+        }
         resetRefsPanelScroll();
         focusRefValue(refsValueControls()[0], { select: !refsPointerFocus, scroll: false });
       });
+    } else if (savedScroll) {
+      window.KNAdminUX?.restoreDrawerScroll?.(drawerRoot, savedScroll, { focusSelector });
     }
   }
 
@@ -2140,10 +2198,10 @@
       }
       if (event.target.closest("[data-kn-ref-show-empty]")) {
         event.preventDefault();
-        refsUi.showUnused = true;
+        refsUi.hideEmpty = false;
         const unusedSwitch = refsRoot()?.querySelector("[data-kn-ref-unused]");
         if (unusedSwitch) {
-          unusedSwitch.checked = true;
+          unusedSwitch.checked = false;
         }
         applyRefsFilter();
         focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
@@ -2190,9 +2248,9 @@
     });
     root?.addEventListener("change", (event) => {
       if (event.target.matches("[data-kn-ref-unused]")) {
-        refsUi.showUnused = event.target.checked;
+        refsUi.hideEmpty = event.target.checked;
         applyRefsFilter();
-        if (refsUi.showUnused) {
+        if (!refsUi.hideEmpty) {
           focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
         }
         return;

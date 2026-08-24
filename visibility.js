@@ -40,7 +40,10 @@ const visState = {
     pol: "",
     etd: "",
     pou: "",
-    eta: ""
+    eta: "",
+    mot: "",
+    country: "",
+    company: ""
   },
   page: 1,
   pageSize: 100,
@@ -94,6 +97,10 @@ const visRecordLabels = { all: "Consolidated", shipment: "Shipments", container:
 const visSortLabels = {
   newest: "Created date (newest first)",
   oldest: "Created date (oldest first)"
+};
+const visSortTriggerLabels = {
+  newest: "Newest first",
+  oldest: "Oldest first"
 };
 
 function closeVisMenus(exceptId) {
@@ -199,7 +206,10 @@ function visColValue(item, key) {
     pol: item.polLabel,
     etd: item.etdLabel,
     pou: item.pouLabel,
-    eta: item.etaLabel
+    eta: item.etaLabel,
+    mot: `${item.mot} ${visMotLabels[item.mot] || ""}`,
+    country: item.destCountry || "",
+    company: item.company || ""
   };
   return String(values[key] || "").toLowerCase();
 }
@@ -446,9 +456,9 @@ function renderVisTable(rows) {
           <td><span class="code type-caption-sm">${item.masterBill}</span></td>
           <td><span class="code type-caption-sm">${item.hbol || "N/A"}</span></td>
           <td>
-            <span class="vis-mot-cell" data-tooltip="${visMotLabels[item.mot] || item.mot}">
+            <span class="vis-mot-cell" data-tooltip="${visMotLabels[item.mot] || item.mot}" title="${visMotLabels[item.mot] || item.mot}" aria-label="${visMotLabels[item.mot] || item.mot}">
               ${VIS_MOT_ICONS[item.mot] || ""}
-              <span class="visually-hidden">${visMotLabels[item.mot] || item.mot}</span>
+              <span class="vis-mot-cell__label type-caption-sm">${visMotLabels[item.mot] || item.mot}</span>
             </span>
           </td>
           <td>${visCopyCode(item.po, "PO")} ${visPlusCount(item.extraPo)}</td>
@@ -472,6 +482,34 @@ function renderVisTable(rows) {
     .join("");
 }
 
+function visPageItems(page, pages) {
+  if (pages <= 7) {
+    return Array.from({ length: pages }, (_, index) => index + 1);
+  }
+  const items = [1];
+  const start = Math.max(2, page - 1);
+  const end = Math.min(pages - 1, page + 1);
+  if (start > 2) {
+    items.push("…");
+  } else if (start === 2) {
+    items.push(2);
+  }
+  for (let next = start; next <= end; next += 1) {
+    if (next !== 1 && next !== pages && !items.includes(next)) {
+      items.push(next);
+    }
+  }
+  if (end < pages - 1) {
+    items.push("…");
+  } else if (end === pages - 1 && !items.includes(pages - 1)) {
+    items.push(pages - 1);
+  }
+  if (!items.includes(pages)) {
+    items.push(pages);
+  }
+  return items;
+}
+
 function renderVisPagination(target, total, totalPages) {
   if (!target) {
     return;
@@ -479,34 +517,28 @@ function renderVisPagination(target, total, totalPages) {
   const pageSize = getVisPageSize();
   const start = total === 0 ? 0 : (visState.page - 1) * pageSize + 1;
   const end = Math.min(visState.page * pageSize, total);
-  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const safePages = Math.max(1, totalPages || 1);
   const showSizePicker = target.id === "vis-table-pagination";
+  const numbers = visPageItems(visState.page, safePages)
+    .map((item) => {
+      if (item === "…") {
+        return `<span class="vis-pagination__ellipsis type-caption-sm" aria-hidden="true">…</span>`;
+      }
+      const on = item === visState.page;
+      return `<button class="btn btn--tertiary btn--sm type-ui-sm vis-pagination__page${on ? " is-current" : ""}" type="button" data-vis-page="${item}" ${on ? 'aria-current="page"' : ""} aria-label="Page ${item}">${item}</button>`;
+    })
+    .join("");
   target.innerHTML = `
-    <p class="type-caption-sm vis-pagination__label">Showing ${start} to ${end} of ${total} records</p>
+    <p class="type-caption-sm vis-pagination__label" aria-live="polite">Showing ${start}–${end} of ${total}</p>
     <div class="vis-pagination__pages">
-      <button class="icon-btn" type="button" data-vis-page="first" aria-label="First page" data-tooltip="First page" ${visState.page === 1 ? "disabled" : ""}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3 6 8l6 5M6 3v10"/></svg>
-      </button>
-      <button class="icon-btn" type="button" data-vis-page="prev" aria-label="Previous page" data-tooltip="Previous page" ${visState.page === 1 ? "disabled" : ""}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
-      </button>
-      ${pages
-        .map(
-          (page) =>
-            `<button class="btn ${page === visState.page ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" data-vis-page="${page}" aria-current="${page === visState.page ? "page" : "false"}">${page}</button>`
-        )
-        .join("")}
-      <button class="icon-btn" type="button" data-vis-page="next" aria-label="Next page" data-tooltip="Next page" ${visState.page === totalPages ? "disabled" : ""}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
-      </button>
-      <button class="icon-btn" type="button" data-vis-page="last" aria-label="Last page" data-tooltip="Last page" ${visState.page === totalPages ? "disabled" : ""}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 3l6 5-6 5M10 3v10"/></svg>
-      </button>
+      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-vis-page="prev" ${visState.page === 1 ? "disabled" : ""} aria-label="Previous page">Previous</button>
+      ${numbers}
+      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-vis-page="next" ${visState.page === safePages ? "disabled" : ""} aria-label="Next page">Next</button>
     </div>
     ${
       showSizePicker
         ? `<div class="vis-pagination__size vis-menu vis-menu--end">
-      <span class="type-caption-sm vis-pagination__label">Rows</span>
+      <span class="type-caption-sm vis-pagination__label">Rows per page</span>
       <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-vis-size-trigger aria-haspopup="listbox" aria-expanded="false" aria-label="Rows per page">${visState.pageSize}</button>
       <div class="menu-overlay vis-menu__list" hidden role="listbox" aria-label="Rows per page">
         ${VIS_TABLE_PAGE_SIZES.map(
@@ -540,10 +572,23 @@ function syncVisFilterLabels() {
     recordText.textContent = `View: ${visRecordLabels[visState.record] || visState.record} `;
   }
   if (sortText) {
-    sortText.textContent = ` ${visSortLabels[visState.sort]}`;
+    sortText.textContent = ` ${visSortTriggerLabels[visState.sort] || visSortLabels[visState.sort]}`;
   }
   if (directionText) {
     directionText.textContent = `${visState.direction === "all" ? "All" : visState.direction} `;
+  }
+  const overflowTrigger = document.getElementById("vis-overflow-trigger");
+  if (overflowTrigger) {
+    const extra = visState.sort !== "newest" || visState.direction !== "all";
+    overflowTrigger.classList.toggle("is-filtered", extra);
+    const bits = [];
+    if (visState.sort !== "newest") {
+      bits.push(visSortTriggerLabels[visState.sort] || visSortLabels[visState.sort]);
+    }
+    if (visState.direction !== "all") {
+      bits.push(visState.direction);
+    }
+    overflowTrigger.setAttribute("aria-label", extra ? `More filters, ${bits.join(", ")}` : "More filters");
   }
   document.querySelectorAll("[data-vis-mot]").forEach((item) => {
     item.setAttribute("aria-selected", String(item.getAttribute("data-vis-mot") === visState.mot));
@@ -666,10 +711,20 @@ function syncVisRiskChips() {
     const key = node.getAttribute("data-vis-count");
     node.textContent = String(counts[key] ?? 0);
   });
-  document.querySelectorAll("[data-vis-risk]").forEach((chip) => {
+  document.querySelectorAll("#vis-quickfilters [data-vis-risk]").forEach((chip) => {
     const selected = chip.getAttribute("data-vis-risk") === visState.risk;
     chip.classList.toggle("is-selected", selected);
     chip.setAttribute("aria-checked", String(selected));
+    if (selected) {
+      const row = document.getElementById("vis-quickfilters");
+      if (row) {
+        const rowRect = row.getBoundingClientRect();
+        const chipRect = chip.getBoundingClientRect();
+        if (chipRect.left < rowRect.left || chipRect.right > rowRect.right) {
+          chip.scrollIntoView({ inline: "nearest", block: "nearest" });
+        }
+      }
+    }
   });
 }
 
@@ -771,6 +826,32 @@ function resetVisFilters() {
   syncVisFilterLabels();
   renderVisibilityPage();
 }
+
+function suspendVisibility() {
+  visState.mot = "all";
+  visState.record = "all";
+  visState.direction = "all";
+  visState.riskByView.cards = "all";
+  visState.riskByView.table = "all";
+  visState.risk = "all";
+  visState.sort = "newest";
+  visState.query = "";
+  visState.page = 1;
+  clearVisColFilters();
+  const input = document.getElementById("vis-search");
+  const clear = document.getElementById("vis-search-clear");
+  if (input) {
+    input.value = "";
+  }
+  if (clear) {
+    clear.hidden = true;
+  }
+  closeVisMenus();
+  syncVisFilterLabels();
+  renderVisibilityPage({ keepPage: true, fitMap: false, resetScroll: false });
+}
+
+window.suspendVisibility = suspendVisibility;
 
 function selectVisShipment(id, { fly = true, restoreFocus = false } = {}) {
   const match = visShipments.find((item) => item.id === id);
@@ -1149,10 +1230,11 @@ visPage?.addEventListener("keydown", (event) => {
   const chip = event.target.closest("[data-vis-risk]");
   if (chip && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
     event.preventDefault();
-    const chips = Array.from(document.querySelectorAll("[data-vis-risk]"));
+    const chips = Array.from(document.querySelectorAll("#vis-quickfilters [data-vis-risk]"));
     const index = chips.indexOf(chip);
     const next = event.key === "ArrowRight" ? chips[(index + 1) % chips.length] : chips[(index - 1 + chips.length) % chips.length];
     next?.focus();
+    next?.scrollIntoView({ inline: "nearest", block: "nearest" });
     setVisRisk(next.getAttribute("data-vis-risk"));
     renderVisibilityPage();
     return;

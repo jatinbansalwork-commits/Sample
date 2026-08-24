@@ -734,9 +734,12 @@
 
   function check(name, value, checked, label, extras = {}) {
     const labelClass = extras.labelClass || "type-body-sm";
+    const mark = extras.aiMark
+      ? `<span class="ai-suggest-mark" aria-hidden="true">✦</span>`
+      : "";
     const text = extras.hideLabel
       ? `<span class="visually-hidden">${escapeHtml(label)}</span>`
-      : `<span class="${labelClass}">${escapeHtml(label)}</span>`;
+      : `<span class="${labelClass}">${escapeHtml(label)}${mark}</span>`;
     const titleAttr = extras.title ? ` title="${escapeHtml(extras.title)}"` : "";
     return `<label class="blade-check${extras.hideLabel ? " blade-check--bare" : ""}${extras.className ? ` ${extras.className}` : ""}"${extras.attr ? ` ${extras.attr}` : ""}${titleAttr}>
       <input type="checkbox"${name ? ` name="${escapeHtml(name)}" value="${escapeHtml(value)}"` : ""} ${checked ? "checked" : ""} ${extras.indeterminate && !checked ? "data-indeterminate" : ""} aria-label="${escapeHtml(extras.ariaLabel || label)}"${titleAttr} />
@@ -842,7 +845,7 @@
     const aiSuggestions = state.aiSuggestions || {};
     const aiGroupKeys = keys.filter((key) => aiSuggestions[key]);
     const hasAiInGroup = aiGroupKeys.length > 0;
-    const open = Boolean(state.openGroups?.has(group.id)) || Boolean(q) || hasAiInGroup;
+    const open = Boolean(state.openGroups?.has(group.id));
     const countTone = window.KNAdminUX.permCategoryTone(selected, keys.length);
     const aiCountBadge = hasAiInGroup
       ? `<span class="badge badge--ai type-caption-sm type-weight-medium ai-suggest-count" aria-label="${aiGroupKeys.length} AI-suggested permissions in this category">✦ ${aiGroupKeys.length} suggested</span>`
@@ -878,14 +881,18 @@
             const blockedMsg = state.permBlockedMsg?.[mod.id] || "";
             const autoReadTrigger = state.permAutoRead?.[keyOf(mod.id, "read")];
             return `<div class="role-perm__row${isAiRow ? " is-ai-suggested" : ""}${blockedMsg ? " has-perm-dep-msg" : ""}" data-perm-module="${escapeHtml(mod.id)}">
-              <div class="role-perm__module-wrap">
+              <div class="role-perm__module-wrap"${isAiRow ? ` title="${escapeHtml(firstReason)}"` : ""}>
                 ${check("", "", allSelected(permissions, rowKeys), mod.title, {
                   attr: `data-role-select-row="${escapeHtml(mod.id)}"`,
                   indeterminate: someSelected(permissions, rowKeys),
                   className: "role-perm__module",
-                  labelClass: "type-ui-sm type-weight-medium"
+                  labelClass: "type-ui-sm type-weight-medium",
+                  aiMark: isAiRow,
+                  title: isAiRow ? firstReason : undefined,
+                  ariaLabel: isAiRow
+                    ? `${mod.title} (AI suggested: ${firstReason})`
+                    : undefined
                 })}
-                ${isAiRow ? `<span class="ai-suggest-tag type-caption-sm" aria-label="AI suggestion: ${escapeHtml(firstReason)}">✦ ${escapeHtml(firstReason)}</span>` : ""}
                 ${blockedMsg ? `<p class="role-perm__dep-msg type-caption-sm" role="status">${escapeHtml(blockedMsg)}</p>` : ""}
               </div>
               <div class="role-perm__actions">
@@ -1684,6 +1691,22 @@
       if (event.target.matches("[data-admin-perm-q]")) {
         persistForm(readForm(root.querySelector("#kn-role-form")));
         state.permQuery = event.target.value;
+        const q = state.permQuery.trim().toLowerCase();
+        if (q) {
+          const next = new Set(state.openGroups || []);
+          CATALOG.forEach((group) => {
+            const hit = group.modules.some(
+              (mod) =>
+                mod.title.toLowerCase().includes(q) ||
+                group.title.toLowerCase().includes(q) ||
+                ACTIONS.some((action) => keyOf(mod.id, action).includes(q))
+            );
+            if (hit) {
+              next.add(group.id);
+            }
+          });
+          state.openGroups = next;
+        }
         render();
         restorePermSmartFocus(root, "search");
         return;

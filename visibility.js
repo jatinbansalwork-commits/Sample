@@ -46,7 +46,7 @@ const visState = {
     company: ""
   },
   page: 1,
-  pageSize: 100,
+  pageSize: 10,
   selectedId: visShipments[0].id,
   detailId: getHashParams().get("id") || "",
   detailTab: getHashParams().get("tab") || "information"

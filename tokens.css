@@ -484,11 +484,11 @@
   /* One width for every side drawer (shipment detail, admin, dashboard). 50.4rem = 806px at 16px root. */
   --blade-drawer-width: 50.4rem;
 
-  /* AI accent tokens (Klear Assistant / Suggest & Draft) — Blade interactive primary; WCAG AA with white/surface text */
-  --blade-ai-accent: var(--kn-color-icon-brand-primary-normal, #003f5b);
-  --blade-ai-accent-text: var(--kn-color-text-brand-primary-normal, #003f5b);
-  --blade-ai-accent-subtle: color-mix(in srgb, var(--blade-ai-accent) 12%, transparent);
-  --blade-ai-accent-border: color-mix(in srgb, var(--blade-ai-accent) 32%, transparent);
+  /* AI accent tokens — purple (Klear Assistant), not product indigo */
+  --blade-ai-accent: var(--kn-primitive-purple-500, #6c5dd3);
+  --blade-ai-accent-text: var(--kn-primitive-purple-600, #5648b8);
+  --blade-ai-accent-subtle: var(--kn-primitive-purple-100, #e4dff6);
+  --blade-ai-accent-border: var(--kn-primitive-purple-200, #c9c0ed);
   --blade-ai-accent-strong: color-mix(in srgb, var(--blade-ai-accent) 22%, transparent);
 
   /* Admin ListView / FormGroup widths, from Blade spacing tokens. */

@@ -1101,15 +1101,16 @@
     return `<div class="role-perm__group blade-accordion-item${open ? " is-open" : ""}${toneClass}" data-perm-group="${escapeHtml(id)}">
       <h3 class="role-perm__heading">
         <div class="role-perm__summary">
-          <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-accordion="${escapeHtml(id)}" aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}"></button>
-          <span class="role-perm__lead">
-            <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
-            ${infoBtn}
-          </span>
-          <span class="role-perm__trailing">
-            ${trailing}
-            <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
-          </span>
+          <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-accordion="${escapeHtml(id)}" aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}">
+            <span class="role-perm__lead">
+              <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
+              ${infoBtn}
+            </span>
+            <span class="role-perm__trailing">
+              ${trailing}
+              <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
+            </span>
+          </button>
         </div>
       </h3>
       <div class="role-perm__body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>
@@ -1126,13 +1127,14 @@
     return `<div class="role-perm__group role-perm__group--unused blade-accordion-item${open ? " is-open" : ""}">
       <h3 class="role-perm__heading">
         <div class="role-perm__summary">
-          <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-unused-toggle aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}"></button>
-          <span class="role-perm__lead">
-            <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
-          </span>
-          <span class="role-perm__trailing">
-            <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
-          </span>
+          <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-unused-toggle aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}">
+            <span class="role-perm__lead">
+              <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
+            </span>
+            <span class="role-perm__trailing">
+              <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
+            </span>
+          </button>
         </div>
       </h3>
       <div class="role-perm__body role-perm__unused-body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>

@@ -2014,6 +2014,7 @@ img.klear-assistant-mark {
   pointer-events: none;
   white-space: pre-wrap;
   overflow: hidden;
+  line-height: 1.45;
   transition: opacity var(--blade-motion-duration-quick) var(--blade-motion-easing-standard);
 }
 

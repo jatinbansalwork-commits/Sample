@@ -3674,6 +3674,8 @@ function initAiAssistant() {
   const inputErrorDismiss = document.getElementById("ai-assistant-input-error-dismiss");
   const sendIcon = sendBtn?.querySelector(".blade-chat-input__icon--send");
   const stopIcon = sendBtn?.querySelector(".blade-chat-input__icon--stop");
+  const DEFAULT_INPUT_PLACEHOLDER =
+    input?.getAttribute("placeholder") || "Ask about a hold, role, or shipment on this page";
   if (!shell || !panel || !form || !input || !history || !resizeHandle || !triggers.length) {
     return;
   }
@@ -5429,17 +5431,20 @@ function initAiAssistant() {
   }
 
   function syncGhostSuggestion() {
-    if (!ghostEl) {
+    if (!ghostEl || !input) {
       return;
     }
     if (isResponding || input.value.trim()) {
       ghostEl.textContent = "";
       ghostEl.hidden = true;
+      input.placeholder = DEFAULT_INPUT_PLACEHOLDER;
       return;
     }
     const suggestion = ghostSuggestions[ghostIndex] || "";
     ghostEl.textContent = suggestion;
     ghostEl.hidden = !suggestion;
+    // Ghost replaces placeholder — never stack both (Blade ChatInput pattern).
+    input.placeholder = suggestion ? "" : DEFAULT_INPUT_PLACEHOLDER;
   }
 
   function refreshGhostSuggestions(context = getContext()) {

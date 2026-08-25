@@ -727,47 +727,47 @@
 
     const chips = [];
     const seen = new Set();
-    const addChip = (id, label, prompt) => {
+    const addChip = (id, label, prompt, nameHint) => {
       if (!label || !prompt || seen.has(label) || chips.length >= 3) {
         return;
       }
       seen.add(label);
-      chips.push({ id, label, prompt });
+      chips.push({ id, label, prompt, nameHint: nameHint || label });
     };
 
     if (arch === "admin") {
-      addChip("full-access", "Full customer account access", "Full customer account access — manage users, roles, and customer entities");
-      addChip("users-roles", "Users + role management", "This person manages users, roles, and access control");
+      addChip("full-access", "Full customer account access", "Full customer account access — manage users, roles, and customer entities", "Customer Account Admin");
+      addChip("users-roles", "Users + role management", "This person manages users, roles, and access control", "Users Role Manager");
     } else if (arch === "readonly") {
-      addChip("read-vis", "Read-only visibility for customer users", "Read-only visibility for customer users tracking shipments");
-      addChip("reports-only", "View reports without edits", "This person views analytics dashboards and reporting metrics without making changes");
+      addChip("read-vis", "Read-only visibility for customer users", "Read-only visibility for customer users tracking shipments", "Visibility Read Only");
+      addChip("reports-only", "View reports without edits", "This person views analytics dashboards and reporting metrics without making changes", "Reports Viewer");
     } else if (arch === "finance") {
-      addChip("billing-only", "Billing + credits only", "Billing + entity management only — finance credits and promo codes");
-      addChip("finance-own", "Own finance exceptions", "This person owns finance credits, billing, and payment exceptions");
+      addChip("billing-only", "Billing + credits only", "Billing + entity management only — finance credits and promo codes", "Billing Credits Manager");
+      addChip("finance-own", "Own finance exceptions", "This person owns finance credits, billing, and payment exceptions", "Finance Exception Owner");
     } else if (arch === "visibility") {
-      addChip("track-ship", "Shipment tracking access", "This person monitors shipment visibility and cargo tracking");
-      addChip("vis-read", "Read-only visibility", "Read-only visibility for ops reviewing shipment tracking");
+      addChip("track-ship", "Shipment tracking access", "This person monitors shipment visibility and cargo tracking", "Shipment Tracking Access");
+      addChip("vis-read", "Read-only visibility", "Read-only visibility for ops reviewing shipment tracking", "Visibility Read Only");
     } else if (arch === "broker") {
-      addChip("broker-file", "Broker filing and tracking", "This person reviews broker filings and approve customs docs");
-      addChip("broker-rel", "Broker relationship admin", "This person manages broker associations and freight broker access");
+      addChip("broker-file", "Broker filing and tracking", "This person reviews broker filings and approve customs docs", "Broker Filing Tracker");
+      addChip("broker-rel", "Broker relationship admin", "This person manages broker associations and freight broker access", "Broker Relationship Admin");
     } else if (arch === "entity") {
-      addChip("entity-admin", "Customer + entity management", "This person manages customers, clients, and entity profiles");
-      addChip("entity-broker", "Entities and brokers", "This person manages customer entities and broker associations");
+      addChip("entity-admin", "Customer + entity management", "This person manages customers, clients, and entity profiles", "Entity Manager");
+      addChip("entity-broker", "Entities and brokers", "This person manages customer entities and broker associations", "Entities Brokers Manager");
     } else if (arch === "customs") {
-      addChip("customs-docs", "Customs filings and docs", "This person reviews broker filings and approves customs docs");
-      addChip("isf-ops", "ISF and import operations", "This person handles ISF filings, import, and export transactions");
+      addChip("customs-docs", "Customs filings and docs", "This person reviews broker filings and approves customs docs", "Customs Docs Reviewer");
+      addChip("isf-ops", "ISF and import operations", "This person handles ISF filings, import, and export transactions", "ISF Import Operator");
     } else if (arch === "ops") {
-      addChip("ops-review", "Operational exception review", "This person reviews operational exceptions in Intelligent OPS Hub");
+      addChip("ops-review", "Operational exception review", "This person reviews operational exceptions in Intelligent OPS Hub", "Ops Exception Reviewer");
     } else if (arch === "users") {
-      addChip("user-access", "User access management", "This person manages users, add user, and access control");
+      addChip("user-access", "User access management", "This person manages users, add user, and access control", "User Access Manager");
     } else if (arch === "notify") {
-      addChip("notify-own", "Notification ownership", "This person owns notification templates, alerts, and trigger management");
+      addChip("notify-own", "Notification ownership", "This person owns notification templates, alerts, and trigger management", "Notification Owner");
     } else if (arch === "content") {
-      addChip("content-pub", "Publish product content", "This person publishes release notes, user guides, and announcements");
+      addChip("content-pub", "Publish product content", "This person publishes release notes, user guides, and announcements", "Content Publisher");
     } else if (arch === "analytics") {
-      addChip("analytics-view", "Analytics and reporting", "This person views analytics dashboards, reporting, and metrics");
+      addChip("analytics-view", "Analytics and reporting", "This person views analytics dashboards, reporting, and metrics", "Analytics Viewer");
     } else if (arch === "drayage") {
-      addChip("drayage-ops", "Drayage marketplace access", "This person manages drayage bookings and related exceptions");
+      addChip("drayage-ops", "Drayage marketplace access", "This person manages drayage bookings and related exceptions", "Drayage Marketplace Access");
     }
 
     if (top && top.count >= 2) {
@@ -791,7 +791,7 @@
                         : top.id === "analytics"
                           ? "analytics dashboards and reporting"
                           : top.title.toLowerCase();
-      addChip(`focus-${top.id}`, `${top.title} focused`, `This role is concentrated in ${top.title} — ${keyword}`);
+      addChip(`focus-${top.id}`, `${top.title} focused`, `This role is concentrated in ${top.title} — ${keyword}`, `${top.title} Focused`);
     }
     if (trimmed && second) {
       addChip(
@@ -802,13 +802,13 @@
     }
 
     if (isDefault) {
-      addChip("cust-self", "Customer account self-service", "Customer users who manage their entity profile and view shipment visibility");
-      addChip("broker-file-fb", "Broker filing and tracking", "Broker users who review broker filings and approve customs docs");
-      addChip("company-inherit", "Company-wide inherited defaults", "Company admins who inherit finance, entity, and visibility defaults");
+      addChip("cust-self", "Customer account self-service", "Customer users who manage their entity profile and view shipment visibility", "Customer Self-Service");
+      addChip("broker-file-fb", "Broker filing and tracking", "Broker users who review broker filings and approve customs docs", "Broker Filing Default");
+      addChip("company-inherit", "Company-wide inherited defaults", "Company admins who inherit finance, entity, and visibility defaults", "Company Inherited Default");
     } else {
-      addChip("full-ops", "Full internal operator access", "This person manages users, roles, and access control across KlearNow");
-      addChip("ro-vis", "Read-only visibility for ops", "Read-only visibility for customer users tracking shipments");
-      addChip("billing-entity", "Billing + entity management only", "Billing + entity management only — finance credits and customer entities");
+      addChip("full-ops", "Full internal operator access", "This person manages users, roles, and access control across KlearNow", "Full Internal Operator");
+      addChip("ro-vis", "Read-only visibility for ops", "Read-only visibility for customer users tracking shipments", "Visibility Read Only");
+      addChip("billing-entity", "Billing + entity management only", "Billing + entity management only — finance credits and customer entities", "Billing Entity Manager");
     }
 
     return { placeholder, prompts: chips.slice(0, 3) };
@@ -868,7 +868,7 @@
             <div class="ai-describe-prompts__chips">
               ${prompts
                 .map(
-                  (item) => `<button type="button" class="ai-describe-chip type-caption-sm" data-ai-prompt="${attr}" data-ai-prompt-text="${escapeHtml(item.prompt)}" aria-label="Use suggestion: ${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`
+                  (item) => `<button type="button" class="ai-describe-chip type-caption-sm" data-ai-prompt="${attr}" data-ai-prompt-text="${escapeHtml(item.prompt)}" data-ai-name-hint="${escapeHtml(item.nameHint || "")}" aria-label="Use suggestion: ${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`
                 )
                 .join("")}
             </div>
@@ -1086,8 +1086,15 @@
       ? `<div class="blade-select__chips">${chipItems
           .map((chip) => {
             const label = escapeHtml(chip.label);
-            return `<span class="badge type-caption-sm blade-select__chip">
-              <span class="blade-select__chip-label">${label}</span>
+            const aiClass = chip.aiSuggested ? " is-ai-suggested" : "";
+            const sparkle = chip.aiSuggested
+              ? '<span class="ai-suggest-mark" aria-hidden="true">✦</span>'
+              : "";
+            const tip = chip.aiSuggested && (chip.title || chip.reason)
+              ? ` title="${escapeHtml(chip.title || chip.reason)}"`
+              : "";
+            return `<span class="badge type-caption-sm blade-select__chip${aiClass}"${tip}>
+              ${sparkle}<span class="blade-select__chip-label">${label}</span>
               <button class="blade-select__chip-remove" type="button" ${chip.removeAttr} aria-label="Remove ${label}">×</button>
             </span>`;
           })

@@ -123,7 +123,7 @@
     return window.KNAiSuggest.deriveRolePermissions(description, { actions: ACTIONS, keyOf });
   }
 
-  function applyAiDescription(description) {
+  function applyAiDescription(description, opts = {}) {
     const root = document.getElementById("kn-role-root");
     const formEl = root?.querySelector("#kn-role-form");
     if (!formEl || !state.form) {
@@ -143,7 +143,13 @@
       return;
     }
     state.aiLoading = true;
-    persistForm(readForm(formEl));
+    const snap = readForm(formEl);
+    const nameHint = String(opts.nameHint || "").trim();
+    if (nameHint && (!snap.name.trim() || state.aiFieldMeta?.name)) {
+      snap.name = nameHint;
+      state.aiFieldMeta = { ...state.aiFieldMeta, name: "Suggested from starter prompt" };
+    }
+    persistForm(snap);
     render();
     requestAnimationFrame(() => {
       const input = document.getElementById("kn-role-root")?.querySelector("[data-ai-describe='role']");
@@ -1008,7 +1014,6 @@
               <label class="type-caption-sm type-weight-medium" for="kn-role-name">Name <span class="role-req" aria-hidden="true">*</span></label>
               <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="e.g. Billing reviewer" value="${escapeHtml(form.name)}" autocomplete="off" />
               ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name) : ""}
-              <p class="type-caption-sm blade-field__hint">What people will see when assigning this access.</p>
               ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
             </div>
             <div class="blade-field role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
@@ -1757,7 +1762,9 @@
       if (event.target.closest("[data-ai-prompt='role']")) {
         event.preventDefault();
         const chip = event.target.closest("[data-ai-prompt='role']");
-        applyAiDescription(chip.getAttribute("data-ai-prompt-text") || "");
+        applyAiDescription(chip.getAttribute("data-ai-prompt-text") || "", {
+          nameHint: chip.getAttribute("data-ai-name-hint") || ""
+        });
         return;
       }
       if (event.target.closest("[data-ai-describe-clear='role']")) {
@@ -1766,6 +1773,9 @@
         snap.permissions = new Set(state.form?.permissions || []);
         // Uncheck AI-suggested permissions that were auto-checked
         Object.keys(state.aiSuggestions).forEach((key) => snap.permissions.delete(key));
+        if (state.aiFieldMeta?.name) {
+          snap.name = "";
+        }
         state.aiDescribe = "";
         state.aiLoading = false;
         state.aiNoMatch = false;

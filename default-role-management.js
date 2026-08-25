@@ -224,7 +224,7 @@
     return window.KNAiSuggest.deriveDefaultRoleSuggestions(description, { actions: ACTIONS, keyOf });
   }
 
-  function applyAiDescription(description) {
+  function applyAiDescription(description, opts = {}) {
     const root = document.getElementById("kn-default-role-root");
     const formEl = root?.querySelector("#kn-drole-form");
     if (!formEl || !state.form) {
@@ -246,7 +246,13 @@
       return;
     }
     state.aiLoading = true;
-    persistForm(readForm(formEl));
+    const snap = readForm(formEl);
+    const nameHint = String(opts.nameHint || "").trim();
+    if (nameHint && (!snap.name.trim() || state.aiFieldMeta?.name)) {
+      snap.name = nameHint;
+      state.aiFieldMeta = { ...state.aiFieldMeta, name: "Suggested from starter prompt" };
+    }
+    persistForm(snap);
     render();
     requestAnimationFrame(() => {
       const input = document.getElementById("kn-default-role-root")?.querySelector("[data-ai-describe='drole']");
@@ -1196,12 +1202,28 @@
     </div>`;
   }
 
+  /** Shared caption reason for an AI-suggested id group (unique → first · second if 2). */
+  function sharedAiReason(ids, reasonsMap) {
+    const unique = [];
+    const seen = new Set();
+    for (const id of ids || []) {
+      const reason = reasonsMap?.[id];
+      if (!reason || seen.has(reason)) continue;
+      seen.add(reason);
+      unique.push(reason);
+    }
+    if (!unique.length) return "AI suggested";
+    if (unique.length === 1) return unique[0];
+    if (unique.length === 2) return `${unique[0]} · ${unique[1]}`;
+    return unique[0];
+  }
+
   function renderServiceSelect(form) {
     const query = state.serviceQuery.trim().toLowerCase();
     const options = SERVICES.filter((item) => !query || item.label.toLowerCase().includes(query));
     const selected = new Set(form.services);
     const aiServices = new Set(state.aiServiceSuggestions || []);
-    return `${window.KNAdminUX.multiSelect({
+    return window.KNAdminUX.multiSelect({
       labelledBy: "kn-drole-service-label",
       triggerAttr: "data-drole-service-toggle",
       triggerLabel: "Select services",
@@ -1214,7 +1236,9 @@
       emptyLabel: "No services match.",
       chipsInTrigger: true,
       chips: (form.services || []).map((id) => ({
-        label: `${aiServices.has(id) ? "✦ " : ""}${labelOf(SERVICES, id)}`,
+        label: labelOf(SERVICES, id),
+        aiSuggested: aiServices.has(id),
+        title: state.aiServiceReasons?.[id] || "AI suggested",
         removeAttr: `data-drole-service-remove="${escapeHtml(id)}"`
       })),
       options: options.map((item) => ({
@@ -1222,19 +1246,7 @@
         checked: selected.has(item.id),
         attr: `data-drole-service="${escapeHtml(item.id)}"${aiServices.has(item.id) ? ' data-ai-suggested="1"' : ""}`
       }))
-    })}
-    ${
-      aiServices.size
-        ? `<div class="ai-service-hints">${[...aiServices]
-            .map((id) => {
-              const reason = state.aiServiceReasons?.[id] || "Suggested from description";
-              return `<span class="ai-service-hint">${escapeHtml(labelOf(SERVICES, id))} ${window.KNAiSuggest.reasonTag(reason, { inline: true })}</span>`;
-            })
-            .join("")}
-          <p class="type-caption-sm ai-applicable-hint">✦ AI suggested services — review before saving.</p>
-        </div>`
-        : ""
-    }`;
+    });
   }
 
   function formLeaveHash() {
@@ -1251,6 +1263,17 @@
     const coveragePct = ALL_KEYS.length ? Math.round((form.permissions.size / ALL_KEYS.length) * 100) : 0;
     const summary = window.KNAdminUX.accessSummary(form.permissions, CATALOG, ACTIONS);
     const submitDisabled = !canSubmitRole(form);
+    const aiServiceIds = state.aiServiceSuggestions || [];
+    const aiApplicableIds = state.aiApplicableSuggestions || [];
+    const accessAiHint =
+      aiServiceIds.length || aiApplicableIds.length
+        ? `<p class="type-caption-sm ai-applicable-hint">✦ ${escapeHtml(
+            sharedAiReason([...aiServiceIds, ...aiApplicableIds], {
+              ...(state.aiServiceReasons || {}),
+              ...(state.aiApplicableReasons || {})
+            })
+          )} — review before saving.</p>`
+        : "";
     const accessFields = !editing
       ? ""
       : `<section class="role-form-zone role-form-zone--access" aria-label="Basics">
@@ -1258,7 +1281,7 @@
               <div class="blade-field">
                 <label class="type-caption-sm type-weight-medium" for="kn-drole-name">Name <span class="role-req" aria-hidden="true">*</span></label>
                 <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-drole-name" name="name" type="text" required maxlength="80" placeholder="e.g. Visibility customer default" value="${escapeHtml(form.name)}" autocomplete="off" />
-                ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name) : ""}
+                ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name, { inline: true }) : ""}
                 ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
               </div>
               <div class="blade-field">
@@ -1276,16 +1299,15 @@
               })}
               <div class="role-applicable__row">
                 ${APPLICABLE.map((item) => {
-                  const isAiSuggested = (state.aiApplicableSuggestions || []).includes(item.id);
-                  const reason = state.aiApplicableReasons?.[item.id] || "Suggested from description";
-                  return `<div class="ai-applicable-wrap${isAiSuggested ? " is-ai-suggested" : ""}">
+                  const isAiSuggested = aiApplicableIds.includes(item.id);
+                  const reason = state.aiApplicableReasons?.[item.id] || "AI suggested";
+                  return `<div class="ai-applicable-wrap${isAiSuggested ? " is-ai-suggested" : ""}"${isAiSuggested ? ` title="${escapeHtml(reason)}"` : ""}>
                     ${check("applicable", item.id, form.applicable.includes(item.id), item.label)}
-                    ${isAiSuggested ? window.KNAiSuggest.reasonTag(reason, { inline: true }) : ""}
                   </div>`;
                 }).join("")}
               </div>
-              ${state.aiApplicableSuggestions?.length ? `<p class="type-caption-sm ai-applicable-hint">✦ AI suggested who this applies to — review before saving.</p>` : ""}
             </div>
+            ${accessAiHint}
           </section>`;
     const permFields = !editing
       ? ""
@@ -2064,6 +2086,16 @@
         return;
       }
       if (event.target.id === "kn-drole-name") {
+        if (state.aiFieldMeta?.name) {
+          state.aiFieldMeta = { ...state.aiFieldMeta, name: "" };
+          window.KNAiSuggest?.logAudit?.({
+            action: "manual-edit",
+            context: "default-role",
+            field: "name",
+            origin: "manual",
+            value: event.target.value
+          });
+        }
         persistForm(readForm(root.querySelector("#kn-drole-form")));
         syncSubmitBtn(root);
       }
@@ -2109,7 +2141,9 @@
       if (event.target.closest("[data-ai-prompt='drole']")) {
         event.preventDefault();
         const chip = event.target.closest("[data-ai-prompt='drole']");
-        applyAiDescription(chip.getAttribute("data-ai-prompt-text") || "");
+        applyAiDescription(chip.getAttribute("data-ai-prompt-text") || "", {
+          nameHint: chip.getAttribute("data-ai-name-hint") || ""
+        });
         return;
       }
       if (event.target.closest("[data-ai-describe-clear='drole']")) {
@@ -2119,6 +2153,9 @@
         Object.keys(state.aiSuggestions).forEach((key) => snap.permissions.delete(key));
         snap.applicable = window.KNAiSuggest.clearAiOnly(snap.applicable, state.aiApplicableSuggestions);
         snap.services = window.KNAiSuggest.clearAiOnly(snap.services, state.aiServiceSuggestions);
+        if (state.aiFieldMeta?.name) {
+          snap.name = "";
+        }
         state.aiDescribe = "";
         state.aiLoading = false;
         state.aiNoMatch = false;

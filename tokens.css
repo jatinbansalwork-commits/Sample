@@ -556,7 +556,7 @@
      group-radius  — inherited by flush children of a clipped shell */
   --radius-surface: var(--theme-border-radius-medium);
   --radius-surface-large: var(--theme-border-radius-large);
-  --radius-nested: var(--theme-border-radius-small);
+  --radius-nested: var(--kn-radius-large);
   --radius-control: var(--kn-radius-large);
   --radius-input: var(--theme-border-radius-xsmall);
   --radius-pill: var(--theme-border-radius-max);
@@ -724,7 +724,7 @@
 @media screen and (min-width: 1024px) {
   :root {
     --kn-grid-gutter: var(--kn-grid-gutter-default);
-    --kn-grid-margin: var(--kn-spacing-07);
+    --kn-grid-margin: var(--kn-spacing-10);
   }
 }
 
@@ -732,7 +732,7 @@
 @media screen and (min-width: 1200px) {
   :root {
     --kn-grid-gutter: var(--kn-grid-gutter-default);
-    --kn-grid-margin: var(--kn-spacing-07);
+    --kn-grid-margin: var(--kn-spacing-10);
     --blade-sidenav-expanded: var(--blade-sidenav-expanded-xl);
     --kn-layout-sidebar: var(--blade-sidenav-expanded-xl);
   }

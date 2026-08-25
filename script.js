@@ -3667,6 +3667,13 @@ function initAiAssistant() {
   const introGreeting = document.getElementById("ai-assistant-intro-greeting");
   const introPrompts = document.getElementById("ai-assistant-intro-prompts");
   const flagsSlot = document.getElementById("ai-assistant-flags");
+  const statusEl = document.getElementById("ai-assistant-status");
+  const ghostEl = document.getElementById("ai-assistant-ghost");
+  const inputErrorEl = document.getElementById("ai-assistant-input-error");
+  const inputErrorText = document.getElementById("ai-assistant-input-error-text");
+  const inputErrorDismiss = document.getElementById("ai-assistant-input-error-dismiss");
+  const sendIcon = sendBtn?.querySelector(".blade-chat-input__icon--send");
+  const stopIcon = sendBtn?.querySelector(".blade-chat-input__icon--stop");
   if (!shell || !panel || !form || !input || !history || !resizeHandle || !triggers.length) {
     return;
   }
@@ -4107,6 +4114,28 @@ function initAiAssistant() {
 
   const THINKING_CHEVRON =
     '<svg class="ai-msg__thinking-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
+
+  const BLADE_SPINNER_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+    <path class="blade-spinner__track" d="M24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12ZM3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12Z" fill="currentColor"/>
+    <path d="M24 12C24 13.8937 23.5518 15.7606 22.6921 17.4479C21.8324 19.1352 20.5855 20.5951 19.0534 21.7082C17.5214 22.8213 15.7476 23.556 13.8772 23.8523C12.0068 24.1485 10.0928 23.9979 8.29181 23.4127L9.21886 20.5595C10.5696 20.9984 12.0051 21.1114 13.4079 20.8892C14.8107 20.667 16.141 20.116 17.2901 19.2812C18.4391 18.4463 19.3743 17.3514 20.0191 16.0859C20.6639 14.8204 21 13.4203 21 12H24Z" fill="currentColor"/>
+    <path d="M-1.33514e-05 12C-1.33514e-05 10.1063 0.448176 8.23944 1.30791 6.55211C2.16764 4.86479 3.41451 3.4049 4.94656 2.2918C6.47862 1.17869 8.25236 0.443983 10.1228 0.147739C11.9932 -0.148504 13.9072 0.00212896 15.7082 0.587322L14.7811 3.44049C13.4304 3.0016 11.9949 2.88862 10.5921 3.11081C9.18927 3.33299 7.85896 3.88402 6.70992 4.71885C5.56088 5.55367 4.62573 6.64859 3.98093 7.91409C3.33613 9.17958 2.99999 10.5797 2.99999 12H-1.33514e-05Z" fill="currentColor"/>
+  </svg>`;
+
+  function bladeSpinnerHtml(extraClass = "") {
+    return `<span class="blade-spinner${extraClass ? ` ${extraClass}` : ""}" role="progressbar" aria-label="Loading">${BLADE_SPINNER_SVG}</span>`;
+  }
+
+  const LOADING_TEXTS = [
+    "Analyzing your request…",
+    "Fetching relevant details…",
+    "Preparing your response…",
+    "Almost there…"
+  ];
+
+  let rollingTimer = null;
+  let ghostTimer = null;
+  let ghostSuggestions = [];
+  let ghostIndex = 0;
 
   function partyLabel(id) {
     const key = String(id || "").toLowerCase();
@@ -5315,27 +5344,135 @@ function initAiAssistant() {
     if (isResponding) {
       sendBtn.disabled = false;
       sendBtn.type = "button";
-      sendBtn.className = "btn btn--secondary btn--md type-ui-md ai-assistant-send--stop";
-      sendBtn.textContent = "Stop";
+      sendBtn.classList.add("is-stop");
+      sendBtn.classList.remove("is-muted");
       sendBtn.setAttribute("aria-label", "Stop generating");
+      sendIcon?.setAttribute("hidden", "");
+      stopIcon?.removeAttribute("hidden");
       form.classList.add("is-responding");
       input.setAttribute("aria-disabled", "true");
+      if (statusEl) {
+        statusEl.textContent = "Typing…";
+        statusEl.classList.add("is-typing");
+      }
       return;
     }
     sendBtn.type = "submit";
-    sendBtn.className = "btn btn--primary btn--md type-ui-md";
-    sendBtn.textContent = "Send";
+    sendBtn.classList.remove("is-stop");
     sendBtn.setAttribute("aria-label", "Send message");
+    sendIcon?.removeAttribute("hidden");
+    stopIcon?.setAttribute("hidden", "");
     const hasText = Boolean(input.value.trim());
     sendBtn.disabled = !hasText;
     sendBtn.classList.toggle("is-muted", !hasText);
     form.classList.remove("is-responding");
     input.removeAttribute("aria-disabled");
+    if (statusEl) {
+      statusEl.textContent = "Ask about this page";
+      statusEl.classList.remove("is-typing");
+    }
+    syncGhostSuggestion();
   }
 
   function setResponding(next) {
     isResponding = next;
     updateSendControl();
+  }
+
+  function clearInputError() {
+    if (inputErrorEl) {
+      inputErrorEl.hidden = true;
+    }
+    if (inputErrorText) {
+      inputErrorText.textContent = "";
+    }
+  }
+
+  function showInputError(message) {
+    if (!inputErrorEl || !inputErrorText) {
+      return;
+    }
+    inputErrorText.textContent = String(message || "").trim();
+    inputErrorEl.hidden = !inputErrorText.textContent;
+  }
+
+  function stopRollingText() {
+    if (rollingTimer) {
+      window.clearInterval(rollingTimer);
+      rollingTimer = null;
+    }
+  }
+
+  function startRollingText(labelEl, texts) {
+    stopRollingText();
+    const list = (texts || []).filter(Boolean);
+    if (!labelEl || !list.length) {
+      return;
+    }
+    let index = 0;
+    labelEl.textContent = list[0];
+    if (list.length < 2 || prefersReducedMotion()) {
+      return;
+    }
+    rollingTimer = window.setInterval(() => {
+      index = (index + 1) % list.length;
+      labelEl.classList.remove("is-swap");
+      void labelEl.offsetWidth;
+      labelEl.textContent = list[index];
+      labelEl.classList.add("is-swap");
+    }, 1600);
+  }
+
+  function loadingTextsFor(context) {
+    const look = lookingCopy(context);
+    return [look, ...LOADING_TEXTS.filter((t) => t !== look)].slice(0, 5);
+  }
+
+  function syncGhostSuggestion() {
+    if (!ghostEl) {
+      return;
+    }
+    if (isResponding || input.value.trim()) {
+      ghostEl.textContent = "";
+      ghostEl.hidden = true;
+      return;
+    }
+    const suggestion = ghostSuggestions[ghostIndex] || "";
+    ghostEl.textContent = suggestion;
+    ghostEl.hidden = !suggestion;
+  }
+
+  function refreshGhostSuggestions(context = getContext()) {
+    ghostSuggestions = starterPrompts(context)
+      .map((item) => item.prompt)
+      .filter(Boolean)
+      .slice(0, 5);
+    ghostIndex = 0;
+    if (ghostTimer) {
+      window.clearInterval(ghostTimer);
+      ghostTimer = null;
+    }
+    syncGhostSuggestion();
+    if (ghostSuggestions.length > 1 && !prefersReducedMotion()) {
+      ghostTimer = window.setInterval(() => {
+        if (input.value.trim() || isResponding) {
+          return;
+        }
+        ghostIndex = (ghostIndex + 1) % ghostSuggestions.length;
+        syncGhostSuggestion();
+      }, 4200);
+    }
+  }
+
+  function acceptGhostSuggestion() {
+    const suggestion = ghostSuggestions[ghostIndex];
+    if (!suggestion || input.value.trim()) {
+      return false;
+    }
+    input.value = suggestion;
+    syncGhostSuggestion();
+    updateSendControl();
+    return true;
   }
 
   function stopGeneration() {
@@ -5344,6 +5481,7 @@ function initAiAssistant() {
       window.clearTimeout(streamTimer);
       streamTimer = null;
     }
+    stopRollingText();
     const status = history.querySelector(".ai-msg--status");
     status?.remove();
     const streaming = history.querySelector(".ai-msg--streaming");
@@ -5467,27 +5605,48 @@ function initAiAssistant() {
     </div>`;
   }
 
-  function thinkingPanelHtml(steps, expanded = false) {
+  function thinkingPanelHtml(steps, expanded = false, { status = "complete" } = {}) {
     const items = (steps || []).filter(Boolean);
     if (!items.length) {
       return "";
     }
     const traceId = `ai-thinking-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const isLoading = status === "loading";
+    const title = isLoading ? "Exploring…" : "Explored";
+    const rows = items
+      .map((step, index) => {
+        const isLast = index === items.length - 1;
+        const stepStatus = isLoading
+          ? index < items.length - 1
+            ? "complete"
+            : "active"
+          : "complete";
+        const railInner =
+          stepStatus === "active"
+            ? `<span class="ai-msg__trace-active-icon">${bladeSpinnerHtml("blade-spinner--accent")}</span>`
+            : `<span class="ai-msg__trace-dot" aria-hidden="true"></span>`;
+        return `<li class="is-${stepStatus}">
+          <span class="ai-msg__trace-rail" aria-hidden="true">
+            ${railInner}
+            ${isLast ? "" : '<span class="ai-msg__trace-connector"></span>'}
+          </span>
+          <p class="ai-msg__trace-label type-caption-sm">${escapeHtml(step)}</p>
+        </li>`;
+      })
+      .join("");
     return `
-      <div class="ai-msg__thinking-panel">
+      <div class="ai-msg__thinking-panel" data-reasoning-status="${status}">
         <button
           type="button"
           class="ai-msg__thinking-toggle type-caption-sm"
-          aria-expanded="${expanded ? "true" : "false"}"
+          aria-expanded="${expanded || isLoading ? "true" : "false"}"
           aria-controls="${traceId}"
         >
-          ${THINKING_CHEVRON}
-          <span class="ai-msg__thinking-toggle-label">${expanded ? "Hide thinking" : "Show thinking"}</span>
+          ${isLoading ? bladeSpinnerHtml("blade-spinner--accent") : THINKING_CHEVRON}
+          <span class="ai-msg__thinking-toggle-label">${isLoading ? title : expanded ? "Hide thinking" : "Show thinking"}</span>
         </button>
-        <div class="ai-msg__thinking-trace" id="${traceId}" ${expanded ? "" : "hidden"}>
-          <ol class="ai-msg__thinking-list type-caption-sm">
-            ${items.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
-          </ol>
+        <div class="ai-msg__thinking-trace" id="${traceId}" ${expanded || isLoading ? "" : "hidden"}>
+          <ol class="ai-msg__thinking-list type-caption-sm">${rows}</ol>
         </div>
       </div>
     `;
@@ -5575,6 +5734,7 @@ function initAiAssistant() {
   function setThinking(isThinking, context) {
     const existing = history.querySelector(".ai-msg--status");
     if (!isThinking) {
+      stopRollingText();
       if (existing) {
         existing.classList.add("is-leaving");
         if (prefersReducedMotion()) {
@@ -5585,29 +5745,35 @@ function initAiAssistant() {
       }
       return;
     }
-    const labelText = lookingCopy(context);
+    const texts = loadingTextsFor(context);
+    const labelText = texts[0] || lookingCopy(context);
     if (existing) {
-      const label = existing.querySelector(".ai-msg__thinking-label");
+      const label = existing.querySelector("[data-ai-rolling]");
       if (label) {
-        label.textContent = labelText;
+        startRollingText(label, texts);
       }
       announceAssistant(labelText);
       return;
     }
     const status = document.createElement("article");
-    status.className = "ai-msg ai-msg--assistant ai-msg--status";
-    status.setAttribute("aria-hidden", "true");
+    status.className = "ai-msg ai-msg--assistant ai-msg--status ai-msg--loading";
+    status.setAttribute("aria-live", "polite");
     status.innerHTML = `
-      <div class="ai-msg__thinking">
-        <span class="ai-msg__spark" aria-hidden="true">✦</span>
-        <p class="ai-msg__thinking-label type-caption-sm">${escapeHtml(labelText)}</p>
-      </div>
-      <div class="ai-msg__skeleton" aria-hidden="true">
-        <span></span><span></span><span></span>
+      <div class="ai-msg__row">
+        <span class="ai-msg__leading is-rotating" aria-hidden="true">
+          <img class="klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="20" height="20" />
+        </span>
+        <div class="ai-msg__loading-col">
+          <div class="ai-msg__loading-line">
+            ${bladeSpinnerHtml("blade-spinner--accent")}
+            <p class="ai-msg__rolling type-body-sm" data-ai-rolling>${escapeHtml(labelText)}</p>
+          </div>
+        </div>
       </div>
     `;
     history.appendChild(status);
     history.scrollTop = history.scrollHeight;
+    startRollingText(status.querySelector("[data-ai-rolling]"), texts);
     announceAssistant(labelText);
   }
 
@@ -5765,6 +5931,7 @@ function initAiAssistant() {
     );
     fillPromptChips(welcome.querySelector(".ai-assistant-prompts"), context);
     history.appendChild(welcome);
+    refreshGhostSuggestions(context);
   }
 
   function noWriteResponse(question, context) {
@@ -6378,6 +6545,7 @@ function initAiAssistant() {
     updateWidth(preferredWidth);
     syncContextChip();
     syncOpsFlags();
+    refreshGhostSuggestions();
     if (!hasSeenFlag(INTRO_SEEN_KEY)) {
       showIntro();
       return;
@@ -6500,7 +6668,8 @@ function initAiAssistant() {
         trace.hidden = !next;
       }
       if (label) {
-        label.textContent = next ? "Hide thinking" : "Show thinking";
+        const loading = panelEl?.getAttribute("data-reasoning-status") === "loading";
+        label.textContent = loading ? "Exploring…" : next ? "Hide thinking" : "Show thinking";
       }
       return;
     }
@@ -6556,8 +6725,15 @@ function initAiAssistant() {
     }
   });
 
-  input.addEventListener("input", updateSendControl);
+  input.addEventListener("input", () => {
+    clearInputError();
+    updateSendControl();
+  });
   input.addEventListener("keydown", (event) => {
+    if (event.key === "Tab" && !event.shiftKey && acceptGhostSuggestion()) {
+      event.preventDefault();
+      return;
+    }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       if (isResponding) {
@@ -6568,6 +6744,11 @@ function initAiAssistant() {
         form.requestSubmit();
       }
     }
+  });
+
+  inputErrorDismiss?.addEventListener("click", (event) => {
+    event.preventDefault();
+    clearInputError();
   });
 
   sendBtn?.addEventListener("click", (event) => {
@@ -6586,18 +6767,21 @@ function initAiAssistant() {
     }
     const question = input.value.trim();
     if (!question) {
+      showInputError("Enter a question to ask Klear Assistant.");
       return;
     }
+    clearInputError();
     const genId = ++generationId;
     fadeOutEmptySurfaces();
     addMessage("user", question);
     input.value = "";
+    syncGhostSuggestion();
     updateSendControl();
     setResponding(true);
     // Resolve grounding AFTER the delay so chip + answer + presentResult share one fresh context.
     setThinking(true, getContext());
     try {
-      await delay(160);
+      await delay(prefersReducedMotion() ? 120 : 1100);
       if (genId !== generationId) {
         return;
       }
@@ -6654,6 +6838,7 @@ function initAiAssistant() {
     const context = getContext();
     syncContextChip(context);
     syncOpsFlags();
+    refreshGhostSuggestions(context);
     if (!isOpen) {
       return;
     }

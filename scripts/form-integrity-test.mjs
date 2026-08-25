@@ -258,5 +258,151 @@ function setEq(a, b) {
   assert("someKeysSelected is false for empty key list", ux.someKeysSelected(partial, []) === false);
 }
 
+{
+  const live = new Set(["a:read", "b:read"]);
+  ux.syncPermissionSet(live, null);
+  assert("syncPermissionSet no-ops on null next (no cascade wipe)", setEq(live, ["a:read", "b:read"]));
+  ux.syncPermissionSet(live, undefined);
+  assert("syncPermissionSet no-ops on undefined next", setEq(live, ["a:read", "b:read"]));
+}
+
+// --- Seed-shaped roles (Customer Administrator / Finance Credits Owner / Analytics Viewer) ---
+{
+  const finance = [
+    "kn-credits-management:create",
+    "kn-credits-management:update",
+    "kn-credits-management:delete",
+    "kn-credits-management:read",
+    "kn-promo-code-management:create",
+    "kn-promo-code-management:update",
+    "kn-promo-code-management:delete",
+    "kn-promo-code-management:read"
+  ];
+  const analytics = [
+    "hevo-dashboard:create",
+    "hevo-dashboard:update",
+    "hevo-dashboard:delete",
+    "hevo-dashboard:read"
+  ];
+  const customerAdmin = [
+    "user-management:create",
+    "user-management:update",
+    "user-management:delete",
+    "user-management:read",
+    "role-management:create",
+    "role-management:update",
+    "role-management:delete",
+    "role-management:read",
+    "customer-profile:create",
+    "customer-profile:update",
+    "customer-profile:delete",
+    "customer-profile:read",
+    "sub-customer-profile:create",
+    "sub-customer-profile:update",
+    "sub-customer-profile:delete",
+    "sub-customer-profile:read"
+  ];
+  const visRow = [
+    "visibility-data:create",
+    "visibility-data:update",
+    "visibility-data:delete",
+    "visibility-data:read"
+  ];
+
+  function emulateToggleKeys(live, keys) {
+    const result = ux.applyPermDependencyToggle(live, keys, ux.DEFAULT_PERM_ACTIONS);
+    ux.syncPermissionSet(live, result.permissions);
+    return live;
+  }
+
+  function storageRoundTrip(storageKey, role) {
+    const blob = JSON.stringify([role]);
+    const parsed = JSON.parse(blob);
+    return { storageKey, role: parsed[0] };
+  }
+
+  {
+    const prior = new Set(finance);
+    const toggled = ux.applyPermissionToggle(prior, "hevo-dashboard:read", true);
+    assert(
+      "Finance Credits Owner: one checkbox leaves finance keys untouched",
+      finance.every((key) => toggled.permissions.has(key)) && toggled.permissions.has("hevo-dashboard:read"),
+      `got size ${toggled.permissions.size}`
+    );
+  }
+
+  {
+    const live = new Set(finance);
+    emulateToggleKeys(live, visRow);
+    assert(
+      "Finance Credits Owner: row toggleKeys keeps finance (kn-roles-v2 semantics)",
+      finance.every((key) => live.has(key)) && visRow.every((key) => live.has(key)),
+      `got ${[...live].sort().join(",")}`
+    );
+    const { storageKey, role } = storageRoundTrip("kn-roles-v2", {
+      id: "role-finance",
+      name: "Finance Credits Owner",
+      permissions: [...live]
+    });
+    assert("Finance storage key is kn-roles-v2", storageKey === "kn-roles-v2");
+    assert(
+      "Finance Credits Owner survives localStorage JSON round-trip",
+      finance.every((key) => role.permissions.includes(key)) && role.permissions.includes("visibility-data:read")
+    );
+  }
+
+  {
+    const live = new Set(analytics);
+    emulateToggleKeys(live, ["overview:create", "kn-visibility:create"]);
+    assert(
+      "Analytics Viewer: unrelated create toggles keep hevo-dashboard",
+      analytics.every((key) => live.has(key)),
+      `got ${[...live].sort().join(",")}`
+    );
+    const { role } = storageRoundTrip("kn-roles-v2", {
+      id: "role-analytics",
+      name: "Analytics Viewer",
+      permissions: [...live]
+    });
+    assert(
+      "Analytics Viewer survives localStorage JSON round-trip",
+      analytics.every((key) => role.permissions.includes(key))
+    );
+  }
+
+  {
+    const live = new Set(customerAdmin);
+    // Partial DOM: only vis row visible and unchecked — merge must keep admin keys
+    const merged = ux.mergePermissionSelections(live, [], visRow);
+    assert(
+      "Customer Administrator: partial DOM merge keeps admin catalog",
+      setEq(merged, customerAdmin),
+      `got ${[...merged].sort().join(",")}`
+    );
+    emulateToggleKeys(live, visRow);
+    const one = ux.applyPermissionToggle(live, "credit-tracking:read", true);
+    ux.syncPermissionSet(live, one.permissions);
+    assert(
+      "Customer Administrator: row + cell toggles never wipe admin keys",
+      customerAdmin.every((key) => live.has(key)) &&
+        visRow.every((key) => live.has(key)) &&
+        live.has("credit-tracking:read"),
+      `got size ${live.size}`
+    );
+    const { storageKey, role } = storageRoundTrip("kn-default-roles-v3", {
+      id: "def-customer-admin",
+      name: "Customer Administrator",
+      permissions: [...live]
+    });
+    assert("Customer Admin storage key is kn-default-roles-v3", storageKey === "kn-default-roles-v3");
+    assert(
+      "Customer Administrator survives localStorage JSON round-trip",
+      customerAdmin.every((key) => role.permissions.includes(key)) &&
+        role.permissions.includes("visibility-data:read") &&
+        role.permissions.includes("credit-tracking:read")
+    );
+  }
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -729,6 +729,8 @@ function setRouteHash(href) {
     return;
   }
   history.replaceState(null, "", nextPath);
+  // replaceState does not fire hashchange — notify listeners (assistant grounding, etc.).
+  window.dispatchEvent(new CustomEvent("kn-route-change", { detail: { hash: nextPath } }));
 }
 
 function setPageSectionVisibility(el, visible) {
@@ -1494,16 +1496,27 @@ function countRows(rows, predicate) {
 }
 
 function modeFreshness(rows) {
-  const stamps = rows.map((item) => item.created || "").filter(Boolean).sort();
-  const latestDay = (stamps[stamps.length - 1] || "").slice(0, 10);
-  const latestDate = latestDay ? new Date(`${latestDay}T00:00:00Z`) : new Date();
-  const weekStart = new Date(latestDate);
-  weekStart.setUTCDate(weekStart.getUTCDate() - 6);
-  const weekStamp = weekStart.toISOString().slice(0, 10);
-  const today = latestDay ? countRows(rows, (item) => (item.created || "").startsWith(latestDay)) : 0;
-  const week = latestDay ? countRows(rows, (item) => (item.created || "") >= weekStamp) : 0;
+  const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const toStamp = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const todayStart = startOfDay(new Date());
+  const todayStamp = toStamp(todayStart);
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekStamp = toStamp(weekStart);
+  const monthStamp = toStamp(new Date(todayStart.getFullYear(), todayStart.getMonth(), 1));
+  const createdDay = (item) => (item.created || "").slice(0, 10);
+  const today = countRows(rows, (item) => createdDay(item) === todayStamp);
+  const week = countRows(rows, (item) => {
+    const day = createdDay(item);
+    return Boolean(day) && day >= weekStamp;
+  });
+  const month = countRows(rows, (item) => {
+    const day = createdDay(item);
+    return Boolean(day) && day >= monthStamp;
+  });
   const pending = countRows(rows, (item) => /waiting to depart/i.test(item.status || ""));
-  return { today, week, month: rows.length, pending, ingested: Math.max(0, rows.length - pending) };
+  return { today, week, month, pending, ingested: Math.max(0, rows.length - pending) };
 }
 
 function buildKlearhubModes(rows) {
@@ -1551,7 +1564,8 @@ function buildKlearhubModes(rows) {
     id: "air",
     title: "Air Shipments",
     icon: "air",
-    meta: [{ label: "Active MAWBs", value: String(air.length) }],
+    // Stages partition the active population — omit header total to avoid duplicating Destination when all are enroute.
+    meta: [],
     stages: [
       { title: "Origin Airport", rows: [{ label: "Waiting to export Airport Of Origin", value: `${countRows(air, (item) => /waiting/i.test(item.status || ""))} MAWBs` }] },
       { title: "Destination Airport", rows: [{ label: "Enroute to POD", value: `${countRows(air, (item) => /enroute|in transit/i.test(item.status || ""))} MAWBs` }] }
@@ -2266,7 +2280,11 @@ function copyKnValue(value, label = "value", sourceEl) {
     return;
   }
   const announce = () => {
-    showBladeToast({ content: `Copied ${label} ${text}`, color: "positive" });
+    showBladeToast({
+      content: `Copied ${label} ${text}`,
+      color: "positive",
+      anchor: sourceEl instanceof HTMLElement ? sourceEl : null
+    });
     markKnCopied(sourceEl);
   };
   if (navigator.clipboard?.writeText) {
@@ -2324,9 +2342,49 @@ function clearBladeToasts({ animate = false } = {}) {
     el.classList.add("is-leaving");
     window.setTimeout(() => el.remove(), 220);
   });
+  if (!animate) {
+    resetBladeToastContainer(container);
+  }
 }
 
-function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DURATION_MS } = {}) {
+function resetBladeToastContainer(container) {
+  container.classList.remove("blade-toast-container--anchored");
+  container.style.left = "";
+  container.style.top = "";
+  container.style.right = "";
+  container.style.bottom = "";
+}
+
+function positionAnchoredBladeToast(container, toast, anchor) {
+  const gutter = 16;
+  const gap = 8;
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(container.offsetWidth || 360, window.innerWidth - gutter * 2);
+  const height = toast.offsetHeight || 48;
+  let left = rect.left;
+  if (left + width > window.innerWidth - gutter) {
+    left = window.innerWidth - width - gutter;
+  }
+  if (left < gutter) {
+    left = gutter;
+  }
+  let top = rect.bottom + gap;
+  if (top + height > window.innerHeight - gutter) {
+    const above = rect.top - height - gap;
+    if (above >= gutter) {
+      top = above;
+    } else {
+      top = Math.max(gutter, window.innerHeight - height - gutter);
+    }
+  }
+  container.classList.add("blade-toast-container--anchored");
+  container.style.left = `${Math.round(left)}px`;
+  container.style.top = `${Math.round(top)}px`;
+  container.style.right = "auto";
+  container.style.bottom = "auto";
+}
+
+function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DURATION_MS, anchor = null } = {}) {
   const container = document.getElementById("blade-toast-container") || (() => {
     const el = document.createElement("div");
     el.className = "blade-toast-container";
@@ -2337,6 +2395,7 @@ function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DU
   })();
 
   clearBladeToasts();
+  resetBladeToastContainer(container);
 
   const toast = document.createElement("div");
   toast.className = `blade-toast blade-toast--${color}`;
@@ -2363,11 +2422,19 @@ function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DU
       return;
     }
     toast.classList.add("is-leaving");
-    window.setTimeout(() => toast.remove(), 220);
+    window.setTimeout(() => {
+      toast.remove();
+      if (!container.querySelector(".blade-toast")) {
+        resetBladeToastContainer(container);
+      }
+    }, 220);
   };
 
   toast.querySelector("button")?.addEventListener("click", remove);
   container.appendChild(toast);
+  if (anchor instanceof HTMLElement) {
+    positionAnchoredBladeToast(container, toast, anchor);
+  }
   bladeToastTimer = window.setTimeout(remove, Math.max(1200, Number(duration) || BLADE_TOAST_DURATION_MS));
 }
 
@@ -2461,10 +2528,31 @@ function initDashDatePicker() {
     });
   };
 
+  const clearDateError = () => {
+    if (error) {
+      error.hidden = true;
+    }
+    startInput.removeAttribute("aria-invalid");
+    endInput.removeAttribute("aria-invalid");
+  };
+
+  const showDateError = (message, { startInvalid = false, endInvalid = true } = {}) => {
+    if (error) {
+      error.hidden = false;
+      error.textContent = message;
+      error.setAttribute("role", "alert");
+      error.setAttribute("aria-live", "assertive");
+    }
+    startInput.setAttribute("aria-invalid", startInvalid ? "true" : "false");
+    endInput.setAttribute("aria-invalid", endInvalid ? "true" : "false");
+    positionMenu();
+  };
+
   const fillInputs = (start, end) => {
     startInput.value = toISODate(start);
     endInput.value = toISODate(end);
-    error.hidden = true;
+    endInput.min = startInput.value;
+    clearDateError();
     setPresetSelection(matchPreset(start, end));
   };
 
@@ -2532,7 +2620,7 @@ function initDashDatePicker() {
     setOpen(false);
     applyDashSummary((window.KNShipments || []).filter((item) => knShipmentInRange(item, applied[0], applied[1])));
     if (persist) {
-      showBladeToast({ content: `Showing ${text}`, color: "information" });
+      showBladeToast({ content: `Showing ${text}`, color: "information", anchor: trigger });
     }
   };
 
@@ -2548,30 +2636,22 @@ function initDashDatePicker() {
     const start = fromISODate(startInput.value);
     const end = fromISODate(endInput.value);
     if (!start || !end) {
-      if (error) {
-        error.hidden = false;
-        error.textContent = "Choose both a start date and an end date.";
-      }
-      startInput.setAttribute("aria-invalid", start ? "false" : "true");
-      endInput.setAttribute("aria-invalid", end ? "false" : "true");
+      showDateError("Choose both a start date and an end date.", {
+        startInvalid: !start,
+        endInvalid: !end
+      });
       (!start ? startInput : endInput).focus();
       return;
     }
     if (end < start) {
-      if (error) {
-        error.hidden = false;
-        error.textContent = "End date must be after start date";
-      }
-      startInput.setAttribute("aria-invalid", "false");
-      endInput.setAttribute("aria-invalid", "true");
+      showDateError("End date must be after start date", {
+        startInvalid: false,
+        endInvalid: true
+      });
       endInput.focus();
       return;
     }
-    if (error) {
-      error.hidden = true;
-    }
-    startInput.setAttribute("aria-invalid", "false");
-    endInput.setAttribute("aria-invalid", "false");
+    clearDateError();
     applyRange(start, end);
   });
   menu.addEventListener("click", (event) => {
@@ -2585,7 +2665,8 @@ function initDashDatePicker() {
     setPresetSelection(id);
   });
   const onDraftChange = () => {
-    error.hidden = true;
+    endInput.min = startInput.value || "";
+    clearDateError();
     const start = fromISODate(startInput.value);
     const end = fromISODate(endInput.value);
     setPresetSelection(start && end ? matchPreset(start, end) : "");
@@ -3070,7 +3151,11 @@ function initDashboardLayout() {
     persistOnClose = true;
     closeDrawer();
     window.setTimeout(() => {
-      showBladeToast({ content: "Dashboard layout saved", color: "positive" });
+      showBladeToast({
+        content: "Dashboard layout saved",
+        color: "positive",
+        anchor: trigger instanceof HTMLElement ? trigger : null
+      });
     }, 80);
   };
 
@@ -5269,7 +5354,7 @@ function initAiAssistant() {
       note.textContent = "Generation stopped.";
       streaming.querySelector(".ai-msg__body")?.appendChild(note);
       if (!streaming.querySelector(".ai-msg__actions")) {
-        streaming.insertAdjacentHTML("beforeend", messageActionsHtml());
+        appendToAssistantStack(streaming, messageActionsHtml());
       }
     }
     setResponding(false);
@@ -5337,7 +5422,17 @@ function initAiAssistant() {
   function openEntityLink(type, id, href) {
     if (type === "page") {
       if (href) {
-        setRouteHash(href);
+        const path = href.split("?")[0];
+        const navLink =
+          sideNav.querySelector(`.side-nav-link[data-level="2"][href="${path}"]`) ||
+          sideNav.querySelector(`.side-nav-link[href="${path}"]`);
+        if (navLink) {
+          window.KNAdminUX?.beginNavigation?.();
+          navLink.click();
+        } else {
+          setRouteHash(href);
+          renderBreadcrumb();
+        }
       }
       return;
     }
@@ -5351,6 +5446,7 @@ function initAiAssistant() {
     }
     if (href) {
       setRouteHash(href);
+      renderBreadcrumb();
     }
     window.setTimeout(() => highlightEntity(type, id), 280);
   }
@@ -5402,15 +5498,17 @@ function initAiAssistant() {
     if (!prompts.length) {
       return "";
     }
-    return `<div class="ai-msg__followups" role="group" aria-label="Follow-up suggestions">${prompts
-      .map((item) => {
-        const iconKey = resolvePromptIcon(item);
-        return `<button type="button" class="ai-prompt-chip ai-prompt-chip--followup type-body-sm" data-ai-prompt="${escapeHtml(item.prompt)}" aria-label="Ask: ${escapeHtml(item.prompt)}">
-          <span class="ai-prompt-chip__icon" aria-hidden="true">${PROMPT_ICON_SVG[iconKey] || PROMPT_ICON_SVG.ask}</span>
-          <span class="ai-prompt-chip__body"><span class="ai-prompt-chip__label">${escapeHtml(item.label)}</span></span>
-        </button>`;
-      })
-      .join("")}</div>`;
+    return `<div class="ai-msg__related" role="group" aria-label="Related questions">
+      <p class="ai-msg__related-label type-caption-sm">Related</p>
+      <div class="ai-msg__related-chips">
+        ${prompts
+          .map(
+            (item) =>
+              `<button type="button" class="ai-msg__related-chip type-caption-sm" data-ai-prompt="${escapeHtml(item.prompt)}" aria-label="Ask: ${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>`
+          )
+          .join("")}
+      </div>
+    </div>`;
   }
 
   function addMessage(kind, text, { html = "", actions = false, streaming = false, title = "", thinking = [], followUps = [], sources = [] } = {}) {
@@ -5423,18 +5521,30 @@ function initAiAssistant() {
       const titleHtml = title
         ? `<h3 class="ai-msg__response-title type-ui-md type-weight-semibold">${escapeHtml(title)}</h3>`
         : "";
-      node.innerHTML = `
+      node.innerHTML = `<div class="ai-msg__stack">
         ${thinkingPanelHtml(thinking)}
         ${titleHtml}
         <div class="ai-msg__body type-body-sm">${html || `<p>${escapeHtml(text)}</p>`}</div>
         ${sourcesHtml(sources)}
         ${followUpsHtml(followUps)}
         ${actions ? messageActionsHtml() : ""}
-      `;
+      </div>`;
     }
     history.appendChild(node);
     history.scrollTop = history.scrollHeight;
     return node;
+  }
+
+  function appendToAssistantStack(node, html) {
+    if (!html || !node) {
+      return;
+    }
+    const stack = node.querySelector(".ai-msg__stack");
+    if (stack) {
+      stack.insertAdjacentHTML("beforeend", html);
+      return;
+    }
+    node.insertAdjacentHTML("beforeend", html);
   }
 
   function addDraftMessage(draft, leadIn, context, meta = {}) {
@@ -5540,13 +5650,14 @@ function initAiAssistant() {
     if (prefersReducedMotion()) {
       body.innerHTML = fullHtml;
       node.classList.remove("ai-msg--streaming");
-      if (followUps.length) {
-        node.insertAdjacentHTML("beforeend", followUpsHtml(followUps));
-      }
+      node.classList.add("ai-msg--settled");
       if (sources.length) {
-        node.insertAdjacentHTML("beforeend", sourcesHtml(sources));
+        appendToAssistantStack(node, sourcesHtml(sources));
       }
-      node.insertAdjacentHTML("beforeend", messageActionsHtml());
+      if (followUps.length) {
+        appendToAssistantStack(node, followUpsHtml(followUps));
+      }
+      appendToAssistantStack(node, messageActionsHtml());
       announceAssistant([title, plainTextFromHtml(fullHtml)].filter(Boolean).join(". "));
       return node;
     }
@@ -5570,13 +5681,13 @@ function initAiAssistant() {
     body.innerHTML = fullHtml;
     node.classList.remove("ai-msg--streaming");
     node.classList.add("ai-msg--settled");
-    if (followUps.length) {
-      node.insertAdjacentHTML("beforeend", followUpsHtml(followUps));
-    }
     if (sources.length) {
-      node.insertAdjacentHTML("beforeend", sourcesHtml(sources));
+      appendToAssistantStack(node, sourcesHtml(sources));
     }
-    node.insertAdjacentHTML("beforeend", messageActionsHtml());
+    if (followUps.length) {
+      appendToAssistantStack(node, followUpsHtml(followUps));
+    }
+    appendToAssistantStack(node, messageActionsHtml());
     announceAssistant([title, plainTextFromHtml(fullHtml)].filter(Boolean).join(". "));
     return node;
   }
@@ -5724,8 +5835,12 @@ function initAiAssistant() {
   }
 
   function answer(question, pageContext) {
-    const context = pageContext || getContext();
+    // Always re-read live hash grounding. Ignore stale captures from when the panel
+    // was opened (sidenav replaceState does not fire hashchange by itself).
+    const context = getContext();
+    void pageContext;
     const q = String(question || "").trim();
+    syncContextChip(context);
     const draftOrReview = answerDraftOrReview(q);
     if (draftOrReview?.mode === "draft" || draftOrReview?.mode === "review") {
       return draftOrReview;
@@ -5738,10 +5853,6 @@ function initAiAssistant() {
         followUps: followUpsFromContext(context, q)
       });
     }
-    const compared = answerCategoryDiff(q);
-    if (compared) {
-      return compared;
-    }
     const lower = q.toLowerCase();
     const facts = context.facts || {};
     const persona = getSignedInPersona();
@@ -5752,7 +5863,9 @@ function initAiAssistant() {
     const adminKind = /^(roles|role-detail|role-add|users|user-detail|user-add|defaults|default-detail|default-add)$/.test(
       context.kind || ""
     );
-    if (opsQuestion && adminKind) {
+    const opsKind = /^(dashboard|visibility|visibility-detail|overview)$/.test(context.kind || "");
+    // Refuse ops/shipment answers on admin pages before any other branch can leak Dashboard data.
+    if (opsQuestion && (adminKind || (!opsKind && context.kind === "unavailable"))) {
       return textAnswer({
         title: "Not on this page",
         thinking: [
@@ -5765,6 +5878,10 @@ function initAiAssistant() {
           { label: "What can I ask here?", prompt: "What can you tell me about this page?" }
         ]
       });
+    }
+    const compared = answerCategoryDiff(q);
+    if (compared) {
+      return compared;
     }
     const genericEncyclopedia =
       /\b(what is (a |an )?(rbac|role[- ]based|permission system|access control)|explain (rbac|role inheritance) in general|encyclopedia|generally speaking)\b/i.test(
@@ -6471,20 +6588,20 @@ function initAiAssistant() {
     if (!question) {
       return;
     }
-    const context = getContext();
     const genId = ++generationId;
     fadeOutEmptySurfaces();
     addMessage("user", question);
     input.value = "";
     updateSendControl();
     setResponding(true);
-    syncContextChip(context);
-    setThinking(true, context);
+    // Resolve grounding AFTER the delay so chip + answer + presentResult share one fresh context.
+    setThinking(true, getContext());
     try {
       await delay(160);
       if (genId !== generationId) {
         return;
       }
+      const context = getContext();
       const result = answer(question, context);
       await presentResult(result, context, genId, question);
     } catch (_error) {
@@ -6532,7 +6649,7 @@ function initAiAssistant() {
     placeCoachmark();
   });
 
-  window.addEventListener("hashchange", () => {
+  function onAssistantRouteChange() {
     refChipDismissed = false;
     const context = getContext();
     syncContextChip(context);
@@ -6544,10 +6661,15 @@ function initAiAssistant() {
       fillIntro(context);
       return;
     }
+    // Refresh empty-state / welcome prompts so Dashboard chips don't linger on admin pages.
     if (!history.querySelector(".ai-msg--user")) {
       renderEmptyState();
     }
-  });
+  }
+
+  window.addEventListener("hashchange", onAssistantRouteChange);
+  // Sidenav uses history.replaceState via setRouteHash — no hashchange fires.
+  window.addEventListener("kn-route-change", onAssistantRouteChange);
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {

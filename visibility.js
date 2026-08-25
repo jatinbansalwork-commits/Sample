@@ -1082,7 +1082,11 @@ function resetVisibilityMap() {
     window.setTimeout(() => pane.classList.remove("map-pills-enter"), 700);
   }
   if (typeof window.showBladeToast === "function") {
-    window.showBladeToast({ content: "Map reset to default view", color: "positive" });
+    window.showBladeToast({
+      content: "Map reset to default view",
+      color: "positive",
+      anchor: btn instanceof HTMLElement ? btn : null
+    });
   }
   window.setTimeout(() => btn?.classList.remove("is-spinning"), reduceMotion ? 0 : 650);
 }
@@ -1385,12 +1389,19 @@ function visExportStamp() {
   return `${now.getFullYear()}${month}${day}`;
 }
 
-function exportVisibilityData() {
+function exportVisibilityData(event) {
   const rows = getFilteredVisShipments();
+  const menuTrigger = document.getElementById("vis-more-trigger");
+  const anchor =
+    menuTrigger instanceof HTMLElement
+      ? menuTrigger
+      : event?.currentTarget instanceof HTMLElement
+        ? event.currentTarget
+        : null;
   closeVisMenus();
   if (!rows.length) {
     if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content: "Nothing in this view to export.", color: "information" });
+      window.showBladeToast({ content: "Nothing in this view to export.", color: "information", anchor });
     }
     return;
   }
@@ -1428,7 +1439,8 @@ function exportVisibilityData() {
   if (typeof window.showBladeToast === "function") {
     window.showBladeToast({
       content: `Exported ${rows.length} shipment${rows.length === 1 ? "" : "s"}.`,
-      color: "positive"
+      color: "positive",
+      anchor
     });
   }
 }

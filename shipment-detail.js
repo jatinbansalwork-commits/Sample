@@ -28,6 +28,30 @@
     Frankfurt: [50.0379, 8.5622]
   };
 
+  const PORT_COORDS = {
+    USCHS: CITY_COORDS.Charleston,
+    DEHAM: CITY_COORDS.Hamburg,
+    CNSHA: CITY_COORDS.Shanghai,
+    CNYTN: CITY_COORDS.Yantian,
+    GBLON: CITY_COORDS.London,
+    EGLL: CITY_COORDS.London,
+    CNNGB: CITY_COORDS.Ningbo,
+    INNSA: CITY_COORDS["Nhava Sheva"],
+    SGSIN: CITY_COORDS.Singapore,
+    USLRD: CITY_COORDS.Laredo,
+    AEDXB: CITY_COORDS.Dubai,
+    OMDB: CITY_COORDS.Dubai,
+    JPTYO: CITY_COORDS.Tokyo,
+    USLAX: CITY_COORDS["Los Angeles"],
+    USLGB: CITY_COORDS["Long Beach"],
+    USNYC: CITY_COORDS["New York"],
+    KJFK: CITY_COORDS["New York"],
+    NLRTM: CITY_COORDS.Rotterdam,
+    USHOU: CITY_COORDS.Houston,
+    DEFRA: CITY_COORDS.Frankfurt,
+    EDDF: CITY_COORDS.Frankfurt
+  };
+
   const CARRIERS = {
     ocean: "MAERSK LINE",
     air: "CATHAY PACIFIC AIRWAYS LTD.",
@@ -86,7 +110,7 @@
     scope: "shipment",
     type: "all",
     query: "",
-    hideEmpty: true,
+    revealed: [],
     catalog: null,
     saved: null,
     draftSavedAt: "",
@@ -202,8 +226,13 @@
         return word.charAt(0).toUpperCase() + word.slice(1);
       });
 
-  const codeChip = (value) =>
-    value ? `<span class="code type-caption-sm">${escapeHtml(value)}</span>` : "—";
+  const emptyDisplay = (value) =>
+    typeof window.KNAdminUX?.emptyDisplay === "function" ? window.KNAdminUX.emptyDisplay(value) : value == null || !String(value).trim() ? "—" : String(value);
+
+  const codeChip = (value) => {
+    const text = emptyDisplay(value);
+    return text === "—" ? "—" : `<span class="code type-caption-sm">${escapeHtml(text)}</span>`;
+  };
 
   const findShipment = (id) => (window.KNShipments || []).find((item) => item.id === id);
 
@@ -368,12 +397,18 @@
     }
   }
 
-  const coordsFor = (place, fallback) => {
-    const named = CITY_COORDS[place?.city];
-    if (named) {
-      return named;
+  const coordsFor = (place) => {
+    if (!place) {
+      return null;
     }
-    return fallback || [22, 20];
+    const code = String(place.code || "").toUpperCase();
+    if (code && PORT_COORDS[code]) {
+      return PORT_COORDS[code];
+    }
+    if (place.city && CITY_COORDS[place.city]) {
+      return CITY_COORDS[place.city];
+    }
+    return null;
   };
 
   const isArrived = (item) => /ready for pickup|port of delivery|on hold/i.test(item.status || "");
@@ -393,10 +428,10 @@
       { title: "INTAKE COMPLETE", done: departed || arrived, at: departed || arrived ? addHours(created, air ? 4 : 12) : "" },
       { title: departLabel, done: departed, at: departed ? addHours(created, air ? 18 : 72) : "" },
       { title: "BROKER ASSIGNED", done: departed, at: departed ? addHours(created, air ? 20 : 80) : "" },
+      { title: arriveLabel, done: arrived, at: arrived ? addHours(created, air ? 24 : 216) : "" },
       { title: "ENTRY SUMMARY FILED", done: released, at: released ? addHours(created, air ? 26 : 220) : "" },
       { title: "CARGO RELEASE FILED", done: released, at: released ? addHours(created, air ? 28 : 230) : "" },
       { title: "PGA STATUS", done: released, at: released ? addHours(created, air ? 29 : 236) : "" },
-      { title: arriveLabel, done: arrived, at: arrived ? addHours(created, air ? 30 : 240) : "" },
       { title: "SHIPMENT DELIVERED", done: delivered, at: delivered ? addHours(created, air ? 36 : 260) : "" }
     ].map((step) => ({
       ...step,
@@ -489,9 +524,9 @@
     ];
   }
 
-  function toast(content, color = "information") {
+  function toast(content, color = "information", anchor) {
     if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color });
+      window.showBladeToast({ content, color, anchor });
     }
   }
 
@@ -676,7 +711,7 @@
       .map(
         ([key, value]) => `<div class="kn-detail-dl__row">
         <dt class="type-caption-sm">${escapeHtml(key)}</dt>
-        <dd class="type-body-sm type-weight-medium">${value || "—"}</dd>
+        <dd class="type-body-sm type-weight-medium">${value == null || value === "" ? "—" : value}</dd>
       </div>`
       )
       .join("")}</dl>`;
@@ -747,7 +782,7 @@
               .map(
                 (event) => `<div>
                 <dt class="type-caption-sm">${escapeHtml(event.label)}</dt>
-                <dd class="type-body-sm">${escapeHtml(event.value)}</dd>
+                <dd class="type-body-sm">${escapeHtml(emptyDisplay(event.value))}</dd>
               </div>`
               )
               .join("")}</dl>
@@ -766,7 +801,7 @@
     const equipment = hashNum(item.id) % 2 ? "40HC" : "20GP";
     const seal = `SEAL${String(hashNum(`${item.id}-seal`) % 900000 + 100000)}`;
     const terminal = item.pouLabel || item.dest.city;
-    const lastFree = (item.etaLabel || "—").replace(/^ETA\s+/i, "");
+    const lastFree = emptyDisplay((item.etaLabel || "").replace(/^ETA\s+/i, ""));
     return `<div class="kn-container">
       <article class="panel card kn-section-card kn-container__hero">
         <header class="kn-section-card__head">
@@ -778,21 +813,16 @@
             <span class="badge type-caption-sm type-weight-medium">${escapeHtml(loadType)}</span>
           </div>
         </header>
-        <div class="kn-info kn-info--summary kn-info--three">
-          <div class="kn-info__item">
-            <p class="type-caption-sm kn-info__key">Equipment</p>
-            <p class="type-ui-sm type-weight-semibold">${equipment}</p>
-            <p class="type-caption-sm">ISO dry van</p>
-          </div>
+        <div class="kn-info kn-info--summary kn-info--two">
           <div class="kn-info__item">
             <p class="type-caption-sm kn-info__key">Last free date</p>
             <p class="type-ui-sm type-weight-semibold">${escapeHtml(lastFree)}</p>
-            <p class="type-caption-sm">At ${escapeHtml(terminal)}</p>
+            <p class="type-caption-sm">At ${escapeHtml(emptyDisplay(terminal))}</p>
           </div>
           <div class="kn-info__item">
-            <p class="type-caption-sm kn-info__key">Carrier</p>
-            <p class="type-ui-sm type-weight-semibold">${escapeHtml(CARRIERS[item.mot] || "—")}</p>
-            <p class="type-caption-sm">${escapeHtml(MOT_LABELS[item.mot] || item.mot)}</p>
+            <p class="type-caption-sm kn-info__key">Mode</p>
+            <p class="type-ui-sm type-weight-semibold">${escapeHtml(MOT_LABELS[item.mot] || item.mot)}</p>
+            <p class="type-caption-sm">${escapeHtml(emptyDisplay(item.direction))}</p>
           </div>
         </div>
       </article>
@@ -814,11 +844,11 @@
             <h3 class="type-heading-h6 type-weight-semibold">Location and dates</h3>
           </header>
           ${renderDl([
-            ["Delivery", escapeHtml(item.dest.city)],
-            ["Terminal", escapeHtml(terminal)],
+            ["Delivery", escapeHtml(emptyDisplay(item.dest.city))],
+            ["Terminal", escapeHtml(emptyDisplay(terminal))],
             ["Last free date", escapeHtml(lastFree)],
             ["Per diem date", "—"],
-            ["Ocean carrier", escapeHtml(CARRIERS[item.mot] || "—")]
+            ["Ocean carrier", escapeHtml(emptyDisplay(CARRIERS[item.mot]))]
           ])}
         </article>
       </div>
@@ -867,13 +897,13 @@
 
   function makeRefSeries(type, prefix, count, values = {}) {
     const names = {
-      TEXT: "Custom Text Field",
-      DATE: "Custom Date Field",
-      NUM: "Custom Number Field"
+      TEXT: "Text",
+      DATE: "Date",
+      NUM: "Number"
     };
     return Array.from({ length: count }, (_, index) => {
       const key = `${prefix}${index + 1}`;
-      const label = `${names[prefix] || prefix} ${index + 1}`;
+      const label = count === 1 ? names[prefix] || prefix : `${names[prefix] || prefix} ${index + 1}`;
       return makeRefField(type, `${prefix.toLowerCase()}${index + 1}`, label, values[key] || values[label] || "");
     });
   }
@@ -891,10 +921,10 @@
     const description = item.mot === "air" ? "QA AUTOMATION" : "Oilfield equipment";
     const merchFields = (text2) => [
       makeRefField("text", "text2", "Description", text2),
-      ...makeRefSeries("text", "TEXT", 7).slice(2),
+      makeRefField("text", "text3", "Text"),
       makeRefField("text", "text10", "Notes", "", { multiline: true }),
-      ...makeRefSeries("date", "DATE", 7),
-      ...makeRefSeries("number", "NUM", 7)
+      makeRefField("date", "date1", "Date"),
+      makeRefField("number", "num1", "Number")
     ];
     return {
       shipment: {
@@ -902,19 +932,12 @@
         fields: [
           makeRefField("text", "invoiceno", "Invoice No", invoice),
           makeRefField("text", "text2", "PO number", item.po || ""),
-          makeRefField("text", "text3", "Custom Text Field 3"),
-          makeRefField("text", "text4", "Custom Text Field 4"),
-          makeRefField("text", "text5", "Custom Text Field 5"),
           makeRefField("text", "phone", "Phone"),
-          makeRefField("text", "text7", "Custom Text Field 7"),
-          makeRefField("text", "text8", "Custom Text Field 8"),
           makeRefField("text", "text10", "Notes", "", { multiline: true }),
-          ...makeRefSeries("date", "DATE", 9, { DATE1: etaDate }),
-          makeRefField("number", "num1", "Custom Number Field 1"),
+          makeRefField("date", "date1", "ETA date", etaDate),
+          makeRefField("date", "date2", "Date"),
           makeRefField("number", "eta", "Transit days", etaDays),
-          ...Array.from({ length: 7 }, (_, index) =>
-            makeRefField("number", `num${index + 3}`, `Custom Number Field ${index + 3}`)
-          )
+          makeRefField("number", "num1", "Number")
         ]
       },
       invoices: [
@@ -922,10 +945,10 @@
           id: invoice,
           invoice,
           fields: [
-            ...makeRefSeries("text", "TEXT", 8),
+            makeRefField("text", "text1", "Text"),
             makeRefField("text", "text10", "Notes", "", { multiline: true }),
-            ...makeRefSeries("date", "DATE", 8, { DATE1: etaDate }),
-            ...makeRefSeries("number", "NUM", 8)
+            makeRefField("date", "date1", "Date", etaDate),
+            makeRefField("number", "num1", "Number")
           ]
         }
       ],
@@ -960,7 +983,7 @@
       scope: "shipment",
       type: "all",
       query: "",
-      hideEmpty: true,
+      revealed: [],
       catalog: stored ? stored.catalog : cloneRefs(published),
       saved: published,
       draftSavedAt: stored?.savedAt || "",
@@ -977,7 +1000,7 @@
       scope: "shipment",
       type: "all",
       query: "",
-      hideEmpty: true,
+      revealed: [],
       catalog: null,
       saved: null,
       draftSavedAt: "",
@@ -1072,6 +1095,14 @@
           </article>`;
   }
 
+  function refFieldId(recordId, key) {
+    return `${recordId}:${key}`;
+  }
+
+  function isRefFieldRevealed(recordId, key) {
+    return refsUi.revealed.includes(refFieldId(recordId, key));
+  }
+
   function applyRefsFilter() {
     const root = document.getElementById("kn-refs");
     if (!root) {
@@ -1084,18 +1115,25 @@
     let visible = 0;
     let filled = 0;
     let unused = 0;
+    let hiddenUnused = 0;
     root.querySelectorAll("[data-kn-ref-field]").forEach((el) => {
       const value = el.querySelector("[data-kn-ref-value]")?.value || "";
       const label = el.querySelector("[data-kn-ref-rename]")?.value || "";
+      const recordId = el.querySelector("[data-kn-ref-value]")?.getAttribute("data-kn-ref-record") || "";
+      const key = el.querySelector("[data-kn-ref-value]")?.getAttribute("data-kn-ref-key") || "";
       const vacant = !String(value).trim();
       const hay = `${label} ${value} ${el.getAttribute("data-kn-ref-search") || ""}`.toLowerCase();
       const matchType = type === "all" || el.getAttribute("data-kn-ref-type") === type;
       const matchQuery = !query || hay.includes(query);
-      const matchFilled = !refsUi.hideEmpty || !vacant || searching;
+      const revealed = isRefFieldRevealed(recordId, key);
+      const matchFilled = !vacant || revealed || searching;
       const show = matchType && matchQuery && matchFilled;
       el.hidden = !show;
       if (vacant) {
         unused += 1;
+        if (!revealed) {
+          hiddenUnused += 1;
+        }
       } else {
         filled += 1;
       }
@@ -1116,20 +1154,20 @@
       const title = empty.querySelector("[data-kn-ref-empty-title]");
       const copy = empty.querySelector("[data-kn-ref-empty-copy]");
       const clear = empty.querySelector("[data-kn-ref-clear-filters]");
-      const reveal = empty.querySelector("[data-kn-ref-show-empty]");
+      const reveal = empty.querySelector("[data-kn-ref-add-field]");
       if (title) {
         title.textContent = filtered ? "No matching references" : "No filled fields";
       }
       if (copy) {
         copy.textContent = searching
           ? "Nothing in this set matches that search."
-          : "Turn off Hide empty to add PO numbers, dates, and notes.";
+          : "Add a field to enter PO numbers, dates, and notes.";
       }
       if (clear) {
         clear.hidden = !searching;
       }
       if (reveal) {
-        reveal.hidden = unused === 0 || !refsUi.hideEmpty || searching;
+        reveal.hidden = hiddenUnused === 0 || searching;
       }
     }
     if (form) {
@@ -1141,14 +1179,12 @@
         ? `${visible} matching`
         : `${filled} filled · ${unused} empty`;
     }
-    const unusedSwitch = root.querySelector("[data-kn-ref-unused]");
-    const unusedWrap = root.querySelector("[data-kn-ref-unused-wrap]");
-    if (unusedSwitch) {
-      unusedSwitch.checked = refsUi.hideEmpty;
-      unusedSwitch.disabled = unused === 0;
-    }
-    if (unusedWrap) {
-      unusedWrap.hidden = unused === 0;
+    root.querySelectorAll("[data-kn-ref-add-field]").forEach((btn) => {
+      btn.disabled = hiddenUnused === 0;
+    });
+    const addWrap = root.querySelector("[data-kn-ref-add-wrap]");
+    if (addWrap) {
+      addWrap.hidden = unused === 0;
     }
   }
 
@@ -1307,16 +1343,33 @@
   }
 
   function revealUnusedThen(focus = "first-empty") {
-    if (refsUi.hideEmpty) {
-      refsUi.hideEmpty = false;
-      const unusedSwitch = refsRoot()?.querySelector("[data-kn-ref-unused]");
-      if (unusedSwitch) {
-        unusedSwitch.checked = false;
-      }
-      applyRefsFilter();
+    const root = refsRoot();
+    if (!root) {
+      return false;
     }
+    const candidate = [...root.querySelectorAll("[data-kn-ref-field]")]
+      .map((el) => {
+        const control = el.querySelector("[data-kn-ref-value]");
+        const recordId = control?.getAttribute("data-kn-ref-record") || "";
+        const key = control?.getAttribute("data-kn-ref-key") || "";
+        const vacant = !String(control?.value || "").trim();
+        const matchType = refsUi.type === "all" || el.getAttribute("data-kn-ref-type") === refsUi.type;
+        return { el, control, recordId, key, vacant, matchType, revealed: isRefFieldRevealed(recordId, key) };
+      })
+      .find((row) => row.vacant && row.matchType && !row.revealed && row.recordId && row.key);
+    if (!candidate) {
+      if (focus === "first-empty") {
+        focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
+      }
+      return false;
+    }
+    const id = refFieldId(candidate.recordId, candidate.key);
+    if (!refsUi.revealed.includes(id)) {
+      refsUi.revealed = [...refsUi.revealed, id];
+    }
+    applyRefsFilter();
     if (focus === "first-empty") {
-      focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
+      focusRefValue(candidate.control || findRefControl(candidate.recordId, candidate.key));
     }
     return true;
   }
@@ -1336,6 +1389,7 @@
     refsDraftTimer = 0;
     refsDraftSaving = false;
     refsUi.catalog = cloneRefs(refsUi.saved);
+    refsUi.revealed = [];
     refsUi.draftSavedAt = "";
     clearRefsDraft(refsUi.shipmentId);
     refreshRefsView({ focus: "first" });
@@ -1476,7 +1530,7 @@
         focusRefValue(next);
         return;
       }
-      if (!event.shiftKey && refsUi.hideEmpty) {
+      if (!event.shiftKey) {
         event.preventDefault();
         revealUnusedThen("first-empty");
       }
@@ -1487,7 +1541,7 @@
       if (next) {
         event.preventDefault();
         focusRefValue(next);
-      } else if (refsUi.hideEmpty) {
+      } else {
         event.preventDefault();
         revealUnusedThen("first-empty");
       }
@@ -1608,13 +1662,9 @@
         </div>
         <div class="kn-refs__toolbar-end">
           <p class="type-caption-sm kn-refs__meta"><span data-kn-ref-count></span> · ${escapeHtml(scopeMeta)}</p>
-          <label class="kn-order kn-refs__empty-toggle" data-kn-ref-unused-wrap>
-            <span class="type-caption-sm">Hide empty</span>
-            <span class="blade-switch">
-              <input type="checkbox" role="switch" data-kn-ref-unused ${refsUi.hideEmpty ? "checked" : ""} aria-label="Hide empty fields" />
-              <span class="blade-switch__ui"></span>
-            </span>
-          </label>
+          <span data-kn-ref-add-wrap>
+            <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-kn-ref-add-field>${MOT_ICONS.plus} Add field</button>
+          </span>
         </div>
       </div>
       <div class="kn-ref-search">
@@ -1635,7 +1685,7 @@
         <p class="type-heading-h5 type-weight-semibold" data-kn-ref-empty-title>No matching references</p>
         <p class="type-body-sm" data-kn-ref-empty-copy>Nothing in this set matches that search.</p>
         <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-kn-ref-clear-filters>Clear search</button>
-        <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-kn-ref-show-empty hidden>Show empty fields</button>
+        <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-kn-ref-add-field hidden>Add field</button>
       </div>
     </div>`;
   }
@@ -1720,12 +1770,12 @@
           <div class="kn-info__item">
             <p class="type-caption-sm kn-info__key">Origin</p>
             <p class="type-ui-sm type-weight-semibold">${escapeHtml(item.polLabel || item.origin.city)}</p>
-            <p class="type-caption-sm">${escapeHtml((item.etdLabel || item.origin.date || "").replace(/^ETD\s+/i, "") || "—")}</p>
+            <p class="type-caption-sm">${escapeHtml(emptyDisplay((item.etdLabel || item.origin.date || "").replace(/^ETD\s+/i, "")))}</p>
           </div>
           <div class="kn-info__item">
             <p class="type-caption-sm kn-info__key">Destination</p>
             <p class="type-ui-sm type-weight-semibold">${escapeHtml(item.pouLabel || item.dest.city)}</p>
-            <p class="type-caption-sm">${escapeHtml((item.etaLabel || item.dest.date || "").replace(/^ETA\s+/i, "") || "—")}</p>
+            <p class="type-caption-sm">${escapeHtml(emptyDisplay((item.etaLabel || item.dest.date || "").replace(/^ETA\s+/i, "")))}</p>
           </div>
         </div>
         <article class="panel card kn-section-card">
@@ -1760,10 +1810,10 @@
     }
 
     const invoice = `INV-${item.id.replace(/[^A-Z0-9]/g, "").slice(-6)}-001`;
-    const po = item.po || "—";
+    const po = emptyDisplay(item.po);
     const description = item.mot === "air" ? "Air cargo" : "Oilfield equipment";
-    const originDate = (item.etdLabel || item.origin.date || "").replace(/^ETD\s+/i, "");
-    const destDate = (item.etaLabel || item.dest.date || "").replace(/^ETA\s+/i, "");
+    const originDate = emptyDisplay((item.etdLabel || item.origin.date || "").replace(/^ETD\s+/i, ""));
+    const destDate = emptyDisplay((item.etaLabel || item.dest.date || "").replace(/^ETA\s+/i, ""));
     return `
       <div class="kn-info kn-info--summary">
         <div class="kn-info__item">
@@ -1779,11 +1829,11 @@
         <div class="kn-info__item">
           <p class="type-caption-sm kn-info__key">Mode</p>
           <p class="type-ui-sm type-weight-semibold">${escapeHtml(MOT_LABELS[item.mot] || item.mot)}</p>
-          <p class="type-caption-sm">${escapeHtml(item.direction || "—")}</p>
+          <p class="type-caption-sm">${escapeHtml(emptyDisplay(item.direction))}</p>
         </div>
         <div class="kn-info__item">
           <p class="type-caption-sm kn-info__key">Country</p>
-          <p class="type-ui-sm type-weight-semibold">${escapeHtml(item.destCountry || item.dest.countryCode || "—")}</p>
+          <p class="type-ui-sm type-weight-semibold">${escapeHtml(emptyDisplay(item.destCountry || item.dest.countryCode))}</p>
           <p class="type-caption-sm">${transitDays(item)} day transit</p>
         </div>
       </div>
@@ -1796,8 +1846,8 @@
             [
               item.status === "On Hold" ? null : ["Entry number", codeChip(`ENT-${String(hashNum(item.id) % 9000000 + 1000000)}`)],
               ["Purchase order", escapeHtml(po)],
-              ["Shipper", escapeHtml(item.company)],
-              ["Importer", escapeHtml(item.company)],
+              ["Shipper", escapeHtml(emptyDisplay(item.company))],
+              ["Importer", escapeHtml(emptyDisplay(item.company))],
               ["Description", escapeHtml(description)],
               ["Invoice", codeChip(invoice)],
               item.container ? ["Container", codeChip(item.container)] : null
@@ -1811,9 +1861,9 @@
           ${renderDl(
             [
               ["Master bill", codeChip(item.masterBill || item.mbol)],
-              item.hbol ? ["House bill", codeChip(item.hbol)] : null,
+              item.hbol ? ["House bill", item.hbol === "N/A" ? "N/A" : codeChip(item.hbol)] : null,
               ["Transit time", `${transitDays(item)} days`],
-              ["Carrier", escapeHtml(CARRIERS[item.mot] || "—")]
+              ["Carrier", escapeHtml(emptyDisplay(CARRIERS[item.mot]))]
             ].filter(Boolean)
           )}
         </article>
@@ -1843,19 +1893,31 @@
     destroyDetailMap();
     const origin = coordsFor(item.origin);
     const dest = coordsFor(item.dest);
-    const current = [item.lat, item.lng];
     detailMap = createConstrainedMap(el);
     detailMapLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", mapTileOptions({
       attribution: "&copy; OpenStreetMap &copy; CARTO",
       subdomains: "abcd"
     })).addTo(detailMap);
+    if (!origin || !dest) {
+      requestAnimationFrame(() => {
+        detailMap.invalidateSize();
+        fitMapToPoints(detailMap, []);
+      });
+      return;
+    }
+    const current =
+      Number.isFinite(item.lat) && Number.isFinite(item.lng) ? [item.lat, item.lng] : dest;
     const route = knMapRouteColor();
     const fill = knThemeColor("--kn-color-background-interactive-staticWhite-default", "#fff");
-    const line = L.polyline([origin, current, dest], {
-      color: route,
-      weight: 2,
-      opacity: 0.85
-    }).addTo(detailMap);
+    const path = [origin, current, dest];
+    const segments =
+      typeof splitAntimeridianPoints === "function" ? splitAntimeridianPoints(path) : [path];
+    const lineStyle = { color: route, weight: 2, opacity: 0.85 };
+    segments.forEach((segment) => {
+      if (segment.length > 1) {
+        L.polyline(segment, lineStyle).addTo(detailMap);
+      }
+    });
     L.circleMarker(origin, { radius: 5, color: route, fillColor: fill, fillOpacity: 1, weight: 2 }).addTo(detailMap);
     L.circleMarker(dest, { radius: 5, color: route, fillColor: route, fillOpacity: 1, weight: 2 }).addTo(detailMap);
     if (window.KNMapUx) {
@@ -1873,8 +1935,7 @@
     }
     requestAnimationFrame(() => {
       detailMap.invalidateSize();
-      fitMapToPoints(detailMap, [origin, current, dest]);
-      line.redraw();
+      fitMapToPoints(detailMap, path);
     });
 
     const panel = document.getElementById("kn-detail-map-panel");
@@ -2166,7 +2227,11 @@
       const toastBtn = event.target.closest("[data-kn-detail-toast]");
       if (toastBtn) {
         event.preventDefault();
-        toast(toastBtn.getAttribute("data-kn-detail-toast"), toastBtn.getAttribute("data-kn-toast-color") || "information");
+        toast(
+          toastBtn.getAttribute("data-kn-detail-toast"),
+          toastBtn.getAttribute("data-kn-toast-color") || "information",
+          toastBtn
+        );
         return;
       }
       const refTypeHandled = window.KNAdminUX?.handleSelectClick(event, {
@@ -2196,15 +2261,9 @@
         startRefRename(event.target.closest("[data-kn-ref-field]"));
         return;
       }
-      if (event.target.closest("[data-kn-ref-show-empty]")) {
+      if (event.target.closest("[data-kn-ref-add-field]")) {
         event.preventDefault();
-        refsUi.hideEmpty = false;
-        const unusedSwitch = refsRoot()?.querySelector("[data-kn-ref-unused]");
-        if (unusedSwitch) {
-          unusedSwitch.checked = false;
-        }
-        applyRefsFilter();
-        focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
+        revealUnusedThen("first-empty");
         return;
       }
       if (event.target.closest("[data-kn-ref-clear-filters]")) {
@@ -2247,14 +2306,6 @@
       }
     });
     root?.addEventListener("change", (event) => {
-      if (event.target.matches("[data-kn-ref-unused]")) {
-        refsUi.hideEmpty = event.target.checked;
-        applyRefsFilter();
-        if (!refsUi.hideEmpty) {
-          focusRefValue(refsValueControls().find((el) => !String(el.value || "").trim()) || refsValueControls()[0]);
-        }
-        return;
-      }
       if (event.target.matches("[data-kn-journey-order]")) {
         journeyDescending = event.target.checked;
         const item = findShipment(visState.detailId);

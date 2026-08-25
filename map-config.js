@@ -74,6 +74,37 @@ function applyMapZoomRules(map) {
   }
 }
 
+/**
+ * Split a lat/lng path at ±180 when consecutive points span more than 180° of longitude.
+ * Returns an array of polyline segments (each [lat, lng][]). Avoids unwrapping past maxBounds.
+ */
+function splitAntimeridianPoints(points) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return points?.length ? [points.slice()] : [];
+  }
+  const parts = [];
+  let part = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const prev = part[part.length - 1];
+    const curr = points[i];
+    const dLng = curr[1] - prev[1];
+    if (Math.abs(dLng) > 180) {
+      const unwrapped = curr[1] + (dLng > 0 ? -360 : 360);
+      const bridgeLng = dLng > 0 ? -180 : 180;
+      const span = unwrapped - prev[1];
+      const t = span === 0 ? 0 : (bridgeLng - prev[1]) / span;
+      const bridgeLat = prev[0] + t * (curr[0] - prev[0]);
+      part.push([bridgeLat, bridgeLng]);
+      parts.push(part);
+      part = [[bridgeLat, -bridgeLng], curr];
+    } else {
+      part.push(curr);
+    }
+  }
+  parts.push(part);
+  return parts;
+}
+
 function fitMapToPoints(map, points) {
   if (!map) {
     return;

@@ -13,7 +13,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./tokens.css?v=52" />
-    <link rel="stylesheet" href="./styles.css?v=259" />
+    <link rel="stylesheet" href="./styles.css?v=260" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -693,7 +693,7 @@
                         <input class="vis-th-filter type-body-sm" id="dash-date-end" type="date" aria-label="End date" />
                       </label>
                     </div>
-                    <p class="type-caption-sm kn-date-picker__error" id="dash-date-error" hidden>End date must be after start date</p>
+                    <p class="type-caption-sm kn-date-picker__error" id="dash-date-error" hidden role="alert" aria-live="assertive">End date must be after start date</p>
                     <div class="kn-date-picker__footer">
                       <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" id="dash-date-cancel">Cancel</button>
                       <button class="btn btn--primary btn--sm type-ui-sm" type="button" id="dash-date-apply">Apply</button>
@@ -1846,6 +1846,6 @@
     <script src="./role-management.js?v=56"></script>
     <script src="./user-management.js?v=35"></script>
     <script src="./default-role-management.js?v=59"></script>
-    <script src="./script.js?v=105"></script>
+    <script src="./script.js?v=106"></script>
   </body>
 </html>

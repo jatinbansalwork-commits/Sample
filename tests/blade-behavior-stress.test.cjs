@@ -470,6 +470,154 @@ test("role: fixed merge + toggle one unrelated key leaves siblings", () => {
   assertSamePerms(result.permissions, [...CAT_A, ...CAT_B, ...CAT_C, "mod-d:create", "mod-d:read"]);
 });
 
+test("syncPermissionSet refuses to clear when next is null/undefined", () => {
+  const live = new Set(["keep:read", "keep:create"]);
+  UX.syncPermissionSet(live, null);
+  assertSamePerms(live, ["keep:read", "keep:create"]);
+  UX.syncPermissionSet(live, undefined);
+  assertSamePerms(live, ["keep:read", "keep:create"]);
+});
+
+// Realistic seed shapes from role-management.js / default-role-management.js seedRoles()
+const FINANCE_CREDITS_OWNER = [
+  "kn-credits-management:create",
+  "kn-credits-management:update",
+  "kn-credits-management:delete",
+  "kn-credits-management:read",
+  "kn-promo-code-management:create",
+  "kn-promo-code-management:update",
+  "kn-promo-code-management:delete",
+  "kn-promo-code-management:read"
+];
+const ANALYTICS_VIEWER = [
+  "hevo-dashboard:create",
+  "hevo-dashboard:update",
+  "hevo-dashboard:delete",
+  "hevo-dashboard:read"
+];
+const CUSTOMER_ADMINISTRATOR = [
+  "user-management:create",
+  "user-management:update",
+  "user-management:delete",
+  "user-management:read",
+  "role-management:create",
+  "role-management:update",
+  "role-management:delete",
+  "role-management:read",
+  "customer-profile:create",
+  "customer-profile:update",
+  "customer-profile:delete",
+  "customer-profile:read",
+  "sub-customer-profile:create",
+  "sub-customer-profile:update",
+  "sub-customer-profile:delete",
+  "sub-customer-profile:read"
+];
+const KLEARHUB_VIS_ROW = [
+  "visibility-data:create",
+  "visibility-data:update",
+  "visibility-data:delete",
+  "visibility-data:read"
+];
+const UNRELATED_COL = ["overview:create", "visibility-3:create", "kn-visibility:create"];
+
+/** Emulate saveRoles → localStorage JSON → loadRoles for kn-roles-v2 / kn-default-roles-v3. */
+function persistRoleCatalog(storageKey, roles) {
+  const serialized = JSON.stringify(roles);
+  const parsed = JSON.parse(serialized);
+  return { storageKey, serialized, roles: parsed };
+}
+
+console.log("\n9) Seed-shaped roles — toggle must never wipe unrelated categories (+ storage)");
+test("Finance Credits Owner: single checkbox toggle keeps finance catalog", () => {
+  const session = createRoleDrawerSession({
+    id: "role-finance",
+    name: "Finance Credits Owner",
+    applicable: ["klearnow"],
+    permissions: FINANCE_CREDITS_OWNER
+  });
+  session.togglePerm("hevo-dashboard:read", true);
+  FINANCE_CREDITS_OWNER.forEach((key) => assert.ok(session.form.permissions.has(key), `missing ${key}`));
+  assert.ok(session.form.permissions.has("hevo-dashboard:read"));
+  assert.strictEqual(session.form.permissions.size, FINANCE_CREDITS_OWNER.length + 1);
+});
+
+test("Finance Credits Owner: row header toggleKeys keeps finance; storage round-trip intact", () => {
+  const session = createRoleDrawerSession({
+    id: "role-finance",
+    name: "Finance Credits Owner",
+    applicable: ["klearnow"],
+    permissions: FINANCE_CREDITS_OWNER
+  });
+  session.toggleKeys(KLEARHUB_VIS_ROW);
+  FINANCE_CREDITS_OWNER.forEach((key) => assert.ok(session.form.permissions.has(key), `missing ${key}`));
+  KLEARHUB_VIS_ROW.forEach((key) => assert.ok(session.form.permissions.has(key), `missing ${key}`));
+  const stored = persistRoleCatalog("kn-roles-v2", [
+    {
+      id: "role-finance",
+      name: "Finance Credits Owner",
+      permissions: [...session.form.permissions]
+    }
+  ]);
+  const finance = stored.roles.find((r) => r.id === "role-finance");
+  assert.strictEqual(stored.storageKey, "kn-roles-v2");
+  FINANCE_CREDITS_OWNER.forEach((key) => assert.ok(finance.permissions.includes(key), `storage missing ${key}`));
+  assert.ok(finance.permissions.length >= FINANCE_CREDITS_OWNER.length + KLEARHUB_VIS_ROW.length);
+});
+
+test("Analytics Viewer: col-style toggleKeys keeps hevo-dashboard keys", () => {
+  const session = createRoleDrawerSession({
+    id: "role-analytics",
+    name: "Analytics Viewer",
+    applicable: ["klearnow"],
+    permissions: ANALYTICS_VIEWER
+  });
+  session.toggleKeys(UNRELATED_COL);
+  ANALYTICS_VIEWER.forEach((key) => assert.ok(session.form.permissions.has(key), `missing ${key}`));
+  UNRELATED_COL.forEach((key) => {
+    assert.ok(session.form.permissions.has(key), `missing ${key}`);
+    // create implies read
+    const mod = key.split(":")[0];
+    assert.ok(session.form.permissions.has(`${mod}:read`), `missing auto-read for ${mod}`);
+  });
+  const stored = persistRoleCatalog("kn-roles-v2", [
+    { id: "role-analytics", name: "Analytics Viewer", permissions: [...session.form.permissions] }
+  ]);
+  const row = stored.roles.find((r) => r.id === "role-analytics");
+  ANALYTICS_VIEWER.forEach((key) => assert.ok(row.permissions.includes(key)));
+});
+
+test("Customer Administrator: group toggle + partial DOM merge never wipes admin keys", () => {
+  const session = createRoleDrawerSession({
+    id: "def-customer-admin",
+    name: "Customer Administrator",
+    applicable: ["customer", "sub-customer"],
+    services: ["all"],
+    permissions: CUSTOMER_ADMINISTRATOR
+  });
+  // Simulate search: only visibility-data cells in DOM, all unchecked → old buggy path would wipe
+  session.syncFromPartialDom(KLEARHUB_VIS_ROW, []);
+  assertSamePerms(session.form.permissions, CUSTOMER_ADMINISTRATOR);
+  session.toggleKeys(KLEARHUB_VIS_ROW);
+  CUSTOMER_ADMINISTRATOR.forEach((key) => assert.ok(session.form.permissions.has(key), `missing ${key}`));
+  KLEARHUB_VIS_ROW.forEach((key) => assert.ok(session.form.permissions.has(key)));
+  // Single unrelated checkbox
+  session.togglePerm("credit-tracking:read", true);
+  CUSTOMER_ADMINISTRATOR.forEach((key) => assert.ok(session.form.permissions.has(key), `missing ${key}`));
+  const stored = persistRoleCatalog("kn-default-roles-v3", [
+    {
+      id: "def-customer-admin",
+      name: "Customer Administrator",
+      permissions: [...session.form.permissions]
+    }
+  ]);
+  const row = stored.roles.find((r) => r.id === "def-customer-admin");
+  assert.strictEqual(stored.storageKey, "kn-default-roles-v3");
+  CUSTOMER_ADMINISTRATOR.forEach((key) => assert.ok(row.permissions.includes(key), `storage missing ${key}`));
+  assert.ok(row.permissions.includes("visibility-data:read"));
+  assert.ok(row.permissions.includes("credit-tracking:read"));
+});
+
 test("default-role services: mergeDomMultiSelect preserves hidden services", () => {
   const prior = ["all", "drayage", "ai"];
   const visible = ["drayage", "ai", "klear-360"];

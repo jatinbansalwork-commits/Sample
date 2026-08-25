@@ -7,6 +7,15 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** Missing read-only display values use an em-dash. Keep "N/A" for true not-applicable. */
+  function emptyDisplay(value) {
+    if (value == null) {
+      return "—";
+    }
+    const text = String(value).trim();
+    return text || "—";
+  }
+
   function initials(name) {
     const parts = String(name || "")
       .trim()
@@ -1743,6 +1752,10 @@
     if (target === next) {
       return target;
     }
+    // Refuse to clear when next is missing — a null/undefined next used to empty the catalog.
+    if (next == null) {
+      return target;
+    }
     target.clear();
     toKeyList(next).forEach((key) => {
       if (key) {
@@ -1921,6 +1934,7 @@
 
   window.KNAdminUX = {
     escapeHtml,
+    emptyDisplay,
     initials,
     relativeTime,
     formatMetaDate,

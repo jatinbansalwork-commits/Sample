@@ -247,7 +247,7 @@ window.KNShipments = [
     mbol: "MAWB-D4P8",
     lat: 51.47,
     lng: -0.45,
-    created: "2026-08-18T06:10:00Z"
+    created: "2026-08-25T06:10:00Z"
   },
   {
     id: "KX-E1R6-88",
@@ -344,7 +344,7 @@ window.KNShipments = [
     mbol: "HBL-J2L4",
     lat: 27.5,
     lng: -99.5,
-    created: "2026-08-17T04:55:00Z"
+    created: "2026-08-05T04:55:00Z"
   },
   {
     id: "KX-K6N5-50",
@@ -363,7 +363,7 @@ window.KNShipments = [
     mbol: "MAWB-K6N5",
     lat: 25.25,
     lng: 55.36,
-    created: "2026-08-18T02:40:00Z"
+    created: "2026-08-22T02:40:00Z"
   },
   {
     id: "KX-M3Q8-21",

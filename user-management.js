@@ -189,9 +189,9 @@
     location.hash = hash;
   }
 
-  function toast(content, color = "positive") {
+  function toast(content, color = "positive", anchor) {
     if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color });
+      window.showBladeToast({ content, color, anchor });
     }
   }
 
@@ -1834,7 +1834,8 @@
       if (cleared.length) {
         toast(
           `Save blocked: required field${cleared.length > 1 ? "s" : ""} ${cleared.join(", ")} would be cleared unexpectedly. Re-enter them before saving.`,
-          "negative"
+          "negative",
+          event.submitter instanceof HTMLElement ? event.submitter : event.currentTarget
         );
         state.form = { ...state.form, ...snap, error: cleared.includes("name") ? "Full Name was cleared unexpectedly." : "", emailError: cleared.includes("email") ? "Email was cleared unexpectedly." : "" };
         render();
@@ -1854,7 +1855,11 @@
       }
       if (!snap.roles.length) {
         state.form = { ...state.form, ...snap, error: "", emailError: "" };
-        toast("Select at least one user role.", "negative");
+        toast(
+          "Select at least one user role.",
+          "negative",
+          event.submitter instanceof HTMLElement ? event.submitter : event.currentTarget
+        );
         state.roleMenuOpen = true;
         render();
         return;

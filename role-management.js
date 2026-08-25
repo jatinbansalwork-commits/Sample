@@ -367,9 +367,9 @@
     location.hash = hash;
   }
 
-  function toast(content, color = "positive") {
+  function toast(content, color = "positive", anchor) {
     if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color });
+      window.showBladeToast({ content, color, anchor });
     }
   }
 
@@ -1195,12 +1195,10 @@
     }
     const name = nameInput?.value.trim() || "";
     const applicable = [...formEl.querySelectorAll('input[name="applicable"]:checked')].map((input) => input.value);
-    const permInputs = [...formEl.querySelectorAll('input[name="perm"]')];
-    const permissions = window.KNAdminUX.mergePermissionSelections(
-      state.form?.permissions,
-      permInputs.filter((input) => input.checked).map((input) => input.value),
-      permInputs.map((input) => input.value)
-    );
+    // Never rebuild the catalog from DOM checkboxes — search / selected-only / collapsed
+    // categories omit rows, and a naive or stale merge can wipe unrelated keys.
+    // Perm handlers update state.form.permissions via applyPermissionToggle / toggleKeys.
+    const permissions = new Set(state.form?.permissions || []);
     return { name, applicable, permissions };
   }
 
@@ -1557,7 +1555,11 @@
       if (groupAll) {
         event.preventDefault();
         const group = CATALOG.find((item) => item.id === groupAll.getAttribute("data-role-select-group"));
+        if (!group || !state.form) {
+          return;
+        }
         const snap = readForm(root.querySelector("#kn-role-form"));
+        snap.permissions = new Set(state.form.permissions || []);
         toggleKeys(snap.permissions, groupKeys(group));
         persistForm(snap);
         render();
@@ -1568,10 +1570,11 @@
         event.preventDefault();
         const group = CATALOG.find((item) => item.id === colAll.getAttribute("data-role-select-col"));
         const action = colAll.getAttribute("data-action");
-        if (!group || !ACTIONS.includes(action)) {
+        if (!group || !ACTIONS.includes(action) || !state.form) {
           return;
         }
         const snap = readForm(root.querySelector("#kn-role-form"));
+        snap.permissions = new Set(state.form.permissions || []);
         toggleKeys(
           snap.permissions,
           visibleModules(group, snap.permissions).map((mod) => keyOf(mod.id, action))
@@ -1583,7 +1586,11 @@
       const rowAll = event.target.closest("[data-role-select-row]");
       if (rowAll) {
         event.preventDefault();
+        if (!state.form) {
+          return;
+        }
         const snap = readForm(root.querySelector("#kn-role-form"));
+        snap.permissions = new Set(state.form.permissions || []);
         toggleKeys(
           snap.permissions,
           ACTIONS.map((action) => keyOf(rowAll.getAttribute("data-role-select-row"), action))
@@ -1594,7 +1601,11 @@
       }
       if (event.target.closest("[data-role-select-all]")) {
         event.preventDefault();
+        if (!state.form) {
+          return;
+        }
         const snap = readForm(root.querySelector("#kn-role-form"));
+        snap.permissions = new Set(state.form.permissions || []);
         toggleKeys(snap.permissions, ALL_KEYS);
         persistForm(snap);
         render();
@@ -1655,6 +1666,7 @@
           const result = window.KNAdminUX.applyPermissionToggle(state.form?.permissions, key, checked, ACTIONS);
           applyPermDepFeedback(result);
           const snap = readForm(formEl);
+          // Apply toggle result only — never re-merge DOM (auto-Read is not in DOM yet).
           snap.permissions = result.permissions;
           persistForm(snap);
           render();
@@ -1750,9 +1762,9 @@
       }
       if (event.target.closest("[data-ai-describe-clear='role']")) {
         event.preventDefault();
-        persistForm(readForm(root.querySelector("#kn-role-form")));
-        // Uncheck AI-suggested permissions that were auto-checked
         const snap = readForm(root.querySelector("#kn-role-form"));
+        snap.permissions = new Set(state.form?.permissions || []);
+        // Uncheck AI-suggested permissions that were auto-checked
         Object.keys(state.aiSuggestions).forEach((key) => snap.permissions.delete(key));
         state.aiDescribe = "";
         state.aiLoading = false;

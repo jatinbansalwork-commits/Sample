@@ -397,7 +397,7 @@
 
   function derivePermissionSuggestions(description, { map, actions, keyOf } = {}) {
     const keywordMap = map || ROLE_PERM_MAP;
-    const act = actions || ["read", "write", "update", "delete"];
+    const act = actions || ["create", "update", "delete", "read"];
     const makeKey = keyOf || defaultKeyOf;
     const matches = matchEntries(description, keywordMap);
     const meta = classifyConfidence(matches);
@@ -910,6 +910,41 @@
     return base.filter((id) => !drop.has(id));
   }
 
+  /**
+   * Apply a Describe suggestion layer without claiming ownership of keys already selected.
+   * Strips previousAiOnly first so a new Describe replaces the prior AI layer.
+   * Returns { permissions, baseline } — call finalizeAiPermissionOwnership after ensureWriteImpliesRead.
+   */
+  function applyAiPermissionLayer({ current, previousAiOnly = [], suggestedKeys = [] } = {}) {
+    const prevAi = new Set(previousAiOnly || []);
+    const currentList = current instanceof Set ? [...current] : [...(current || [])];
+    const baseline = new Set(currentList.filter((key) => !prevAi.has(key)));
+    const permissions = new Set(baseline);
+    (suggestedKeys || []).forEach((key) => {
+      if (key) {
+        permissions.add(key);
+      }
+    });
+    return { permissions, baseline };
+  }
+
+  /**
+   * Mark as AI-owned only keys that were not in baseline (newly added suggestions + auto-Reads).
+   */
+  function finalizeAiPermissionOwnership({ baseline, permissions, reasonsByKey = {} } = {}) {
+    const base = baseline instanceof Set ? baseline : new Set(baseline || []);
+    const perms = permissions instanceof Set ? permissions : new Set(permissions || []);
+    const aiOnly = [];
+    const aiSuggestions = {};
+    perms.forEach((key) => {
+      if (!base.has(key)) {
+        aiOnly.push(key);
+        aiSuggestions[key] = reasonsByKey[key] || "Suggested from description";
+      }
+    });
+    return { aiOnly, aiSuggestions };
+  }
+
   function applyDraftNavigation(draft) {
     if (!draft) {
       return;
@@ -965,6 +1000,8 @@
     detectIntent,
     mergeAiSelections,
     clearAiOnly,
+    applyAiPermissionLayer,
+    finalizeAiPermissionOwnership,
     applyDraftNavigation
   };
 })();

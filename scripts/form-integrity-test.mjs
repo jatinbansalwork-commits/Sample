@@ -12,6 +12,20 @@ import vm from "node:vm";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const code = readFileSync(join(root, "admin-ux.js"), "utf8");
+const aiCode = readFileSync(join(root, "ai-suggest.js"), "utf8");
+
+const memoryStore = new Map();
+const storage = {
+  getItem(key) {
+    return memoryStore.has(key) ? memoryStore.get(key) : null;
+  },
+  setItem(key, value) {
+    memoryStore.set(key, String(value));
+  },
+  removeItem(key) {
+    memoryStore.delete(key);
+  }
+};
 
 const sandbox = {
   console,
@@ -24,18 +38,28 @@ const sandbox = {
     addEventListener() {},
     dispatchEvent() {}
   },
-  window: {}
+  window: {},
+  localStorage: storage,
+  sessionStorage: storage
 };
 sandbox.window = sandbox;
+sandbox.window.localStorage = storage;
+sandbox.window.sessionStorage = storage;
 vm.runInNewContext(code, sandbox, { filename: "admin-ux.js" });
+vm.runInNewContext(aiCode, sandbox, { filename: "ai-suggest.js" });
 
 const ux = sandbox.window.KNAdminUX;
+const ai = sandbox.window.KNAiSuggest;
 if (!ux?.mergePermissionSelections || !ux?.applyPermissionToggle || !ux?.applyUserField) {
   console.error("FAIL: KNAdminUX helpers not exported");
   process.exit(1);
 }
 if (!ux?.syncPermissionSet || !ux?.applyPermDependencyToggle || !ux?.permissionBaselineForSave) {
   console.error("FAIL: KNAdminUX syncPermissionSet / baseline helpers not exported");
+  process.exit(1);
+}
+if (!ai?.applyAiPermissionLayer || !ai?.finalizeAiPermissionOwnership || !ai?.clearAiOnly) {
+  console.error("FAIL: KNAiSuggest permission ownership helpers not exported");
   process.exit(1);
 }
 
@@ -402,6 +426,273 @@ function setEq(a, b) {
         role.permissions.includes("credit-tracking:read")
     );
   }
+}
+
+// --- AI Describe ownership: clear must not wipe pre-existing permissions ---
+{
+  const finance = [
+    "kn-credits-management:create",
+    "kn-credits-management:update",
+    "kn-credits-management:delete",
+    "kn-credits-management:read",
+    "kn-promo-code-management:create",
+    "kn-promo-code-management:update",
+    "kn-promo-code-management:delete",
+    "kn-promo-code-management:read"
+  ];
+  const entityNew = [
+    "kn-customers:create",
+    "kn-customers:update",
+    "kn-customers:delete",
+    "kn-customers:read"
+  ];
+  const suggested = [...finance, ...entityNew];
+  const reasons = Object.fromEntries(suggested.map((key) => [key, "Matched finance/entity"]));
+
+  const prior = new Set(finance);
+  const layer = ai.applyAiPermissionLayer({
+    current: prior,
+    previousAiOnly: [],
+    suggestedKeys: suggested
+  });
+  assert(
+    "Describe keeps finance baseline when suggestions overlap",
+    finance.every((key) => layer.baseline.has(key)) && finance.every((key) => layer.permissions.has(key))
+  );
+  assert(
+    "Describe adds new entity keys",
+    entityNew.every((key) => layer.permissions.has(key))
+  );
+
+  const owned = ai.finalizeAiPermissionOwnership({
+    baseline: layer.baseline,
+    permissions: layer.permissions,
+    reasonsByKey: reasons
+  });
+  assert(
+    "Only newly added keys are AI-owned (finance unmarked)",
+    owned.aiOnly.length === entityNew.length &&
+      entityNew.every((key) => owned.aiSuggestions[key]) &&
+      finance.every((key) => !owned.aiSuggestions[key]),
+    `aiOnly=${owned.aiOnly.join(",")}`
+  );
+
+  const afterClear = new Set(ai.clearAiOnly(layer.permissions, owned.aiOnly));
+  assert(
+    "Clear AI restores finance defaults and drops only AI-added keys",
+    finance.every((key) => afterClear.has(key)) &&
+      entityNew.every((key) => !afterClear.has(key)) &&
+      afterClear.size === finance.length
+  );
+
+  // Second Describe replaces prior AI layer without stacking or wiping baseline
+  const secondSuggested = ["hevo-dashboard:read", ...finance];
+  const second = ai.applyAiPermissionLayer({
+    current: new Set([...finance, ...entityNew]),
+    previousAiOnly: owned.aiOnly,
+    suggestedKeys: secondSuggested
+  });
+  const secondOwned = ai.finalizeAiPermissionOwnership({
+    baseline: second.baseline,
+    permissions: second.permissions,
+    reasonsByKey: { "hevo-dashboard:read": "Analytics" }
+  });
+  assert(
+    "Re-describe strips prior AI-only and does not re-own finance",
+    finance.every((key) => second.baseline.has(key)) &&
+      !second.permissions.has("kn-customers:create") &&
+      second.permissions.has("hevo-dashboard:read") &&
+      secondOwned.aiOnly.length === 1 &&
+      secondOwned.aiSuggestions["hevo-dashboard:read"]
+  );
+}
+
+// --- AI Describe flows: error / edge states + lots of data ---
+{
+  // Match Role / Default Role drawers (not ai-suggest's legacy default ["read","write",...])
+  const ROLE_ACTIONS = ["create", "update", "delete", "read"];
+
+  function statusForDescribe({ noMatch, edgeMessage, aiOnlyCount, suggestionsSize }) {
+    if (noMatch) {
+      return edgeMessage || ai.MESSAGES?.noMatch || "No strong matches.";
+    }
+    if (aiOnlyCount > 0) {
+      return `${aiOnlyCount} permissions suggested. Review them below.${edgeMessage ? ` ${edgeMessage}` : ""}`;
+    }
+    if (suggestionsSize > 0) {
+      return "Matched permissions you already have — nothing new added.";
+    }
+    return "";
+  }
+
+  const empty = ai.deriveRolePermissions("", { actions: ROLE_ACTIONS });
+  assert("Empty describe: noMatch and zero suggestions", empty.noMatch === true && empty.suggestions.size === 0);
+  assert(
+    "Empty describe: status stays blank (no false error)",
+    statusForDescribe({
+      noMatch: empty.noMatch && Boolean("".trim()),
+      edgeMessage: empty.edgeMessage,
+      aiOnlyCount: 0,
+      suggestionsSize: empty.suggestions.size
+    }) === ""
+  );
+
+  const nonsense = ai.deriveRolePermissions("zzzz qqqq xyxyxy not a real capability", { actions: ROLE_ACTIONS });
+  assert("Nonsense describe: noMatch", nonsense.noMatch === true && nonsense.suggestions.size === 0);
+  assert(
+    "Nonsense describe: status uses no-match copy",
+    statusForDescribe({
+      noMatch: true,
+      edgeMessage: nonsense.edgeMessage,
+      aiOnlyCount: 0,
+      suggestionsSize: 0
+    }).includes("No strong matches")
+  );
+
+  const adminFull = [];
+  for (const mod of ["kn-user-management", "kn-role-management", "default-role-management"]) {
+    for (const action of ROLE_ACTIONS) {
+      adminFull.push(`${mod}:${action}`);
+    }
+  }
+  const adminDesc = ai.deriveRolePermissions(
+    "concentrated in Administration — user access, roles, and default role templates",
+    { actions: ROLE_ACTIONS }
+  );
+  assert("Admin describe produces suggestions", adminDesc.suggestions.size > 0 && !adminDesc.noMatch);
+  const adminLayer = ai.applyAiPermissionLayer({
+    current: new Set(adminFull),
+    previousAiOnly: [],
+    suggestedKeys: [...adminDesc.suggestions.keys()]
+  });
+  const adminOwned = ai.finalizeAiPermissionOwnership({
+    baseline: adminLayer.baseline,
+    permissions: adminLayer.permissions,
+    reasonsByKey: Object.fromEntries(adminDesc.suggestions)
+  });
+  assert(
+    "Already-owned admin describe: aiOnly empty (nothing new)",
+    adminOwned.aiOnly.length === 0 && setEq(adminLayer.permissions, adminFull),
+    `aiOnly=${adminOwned.aiOnly.join(",")}`
+  );
+  assert(
+    "Already-owned admin describe: visible already-have status",
+    statusForDescribe({
+      noMatch: false,
+      edgeMessage: adminDesc.edgeMessage,
+      aiOnlyCount: adminOwned.aiOnly.length,
+      suggestionsSize: adminDesc.suggestions.size
+    }) === "Matched permissions you already have — nothing new added."
+  );
+
+  const multi = ai.deriveRolePermissions(
+    "manage users roles finance credits analytics dashboard notifications alerts customs ISF filing",
+    { actions: ROLE_ACTIONS }
+  );
+  assert(
+    "Multi-intent describe: multiIntent or many groups",
+    multi.multiIntent === true || multi.matches.length >= 3,
+    `level=${multi.level} matches=${multi.matches.length}`
+  );
+  assert(
+    "Multi-intent describe: edge tip is non-empty when flagged",
+    !multi.multiIntent || /more than one|primary/i.test(multi.edgeMessage || "")
+  );
+
+  // Lots of data: dense catalog + overlapping AI layer + clear must not wipe baseline
+  const denseKeys = [];
+  for (let i = 0; i < 40; i += 1) {
+    for (const action of ROLE_ACTIONS) {
+      denseKeys.push(`mod-${i}:${action}`);
+    }
+  }
+  assert("Dense catalog has 160 keys", denseKeys.length === 160);
+  const baselineHalf = denseKeys.filter((_, idx) => idx % 2 === 0);
+  const suggestAll = denseKeys.slice(0, 120);
+  const denseLayer = ai.applyAiPermissionLayer({
+    current: new Set(baselineHalf),
+    previousAiOnly: [],
+    suggestedKeys: suggestAll
+  });
+  const denseOwned = ai.finalizeAiPermissionOwnership({
+    baseline: denseLayer.baseline,
+    permissions: denseLayer.permissions,
+    reasonsByKey: Object.fromEntries(suggestAll.map((key) => [key, "bulk"]))
+  });
+  assert(
+    "Dense describe: baseline half preserved",
+    baselineHalf.every((key) => denseLayer.permissions.has(key))
+  );
+  assert(
+    "Dense describe: only non-baseline keys are AI-owned",
+    denseOwned.aiOnly.every((key) => !denseLayer.baseline.has(key)) &&
+      denseOwned.aiOnly.length === suggestAll.filter((key) => !baselineHalf.includes(key)).length,
+    `aiOnly=${denseOwned.aiOnly.length}`
+  );
+  const denseCleared = new Set(ai.clearAiOnly(denseLayer.permissions, denseOwned.aiOnly));
+  assert(
+    "Dense clear: restores exact baseline half",
+    setEq(denseCleared, baselineHalf),
+    `size=${denseCleared.size}`
+  );
+
+  // Re-describe under load: strip prior AI-only, keep growing baseline
+  const nextSuggest = denseKeys.slice(80, 160);
+  const reLayer = ai.applyAiPermissionLayer({
+    current: denseLayer.permissions,
+    previousAiOnly: denseOwned.aiOnly,
+    suggestedKeys: nextSuggest
+  });
+  assert(
+    "Dense re-describe: prior AI-only removed when not re-suggested",
+    denseOwned.aiOnly.every((key) => nextSuggest.includes(key) || !reLayer.permissions.has(key))
+  );
+  assert(
+    "Dense re-describe: original baseline still intact",
+    baselineHalf.every((key) => reLayer.permissions.has(key))
+  );
+
+  const droleEmpty = ai.deriveDefaultRoleSuggestions("asdfghjkl zxcvbnm", { actions: ROLE_ACTIONS });
+  assert("Default-role nonsense: noMatch", droleEmpty.noMatch === true);
+
+  const droleFinance = ai.deriveDefaultRoleSuggestions("finance credits billing promo codes for customers", {
+    actions: ROLE_ACTIONS
+  });
+  assert(
+    "Default-role finance describe: suggestions + applicables/services optional",
+    droleFinance.suggestions.size > 0 && !droleFinance.noMatch
+  );
+
+  const greenfield = ai.deriveRolePermissions(
+    "manage users and roles with finance credits analytics dashboard",
+    { actions: ROLE_ACTIONS }
+  );
+  const greenLayer = ai.applyAiPermissionLayer({
+    current: new Set(),
+    previousAiOnly: [],
+    suggestedKeys: [...greenfield.suggestions.keys()]
+  });
+  const greenOwned = ai.finalizeAiPermissionOwnership({
+    baseline: greenLayer.baseline,
+    permissions: greenLayer.permissions,
+    reasonsByKey: Object.fromEntries(greenfield.suggestions)
+  });
+  assert(
+    "Greenfield describe: every suggested key is AI-owned",
+    greenOwned.aiOnly.length === greenfield.suggestions.size && greenOwned.aiOnly.length >= 4,
+    `aiOnly=${greenOwned.aiOnly.length}`
+  );
+  assert(
+    "Greenfield describe: status counts suggestions",
+    /permissions suggested/i.test(
+      statusForDescribe({
+        noMatch: false,
+        edgeMessage: greenfield.edgeMessage,
+        aiOnlyCount: greenOwned.aiOnly.length,
+        suggestionsSize: greenfield.suggestions.size
+      })
+    )
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

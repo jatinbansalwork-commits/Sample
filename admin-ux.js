@@ -875,7 +875,12 @@
           </div>`
         : ""
     }
-        ${noMatchBanner}`;
+        ${noMatchBanner}
+        ${
+          !searchOpen
+            ? `<p class="ai-describe-status type-caption-sm" aria-live="polite" aria-atomic="true" data-ai-live-${attr} hidden></p>`
+            : ""
+        }`;
     return `<div class="admin-perm-tools perm-smart ${searchOpen ? "is-search" : "is-describe"}">
       <div class="perm-smart__input-row">
         <div class="perm-mode-toggle" role="group" aria-label="Find permissions">
@@ -1175,22 +1180,12 @@
     const btnId = `${panelId}-btn`;
     const nameId = `${panelId}-name`;
     const title = label || `Other categories (${count})`;
-    return `<div class="role-perm__group role-perm__group--unused blade-accordion-item${open ? " is-open" : ""}">
-      <h3 class="role-perm__heading">
-        <div class="role-perm__summary">
-          <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-unused-toggle aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}">
-            <span class="role-perm__lead">
-              <span class="type-ui-sm type-weight-semibold role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
-            </span>
-          </button>
-          <span class="role-perm__trailing">
-            <span class="role-perm__info-slot" aria-hidden="true"></span>
-            <span class="role-perm__count-slot" aria-hidden="true"></span>
-            <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
-          </span>
-        </div>
-      </h3>
-      <div class="role-perm__body role-perm__unused-body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>
+    // Plain disclosure — not a .role-perm__group card. Nested groups keep their own bases.
+    return `<div class="role-perm__unused${open ? " is-open" : ""}">
+      <button class="role-perm__unused-toggle type-ui-sm type-weight-semibold" type="button" id="${escapeHtml(btnId)}" data-admin-unused-toggle aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}">
+        <span class="role-perm__name" id="${escapeHtml(nameId)}">${escapeHtml(title)}</span>
+      </button>
+      <div class="role-perm__unused-body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>
         ${body}
       </div>
     </div>`;

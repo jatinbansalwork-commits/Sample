@@ -224,6 +224,28 @@
     return window.KNAiSuggest.deriveDefaultRoleSuggestions(description, { actions: ACTIONS, keyOf });
   }
 
+  /** ALL is exclusive: never keep "all" alongside specific service ids. */
+  function normalizeServices(services, { justSelected } = {}) {
+    const list = [...new Set(services || [])].filter(Boolean);
+    if (!list.includes("all")) return list;
+    if (list.length === 1) return ["all"];
+    // If user just picked a specific service while ALL was on → drop ALL, keep specifics
+    if (justSelected && justSelected !== "all") {
+      return list.filter((id) => id !== "all");
+    }
+    // If user just picked ALL, or ambiguous (AI / readForm) → ALL only
+    return ["all"];
+  }
+
+  function setAiLiveStatus(liveEl, message) {
+    if (!liveEl) {
+      return;
+    }
+    const text = String(message || "").trim();
+    liveEl.textContent = text;
+    liveEl.hidden = !text;
+  }
+
   function applyAiDescription(description, opts = {}) {
     const root = document.getElementById("kn-default-role-root");
     const formEl = root?.querySelector("#kn-drole-form");
@@ -233,16 +255,7 @@
     state.aiDescribe = description;
     clearTimeout(state._aiDebounce);
     if (!description.trim()) {
-      state.aiLoading = false;
-      state.aiNoMatch = false;
-      state.aiSuggestions = {};
-      state.aiApplicableSuggestions = [];
-      state.aiServiceSuggestions = [];
-      persistForm(readForm(formEl));
-      render();
-      requestAnimationFrame(() => {
-        document.getElementById("kn-default-role-root")?.querySelector("[data-ai-describe='drole']")?.focus();
-      });
+      clearAiPermissionLayer(formEl);
       return;
     }
     state.aiLoading = true;
@@ -269,41 +282,52 @@
         return;
       }
       const { suggestions, applicables, services, noMatch, edgeMessage, reasonsByField } = deriveAiSuggestions(description);
-      const suggestionsObj = {};
+      const reasonsByKey = {};
       suggestions.forEach((reason, key) => {
-        suggestionsObj[key] = reason;
+        reasonsByKey[key] = reason;
       });
       persistForm(readForm(liveRoot.querySelector("#kn-drole-form")));
       const snap = readForm(liveRoot.querySelector("#kn-drole-form"));
-      suggestions.forEach((reason, key) => {
-        snap.permissions.add(key);
+      const previousAiOnly = Object.keys(state.aiSuggestions || {});
+      const layer = window.KNAiSuggest.applyAiPermissionLayer({
+        current: snap.permissions,
+        previousAiOnly,
+        suggestedKeys: [...suggestions.keys()]
       });
-      const ensured = window.KNAdminUX.ensureWriteImpliesRead(snap.permissions, ACTIONS);
+      const ensured = window.KNAdminUX.ensureWriteImpliesRead(layer.permissions, ACTIONS);
       syncPermSet(snap.permissions, ensured.permissions);
       if (ensured.autoCheckedRead) {
         applyPermDepFeedback(ensured);
       }
+      const owned = window.KNAiSuggest.finalizeAiPermissionOwnership({
+        baseline: layer.baseline,
+        permissions: snap.permissions,
+        reasonsByKey
+      });
       const applicableMerge = window.KNAiSuggest.mergeAiSelections(
         snap.applicable,
         applicables,
         state.aiApplicableSuggestions
       );
+      const allAlreadySelected = (snap.services || []).includes("all");
       const serviceMerge = window.KNAiSuggest.mergeAiSelections(
         snap.services,
-        services,
-        state.aiServiceSuggestions
+        allAlreadySelected ? [] : services,
+        allAlreadySelected ? [] : state.aiServiceSuggestions
       );
       snap.applicable = applicableMerge.next;
-      snap.services = serviceMerge.next;
-      state.aiSuggestions = suggestionsObj;
+      snap.services = normalizeServices(serviceMerge.next);
+      state.aiSuggestions = owned.aiSuggestions;
       state.aiApplicableSuggestions = applicableMerge.aiOnly;
-      state.aiServiceSuggestions = serviceMerge.aiOnly;
+      state.aiServiceSuggestions = allAlreadySelected ? [] : serviceMerge.aiOnly;
       state.aiApplicableReasons = Object.fromEntries(
         applicableMerge.aiOnly.map((id) => [id, reasonsByField?.[`applicable:${id}`] || "Suggested from description"])
       );
-      state.aiServiceReasons = Object.fromEntries(
-        serviceMerge.aiOnly.map((id) => [id, reasonsByField?.[`service:${id}`] || "Suggested from description"])
-      );
+      state.aiServiceReasons = allAlreadySelected
+        ? {}
+        : Object.fromEntries(
+            serviceMerge.aiOnly.map((id) => [id, reasonsByField?.[`service:${id}`] || "Suggested from description"])
+          );
       state.aiLoading = false;
       state.aiNoMatch = noMatch;
       window.KNAiSuggest?.logAudit?.({
@@ -311,17 +335,18 @@
         context: "default-role",
         field: "permissions,applicable,services",
         origin: "ai",
-        value: Object.keys(suggestionsObj).join(","),
+        value: owned.aiOnly.join(","),
         meta: {
           applicables: applicableMerge.aiOnly,
           services: serviceMerge.aiOnly,
           noMatch,
-          edgeMessage: edgeMessage || ""
+          edgeMessage: edgeMessage || "",
+          aiOnlyCount: owned.aiOnly.length
         }
       });
       const affectedGroups = new Set();
       CATALOG.forEach((group) => {
-        const groupHasSuggestion = groupKeys(group).some((key) => suggestionsObj[key]);
+        const groupHasSuggestion = groupKeys(group).some((key) => owned.aiSuggestions[key]);
         if (groupHasSuggestion) {
           affectedGroups.add(group.id);
         }
@@ -339,22 +364,52 @@
           input.setSelectionRange(end, end);
         }
         const liveEl = liveRoot.querySelector("[data-ai-live-drole]");
-        if (liveEl) {
-          if (noMatch) {
-            liveEl.textContent = edgeMessage || window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.";
-          } else if (suggestions.size > 0) {
-            const applicableTip = applicables.length
-              ? ` Also suggested: ${applicables.map((a) => APPLICABLE.find((x) => x.id === a)?.label || a).join(", ")}.`
-              : "";
-            const serviceTip = services.length
-              ? ` Services: ${services.map((s) => SERVICES.find((x) => x.id === s)?.label || s).join(", ")}.`
-              : "";
-            const tip = edgeMessage ? ` ${edgeMessage}` : "";
-            liveEl.textContent = `${suggestions.size} permissions suggested.${applicableTip}${serviceTip} Review them below.${tip}`;
-          }
+        if (noMatch) {
+          setAiLiveStatus(liveEl, edgeMessage || window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.");
+        } else if (owned.aiOnly.length > 0 || applicableMerge.aiOnly.length || serviceMerge.aiOnly.length) {
+          const applicableTip = applicables.length
+            ? ` Also suggested: ${applicables.map((a) => APPLICABLE.find((x) => x.id === a)?.label || a).join(", ")}.`
+            : "";
+          const serviceTip = services.length
+            ? ` Services: ${services.map((s) => SERVICES.find((x) => x.id === s)?.label || s).join(", ")}.`
+            : "";
+          const tip = edgeMessage ? ` ${edgeMessage}` : "";
+          setAiLiveStatus(liveEl, `${owned.aiOnly.length} permissions suggested.${applicableTip}${serviceTip} Review them below.${tip}`);
+        } else if (suggestions.size > 0) {
+          setAiLiveStatus(liveEl, "Matched permissions you already have — nothing new added.");
+        } else {
+          setAiLiveStatus(liveEl, "");
         }
       });
     }, 600);
+  }
+
+  function clearAiPermissionLayer(formEl) {
+    const form = formEl || document.getElementById("kn-default-role-root")?.querySelector("#kn-drole-form");
+    if (!form || !state.form) {
+      return;
+    }
+    const snap = readForm(form);
+    snap.permissions = new Set(window.KNAiSuggest.clearAiOnly(snap.permissions, Object.keys(state.aiSuggestions || {})));
+    snap.applicable = window.KNAiSuggest.clearAiOnly(snap.applicable, state.aiApplicableSuggestions);
+    snap.services = window.KNAiSuggest.clearAiOnly(snap.services, state.aiServiceSuggestions);
+    if (state.aiFieldMeta?.name) {
+      snap.name = "";
+    }
+    state.aiDescribe = "";
+    state.aiLoading = false;
+    state.aiNoMatch = false;
+    state.aiSuggestions = {};
+    state.aiApplicableSuggestions = [];
+    state.aiServiceSuggestions = [];
+    state.aiApplicableReasons = {};
+    state.aiServiceReasons = {};
+    state.aiFieldMeta = {};
+    persistForm(snap);
+    render();
+    requestAnimationFrame(() => {
+      document.getElementById("kn-default-role-root")?.querySelector("[data-ai-describe='drole']")?.focus();
+    });
   }
 
   function keyOf(moduleId, action) {
@@ -823,8 +878,8 @@
       state.aiApplicableReasons = draft.applicableReasons || {};
     }
     if (Array.isArray(draft.services) && draft.services.length) {
-      state.form.services = draft.services.slice();
-      state.aiServiceSuggestions = draft.services.slice();
+      state.form.services = normalizeServices(draft.services.slice());
+      state.aiServiceSuggestions = state.form.services.slice();
       state.aiServiceReasons = draft.serviceReasons || {};
     }
     const suggestionsObj = { ...(draft.permissions || {}) };
@@ -998,10 +1053,7 @@
     const announcement = window.KNAdminUX.permDependencyMessage(result, ACTION_LABEL);
     if (announcement) {
       requestAnimationFrame(() => {
-        const liveEl = document.querySelector(liveSelector);
-        if (liveEl) {
-          liveEl.textContent = announcement;
-        }
+        setAiLiveStatus(document.querySelector(liveSelector), announcement);
       });
     }
   }
@@ -1066,7 +1118,7 @@
       open,
       modules: group.modules,
       includesLabel: "Includes:",
-      tone: countTone,
+      // Coverage tone stays on the count badge only — not the whole row (avoids peach/notice chrome).
       leadingExtra: aiCountBadge,
       trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count">${selected}/${keys.length}</span>`,
       body: `
@@ -1316,7 +1368,6 @@
               <h3 class="type-heading-h5 type-weight-semibold" id="kn-drole-perm-title">What they can do</h3>
             </header>
             ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-drole", catalog: CATALOG })}
-            <p class="visually-hidden" aria-live="polite" aria-atomic="true" data-ai-live-drole></p>
             ${window.KNAdminUX.permFilters({
               query: state.permQuery,
               selectedOnly: state.permSelectedOnly,
@@ -2017,7 +2068,10 @@
       }
       const service = event.target.closest("[data-drole-service]");
       if (service) {
-        persistForm(readForm(root.querySelector("#kn-drole-form")));
+        const id = service.getAttribute("data-drole-service") || "";
+        const snap = readForm(root.querySelector("#kn-drole-form"));
+        snap.services = normalizeServices(snap.services, { justSelected: id });
+        persistForm(snap);
         render();
         return;
       }
@@ -2148,23 +2202,6 @@
       }
       if (event.target.closest("[data-ai-describe-clear='drole']")) {
         event.preventDefault();
-        const snap = readForm(root.querySelector("#kn-drole-form"));
-        snap.permissions = new Set(state.form?.permissions || []);
-        Object.keys(state.aiSuggestions).forEach((key) => snap.permissions.delete(key));
-        snap.applicable = window.KNAiSuggest.clearAiOnly(snap.applicable, state.aiApplicableSuggestions);
-        snap.services = window.KNAiSuggest.clearAiOnly(snap.services, state.aiServiceSuggestions);
-        if (state.aiFieldMeta?.name) {
-          snap.name = "";
-        }
-        state.aiDescribe = "";
-        state.aiLoading = false;
-        state.aiNoMatch = false;
-        state.aiSuggestions = {};
-        state.aiApplicableSuggestions = [];
-        state.aiServiceSuggestions = [];
-        state.aiApplicableReasons = {};
-        state.aiServiceReasons = {};
-        state.aiFieldMeta = {};
         window.KNAiSuggest?.logAudit?.({
           action: "clear-ai-suggestions",
           context: "default-role",
@@ -2172,11 +2209,7 @@
           origin: "manual",
           value: ""
         });
-        persistForm(snap);
-        render();
-        requestAnimationFrame(() => {
-          root.querySelector("[data-ai-describe='drole']")?.focus();
-        });
+        clearAiPermissionLayer(root.querySelector("#kn-drole-form"));
         return;
       }
     }, true);

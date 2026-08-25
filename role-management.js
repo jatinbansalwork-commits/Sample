@@ -123,6 +123,15 @@
     return window.KNAiSuggest.deriveRolePermissions(description, { actions: ACTIONS, keyOf });
   }
 
+  function setAiLiveStatus(liveEl, message) {
+    if (!liveEl) {
+      return;
+    }
+    const text = String(message || "").trim();
+    liveEl.textContent = text;
+    liveEl.hidden = !text;
+  }
+
   function applyAiDescription(description, opts = {}) {
     const root = document.getElementById("kn-role-root");
     const formEl = root?.querySelector("#kn-role-form");
@@ -132,14 +141,7 @@
     state.aiDescribe = description;
     clearTimeout(state._aiDebounce);
     if (!description.trim()) {
-      state.aiLoading = false;
-      state.aiNoMatch = false;
-      state.aiSuggestions = {};
-      persistForm(readForm(formEl));
-      render();
-      requestAnimationFrame(() => {
-        document.getElementById("kn-role-root")?.querySelector("[data-ai-describe='role']")?.focus();
-      });
+      clearAiPermissionLayer(formEl);
       return;
     }
     state.aiLoading = true;
@@ -166,21 +168,29 @@
         return;
       }
       const { suggestions, noMatch, edgeMessage, lowConfidence, ambiguous, multiIntent } = deriveAiSuggestions(description);
-      const suggestionsObj = {};
+      const reasonsByKey = {};
       suggestions.forEach((reason, key) => {
-        suggestionsObj[key] = reason;
+        reasonsByKey[key] = reason;
       });
       persistForm(readForm(liveRoot.querySelector("#kn-role-form")));
       const snap = readForm(liveRoot.querySelector("#kn-role-form"));
-      suggestions.forEach((reason, key) => {
-        snap.permissions.add(key);
+      const previousAiOnly = Object.keys(state.aiSuggestions || {});
+      const layer = window.KNAiSuggest.applyAiPermissionLayer({
+        current: snap.permissions,
+        previousAiOnly,
+        suggestedKeys: [...suggestions.keys()]
       });
-      const ensured = window.KNAdminUX.ensureWriteImpliesRead(snap.permissions, ACTIONS);
+      const ensured = window.KNAdminUX.ensureWriteImpliesRead(layer.permissions, ACTIONS);
       syncPermSet(snap.permissions, ensured.permissions);
       if (ensured.autoCheckedRead) {
         applyPermDepFeedback(ensured);
       }
-      state.aiSuggestions = suggestionsObj;
+      const owned = window.KNAiSuggest.finalizeAiPermissionOwnership({
+        baseline: layer.baseline,
+        permissions: snap.permissions,
+        reasonsByKey
+      });
+      state.aiSuggestions = owned.aiSuggestions;
       state.aiLoading = false;
       state.aiNoMatch = noMatch;
       window.KNAiSuggest?.logAudit?.({
@@ -188,12 +198,12 @@
         context: "kn-role",
         field: "permissions",
         origin: "ai",
-        value: Object.keys(suggestionsObj).join(","),
-        meta: { noMatch, lowConfidence, ambiguous, multiIntent, edgeMessage: edgeMessage || "" }
+        value: owned.aiOnly.join(","),
+        meta: { noMatch, lowConfidence, ambiguous, multiIntent, edgeMessage: edgeMessage || "", aiOnlyCount: owned.aiOnly.length }
       });
       const affectedGroups = new Set();
       CATALOG.forEach((group) => {
-        const groupHasSuggestion = groupKeys(group).some((key) => suggestionsObj[key]);
+        const groupHasSuggestion = groupKeys(group).some((key) => owned.aiSuggestions[key]);
         if (groupHasSuggestion) {
           affectedGroups.add(group.id);
         }
@@ -211,16 +221,40 @@
           input.setSelectionRange(end, end);
         }
         const liveEl = liveRoot.querySelector("[data-ai-live-role]");
-        if (liveEl) {
-          if (noMatch) {
-            liveEl.textContent = edgeMessage || window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.";
-          } else if (suggestions.size > 0) {
-            const tip = edgeMessage ? ` ${edgeMessage}` : "";
-            liveEl.textContent = `${suggestions.size} permissions suggested. Review them below.${tip}`;
-          }
+        if (noMatch) {
+          setAiLiveStatus(liveEl, edgeMessage || window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.");
+        } else if (owned.aiOnly.length > 0) {
+          const tip = edgeMessage ? ` ${edgeMessage}` : "";
+          setAiLiveStatus(liveEl, `${owned.aiOnly.length} permissions suggested. Review them below.${tip}`);
+        } else if (suggestions.size > 0) {
+          setAiLiveStatus(liveEl, "Matched permissions you already have — nothing new added.");
+        } else {
+          setAiLiveStatus(liveEl, "");
         }
       });
     }, 600);
+  }
+
+  function clearAiPermissionLayer(formEl) {
+    const form = formEl || document.getElementById("kn-role-root")?.querySelector("#kn-role-form");
+    if (!form || !state.form) {
+      return;
+    }
+    const snap = readForm(form);
+    snap.permissions = new Set(window.KNAiSuggest.clearAiOnly(snap.permissions, Object.keys(state.aiSuggestions || {})));
+    if (state.aiFieldMeta?.name) {
+      snap.name = "";
+    }
+    state.aiDescribe = "";
+    state.aiLoading = false;
+    state.aiNoMatch = false;
+    state.aiSuggestions = {};
+    state.aiFieldMeta = {};
+    persistForm(snap);
+    render();
+    requestAnimationFrame(() => {
+      document.getElementById("kn-role-root")?.querySelector("[data-ai-describe='role']")?.focus();
+    });
   }
 
   function keyOf(moduleId, action) {
@@ -793,10 +827,7 @@
     const announcement = window.KNAdminUX.permDependencyMessage(result, ACTION_LABEL);
     if (announcement) {
       requestAnimationFrame(() => {
-        const liveEl = document.querySelector(liveSelector);
-        if (liveEl) {
-          liveEl.textContent = announcement;
-        }
+        setAiLiveStatus(document.querySelector(liveSelector), announcement);
       });
     }
   }
@@ -861,7 +892,7 @@
       open,
       modules: group.modules,
       includesLabel: "Includes these KlearNow services:",
-      tone: countTone,
+      // Coverage tone stays on the count badge only — not the whole row (avoids peach/notice chrome).
       leadingExtra: aiCountBadge,
       trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count">${selected}/${keys.length}</span>`,
       body: `
@@ -1035,7 +1066,6 @@
               <h3 class="type-heading-h5 type-weight-semibold" id="kn-role-perm-title">What they can do</h3>
             </header>
             ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-role", catalog: CATALOG })}
-            <p class="visually-hidden" aria-live="polite" aria-atomic="true" data-ai-live-role></p>
             ${window.KNAdminUX.permFilters({
               query: state.permQuery,
               selectedOnly: state.permSelectedOnly,
@@ -1769,18 +1799,6 @@
       }
       if (event.target.closest("[data-ai-describe-clear='role']")) {
         event.preventDefault();
-        const snap = readForm(root.querySelector("#kn-role-form"));
-        snap.permissions = new Set(state.form?.permissions || []);
-        // Uncheck AI-suggested permissions that were auto-checked
-        Object.keys(state.aiSuggestions).forEach((key) => snap.permissions.delete(key));
-        if (state.aiFieldMeta?.name) {
-          snap.name = "";
-        }
-        state.aiDescribe = "";
-        state.aiLoading = false;
-        state.aiNoMatch = false;
-        state.aiSuggestions = {};
-        state.aiFieldMeta = {};
         window.KNAiSuggest?.logAudit?.({
           action: "clear-ai-suggestions",
           context: "kn-role",
@@ -1788,11 +1806,7 @@
           origin: "manual",
           value: ""
         });
-        persistForm(snap);
-        render();
-        requestAnimationFrame(() => {
-          root.querySelector("[data-ai-describe='role']")?.focus();
-        });
+        clearAiPermissionLayer(root.querySelector("#kn-role-form"));
         return;
       }
     }, true);

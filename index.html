@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./tokens.css?v=53" />
-    <link rel="stylesheet" href="./styles.css?v=276" />
+    <link rel="stylesheet" href="./styles.css?v=290" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -99,7 +99,7 @@
           <a class="skip-nav type-ui-sm" href="#blade-side-nav-skip">Skip to content</a>
           <div class="side-nav-l1" id="side-nav-l1">
           <nav class="side-nav-body sidebar-nav" aria-label="Sections">
-            <ul class="side-nav-list">
+            <ul class="side-nav-list"> <!-- kn-sidenav- Canonical-v1 -->
               <li class="l1-item-wrapper">
                 <a class="side-nav-link" href="#dashboard" data-level="1" aria-current="page">
                   <span class="side-nav-link__icon" aria-hidden="true">
@@ -109,25 +109,7 @@
                 </a>
               </li>
               <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#analytics-hevo" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-analytics">
-                  <span class="side-nav-link__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 14l4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg>
-                  </span>
-                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Analytics</span>
-                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-                  </span>
-                </a>
-                <ul class="side-nav-level" id="sidenav-level-analytics" data-level="2" hidden>
-                  <li>
-                    <a class="side-nav-link" href="#analytics-hevo" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Hevo Dashboard</span>
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#kn-user-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-administration">
+                <a class="side-nav-link" href="#kn-role-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-administration">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.25"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17.5" cy="8.5" r="2.25"/><path d="M17.5 13.5a3.6 3.6 0 0 1 3 1.7"/></svg>
                   </span>
@@ -138,27 +120,18 @@
                 </a>
                 <ul class="side-nav-level" id="sidenav-level-administration" data-level="2" hidden>
                   <li>
-                    <a class="side-nav-link" href="#kn-user-management" data-level="2">
-                      <span class="side-nav-link__copy">
-                        <span class="side-nav-link__title type-ui-md">KN User Management</span>
-                        <span class="side-nav-link__desc type-caption-sm">People across workspaces</span>
-                      </span>
-                    </a>
-                  </li>
-                  <li>
                     <a class="side-nav-link" href="#kn-role-management" data-level="2">
-                      <span class="side-nav-link__copy">
-                        <span class="side-nav-link__title type-ui-md">KN Role Management</span>
-                        <span class="side-nav-link__desc type-caption-sm">Internal KlearNow access</span>
-                      </span>
+                      <span class="side-nav-link__title type-ui-md">Role Management</span>
                     </a>
                   </li>
                   <li>
-                    <a class="side-nav-link" href="#default-role-management" data-level="2">
-                      <span class="side-nav-link__copy">
-                        <span class="side-nav-link__title type-ui-md">Default Role Management</span>
-                        <span class="side-nav-link__desc type-caption-sm">Customer and broker templates</span>
-                      </span>
+                    <a class="side-nav-link" href="#kn-user-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">User Management</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#contract-management" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Contract Management</span>
                     </a>
                   </li>
                 </ul>
@@ -187,6 +160,24 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#notification-table" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-master-data">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v5c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 11v5c0 1.66 3.58 3 8 3s8-1.34 8-3v-5"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Master Data Management</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-master-data" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#notification-table" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Notification Table</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
                 <a class="side-nav-link" href="#kn-credits-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-finance">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/><path d="M6.5 15h4"/></svg>
@@ -210,124 +201,145 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#billing-ar-invoices" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-billing">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.25"/><path d="M3 10h18"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Billing Management</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level side-nav-tree" id="sidenav-level-billing" data-level="2" hidden>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#billing-ar" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-billing-ar">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">AR</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-billing-ar" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-ar-invoices" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Invoices</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-ar-charge-list" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Charge List</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-ar-overview" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Overview</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#billing-ap" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-billing-ap">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">AP</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-billing-ap" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-ap-invoices" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Invoices</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-ap-charge-list" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Charge List</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-ap-overview" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Overview</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#billing-broker-invoice" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-billing-broker">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">Broker Invoice</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-billing-broker" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-broker-invoice-us" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">US</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#billing-broker-invoice-ca" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">CA</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item">
+                    <a class="side-nav-link side-nav-tree__row" href="#billing-360-invoices" data-level="2">
+                      <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">360 Invoices</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
                 <a class="side-nav-link" href="#klearhub-overview" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-klearhub">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-7h6v7"/><path d="M4 20h16"/></svg>
                   </span>
-                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">KlearHub</span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Klearhub</span>
                   <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                   </span>
                 </a>
-                <ul class="side-nav-level" id="sidenav-level-klearhub" data-level="2" hidden>
-                  <li>
-                    <a class="side-nav-link" href="#klearhub-overview" data-level="2">
-                      <span class="side-nav-link__copy">
-                        <span class="side-nav-link__title type-ui-md">By mode</span>
-                        <span class="side-nav-link__desc type-caption-sm">Ocean, air, truck, rail</span>
+                <ul class="side-nav-level side-nav-tree" id="sidenav-level-klearhub" data-level="2" hidden>
+                  <li class="side-nav-tree__item">
+                    <a class="side-nav-link side-nav-tree__row" href="#klearhub-overview" data-level="2">
+                      <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">By mode</span>
+                    </a>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#klearhub-visibility" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-klearhub-visibility">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                       </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">Visibility</span>
                     </a>
-                  </li>
-                  <li>
-                    <a class="side-nav-link" href="#klearhub-visibility" data-level="2">
-                      <span class="side-nav-link__copy">
-                        <span class="side-nav-link__title type-ui-md">Visibility</span>
-                        <span class="side-nav-link__desc type-caption-sm">Track shipments</span>
-                      </span>
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#notification-table" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-master-data">
-                  <span class="side-nav-link__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v5c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 11v5c0 1.66 3.58 3 8 3s8-1.34 8-3v-5"/></svg>
-                  </span>
-                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Master Data Management</span>
-                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-                  </span>
-                </a>
-                <ul class="side-nav-level" id="sidenav-level-master-data" data-level="2" hidden>
-                  <li>
-                    <a class="side-nav-link" href="#notification-table" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Notification Table</span>
-                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-klearhub-visibility" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#klearhub-visibility-engine" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Engine</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#klearhub-visibility" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">360</span>
+                        </a>
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </li>
               <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#release-notes" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-content">
-                  <span class="side-nav-link__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8.5L20 8v12.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M15.5 3.5V8H20"/><path d="M9 12h6M9 15.5h4"/></svg>
-                  </span>
-                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Content Management</span>
-                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-                  </span>
-                </a>
-                <ul class="side-nav-level" id="sidenav-level-content" data-level="2" hidden>
-                  <li>
-                    <a class="side-nav-link" href="#release-notes" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Release Notes</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a class="side-nav-link" href="#user-guides" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">User Guides</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a class="side-nav-link" href="#announcements" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Announcements</span>
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#default-notification" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-notification">
-                  <span class="side-nav-link__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 20a2 2 0 0 1-3.46 0"/></svg>
-                  </span>
-                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Notification Management</span>
-                  <span class="counter hide-when-collapsed" data-nav-count="notifications" aria-label="3 shipments need action">3</span>
-                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-                  </span>
-                </a>
-                <ul class="side-nav-level" id="sidenav-level-notification" data-level="2" hidden>
-                  <li>
-                    <a class="side-nav-link" href="#default-notification" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Default Notification</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a class="side-nav-link" href="#trigger-management" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Trigger Management</span>
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#ops-shipments" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-ops">
-                  <span class="side-nav-link__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
-                  </span>
-                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Intelligent OPS Hub</span>
-                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-                  </span>
-                </a>
-                <ul class="side-nav-level" id="sidenav-level-ops" data-level="2" hidden>
-                  <li>
-                    <a class="side-nav-link" href="#ops-shipments" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">Shipments</span>
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              <li class="l1-item-wrapper">
-                <a class="side-nav-link" href="#transaction-us" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-transaction">
+                <a class="side-nav-link" href="#transaction-gb-exports" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-transaction">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7"/></svg>
                   </span>
@@ -336,13 +348,269 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                   </span>
                 </a>
-                <ul class="side-nav-level" id="sidenav-level-transaction" data-level="2" hidden>
+                <ul class="side-nav-level side-nav-tree" id="sidenav-level-transaction" data-level="2" hidden>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#transaction-gb" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-transaction-gb">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">GB</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-transaction-gb" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-gb-exports" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Exports</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#transaction-nl" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-transaction-nl">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">NL</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-transaction-nl" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-nl-imports" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Imports</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-nl-exports" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Exports</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#transaction-es" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-transaction-es">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">ES</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-transaction-es" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-es-imports" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Imports</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-es-exports" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Exports</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#transaction-us" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-transaction-us">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">US</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-transaction-us" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-isf" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">ISF</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-in-bond" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">IN Bond</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-entry" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Entry</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-ftz" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">FTZ</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-psc" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">PSC</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-delivery-order" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Delivery Order</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-shipments" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Shipments</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#transaction-ca" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-transaction-ca">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">CA</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-transaction-ca" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-ca-entry" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Entry</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-ca-delivery-order" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Delivery Order</span>
+                        </a>
+                      </li>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-ca-lvs" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">LVS</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#drayage" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-drayage">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5V8.75A1.75 1.75 0 0 1 4.75 7H14v9.5"/><path d="M14 10h3.2L20 13.2V16.5h-6"/><circle cx="7" cy="17.5" r="1.75"/><circle cx="17" cy="17.5" r="1.75"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Drayage</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-drayage" data-level="2" hidden>
                   <li>
-                    <a class="side-nav-link" href="#transaction-us" data-level="2">
-                      <span class="side-nav-link__title type-ui-md">US</span>
+                    <a class="side-nav-link" href="#drayage" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Overview</span>
                     </a>
                   </li>
                 </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#analytics-klearhub-dashboard" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-analytics">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 14l4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Analytics</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-analytics" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#analytics-klearhub-dashboard" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KlearHub Dashboard</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#analytics-customs-engine" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Customs Engine Reports</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#analytics-klearhub-reports" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">KlearHub Reports</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="side-nav-link" href="#analytics-data-engine" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Data Engine Reports</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#payment-us-statements" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-payment">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.25"/><path d="M3 10h18"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Payment</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level side-nav-tree" id="sidenav-level-payment" data-level="2" hidden>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#payment-us" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-payment-us">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">US</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-payment-us" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#payment-us-statements" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Statements</span>
+                        </a>
+                      </li>                    </ul>
+                  </li>
+                  <li class="side-nav-tree__item" data-tree-level="1">
+                    <a class="side-nav-link side-nav-tree__row" href="#payment-ca" data-level="2" data-tree-trigger="true" aria-expanded="false" aria-controls="sidenav-l3-payment-ca">
+                      <span class="side-nav-tree__chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                      <span class="side-nav-link__title side-nav-tree__title type-ui-md">CA</span>
+                    </a>
+                    <ul class="side-nav-tree__group" id="sidenav-l3-payment-ca" hidden>
+                      <li class="side-nav-tree__item">
+                        <a class="side-nav-link side-nav-tree__row" href="#payment-ca-statements" data-level="3">
+                          <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Statements</span>
+                        </a>
+                      </li>                    </ul>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#e-invoices" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-einvoices">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8.5L20 8v12.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M15.5 3.5V8H20"/><path d="M9 12h6M9 15.5h4"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">E-Invoices &amp; Documents</span>
+                  <span class="side-nav-link__chevron hide-when-collapsed" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </span>
+                </a>
+                <ul class="side-nav-level" id="sidenav-level-einvoices" data-level="2" hidden>
+                  <li>
+                    <a class="side-nav-link" href="#e-invoices" data-level="2">
+                      <span class="side-nav-link__title type-ui-md">Overview</span>
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li class="l1-item-wrapper">
+                <a class="side-nav-link" href="#notification-management" data-level="1">
+                  <span class="side-nav-link__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 20a2 2 0 0 1-3.46 0"/></svg>
+                  </span>
+                  <span class="side-nav-link__title type-ui-md hide-when-collapsed">Notification Management</span>
+                  <span class="counter hide-when-collapsed" data-nav-count="notifications" aria-label="3 shipments need action">3</span>
+                </a>
               </li>
             </ul>
           </nav>
@@ -1652,6 +1920,34 @@
             <div id="kn-default-role-root"></div>
           </section>
 
+          <section class="role-page" id="kn-isf-page" hidden>
+            <div id="kn-isf-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-inb-page" hidden>
+            <div id="kn-inb-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-entry-page" hidden>
+            <div id="kn-entry-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-ftz-page" hidden>
+            <div id="kn-ftz-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-psc-page" hidden>
+            <div id="kn-psc-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-do-page" hidden>
+            <div id="kn-do-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-tmship-page" hidden>
+            <div id="kn-tmship-root"></div>
+          </section>
+
           <section class="empty-page" id="empty-page" hidden>
             <div class="empty-state empty-state--page">
               <span class="empty-state__asset" aria-hidden="true">
@@ -1864,11 +2160,18 @@
     <script src="./ais-live.js?v=5"></script>
     <script src="./visibility.js?v=35"></script>
     <script src="./shipment-detail.js?v=23"></script>
-    <script src="./admin-ux.js?v=56"></script>
-    <script src="./ai-suggest.js?v=4"></script>
-    <script src="./role-management.js?v=60"></script>
-    <script src="./user-management.js?v=35"></script>
-    <script src="./default-role-management.js?v=64"></script>
-    <script src="./script.js?v=108"></script>
+    <script src="./admin-ux.js?v=67"></script>
+    <script src="./ai-suggest.js?v=8"></script>
+    <script src="./role-management.js?v=64"></script>
+    <script src="./user-management.js?v=40"></script>
+    <script src="./default-role-management.js?v=67"></script>
+    <script src="./transaction-us-isf.js?v=6"></script>
+    <script src="./transaction-us-in-bond.js?v=3"></script>
+    <script src="./transaction-us-entry.js?v=2"></script>
+    <script src="./transaction-us-ftz.js?v=1"></script>
+    <script src="./transaction-us-psc.js?v=2"></script>
+    <script src="./transaction-us-delivery-order.js?v=2"></script>
+    <script src="./transaction-us-shipments.js?v=2"></script>
+    <script src="./script.js?v=117"></script>
   </body>
 </html>

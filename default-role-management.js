@@ -8,6 +8,11 @@
     { id: "company", label: "Company" },
     { id: "parties", label: "Parties" }
   ];
+  const PARTIES_CATEGORY = [
+    { id: "brokers-forwarders", label: "Brokers/Forwarders" },
+    { id: "dray-providers", label: "Dray Providers" },
+    { id: "other-parties", label: "Other Parties" }
+  ];
   const SERVICES = [
     { id: "all", label: "ALL" },
     { id: "ai", label: "AI" },
@@ -47,12 +52,14 @@
     },
     {
       id: "visibility",
-      title: "Visibility",
+      title: "KlearHub",
       modules: [
         { id: "visibility", title: "Visibility" },
         { id: "visibility-2", title: "Visibility 2.0" },
+        { id: "visibility-360", title: "Visibility 360" },
         { id: "visibility-sec", title: "Visibility SEC" },
         { id: "visibility-3", title: "Visibility 3.0" },
+        { id: "visibility-overview", title: "Overview" },
         { id: "container", title: "Container" }
       ]
     },
@@ -60,10 +67,11 @@
       id: "analytics",
       title: "Analytics",
       modules: [
-        { id: "custom-engine-reports", title: "Custom Engine Reports" },
-        { id: "klearnow-dashboards", title: "Klearnow Dashboards" },
-        { id: "klearnow-reports", title: "Klearnow Reports" },
-        { id: "data-mapper-reports", title: "Data Mapper Reports" }
+        { id: "custom-engine-reports", title: "Customs Engine Reports" },
+        { id: "klearnow-dashboards", title: "Klearhub Dashboard" },
+        { id: "klearnow-reports", title: "Klearhub Reports" },
+        { id: "data-mapper-reports", title: "Data Engine Reports" },
+        { id: "hevo-dashboard", title: "Hevo Dashboard" }
       ]
     },
     {
@@ -82,6 +90,11 @@
       ]
     },
     {
+      id: "payment-us",
+      title: "Payment - US",
+      modules: [{ id: "statement-us", title: "Statement" }]
+    },
+    {
       id: "payment-uk",
       title: "Payment - UK",
       modules: [{ id: "statement-uk", title: "Statement" }]
@@ -95,8 +108,9 @@
       id: "txn-uk",
       title: "Transaction Management - UK",
       modules: [
-        { id: "import-uk", title: "Import" },
-        { id: "export-uk", title: "Export" }
+        { id: "import-uk", title: "Imports" },
+        { id: "export-uk", title: "Exports" },
+        { id: "entry-uk", title: "Entry" }
       ]
     },
     {
@@ -104,29 +118,54 @@
       title: "Transaction Management - US",
       modules: [
         { id: "isf-us", title: "ISF" },
-        { id: "inbound-us", title: "Inbound" },
+        { id: "inbound-us", title: "Inbond" },
+        { id: "ftz-us", title: "FTZ" },
         { id: "entry-us", title: "Entry" },
         { id: "do-us", title: "DO" },
         { id: "psc-us", title: "PSC" },
         { id: "protest-us", title: "Protest" },
         { id: "drayage-us", title: "Drayage" },
-        { id: "export-us", title: "Export" },
+        { id: "export-us", title: "Exports" },
         { id: "shipments-us", title: "Shipments" }
+      ]
+    },
+    {
+      id: "txn-nl",
+      title: "Transaction Management - NL",
+      modules: [
+        { id: "import-nl", title: "Imports" },
+        { id: "export-nl", title: "Exports" },
+        { id: "entry-nl", title: "Entry" }
+      ]
+    },
+    {
+      id: "txn-es",
+      title: "Transaction Management - ES",
+      modules: [
+        { id: "import-es", title: "Imports" },
+        { id: "export-es", title: "Exports" },
+        { id: "entry-es", title: "Entry" },
+        { id: "intake-pp-es", title: "Intake/PP" },
+        { id: "supervisor-es", title: "Supervisor" },
+        { id: "drayage-es", title: "Drayage" }
       ]
     },
     {
       id: "txn-in",
       title: "Transaction Management - IN",
       modules: [
-        { id: "import-in", title: "Import" },
-        { id: "export-in", title: "Export" }
+        { id: "import-in", title: "Imports" },
+        { id: "export-in", title: "Exports" }
       ]
     },
     {
       id: "txn-ca",
       title: "Transaction Management - CA",
       modules: [
+        { id: "import-ca", title: "Imports" },
+        { id: "export-ca", title: "Exports" },
         { id: "entry-ca", title: "Entry" },
+        { id: "do-ca", title: "DO" },
         { id: "isf-ca", title: "ISF" },
         { id: "lvs-ca", title: "LVS" }
       ]
@@ -149,15 +188,18 @@
     },
     {
       id: "notifications",
-      title: "Notifications Management",
-      modules: [{ id: "notifications-system", title: "Notifications Management (System Info)" }]
+      title: "Notification Management",
+      modules: [{ id: "notifications-system", title: "Notification Management" }]
     },
     {
       id: "master-data",
       title: "Master Data Management",
       modules: [
         { id: "parts-library", title: "Parts Library" },
-        { id: "customs-master", title: "Customs Master Tables" },
+        { id: "customs-master-hts", title: "Customs Master Tables - HTS" },
+        { id: "customs-master-ports", title: "Customs Master Tables - Ports" },
+        { id: "customs-master-country", title: "Customs Master Tables - Country" },
+        { id: "customs-master-currency", title: "Customs Master Tables - Currency" },
         { id: "customs-queries", title: "Customs Queries" }
       ]
     },
@@ -173,6 +215,12 @@
     }
   ];
   const ALL_KEYS = CATALOG.flatMap((group) => group.modules.flatMap((mod) => ACTIONS.map((action) => keyOf(mod.id, action))));
+  const CUSTOMS_MASTER_SPLIT = [
+    "customs-master-hts",
+    "customs-master-ports",
+    "customs-master-country",
+    "customs-master-currency"
+  ];
 
   const state = {
     sortKey: "name",
@@ -476,30 +524,100 @@
     }`;
   }
 
+  function keysMatching(re) {
+    return ALL_KEYS.filter((key) => re.test(key));
+  }
+
+  function readOnlyKeys(keys) {
+    return keys.filter((key) => key.endsWith(":read"));
+  }
+
+  function migratePermissionKeys(permissions) {
+    const next = new Set(permissions || []);
+    let changed = false;
+    ACTIONS.forEach((action) => {
+      const legacy = `customs-master:${action}`;
+      if (next.has(legacy)) {
+        next.delete(legacy);
+        CUSTOMS_MASTER_SPLIT.forEach((modId) => next.add(keyOf(modId, action)));
+        changed = true;
+      }
+    });
+    return { permissions: [...next], changed };
+  }
+
+  function migrateRoleRecord(role) {
+    const migrated = migratePermissionKeys(role.permissions);
+    const applicable = Array.isArray(role.applicable) ? role.applicable : [];
+    let partiesCategory = role.partiesCategory || "";
+    let categoryChanged = false;
+    if (!applicable.includes("parties") && partiesCategory) {
+      partiesCategory = "";
+      categoryChanged = true;
+    }
+    if (applicable.includes("parties") && !partiesCategory) {
+      partiesCategory = "brokers-forwarders";
+      categoryChanged = true;
+    }
+    if (!migrated.changed && !categoryChanged) {
+      return role;
+    }
+    return { ...role, permissions: migrated.permissions, partiesCategory };
+  }
+
   function seedRoles() {
     const tanya = "Tanya Agrawal";
     const priya = "Priya Menon";
     const daniel = "Daniel Chen";
-    const vis = ALL_KEYS.filter((key) => key.startsWith("visibility") || key.startsWith("container:"));
-    const k360 = ALL_KEYS.filter((key) => /invoices-360|visibility-3|klearnow-dashboards/.test(key));
-    const engine = ALL_KEYS.filter((key) => /data-mapper|customs-master|customs-queries|drayage/.test(key));
-    const billing = ALL_KEYS.filter((key) => /ar-|ap-|broker-invoice|einvoices|statement/.test(key));
-    const txnUs = ALL_KEYS.filter((key) => key.includes("-us:"));
+    const harshad = "harshad.sarangal@klearnow.com";
+    const vis = keysMatching(/^(visibility|container):/);
+    const k360 = keysMatching(/invoices-360|visibility-3|visibility-360|klearnow-dashboards/);
+    const engine = keysMatching(/data-mapper|customs-master-|customs-queries|drayage/);
+    const billing = keysMatching(/ar-|ap-|broker-invoice|einvoices|statement/);
+    const txnUs = keysMatching(/-us:/);
+    const txnAll = ["txn-uk", "txn-us", "txn-nl", "txn-es", "txn-in", "txn-ca"].flatMap((id) => {
+      const group = CATALOG.find((item) => item.id === id);
+      return group ? group.modules.flatMap((mod) => ACTIONS.map((action) => keyOf(mod.id, action))) : [];
+    });
+    const finance = keysMatching(/^(credit-|ar-|ap-|broker-invoice|statement)/);
+    const analytics = keysMatching(/custom-engine|klearnow-|data-mapper|hevo-dashboard/);
+    const admin = keysMatching(/user-management|role-management|contract-management|customer-profile|companies-profile|party-profile|sub-customer/);
+    const psc = keysMatching(/psc-/);
+    const queries = keysMatching(/customs-queries/);
+    const shipments = keysMatching(/shipments-us/);
     const slice = (start, count) => WORKSPACES.slice(start, start + count);
+    const partyBrokers = ["Expeditors", "Maersk Line", "Flexport", "Bosch North America", "Siemens Logistics", "Honeywell International", "3M Company", "HP Inc.", "Dell Technologies"];
     return [
       { id: "def-visibility", name: "Visibility Customer Default", applicable: ["customer", "company", "sub-customer"], services: ["all"], createdBy: tanya, active: true, inherited: 48, customers: slice(0, 8), updatedAt: "2026-08-18T10:00:00", permissions: vis },
-      { id: "def-k360", name: "Klear 360 Billing Default", applicable: ["parties"], services: ["klear-360"], createdBy: priya, active: true, inherited: 12, customers: slice(4, 12), updatedAt: "2026-08-16T14:20:00", permissions: k360 },
+      { id: "def-k360", name: "Klear 360 Billing Default", applicable: ["parties"], partiesCategory: "other-parties", services: ["klear-360"], createdBy: priya, active: true, inherited: 12, customers: slice(4, 12), updatedAt: "2026-08-16T14:20:00", permissions: k360 },
       { id: "def-data-engine", name: "Data Engine + Drayage Default", applicable: ["customer"], services: ["drayage", "data-engine"], createdBy: daniel, active: true, inherited: 21, customers: slice(2, 10), updatedAt: "2026-08-14T09:12:00", permissions: engine },
       { id: "def-customer-admin", name: "Customer Administrator", applicable: ["customer", "sub-customer"], services: ["all"], createdBy: tanya, active: true, inherited: 36, customers: slice(1, 9), updatedAt: "2026-08-19T08:40:00", permissions: ALL_KEYS.filter((key) => /user-management|role-management|customer-profile|sub-customer/.test(key)) },
       { id: "def-full-customer", name: "Full Customer Access", applicable: ["customer", "sub-customer", "company"], services: ["all"], createdBy: tanya, active: true, inherited: 22, customers: slice(0, 7), updatedAt: "2026-08-20T09:15:00", permissions: vis.concat(k360, engine) },
       { id: "def-finance", name: "Finance & Credits Default", applicable: ["customer", "company"], services: ["customs-engine"], createdBy: priya, active: false, inherited: 8, customers: slice(6, 14), updatedAt: "2026-07-30T11:00:00", permissions: billing.concat(ALL_KEYS.filter((key) => key.startsWith("credit-"))) },
-      { id: "def-broker", name: "Licensed Broker Operations", applicable: ["parties", "company"], services: ["customs-broker"], createdBy: priya, active: true, inherited: 9, customers: ["Expeditors", "Maersk Line", "Flexport", "Bosch North America", "Siemens Logistics", "Honeywell International", "3M Company", "HP Inc.", "Dell Technologies"], updatedAt: "2026-08-12T16:05:00", permissions: ALL_KEYS.filter((key) => /broker-invoice|isf|entry|psc|protest/.test(key)) },
+      { id: "def-broker", name: "Licensed Broker Operations", applicable: ["parties", "company"], partiesCategory: "brokers-forwarders", services: ["customs-broker"], createdBy: priya, active: true, inherited: 9, customers: partyBrokers, updatedAt: "2026-08-12T16:05:00", permissions: ALL_KEYS.filter((key) => /broker-invoice|isf|entry|psc|protest/.test(key)) },
       { id: "def-drayage", name: "Drayage Marketplace Default", applicable: ["customer"], services: ["drayage"], createdBy: daniel, active: true, inherited: 17, customers: slice(8, 16), updatedAt: "2026-08-11T07:22:00", permissions: ALL_KEYS.filter((key) => /drayage/.test(key)) },
-      { id: "def-ai", name: "Intelligent OPS Default", applicable: ["customer", "company"], services: ["ai"], createdBy: tanya, active: true, inherited: 6, customers: slice(10, 16), updatedAt: "2026-08-08T13:18:00", permissions: ALL_KEYS.filter((key) => /klearnow-dashboards|custom-engine|data-mapper/.test(key)) },
+      { id: "def-ai", name: "Intelligent OPS Default", applicable: ["customer", "company"], services: ["ai"], createdBy: tanya, active: true, inherited: 6, customers: slice(10, 16), updatedAt: "2026-08-08T13:18:00", permissions: ALL_KEYS.filter((key) => /klearnow-dashboards|custom-engine|data-mapper|hevo-dashboard/.test(key)) },
       { id: "def-txn-us", name: "US Transaction Default", applicable: ["customer", "sub-customer", "company"], services: ["all"], createdBy: priya, active: true, inherited: 29, customers: slice(3, 11), updatedAt: "2026-08-15T10:50:00", permissions: txnUs },
       { id: "def-drm", name: "DRM Operations Default", applicable: ["company"], services: ["data-engine"], createdBy: daniel, active: false, inherited: 4, customers: ["Bosch North America", "Siemens Logistics", "Caterpillar Trade Services", "Honeywell International"], updatedAt: "2026-07-21T09:30:00", permissions: ALL_KEYS.filter((key) => key.startsWith("drm") || key.startsWith("inwarding")) },
       { id: "def-notify", name: "Notification Subscriber", applicable: ["customer"], services: ["all"], createdBy: tanya, active: true, inherited: 52, customers: slice(0, 8), updatedAt: "2026-08-17T12:00:00", permissions: ALL_KEYS.filter((key) => key.startsWith("notifications")) },
-      { id: "def-read", name: "Read-only Workspace", applicable: ["customer", "sub-customer", "company", "parties"], services: ["all"], createdBy: priya, active: true, inherited: 61, customers: slice(5, 13), updatedAt: "2026-08-13T15:45:00", permissions: ALL_KEYS.filter((key) => key.endsWith(":read")) }
+      { id: "def-read", name: "Read-only Workspace", applicable: ["customer", "sub-customer", "company", "parties"], partiesCategory: "other-parties", services: ["all"], createdBy: priya, active: true, inherited: 61, customers: slice(5, 13), updatedAt: "2026-08-13T15:45:00", permissions: ALL_KEYS.filter((key) => key.endsWith(":read")) },
+      { id: "def-vis-2", name: "Vis 2.0", applicable: ["customer", "sub-customer", "company"], services: ["klear-360"], createdBy: harshad, active: true, inherited: 18, customers: slice(0, 6), updatedAt: "2026-08-21T09:00:00", permissions: keysMatching(/^visibility-2:/) },
+      { id: "def-txn-mgmt", name: "Transaction mgmt Role", applicable: ["customer", "company"], services: ["customs-broker", "customs-engine"], createdBy: harshad, active: true, inherited: 14, customers: slice(2, 8), updatedAt: "2026-08-21T09:05:00", permissions: txnAll },
+      { id: "def-txn-view", name: "Transaction - View only", applicable: ["customer", "sub-customer", "company"], services: ["all"], createdBy: tanya, active: true, inherited: 33, customers: slice(1, 9), updatedAt: "2026-08-21T09:10:00", permissions: readOnlyKeys(txnAll) },
+      { id: "def-txn-ship-creator", name: "Transaction - Shipment Creator", applicable: ["customer", "company"], services: ["customs-engine"], createdBy: daniel, active: true, inherited: 11, customers: slice(3, 9), updatedAt: "2026-08-21T09:15:00", permissions: shipments.concat(keysMatching(/entry-us|isf-us/)) },
+      { id: "def-sys-admin", name: "System administrator", applicable: ["customer", "sub-customer", "company", "parties"], partiesCategory: "brokers-forwarders", services: ["all"], createdBy: harshad, active: true, inherited: 7, customers: slice(0, 5), updatedAt: "2026-08-21T09:20:00", permissions: admin.concat(vis, billing) },
+      { id: "def-queries", name: "Queries", applicable: ["customer", "company"], services: ["customs-engine", "data-engine"], createdBy: priya, active: true, inherited: 19, customers: slice(4, 10), updatedAt: "2026-08-21T09:25:00", permissions: queries.concat(keysMatching(/customs-master-/)) },
+      { id: "def-psc", name: "PSC Module", applicable: ["customer", "company"], services: ["customs-broker"], createdBy: daniel, active: true, inherited: 8, customers: slice(6, 12), updatedAt: "2026-08-21T09:30:00", permissions: psc },
+      { id: "def-party-txn-view", name: "Party Broker/Forwarder Transaction Manager - View Only", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker"], createdBy: harshad, active: true, inherited: 6, customers: partyBrokers.slice(0, 4), updatedAt: "2026-08-21T09:35:00", permissions: readOnlyKeys(txnUs.concat(keysMatching(/broker-invoice|party-profile/))) },
+      { id: "def-party-txn", name: "Party Broker/Forwarder Transaction Manager", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker"], createdBy: harshad, active: true, inherited: 9, customers: partyBrokers.slice(0, 5), updatedAt: "2026-08-21T09:40:00", permissions: txnUs.concat(keysMatching(/broker-invoice|party-profile|isf|entry|psc|protest/)) },
+      { id: "def-party-hub-admin", name: "Party Broker/Forwarder Hub+ Admin", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["klear-360", "customs-broker"], createdBy: harshad, active: true, inherited: 5, customers: partyBrokers.slice(1, 5), updatedAt: "2026-08-21T09:45:00", permissions: vis.concat(k360, keysMatching(/party-profile|user-management/)) },
+      { id: "def-party-fin-view", name: "Party Broker/Forwarder Finance Admin - View Only", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker"], createdBy: priya, active: true, inherited: 4, customers: partyBrokers.slice(2, 6), updatedAt: "2026-08-21T09:50:00", permissions: readOnlyKeys(finance) },
+      { id: "def-party-fin", name: "Party Broker/Forwarder Finance Admin", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker"], createdBy: priya, active: true, inherited: 7, customers: partyBrokers.slice(0, 4), updatedAt: "2026-08-21T09:55:00", permissions: finance },
+      { id: "def-party-analytics-view", name: "Party Broker/Forwarder Analytics - View Only", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["all"], createdBy: tanya, active: true, inherited: 5, customers: partyBrokers.slice(3, 7), updatedAt: "2026-08-21T10:00:00", permissions: readOnlyKeys(analytics) },
+      { id: "def-party-analytics", name: "Party Broker/Forwarder Analytics", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["all"], createdBy: tanya, active: true, inherited: 6, customers: partyBrokers.slice(1, 5), updatedAt: "2026-08-21T10:05:00", permissions: analytics },
+      { id: "def-party-admin-view", name: "Party Broker/Forwarder Admin - View Only", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker", "klear-360"], createdBy: harshad, active: true, inherited: 8, customers: partyBrokers.slice(0, 5), updatedAt: "2026-08-21T10:10:00", permissions: readOnlyKeys(admin.concat(vis, finance, txnUs)) },
+      { id: "def-party-admin", name: "Party Broker/Forwarder Admin", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker", "klear-360"], createdBy: harshad, active: true, inherited: 10, customers: partyBrokers, updatedAt: "2026-08-21T10:15:00", permissions: admin.concat(vis, finance, txnUs) },
+      { id: "def-party-kn-broker", name: "Party Admin - KN Broker", applicable: ["parties"], partiesCategory: "brokers-forwarders", services: ["customs-broker"], createdBy: harshad, active: true, inherited: 3, customers: ["Expeditors", "Maersk Line", "Flexport"], updatedAt: "2026-08-21T10:20:00", permissions: keysMatching(/party-profile|broker-invoice|isf|entry|psc|user-management|role-management/) }
     ];
   }
 
@@ -513,18 +631,29 @@
         const parsed = JSON.parse(raw);
         roles = Array.isArray(parsed) && parsed.length ? parsed : seedRoles();
       }
+      let migratedAny = false;
+      roles = roles.map((role) => {
+        const next = migrateRoleRecord(role);
+        if (next !== role) {
+          migratedAny = true;
+        }
+        return next;
+      });
       const repaired = window.KNAdminUX?.repairNearEmptySeedRoles?.(roles, seedRoles());
       if (repaired?.repairs?.length) {
-        saveRoles(repaired.roles);
+        roles = repaired.roles;
+        migratedAny = true;
         const summary = repaired.repairs.map((item) => `${item.name} (${item.from}→${item.to})`).join(", ");
         console.info(`[KNDefaultRoles] Restored near-empty seeded roles from catalog: ${summary}`);
-        roles = repaired.roles;
       }
       const seed = seedRoles();
       const ids = new Set(roles.map((role) => role.id));
       const missing = seed.filter((item) => !ids.has(item.id));
       if (missing.length) {
         roles = roles.concat(missing);
+        migratedAny = true;
+      }
+      if (migratedAny) {
         saveRoles(roles);
       }
       return roles;
@@ -743,7 +872,7 @@
           <td>${window.KNAdminUX.statusBadge(role.active)}</td>
           <td>
             <div class="user-row-actions">
-              <button class="icon-btn" type="button" data-drole-edit="${escapeHtml(role.id)}" aria-label="Edit ${escapeHtml(role.name)}" data-tooltip="Edit default role">
+              <button class="icon-btn" type="button" data-drole-edit="${escapeHtml(role.id)}" aria-label="Edit ${escapeHtml(role.name)}" data-tooltip="Edit role">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/></svg>
               </button>
               ${window.KNAdminUX.moreMenu({
@@ -761,7 +890,7 @@
       : `<tr class="role-empty-row"><td colspan="7">${window.KNAdminUX.emptyState({
           title: hasListFilters() ? "No default roles match this view" : "No templates yet",
           description: hasListFilters() ? "Clear filters to see every template, or add a new one." : "Add a template so customers and brokers inherit access.",
-          primaryLabel: "Add Default Role",
+          primaryLabel: "Add Role",
           primaryHref: "#default-role-management/add",
           primaryAttr: 'data-drole-nav="add"',
           secondaryLabel: hasListFilters() ? "Clear filters" : "",
@@ -776,10 +905,10 @@
 
     return `<header class="role-page__head">
       <div>
-        <h1 class="type-heading-h3 type-weight-semibold">Default Role Management</h1>
+        <h1 class="type-heading-h3 type-weight-semibold">Role Management</h1>
         <p class="type-body-sm">Templates customers and brokers inherit when they join KlearNow.</p>
       </div>
-      <a class="btn btn--primary btn--md type-ui-md" href="#default-role-management/add" data-drole-nav="add">Add Default Role</a>
+      <a class="btn btn--primary btn--md type-ui-md" href="#default-role-management/add" data-drole-nav="add">Add Role</a>
     </header>
     ${ux.toolbar({
       chips: [
@@ -799,7 +928,7 @@
               ${sortHeader("name", "Role Name")}
               ${sortHeader("applicable", "Applicable To")}
               ${sortHeader("services", "Services")}
-              ${sortHeader("createdBy", "Owner")}
+              ${sortHeader("createdBy", "Created By")}
               ${sortHeader("coverage", "Coverage")}
               ${sortHeader("status", "Status")}
               <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
@@ -813,7 +942,7 @@
                 { value: "Parties", label: "Parties" }
               ]})}
               ${ux.colBladeSelect({ attr: "data-drole-filter", key: "service", value: state.filters.service, label: "services", open: state.selectOpen, options: SERVICES.map(s => ({ value: s.id, label: s.label })) })}
-              ${ux.colFilter({ attr: "data-drole-filter", key: "createdBy", value: state.filters.createdBy, label: "owner", placeholder: "Search by owner" })}
+              ${ux.colFilter({ attr: "data-drole-filter", key: "createdBy", value: state.filters.createdBy, label: "created by", placeholder: "Search by created by" })}
               ${ux.colFilter({ attr: "data-drole-filter", key: "coverage", value: state.filters.coverage, label: "coverage" })}
               ${ux.colBladeSelect({ attr: "data-drole-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [
                 { value: "Active", label: "Active" },
@@ -858,10 +987,12 @@
       id: role?.id || "",
       name: role?.name || "",
       applicable: role?.applicable?.slice() || [],
+      partiesCategory: role?.partiesCategory || "",
       services: role?.services?.slice() || [],
       permissions: new Set(role?.permissions || []),
       error: "",
-      serviceError: ""
+      serviceError: "",
+      partiesCategoryError: ""
     };
   }
 
@@ -910,7 +1041,7 @@
       origin: "ai",
       value: state.form.name
     });
-    toast("AI draft applied to the form — review and click Add Default Role to save.", "notice");
+    toast("AI draft applied to the form — review and click Add Role to save.", "notice");
   }
 
   function snapshotForm(form) {
@@ -1013,6 +1144,14 @@
     </label>`;
   }
 
+  function radio(name, value, checked, label) {
+    return `<label class="blade-radio">
+      <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${checked ? "checked" : ""} />
+      <span class="blade-radio__control" aria-hidden="true"></span>
+      <span class="type-body-sm">${escapeHtml(label)}</span>
+    </label>`;
+  }
+
   function syncPermSet(target, next) {
     return window.KNAdminUX.syncPermissionSet(target, next);
   }
@@ -1103,15 +1242,10 @@
     }
     const keys = groupKeys(group);
     const selected = keys.filter((key) => permissions.has(key)).length;
-    const q = permSearchQuery();
     const aiSuggestions = state.aiSuggestions || {};
-    const aiGroupKeys = keys.filter((key) => aiSuggestions[key]);
-    const hasAiInGroup = aiGroupKeys.length > 0;
     const open = Boolean(state.openGroups?.has(group.id));
     const countTone = window.KNAdminUX.permCategoryTone(selected, keys.length);
-    const aiCountBadge = hasAiInGroup
-      ? `<span class="badge badge--ai type-caption-sm type-weight-medium ai-suggest-count" aria-label="${aiGroupKeys.length} AI-suggested permissions in this category"><span class="ai-suggest-mark" aria-hidden="true">✦</span> ${aiGroupKeys.length} suggested</span>`
-      : "";
+    // Category "+N suggested" badges omitted — Describe status line is the single AI count source.
     return window.KNAdminUX.accordionItem({
       id: group.id,
       title: group.title,
@@ -1119,7 +1253,6 @@
       modules: group.modules,
       includesLabel: "Includes:",
       // Coverage tone stays on the count badge only — not the whole row (avoids peach/notice chrome).
-      leadingExtra: aiCountBadge,
       trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count">${selected}/${keys.length}</span>`,
       body: `
         <div class="role-perm__row role-perm__row--head">
@@ -1213,7 +1346,7 @@
   function renderDetailsGrid(role, inherited) {
     return `<div class="role-details-strip">
               <div class="form-display-field">
-                <span class="form-display-field__label">OWNER</span>
+                <span class="form-display-field__label">CREATED BY</span>
                 <span class="form-display-field__value">${escapeHtml(role.createdBy)}</span>
               </div>
               <div class="form-display-field">
@@ -1235,12 +1368,38 @@
             </div>`;
   }
 
+  function partiesCategoryLabel(id) {
+    return PARTIES_CATEGORY.find((item) => item.id === id)?.label || id || "—";
+  }
+
+  function renderPartiesCategoryField(form, { editing = true } = {}) {
+    const show = (form.applicable || []).includes("parties");
+    if (!show) {
+      return "";
+    }
+    if (!editing) {
+      return `<div class="form-display-field">
+        <span class="form-display-field__label">PARTIES CATEGORY</span>
+        <span class="form-display-field__value">${escapeHtml(partiesCategoryLabel(form.partiesCategory))}</span>
+      </div>`;
+    }
+    return `<div class="blade-field role-parties-category" role="radiogroup" aria-labelledby="kn-drole-parties-category-title" aria-required="true">
+      <div class="blade-field__head">
+        <span class="type-caption-sm type-weight-medium blade-field__label" id="kn-drole-parties-category-title">Parties category <span class="role-req" aria-hidden="true">*</span></span>
+      </div>
+      <div class="role-parties-category__row">
+        ${PARTIES_CATEGORY.map((item) => radio("partiesCategory", item.id, form.partiesCategory === item.id, item.label)).join("")}
+      </div>
+      ${form.partiesCategoryError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.partiesCategoryError)}</p>` : ""}
+    </div>`;
+  }
+
   function renderAccessReadonly(form) {
     const applicable = (form.applicable || []).map((id) => APPLICABLE.find((item) => item.id === id)?.label || id).join(", ");
     const services = (form.services || []).map((id) => SERVICES.find((item) => item.id === id)?.label || id).join(", ");
     return `<div class="role-access-readonly" aria-label="Access">
       <div class="form-display-field">
-        <span class="form-display-field__label">NAME</span>
+        <span class="form-display-field__label">ROLE NAME</span>
         <span class="form-display-field__value">${escapeHtml(form.name || "Untitled template")}</span>
       </div>
       <div class="form-display-field">
@@ -1248,9 +1407,10 @@
         <span class="form-display-field__value">${escapeHtml(services || "—")}</span>
       </div>
       <div class="form-display-field">
-        <span class="form-display-field__label">WHO IT APPLIES TO</span>
+        <span class="form-display-field__label">APPLICABLE TO</span>
         <span class="form-display-field__value">${escapeHtml(applicable || "—")}</span>
       </div>
+      ${renderPartiesCategoryField(form, { editing: false })}
     </div>`;
   }
 
@@ -1311,9 +1471,8 @@
     const role = isEdit ? findRole(form.id) : null;
     const inherited = role ? inheritCount(role) : 0;
     const editing = !isEdit || state.drawerMode === "edit";
-    const title = isEdit ? role?.name || form.name || "Edit Default Role" : "Add Default Role";
-    const coveragePct = ALL_KEYS.length ? Math.round((form.permissions.size / ALL_KEYS.length) * 100) : 0;
-    const summary = window.KNAdminUX.accessSummary(form.permissions, CATALOG, ACTIONS);
+    const title = isEdit ? role?.name || form.name || "Edit Role" : "Add Role";
+    const summary = editing ? "" : window.KNAdminUX.accessSummary(form.permissions, CATALOG, ACTIONS);
     const submitDisabled = !canSubmitRole(form);
     const aiServiceIds = state.aiServiceSuggestions || [];
     const aiApplicableIds = state.aiApplicableSuggestions || [];
@@ -1331,8 +1490,8 @@
       : `<section class="role-form-zone role-form-zone--access" aria-label="Basics">
             <div class="def-role-form-top">
               <div class="blade-field">
-                <label class="type-caption-sm type-weight-medium" for="kn-drole-name">Name <span class="role-req" aria-hidden="true">*</span></label>
-                <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-drole-name" name="name" type="text" required maxlength="80" placeholder="e.g. Visibility customer default" value="${escapeHtml(form.name)}" autocomplete="off" />
+                <label class="type-caption-sm type-weight-medium" for="kn-drole-name">Role Name <span class="role-req" aria-hidden="true">*</span></label>
+                <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-drole-name" name="name" type="text" required maxlength="80" placeholder="e.g. Party Broker/Forwarder Admin" value="${escapeHtml(form.name)}" autocomplete="off" />
                 ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name, { inline: true }) : ""}
                 ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
               </div>
@@ -1345,7 +1504,7 @@
             <div class="blade-field role-applicable" role="group" aria-labelledby="kn-drole-applicable-title">
               ${window.KNAdminUX.applicableHead({
                 titleId: "kn-drole-applicable-title",
-                title: "Who this applies to",
+                title: "Applicable to",
                 allSelected: form.applicable.length === APPLICABLE.length,
                 attr: "data-drole-select-applicable"
               })}
@@ -1359,6 +1518,7 @@
                 }).join("")}
               </div>
             </div>
+            ${renderPartiesCategoryField(form, { editing: true })}
             ${accessAiHint}
           </section>`;
     const permFields = !editing
@@ -1395,9 +1555,8 @@
           <div class="blade-drawer__titles">
             <div class="admin-drawer-title-row">
               <h2 class="type-heading-h5 type-weight-semibold" id="kn-drole-form-title" tabindex="-1">${escapeHtml(title)}</h2>
-              ${role ? window.KNAdminUX.statusBadge(role.active) : ""}
             </div>
-            <p class="type-caption-sm">${isEdit ? "Changes apply to customers who inherit this template." : "New customers pick up this template when they join KlearNow."}</p>
+            <p class="type-caption-sm blade-field__hint">${isEdit ? "Inherited by customers who use this template." : "New customers pick up this template when they join."}</p>
           </div>
           ${
             role
@@ -1414,21 +1573,14 @@
           <p class="visually-hidden" aria-live="polite" data-admin-mode-live></p>
           ${
             role
-              ? `<section class="role-form-zone role-form-zone--summary" aria-label="Template summary">
+              ? `<section class="role-form-zone role-form-zone--summary${editing ? " role-form-zone--summary-compact" : ""}" aria-label="Template summary">
             ${window.KNAdminUX.roleMetaLine({
-              owner: role.createdBy,
-              updatedAt: role.updatedAt,
-              count: inherited,
-              countSingular: "workspace",
-              countPlural: "workspaces",
-              countHref: inherited ? `#kn-user-management?inherited=${encodeURIComponent(role.id)}` : "",
-              coveragePct,
               detailsOpen: state.detailsOpen,
               detailsId: "kn-drole-meta-details",
               detailsHtml: renderDetailsGrid(role, inherited),
               toggleAttr: "data-admin-details-toggle"
             })}
-            <p class="role-access-summary type-body-sm">${escapeHtml(summary)}</p>
+            ${editing ? "" : `<p class="role-access-summary type-body-sm">${escapeHtml(summary)}</p>`}
             ${editing ? "" : renderAccessReadonly(form)}
           </section>`
               : ""
@@ -1444,7 +1596,7 @@
           </button></div>` : ""}
           <div class="blade-drawer__footer-actions">
             <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-drole-form-close>Cancel</button>
-            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-drole-form" id="kn-drole-submit-btn" ${window.KNAdminUX.submitButtonAttrs(submitDisabled)}>${isEdit ? "Update Default Role" : "Add Default Role"}</button>
+            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-drole-form" id="kn-drole-submit-btn" ${window.KNAdminUX.submitButtonAttrs(submitDisabled)}>${isEdit ? "Update Role" : "Add Role"}</button>
           </div>
         </footer>
       </aside>
@@ -1542,6 +1694,7 @@
       return {
         name: state.form?.name || "",
         applicable: [...(state.form?.applicable || [])],
+        partiesCategory: state.form?.partiesCategory || "",
         services: [...(state.form?.services || [])],
         permissions: new Set(state.form?.permissions || [])
       };
@@ -1551,12 +1704,17 @@
       return {
         name: state.form.name || "",
         applicable: [...(state.form.applicable || [])],
+        partiesCategory: state.form.partiesCategory || "",
         services: [...(state.form.services || [])],
         permissions: new Set(state.form.permissions || [])
       };
     }
     const name = nameInput?.value.trim() || "";
     const applicable = [...formEl.querySelectorAll('input[name="applicable"]:checked')].map((input) => input.value);
+    const partiesCategoryInput = formEl.querySelector('input[name="partiesCategory"]:checked');
+    const partiesCategory = applicable.includes("parties")
+      ? partiesCategoryInput?.value || state.form?.partiesCategory || ""
+      : "";
     const serviceInputs = [...formEl.querySelectorAll("[data-drole-service]")];
     const services = window.KNAdminUX.mergeDomMultiSelect(
       state.form?.services,
@@ -1567,7 +1725,7 @@
     // categories omit rows, and a naive or stale merge can wipe unrelated keys.
     // Perm handlers update state.form.permissions via applyPermissionToggle / toggleKeys.
     const permissions = new Set(state.form?.permissions || []);
-    return { name, applicable, services, permissions };
+    return { name, applicable, partiesCategory, services, permissions };
   }
 
   function persistForm(next) {
@@ -1579,17 +1737,27 @@
 
   function commitDefaultRoleSave(snap) {
     const roles = loadRoles();
+    const partiesCategory = snap.applicable.includes("parties") ? snap.partiesCategory || "" : "";
     if (state.form.id) {
       const current = roles.find((role) => role.id === state.form.id);
       if (current) {
         current.name = snap.name;
         current.applicable = snap.applicable;
+        current.partiesCategory = partiesCategory;
         current.services = snap.services;
         current.permissions = [...snap.permissions];
         current.updatedAt = new Date().toISOString();
       }
       saveRoles(roles);
-      state.form = { ...state.form, ...snap, permissions: snap.permissions, error: "", serviceError: "" };
+      state.form = {
+        ...state.form,
+        ...snap,
+        partiesCategory,
+        permissions: snap.permissions,
+        error: "",
+        serviceError: "",
+        partiesCategoryError: ""
+      };
       state.formSnapshot = snapshotForm(state.form);
       state.dirty = false;
       state.drawerMode = "edit";
@@ -1605,6 +1773,7 @@
       id,
       name: snap.name,
       applicable: snap.applicable,
+      partiesCategory,
       services: snap.services,
       createdBy: "Tanya Agrawal",
       active: true,
@@ -2024,7 +2193,10 @@
         const snap = readForm(root.querySelector("#kn-drole-form"));
         snap.applicable =
           snap.applicable.length === APPLICABLE.length ? [] : APPLICABLE.map((item) => item.id);
-        persistForm(snap);
+        if (!snap.applicable.includes("parties")) {
+          snap.partiesCategory = "";
+        }
+        persistForm({ ...snap, partiesCategoryError: "" });
         render();
       }
     });
@@ -2090,7 +2262,14 @@
           return;
         }
         persistForm(readForm(formEl));
-        if (event.target.matches('input[name="applicable"]')) {
+        if (event.target.matches('input[name="applicable"], input[name="partiesCategory"]')) {
+          if (event.target.matches('input[name="applicable"]') && state.form && !state.form.applicable.includes("parties")) {
+            state.form.partiesCategory = "";
+            state.form.partiesCategoryError = "";
+          }
+          if (event.target.matches('input[name="partiesCategory"]') && state.form) {
+            state.form.partiesCategoryError = "";
+          }
           render();
         } else {
           syncSubmitBtn(root);
@@ -2224,26 +2403,40 @@
         return;
       }
       if (!snap.name) {
-        state.form = { ...state.form, ...snap, error: "Role name is required.", serviceError: "" };
+        state.form = { ...state.form, ...snap, error: "Role name is required.", serviceError: "", partiesCategoryError: "" };
         render();
         document.getElementById("kn-drole-name")?.focus();
         return;
       }
       if (!snap.services.length) {
-        state.form = { ...state.form, ...snap, error: "", serviceError: "Select at least one service." };
+        state.form = { ...state.form, ...snap, error: "", serviceError: "Select at least one service.", partiesCategoryError: "" };
         state.serviceMenuOpen = true;
         render();
         return;
       }
       if (!snap.applicable.length) {
-        state.form = { ...state.form, ...snap, error: "Select who this role applies to.", serviceError: "" };
+        state.form = { ...state.form, ...snap, error: "Select who this role applies to.", serviceError: "", partiesCategoryError: "" };
         render();
+        return;
+      }
+      if (snap.applicable.includes("parties") && !snap.partiesCategory) {
+        state.form = {
+          ...state.form,
+          ...snap,
+          error: "",
+          serviceError: "",
+          partiesCategoryError: "Select a Parties category."
+        };
+        render();
+        requestAnimationFrame(() => {
+          document.querySelector('#kn-drole-form input[name="partiesCategory"]')?.focus();
+        });
         return;
       }
       const roles = loadRoles();
       const duplicate = roles.some((role) => role.id !== state.form.id && role.name.toLowerCase() === snap.name.toLowerCase());
       if (duplicate) {
-        state.form = { ...state.form, ...snap, error: "A default role with this name already exists.", serviceError: "" };
+        state.form = { ...state.form, ...snap, error: "A role with this name already exists.", serviceError: "", partiesCategoryError: "" };
         render();
         document.getElementById("kn-drole-name")?.focus();
         return;
@@ -2387,6 +2580,12 @@
     },
     permissionCatalog() {
       return CATALOG;
+    },
+    partiesCategories() {
+      return PARTIES_CATEGORY.slice();
+    },
+    migratePermissions(permissions) {
+      return migratePermissionKeys(permissions);
     },
     isDirty() {
       return Boolean(state.dirty);

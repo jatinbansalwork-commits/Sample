@@ -458,6 +458,164 @@ function getL2Level(trigger) {
   return id ? document.getElementById(id) : null;
 }
 
+function getTreeGroup(trigger) {
+  const id = trigger?.getAttribute("aria-controls");
+  if (!id) {
+    return null;
+  }
+  const el = document.getElementById(id);
+  if (!el) {
+    return null;
+  }
+  if (el.classList.contains("side-nav-tree__animator")) {
+    return el;
+  }
+  if (el.classList.contains("side-nav-tree__group")) {
+    return el.closest(".side-nav-tree__animator") || el;
+  }
+  return el;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function enhanceTreeGroups() {
+  sideNav.querySelectorAll(".side-nav-tree__group").forEach((group) => {
+    if (group.closest(".side-nav-tree__animator")) {
+      return;
+    }
+    const wasHidden = group.hasAttribute("hidden");
+    const animator = document.createElement("div");
+    animator.className = "side-nav-tree__animator";
+    if (group.id) {
+      animator.id = group.id;
+      group.removeAttribute("id");
+    }
+    const clip = document.createElement("div");
+    clip.className = "side-nav-tree__clip";
+    group.replaceWith(animator);
+    group.hidden = false;
+    clip.appendChild(group);
+    animator.appendChild(clip);
+    if (wasHidden) {
+      animator.classList.remove("is-expanded", "is-animating");
+    } else {
+      animator.classList.add("is-expanded");
+    }
+  });
+}
+
+function setTreeExpanded(trigger, expanded) {
+  if (!trigger) {
+    return;
+  }
+  const animator = getTreeGroup(trigger);
+  trigger.setAttribute("aria-expanded", String(expanded));
+  if (!animator) {
+    return;
+  }
+
+  const reduceMotion = prefersReducedMotion();
+  const isOpen = animator.classList.contains("is-expanded");
+
+  if (expanded) {
+    animator.hidden = false;
+    if (isOpen) {
+      animator.classList.remove("is-animating");
+      return;
+    }
+    animator.classList.add("is-animating");
+    if (reduceMotion) {
+      animator.classList.add("is-expanded");
+      animator.classList.remove("is-animating");
+      return;
+    }
+    // Ensure collapsed frame paints before expanding (Blade TreeView mount trick)
+    animator.classList.remove("is-expanded");
+    void animator.offsetHeight;
+    requestAnimationFrame(() => {
+      animator.classList.add("is-expanded");
+    });
+    return;
+  }
+
+  if (!isOpen) {
+    animator.classList.remove("is-animating");
+    return;
+  }
+
+  animator.classList.add("is-animating");
+  animator.classList.remove("is-expanded");
+  if (reduceMotion) {
+    animator.classList.remove("is-animating");
+  }
+}
+
+function onTreeAnimatorTransitionEnd(event) {
+  const animator = event.target;
+  if (
+    !(animator instanceof HTMLElement) ||
+    !animator.classList.contains("side-nav-tree__animator") ||
+    event.propertyName !== "grid-template-rows"
+  ) {
+    return;
+  }
+  animator.classList.remove("is-animating");
+}
+
+function accordionTreeTriggers(trigger) {
+  const list = trigger?.closest(".side-nav-level[data-level='2'], .side-nav-tree");
+  if (!list) {
+    return;
+  }
+  list.querySelectorAll(":scope > .side-nav-tree__item > [data-tree-trigger]").forEach((other) => {
+    if (other !== trigger) {
+      setTreeExpanded(other, false);
+    }
+  });
+}
+
+function expandTreeAncestors(leaf) {
+  const item = leaf?.closest(".side-nav-tree__item[data-tree-level='1']") || leaf?.closest(".side-nav-tree__item");
+  const trigger = item?.querySelector(":scope > [data-tree-trigger]");
+  if (!trigger) {
+    return;
+  }
+  accordionTreeTriggers(trigger);
+  setTreeExpanded(trigger, true);
+}
+
+function firstNavigableInLevel(level) {
+  if (!level) {
+    return null;
+  }
+  for (const item of level.children) {
+    const row = item.querySelector(":scope > .side-nav-link, :scope > [data-tree-trigger]");
+    if (!row) {
+      continue;
+    }
+    if (row.matches("[data-tree-trigger]")) {
+      const group = getTreeGroup(row);
+      const leaf = group?.querySelector('a.side-nav-link[data-level="3"]');
+      if (leaf) {
+        return leaf;
+      }
+      if (row.matches("a[href^='#']")) {
+        return row;
+      }
+      continue;
+    }
+    if (row.matches('a.side-nav-link[data-level="2"]')) {
+      return row;
+    }
+  }
+  return (
+    level.querySelector('a.side-nav-link[data-level="3"]') ||
+    level.querySelector('a.side-nav-link[data-level="2"]')
+  );
+}
+
 function getL2TriggerForLevel(level) {
   const id = level?.id;
   return id ? sideNav.querySelector(`[data-l2trigger][aria-controls="${id}"]`) : null;
@@ -508,9 +666,19 @@ function portalL2(trigger, title) {
   sideNavL2Title.textContent = title;
   sideNavL2.appendChild(level);
   level.hidden = false;
+  const wasHidden = sideNavL2.hidden;
   sideNavL2.hidden = false;
   trigger.setAttribute("aria-expanded", "true");
   activeL2Trigger = trigger;
+  if (wasHidden && !prefersReducedMotion()) {
+    sideNavL2.classList.add("is-entering");
+    void sideNavL2.offsetWidth;
+    requestAnimationFrame(() => {
+      sideNavL2.classList.remove("is-entering");
+    });
+  } else {
+    sideNavL2.classList.remove("is-entering");
+  }
 }
 
 function collapseL1(title, trigger = getActiveL2Trigger()) {
@@ -595,10 +763,11 @@ function getNavTitle(link) {
 }
 
 function getBreadcrumbTrail() {
+  const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   const l1Current = sideNav.querySelector('.side-nav-link[data-level="1"][aria-current="page"]');
   const isDashboard =
-    !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
+    !l3Current && !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
 
   const items = [{ href: "#dashboard", label: "Home", iconOnly: true, isCurrentPage: isDashboard }];
 
@@ -610,14 +779,33 @@ function getBreadcrumbTrail() {
     items.push({
       href: l1Current.getAttribute("href"),
       label: getNavTitle(l1Current),
-      isCurrentPage: !l2Current,
+      isCurrentPage: !l2Current && !l3Current,
     });
   }
 
-  if (l2Current) {
+  if (l2Current && l2Current.dataset.treeTrigger !== "true") {
     items.push({
       href: l2Current.getAttribute("href"),
       label: getNavTitle(l2Current),
+      isCurrentPage: !l3Current,
+    });
+  } else if (l3Current) {
+    const branch =
+      l3Current.closest(".side-nav-tree__item[data-tree-level='1']")?.querySelector("[data-tree-trigger]") ||
+      l3Current.closest(".side-nav-tree__item")?.querySelector("[data-tree-trigger]");
+    if (branch) {
+      items.push({
+        href: branch.getAttribute("href") || l3Current.getAttribute("href"),
+        label: getNavTitle(branch),
+        isCurrentPage: false,
+      });
+    }
+  }
+
+  if (l3Current) {
+    items.push({
+      href: l3Current.getAttribute("href"),
+      label: getNavTitle(l3Current),
       isCurrentPage: true,
     });
   }
@@ -626,9 +814,10 @@ function getBreadcrumbTrail() {
 }
 
 function isDashboardRoute() {
+  const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   const l1Current = sideNav.querySelector('.side-nav-link[data-level="1"][aria-current="page"]');
-  return !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
+  return !l3Current && !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
 }
 
 function isRoleManagementRoute() {
@@ -641,6 +830,34 @@ function isUserManagementRoute() {
 
 function isDefaultRoleManagementRoute() {
   return getHashPath().startsWith("#default-role-management");
+}
+
+function isUsIsfRoute() {
+  return getHashPath() === "#transaction-us-isf";
+}
+
+function isUsInBondRoute() {
+  return getHashPath() === "#transaction-us-in-bond";
+}
+
+function isUsEntryRoute() {
+  return getHashPath() === "#transaction-us-entry";
+}
+
+function isUsFtzRoute() {
+  return getHashPath() === "#transaction-us-ftz";
+}
+
+function isUsPscRoute() {
+  return getHashPath() === "#transaction-us-psc";
+}
+
+function isUsDeliveryOrderRoute() {
+  return getHashPath() === "#transaction-us-delivery-order";
+}
+
+function isUsShipmentsRoute() {
+  return getHashPath() === "#transaction-us-shipments";
 }
 
 function nestedAdminNavHash(path = getHashPath()) {
@@ -686,11 +903,15 @@ function getCurrentPageTitle() {
   }
   const userDetail = path.match(/^#kn-user-management\/([^/]+)$/);
   if (userDetail && userDetail[1] !== "add") {
-    return adminStoredName("kn-users-v2", decodeURIComponent(userDetail[1]));
+    return adminStoredName("kn-users-v3", decodeURIComponent(userDetail[1])) || adminStoredName("kn-users-v2", decodeURIComponent(userDetail[1]));
   }
   const defDetail = path.match(/^#default-role-management\/([^/]+)$/);
   if (defDetail && defDetail[1] !== "add") {
     return adminStoredName("kn-default-roles-v3", decodeURIComponent(defDetail[1]));
+  }
+  const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
+  if (l3Current) {
+    return getNavTitle(l3Current);
   }
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   if (l2Current) {
@@ -709,8 +930,14 @@ function isKlearhubOverviewRoute() {
 }
 
 function isKlearhubVisibilityRoute() {
-  const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
-  return l2Current?.getAttribute("href") === "#klearhub-visibility";
+  // Exact hash — L3 "360" keeps #klearhub-visibility; Engine uses a distinct placeholder.
+  if (getHashPath() === "#klearhub-visibility") {
+    return true;
+  }
+  const current =
+    sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]') ||
+    sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
+  return current?.getAttribute("href") === "#klearhub-visibility";
 }
 
 function getHashPath(hash = location.hash) {
@@ -754,6 +981,13 @@ function syncPageView() {
   const rolePage = document.getElementById("kn-role-page");
   const userPage = document.getElementById("kn-user-page");
   const defaultRolePage = document.getElementById("kn-default-role-page");
+  const isfPage = document.getElementById("kn-isf-page");
+  const inbPage = document.getElementById("kn-inb-page");
+  const entryPage = document.getElementById("kn-entry-page");
+  const ftzPage = document.getElementById("kn-ftz-page");
+  const pscPage = document.getElementById("kn-psc-page");
+  const doPage = document.getElementById("kn-do-page");
+  const tmshipPage = document.getElementById("kn-tmship-page");
   const emptyPage = document.getElementById("empty-page");
   const emptyTitle = document.getElementById("empty-page-title");
   const emptyDescription = document.getElementById("empty-page-description");
@@ -764,7 +998,16 @@ function syncPageView() {
   const isRoles = isRoleManagementRoute();
   const isUsers = isUserManagementRoute();
   const isDefaultRoles = isDefaultRoleManagementRoute();
+  const isUsIsf = isUsIsfRoute();
+  const isUsInBond = isUsInBondRoute();
+  const isUsEntry = isUsEntryRoute();
+  const isUsFtz = isUsFtzRoute();
+  const isUsPsc = isUsPscRoute();
+  const isUsDeliveryOrder = isUsDeliveryOrderRoute();
+  const isUsShipments = isUsShipmentsRoute();
   const isAdminModule = isRoles || isUsers || isDefaultRoles;
+  const isTmUsPage = isUsIsf || isUsInBond || isUsEntry || isUsFtz || isUsPsc || isUsDeliveryOrder || isUsShipments;
+  const isKnownPage = isDashboard || isOverview || isVisibility || isAdminModule || isTmUsPage;
 
   if (!isUsers) {
     window.KNUsers?.suspend?.();
@@ -774,6 +1017,27 @@ function syncPageView() {
   }
   if (!isDefaultRoles) {
     window.KNDefaultRoles?.suspend?.();
+  }
+  if (!isUsIsf) {
+    window.KNUsIsf?.suspend?.();
+  }
+  if (!isUsInBond) {
+    window.KNUsInBond?.suspend?.();
+  }
+  if (!isUsEntry) {
+    window.KNUsEntry?.suspend?.();
+  }
+  if (!isUsFtz) {
+    window.KNUsFtz?.suspend?.();
+  }
+  if (!isUsPsc) {
+    window.KNUsPsc?.suspend?.();
+  }
+  if (!isUsDeliveryOrder) {
+    window.KNUsDeliveryOrder?.suspend?.();
+  }
+  if (!isUsShipments) {
+    window.KNUsShipments?.suspend?.();
   }
   if (!isVisibility) {
     window.suspendVisibility?.();
@@ -785,6 +1049,13 @@ function syncPageView() {
   setPageSectionVisibility(rolePage, isRoles);
   setPageSectionVisibility(userPage, isUsers);
   setPageSectionVisibility(defaultRolePage, isDefaultRoles);
+  setPageSectionVisibility(isfPage, isUsIsf);
+  setPageSectionVisibility(inbPage, isUsInBond);
+  setPageSectionVisibility(entryPage, isUsEntry);
+  setPageSectionVisibility(ftzPage, isUsFtz);
+  setPageSectionVisibility(pscPage, isUsPsc);
+  setPageSectionVisibility(doPage, isUsDeliveryOrder);
+  setPageSectionVisibility(tmshipPage, isUsShipments);
   if (isVisibility && typeof persistVisViewHash === "function") {
     persistVisViewHash(visState?.view || "cards");
   }
@@ -795,7 +1066,7 @@ function syncPageView() {
     window.closeKnShipmentDetail({ persistHash: false });
   }
   if (emptyPage) {
-    setPageSectionVisibility(emptyPage, !(isDashboard || isOverview || isVisibility || isAdminModule));
+    setPageSectionVisibility(emptyPage, !isKnownPage);
   }
   if (isRoles) {
     window.KNRoles?.init?.();
@@ -809,7 +1080,35 @@ function syncPageView() {
     window.KNDefaultRoles?.init?.();
     window.KNDefaultRoles?.sync?.();
   }
-  if (!isDashboard && !isOverview && !isVisibility && !isAdminModule) {
+  if (isUsIsf) {
+    window.KNUsIsf?.init?.();
+    window.KNUsIsf?.sync?.();
+  }
+  if (isUsInBond) {
+    window.KNUsInBond?.init?.();
+    window.KNUsInBond?.sync?.();
+  }
+  if (isUsEntry) {
+    window.KNUsEntry?.init?.();
+    window.KNUsEntry?.sync?.();
+  }
+  if (isUsFtz) {
+    window.KNUsFtz?.init?.();
+    window.KNUsFtz?.sync?.();
+  }
+  if (isUsPsc) {
+    window.KNUsPsc?.init?.();
+    window.KNUsPsc?.sync?.();
+  }
+  if (isUsDeliveryOrder) {
+    window.KNUsDeliveryOrder?.init?.();
+    window.KNUsDeliveryOrder?.sync?.();
+  }
+  if (isUsShipments) {
+    window.KNUsShipments?.init?.();
+    window.KNUsShipments?.sync?.();
+  }
+  if (!isKnownPage) {
     const title = getCurrentPageTitle();
     const toVisibility = /ops|notification|transaction|shipments/i.test(title);
     if (emptyTitle) {
@@ -840,10 +1139,11 @@ function syncDocumentTitle() {
 }
 
 function isL2Context() {
+  const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   const l2TriggerCurrent = Boolean(sideNav.querySelector('.side-nav-link[data-l2trigger][aria-current="page"]'));
   const l2PanelOpen = Boolean(sideNavL2 && !sideNavL2.hidden);
-  return Boolean(l2Current || l2TriggerCurrent || l2PanelOpen);
+  return Boolean(l3Current || l2Current || l2TriggerCurrent || l2PanelOpen);
 }
 
 function renderBreadcrumb() {
@@ -926,11 +1226,17 @@ function activateL2Trigger(trigger) {
   }
   const title = getNavTitle(activeTrigger);
   const level = getL2Level(activeTrigger);
-  const firstChild = level?.querySelector('.side-nav-link[data-level="2"]');
+  const firstChild = firstNavigableInLevel(level);
   clearCurrent();
   setCurrent(activeTrigger);
   if (firstChild) {
     setCurrent(firstChild);
+    if (firstChild.matches("[data-tree-trigger]")) {
+      accordionTreeTriggers(firstChild);
+      setTreeExpanded(firstChild, true);
+    } else {
+      expandTreeAncestors(firstChild);
+    }
     const href = firstChild.getAttribute("href");
     if (href?.startsWith("#")) {
       setRouteHash(href);
@@ -1002,7 +1308,66 @@ breakpointObserver.observe(document.documentElement, {
   attributeFilter: ["data-matched-device-type", "data-matched-breakpoint"],
 });
 
+function activateWithinL2Panel(link) {
+  const levelEl = link.closest(".side-nav-level[data-level='2']");
+  const trigger = getL2TriggerForLevel(levelEl) || getActiveL2Trigger();
+  if (!trigger) {
+    return;
+  }
+  setCurrent(trigger);
+  const triggerTitle = getNavTitle(trigger);
+  if (isL1Collapsed) {
+    portalL2(trigger, triggerTitle);
+  } else {
+    onLinkActiveChange({
+      level: 1,
+      isActive: true,
+      isL2Trigger: true,
+      isFirstRender: false,
+      title: triggerTitle,
+      trigger,
+    });
+  }
+}
+
 sideNav.addEventListener("click", (event) => {
+  const treeTrigger = event.target.closest("[data-tree-trigger]");
+  if (treeTrigger && sideNav.contains(treeTrigger)) {
+    event.preventDefault();
+    const willExpand = treeTrigger.getAttribute("aria-expanded") !== "true";
+    if (willExpand) {
+      accordionTreeTriggers(treeTrigger);
+    }
+    setTreeExpanded(treeTrigger, willExpand);
+    if (!willExpand) {
+      return;
+    }
+    const group = getTreeGroup(treeTrigger)?.querySelector(".side-nav-tree__group") || getTreeGroup(treeTrigger);
+    const firstLeaf = group?.querySelector('a.side-nav-link[data-level="3"]');
+    const target = firstLeaf || (treeTrigger.matches("a[href^='#']") ? treeTrigger : null);
+    if (!target) {
+      return;
+    }
+    const href = target.getAttribute("href");
+    if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
+      return;
+    }
+    if (href?.startsWith("#")) {
+      setRouteHash(href);
+    }
+    clearCurrent();
+    setCurrent(target);
+    if (firstLeaf) {
+      expandTreeAncestors(firstLeaf);
+    }
+    activateWithinL2Panel(treeTrigger);
+    if (!isMediumOrHdDesktop() && firstLeaf) {
+      setNavOpen(false);
+    }
+    renderBreadcrumb();
+    return;
+  }
+
   const link = event.target.closest(".side-nav-link");
   if (!link || !sideNav.contains(link)) {
     return;
@@ -1029,25 +1394,18 @@ sideNav.addEventListener("click", (event) => {
   clearCurrent();
   setCurrent(link);
 
-  if (level === 2) {
-    const levelEl = link.closest(".side-nav-level");
-    const trigger = getL2TriggerForLevel(levelEl) || getActiveL2Trigger();
-    if (trigger) {
-      setCurrent(trigger);
-      const triggerTitle = getNavTitle(trigger);
-      if (isL1Collapsed) {
-        portalL2(trigger, triggerTitle);
-      } else {
-        onLinkActiveChange({
-          level: 1,
-          isActive: true,
-          isL2Trigger: true,
-          isFirstRender: false,
-          title: triggerTitle,
-          trigger
-        });
-      }
+  if (level === 3) {
+    expandTreeAncestors(link);
+    activateWithinL2Panel(link);
+    if (!isMediumOrHdDesktop()) {
+      setNavOpen(false);
     }
+    renderBreadcrumb();
+    return;
+  }
+
+  if (level === 2) {
+    activateWithinL2Panel(link);
     if (!isMediumOrHdDesktop()) {
       setNavOpen(false);
     }
@@ -1064,6 +1422,34 @@ sideNav.addEventListener("click", (event) => {
   });
   renderBreadcrumb();
 });
+
+sideNav.addEventListener("keydown", (event) => {
+  const treeTrigger = event.target.closest("[data-tree-trigger]");
+  if (!treeTrigger || !sideNav.contains(treeTrigger)) {
+    return;
+  }
+  if (event.key === " " || event.key === "Enter") {
+    event.preventDefault();
+    treeTrigger.click();
+    return;
+  }
+  if (event.key === "ArrowRight") {
+    if (treeTrigger.getAttribute("aria-expanded") !== "true") {
+      event.preventDefault();
+      accordionTreeTriggers(treeTrigger);
+      setTreeExpanded(treeTrigger, true);
+    }
+    return;
+  }
+  if (event.key === "ArrowLeft") {
+    if (treeTrigger.getAttribute("aria-expanded") === "true") {
+      event.preventDefault();
+      setTreeExpanded(treeTrigger, false);
+    }
+  }
+});
+
+sideNav.addEventListener("transitionend", onTreeAnimatorTransitionEnd);
 
 sideNav.addEventListener("focusin", (event) => {
   const link = event.target.closest('.side-nav-link[data-level="1"]');
@@ -1119,15 +1505,22 @@ sideNavL2.addEventListener("mouseout", (event) => {
 });
 
 syncL1Classes();
+enhanceTreeGroups();
 renderBreadcrumb();
 
 if (getHashPath() && getHashPath() !== "#dashboard") {
   const hashPath = getHashPath();
   const navHash = nestedAdminNavHash(hashPath);
   const deepLink =
+    sideNav.querySelector(`.side-nav-link[data-level="3"][href="${navHash}"]`) ||
     sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
     sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
-  deepLink?.click();
+  if (deepLink) {
+    if (deepLink.dataset.level === "3") {
+      expandTreeAncestors(deepLink);
+    }
+    deepLink.click();
+  }
   if (navHash !== hashPath) {
     history.replaceState(null, "", hashPath);
     adminModuleApi(navHash)?.sync?.();
@@ -1164,10 +1557,14 @@ window.addEventListener("hashchange", (event) => {
     }
   } else {
     const link =
+      sideNav.querySelector(`.side-nav-link[data-level="3"][href="${navHash}"]`) ||
       sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
       sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
     if (link && link.getAttribute("aria-current") !== "page") {
       window.KNAdminUX?.beginNavigation();
+      if (link.dataset.level === "3") {
+        expandTreeAncestors(link);
+      }
       link.click();
     }
   }
@@ -1786,7 +2183,7 @@ document.addEventListener("click", (event) => {
   if (typeof applyVisibilityFilters === "function") {
     applyVisibilityFilters(filters);
   }
-  sideNav.querySelector('.side-nav-link[data-level="2"][href="#klearhub-visibility"]')?.click();
+  sideNav.querySelector('.side-nav-link[data-level="3"][href="#klearhub-visibility"]')?.click();
   const openId = link.getAttribute("data-kn-open-id");
   if (openId && typeof window.openKnShipmentDetail === "function") {
     window.openKnShipmentDetail(openId);
@@ -1892,7 +2289,7 @@ function openShipmentFromDashboard(id) {
   if (typeof window.startVisibilityLoading === "function") {
     window.startVisibilityLoading("page");
   }
-  sideNav.querySelector('.side-nav-link[data-level="2"][href="#klearhub-visibility"]')?.click();
+  sideNav.querySelector('.side-nav-link[data-level="3"][href="#klearhub-visibility"]')?.click();
   if (typeof window.openKnShipmentDetail === "function") {
     window.openKnShipmentDetail(id);
   }
@@ -2726,7 +3123,7 @@ function initHoldDrawer() {
     if (typeof window.startVisibilityLoading === "function") {
       window.startVisibilityLoading("page");
     }
-    const navLink = sideNav.querySelector('.side-nav-link[data-level="2"][href="#klearhub-visibility"]');
+    const navLink = sideNav.querySelector('.side-nav-link[data-level="3"][href="#klearhub-visibility"]');
     navLink?.click();
     if (typeof window.openKnShipmentDetail === "function") {
       window.openKnShipmentDetail(id);
@@ -4237,7 +4634,7 @@ function initAiAssistant() {
         kind: "default",
         catalog: window.KNDefaultRoles?.permissionCatalog?.() || [],
         href: `#default-role-management/${encodeURIComponent(defHit.id)}`,
-        page: "Default Role Management",
+        page: "Role Management",
         pageHref: "#default-role-management"
       };
     }
@@ -4283,9 +4680,9 @@ function initAiAssistant() {
         title: "Those templates are not in this session",
         thinking: ["Looked up both names in Default Role Management and KN Role Management"],
         evidence: ["Used catalogs: kn-default-roles-v3, kn-roles-v2"],
-        text: `No records named **${names[0]}** or **${names[1]}** are stored in this session.\n\nOpen **Default Role Management** (templates) or **KN Role Management** (internal roles) and ask again.`,
+        text: `No records named **${names[0]}** or **${names[1]}** are stored in this session.\n\nOpen **Role Management** (templates) or **KN Role Management** (internal roles) and ask again.`,
         sources: [
-          { label: "Default Role Management", href: "#default-role-management", type: "page", id: "defaults" },
+          { label: "Role Management", href: "#default-role-management", type: "page", id: "defaults" },
           { label: "KN Role Management", href: "#kn-role-management", type: "page", id: "roles" }
         ]
       });
@@ -4297,7 +4694,7 @@ function initAiAssistant() {
         title: `${missing} is not in this session`,
         thinking: [`Found ${found.role.name} on ${found.page}`, `Did not find ${missing} in stored catalogs`],
         evidence: [`Used record: ${found.role.name} (${found.page})`],
-        text: `**${found.role.name}** is on **${found.page}**. **${missing}** is not in this session, so I cannot invent a side-by-side.\n\nOpen **Default Role Management** if that name is a customer template.`,
+        text: `**${found.role.name}** is on **${found.page}**. **${missing}** is not in this session, so I cannot invent a side-by-side.\n\nOpen **Role Management** if that name is a customer template.`,
         sources: [
           { label: found.role.name, href: found.href, type: found.kind === "default" ? "default-role" : "role", id: found.role.id },
           { label: found.page, href: found.pageHref, type: "page", id: found.pageHref }
@@ -4474,15 +4871,21 @@ function initAiAssistant() {
   }
 
   function levelLabel(level) {
-    const key = String(level || "").toUpperCase();
+    const key = String(level || "").toUpperCase().replace(/[\s-]+/g, "_");
     if (key === "KLEARNOW") {
       return "KlearNow";
     }
     if (key === "CUSTOMER") {
-      return "customer";
+      return "Customer";
     }
-    if (key === "BROKER") {
-      return "broker";
+    if (key === "SUB_CUSTOMER") {
+      return "Sub-customer";
+    }
+    if (key === "COMPANY") {
+      return "Company";
+    }
+    if (key === "PARTIES" || key === "BROKER") {
+      return "Parties";
     }
     return level || "workspace";
   }
@@ -4602,14 +5005,23 @@ function initAiAssistant() {
   }
 
   function usersContext(hash) {
-    const users = readAdminRows("kn-users-v2", () => window.KNUsers?.list?.());
+    const users = readAdminRows("kn-users-v3", () => window.KNUsers?.list?.());
     const elevatedInactive = users.filter(
       (user) => !user.active && (user.roles || []).some((name) => isElevatedRoleName(name))
     );
     const split = {
       kn: users.filter((user) => String(user.level).toUpperCase() === "KLEARNOW").length,
       customer: users.filter((user) => String(user.level).toUpperCase() === "CUSTOMER").length,
-      broker: users.filter((user) => String(user.level).toUpperCase() === "BROKER").length,
+      subCustomer: users.filter((user) => String(user.level).toUpperCase() === "SUB_CUSTOMER").length,
+      company: users.filter((user) => String(user.level).toUpperCase() === "COMPANY").length,
+      parties: users.filter((user) => {
+        const level = String(user.level).toUpperCase();
+        return level === "PARTIES" || level === "BROKER";
+      }).length,
+      broker: users.filter((user) => {
+        const level = String(user.level).toUpperCase();
+        return level === "PARTIES" || level === "BROKER";
+      }).length,
       inactive: users.filter((user) => !user.active).length
     };
     const addForm = hash === "#kn-user-management/add";
@@ -4669,7 +5081,7 @@ function initAiAssistant() {
         title: "KN User Management",
         summary: "KN User Management is open, but no people are stored in this workspace yet. I can still explain inactive access and how the list is grouped once users load.",
         hint: "There is no roster to inspect yet. Ask what elevated access means, or where to add someone.",
-        details: ["Users persist in kn-users-v2 after the roster is saved."],
+        details: ["Users persist in kn-users-v3 after the roster is saved."],
         prompts: [
           { label: "Inactive users with elevated access", prompt: "Which users are inactive but still hold elevated access?" },
           { label: "KlearNow vs customer vs broker", prompt: "How are KlearNow, customer, and broker users split on this list?" },
@@ -4685,8 +5097,8 @@ function initAiAssistant() {
       area: "KN User Management",
       title: "KN User Management",
       summary: elevatedInactive.length
-        ? `KN User Management is listing ${users.length} people across KlearNow, customers, and brokers. ${formatList(elevatedInactive.map((item) => item.name))} ${elevatedInactive.length === 1 ? "is" : "are"} inactive while still holding elevated access.`
-        : `KN User Management is listing ${users.length} people — ${split.kn} KlearNow, ${split.customer} customer, ${split.broker} broker. No inactive accounts currently keep elevated roles.`,
+        ? `User Management is listing ${users.length} people across customers, sub-customers, companies, and parties. ${formatList(elevatedInactive.map((item) => item.name))} ${elevatedInactive.length === 1 ? "is" : "are"} inactive while still holding elevated access.`
+        : `User Management is listing ${users.length} people — ${split.customer} customer, ${split.subCustomer} sub-customer, ${split.company} company, ${split.parties} parties. No inactive accounts currently keep elevated roles.`,
       hint: "Ask about inactive access or how the roster is split. I will not change assignments.",
       details: [
         `${split.inactive} inactive on this page.`,
@@ -4727,7 +5139,7 @@ function initAiAssistant() {
     if (addForm) {
       return contextOf({
         kind: "default-add",
-        area: "Default Role Management",
+        area: "Role Management",
         title: "New default role",
         summary: "You're drafting a customer/broker template, not an internal KN role. I can explain inheritance, services, and applicability; publishing still happens on this form.",
         hint: "I will not create the template. Ask what customers would inherit if you save it.",
@@ -4737,7 +5149,7 @@ function initAiAssistant() {
           { label: "Vs KN internal role", prompt: "How is this template different from a KN internal role?" },
           { label: "What inheritance means", prompt: "What does inheritance mean once customers join?" }
         ],
-        manualPath: "Administration -> Default Role Management -> Add Default Role -> Save",
+        manualPath: "Administration -> Role Management -> Add Role -> Save",
         facts: { roles, top, inactiveInherited }
       });
     }
@@ -4746,7 +5158,7 @@ function initAiAssistant() {
       const inherited = inheritCount(role);
       return contextOf({
         kind: "default-detail",
-        area: "Default Role Management",
+        area: "Role Management",
         title: role.name,
         summary: `${role.name} is a default template with ${permCount(role)} permissions. ${inherited} workspace${inherited === 1 ? "" : "s"} currently inherit it.`,
         hint: "I can explain who inherits this and which services it covers. I cannot change the template.",
@@ -4760,7 +5172,7 @@ function initAiAssistant() {
           { label: "Services and parties", prompt: "Which services and parties does this template apply to?" },
           { label: "Permission coverage", prompt: "What's the permission coverage on this template?" }
         ],
-        manualPath: "Administration -> Default Role Management -> open template -> Edit Default Role",
+        manualPath: "Administration -> Role Management -> open template -> Edit Role",
         facts: { roles, role, top, inactiveInherited }
       });
     }
@@ -4768,9 +5180,9 @@ function initAiAssistant() {
     if (!roles.length) {
       return contextOf({
         kind: "defaults",
-        area: "Default Role Management",
-        title: "Default Role Management",
-        summary: "Default Role Management is open, but no templates are stored yet. I can still explain inheritance — how customers pick up access when they join — once templates load.",
+        area: "Role Management",
+        title: "Role Management",
+        summary: "Role Management is open, but no templates are stored yet. I can still explain inheritance — how customers pick up access when they join — once templates load.",
         hint: "There is no inheritance table to rank yet. Ask what a default role is for.",
         details: ["Templates persist in kn-default-roles-v3 after they are saved."],
         prompts: [
@@ -4778,15 +5190,15 @@ function initAiAssistant() {
           { label: "What inheritance means", prompt: "What does inheritance mean on this page?" },
           { label: "Where to add a template", prompt: "Where do I add a default role when templates are ready?" }
         ],
-        manualPath: "Administration -> Default Role Management",
+        manualPath: "Administration -> Role Management",
         facts: { roles, top, inactiveInherited }
       });
     }
 
     return contextOf({
       kind: "defaults",
-      area: "Default Role Management",
-      title: "Default Role Management",
+      area: "Role Management",
+      title: "Role Management",
       summary: `This is the inheritance layer for customers and brokers — ${roles.length} default templates. ${top.name} currently leads with ${inheritCount(top)} workspaces inheriting it.`,
       hint: "Ask who inherits what. I will not attach or detach customers from a template.",
       details: [
@@ -4800,7 +5212,7 @@ function initAiAssistant() {
         { label: "Admin vs full access", prompt: "What's different between Customer Administrator and Full Customer Access", icon: "compare", new: true },
         { label: "Who inherits the leader", prompt: `Who inherits ${top.name}, and is that expected?` }
       ],
-      manualPath: "Administration -> Default Role Management",
+      manualPath: "Administration -> Role Management",
       facts: { roles, top, inactiveInherited }
     });
   }
@@ -4937,7 +5349,7 @@ function initAiAssistant() {
     if (isKlearhubOverviewRoute() || hash.startsWith("#klearhub-overview")) {
       return operationsContext("overview");
     }
-    if (isKlearhubVisibilityRoute() || hash.startsWith("#klearhub-visibility")) {
+    if (isKlearhubVisibilityRoute() || hash === "#klearhub-visibility") {
       return operationsContext("visibility");
     }
     return unavailableContext();
@@ -4998,8 +5410,8 @@ function initAiAssistant() {
     if (kind === "defaults" || kind === "default-add") {
       const count = Array.isArray(facts.roles) ? facts.roles.length : 0;
       return count
-        ? `Referencing: Default Role Management — ${count} template${count === 1 ? "" : "s"} visible`
-        : "Referencing: Default Role Management";
+        ? `Referencing: Role Management — ${count} template${count === 1 ? "" : "s"} visible`
+        : "Referencing: Role Management";
     }
     if (kind === "visibility" || kind === "dashboard" || kind === "overview") {
       const total = Number(facts.stats?.total) || 0;
@@ -5019,7 +5431,7 @@ function initAiAssistant() {
       return `Looking at ${context.title}…`;
     }
     if (kind === "defaults" || kind === "default-add") {
-      return "Looking at Default Role Management…";
+      return "Looking at Role Management…";
     }
     if (kind === "roles" || kind === "role-add") {
       return "Looking at KN Role Management…";
@@ -5191,7 +5603,7 @@ function initAiAssistant() {
 
     const kind = context?.kind || "";
     if (kind.startsWith("default")) {
-      pushPage("Default Role Management", "#default-role-management");
+      pushPage("Role Management", "#default-role-management");
     } else if (kind.startsWith("role")) {
       pushPage("KN Role Management", "#kn-role-management");
     } else if (kind.startsWith("user")) {
@@ -6217,7 +6629,7 @@ function initAiAssistant() {
         return textAnswer({
           title: "Roster split on KN User Management",
           thinking: ["Counted KlearNow, Customer, and Broker users on this list"],
-          text: `On **KN User Management**:\n\n- **KlearNow**: **${split.kn || 0}**\n- **Customer**: **${split.customer || 0}**\n- **Broker**: **${split.broker || 0}**\n- **Inactive**: **${split.inactive || 0}**`,
+          text: `On **User Management**:\n\n- **Customer**: **${split.customer || 0}**\n- **Sub-customer**: **${split.subCustomer || 0}**\n- **Company**: **${split.company || 0}**\n- **Parties**: **${split.parties || 0}**\n- **Inactive**: **${split.inactive || 0}**`,
           followUps: followUpsFromContext(context, q)
         });
       }
@@ -6255,7 +6667,7 @@ function initAiAssistant() {
         return textAnswer({
           title: "Ask about a template on this page",
           thinking: ["Checked Default Role Management instead of a generic inheritance definition"],
-          text: `I do not explain inheritance as a general concept. On **Default Role Management**, open a template${top ? ` such as **${top.name}**` : ""} and ask who inherits it, or what its coverage is.`,
+          text: `I do not explain inheritance as a general concept. On **Role Management**, open a template${top ? ` such as **${top.name}**` : ""} and ask who inherits it, or what its coverage is.`,
           followUps: followUpsFromContext(context, q)
         });
       }
@@ -6289,7 +6701,7 @@ function initAiAssistant() {
         if (names.length) {
           body += `- Named inheriting workspaces include: **${formatList(names)}**\n`;
         }
-        body += `\nInheritance here means customer and broker workspaces pick up this template’s access when attached — it is not a general RBAC lecture. Open **${role.name}** on **Default Role Management** to review the drawer.`;
+        body += `\nInheritance here means customer and broker workspaces pick up this template’s access when attached — it is not a general RBAC lecture. Open **${role.name}** on **Role Management** to review the drawer.`;
         if (persona.role) {
           body += ` As **${persona.role}**, you can inspect coverage and inheritance, but publishing changes still happens on the form.`;
         }
@@ -6312,7 +6724,7 @@ function initAiAssistant() {
             "Checking Default Role Management templates and inheritance counts",
             `Reading workspaces inheriting ${target.name}`
           ],
-          text: `**${target.name}** has the ${role ? "current" : "highest"} inheritance on **Default Role Management**, with **${inheritCount(target)}** workspace${inheritCount(target) === 1 ? "" : "s"}.\n\n- Coverage: **${targetCov.ratio}** permissions${targetCov.mostly ? `, mostly in **${targetCov.mostly}**` : ""}\n${names.length ? `- Named examples: **${formatList(names)}**\n` : ""}${target.active === false ? "- The template is **inactive**, but inheritance counts can still show.\n" : ""}\nOpen **${target.name}** to inspect the drawer. I will not attach or detach customers from here.`,
+          text: `**${target.name}** has the ${role ? "current" : "highest"} inheritance on **Role Management**, with **${inheritCount(target)}** workspace${inheritCount(target) === 1 ? "" : "s"}.\n\n- Coverage: **${targetCov.ratio}** permissions${targetCov.mostly ? `, mostly in **${targetCov.mostly}**` : ""}\n${names.length ? `- Named examples: **${formatList(names)}**\n` : ""}${target.active === false ? "- The template is **inactive**, but inheritance counts can still show.\n" : ""}\nOpen **${target.name}** to inspect the drawer. I will not attach or detach customers from here.`,
           followUps: followUpsFromContext(context, q)
         });
       }
@@ -6324,7 +6736,7 @@ function initAiAssistant() {
         return textAnswer({
           title: "Inactive yet still inherited",
           thinking: ["Checked inactive templates that still show inheritance"],
-          text: `${lines.join("\n")}\n\nTurning a template off does not automatically detach customers. Review them in **Default Role Management**.`,
+          text: `${lines.join("\n")}\n\nTurning a template off does not automatically detach customers. Review them in **Role Management**.`,
           followUps: followUpsFromContext(context, q)
         });
       }
@@ -6482,7 +6894,7 @@ function initAiAssistant() {
       return textAnswer({
         title: "Need a page-grounded question",
         thinking: ["Checked that only a general definition would answer this"],
-        text: `I do not have a general encyclopedia answer for that. ${hrefHint ? `Stay on **${context.area || "this page"}** and ask about a specific record or count you can see.` : "Open Default Role Management or KN Role Management, select a record, and ask again."}`,
+        text: `I do not have a general encyclopedia answer for that. ${hrefHint ? `Stay on **${context.area || "this page"}** and ask about a specific record or count you can see.` : "Open Role Management or KN Role Management, select a record, and ask again."}`,
         followUps: followUpsFromContext(context, q)
       });
     }

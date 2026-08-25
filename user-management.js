@@ -1,20 +1,48 @@
 (() => {
-  const STORAGE_KEY = "kn-users-v2";
+  const STORAGE_KEY = "kn-users-v3";
   const REPORTER_KEY = "kn-reporters-v2";
   const ROLE_STORAGE_KEY = "kn-roles-v2";
+  /** Backend account entity shown in the Entity Name column. */
+  const ENTITY_DISPLAY_NAME = "KlearNow Admin";
   const LEVELS = [
-    { id: "KLEARNOW", label: "Klearnow" },
-    { id: "CUSTOMER", label: "Customer" },
-    { id: "BROKER", label: "Broker" }
+    { id: "CUSTOMER", label: "Customer", listLabel: "CUSTOMER" },
+    { id: "SUB_CUSTOMER", label: "Sub-customer", listLabel: "SUB_CUSTOMER" },
+    { id: "COMPANY", label: "Company", listLabel: "COMPANY" },
+    { id: "PARTIES", label: "Parties", listLabel: "PARTIES" }
+  ];
+  const LEGACY_LEVEL_MAP = {
+    KLEARNOW: "COMPANY",
+    klearnow: "COMPANY",
+    BROKER: "PARTIES",
+    broker: "PARTIES"
+  };
+  const SUB_CUSTOMERS = [
+    { id: "kn-us", label: "KlearNow US" },
+    { id: "kn-ca", label: "KlearNow CA" }
+  ];
+  const PARTIES = [
+    { id: "heritage", label: "Heritage Customs Services Inc.", hint: "Third-party Customs Broker - Q3E8" },
+    { id: "american-river", label: "American River Brokerage Services Ltd.", hint: "Third-party Customs Broker - 07A3" },
+    { id: "vantage", label: "Vantage Point Services", hint: "Third-party Customs Broker - 07A5" },
+    { id: "john-james", label: "John S. James Co", hint: "Third-party Customs Broker - 08GP" },
+    { id: "css-brokers", label: "CSS Brokers Inc.", hint: "Third-party Customs Broker - C9B2" },
+    { id: "expeditors", label: "Expeditors", hint: "Third-party Customs Broker - EX01" }
+  ];
+  const CUSTOMER_ENTITIES = [
+    { id: "kn-admin", label: "KlearNow Admin" },
+    { id: "bosch", label: "Bosch North America" },
+    { id: "unilever", label: "Unilever Supply Chain" },
+    { id: "siemens", label: "Siemens Logistics" }
   ];
   const COUNTRIES = [
-    { id: "US", label: "+1", hint: "United States" },
-    { id: "IN", label: "+91", hint: "India" },
-    { id: "GB", label: "+44", hint: "United Kingdom" },
-    { id: "DE", label: "+49", hint: "Germany" },
-    { id: "SG", label: "+65", hint: "Singapore" },
-    { id: "AE", label: "+971", hint: "United Arab Emirates" },
-    { id: "NL", label: "+31", hint: "Netherlands" }
+    { id: "US", label: "United States (+1)", hint: "US" },
+    { id: "CA", label: "Canada (+1)", hint: "CA" },
+    { id: "IN", label: "India (+91)", hint: "IN" },
+    { id: "GB", label: "United Kingdom (+44)", hint: "GB" },
+    { id: "DE", label: "Germany (+49)", hint: "DE" },
+    { id: "SG", label: "Singapore (+65)", hint: "SG" },
+    { id: "AE", label: "United Arab Emirates (+971)", hint: "AE" },
+    { id: "NL", label: "Netherlands (+31)", hint: "NL" }
   ];
   const PAGE_SIZES = [
     { id: "10", label: "10" },
@@ -28,12 +56,26 @@
     "ISF Filing Specialist",
     "Finance Credits Owner",
     "Customer Entity Admin",
-    "Content Publisher",
+    "E-Invoice Publisher",
     "Notification Owner",
     "Analytics Viewer",
     "OPS Hub Reviewer",
     "User Access Manager",
-    "Broker Association Admin"
+    "Broker Invoice Admin",
+    "CANADA TRANSACTION MANAGER",
+    "Klearhub Visibility",
+    "Notification Admin",
+    "KlearNow CS Subcustomer",
+    "PSC Module",
+    "Vis 2.0",
+    "Company Admin",
+    "HUB+ COMPANY ADMIN",
+    "HUB+ COMPANY USER",
+    "Party Broker/Forwarder Transaction Manager",
+    "Party Broker/Forwarder Finance Admin",
+    "Party Broker/Forwarder Analytics",
+    "Party Broker/Forwarder Admin",
+    "Parts"
   ];
 
   const state = {
@@ -56,12 +98,7 @@
     roleQuery: "",
     leaveTo: "",
     restoreFocusId: "",
-    aiDescribe: "",
-    aiLoading: false,
-    aiNoMatch: false,
-    aiRoleSuggestions: [],
     aiRoleOnly: [],
-    aiRoleReasons: {},
     aiFieldMeta: {}
   };
 
@@ -74,14 +111,76 @@
   }
 
   function levelLabel(id) {
-    return LEVELS.find((item) => item.id === id)?.label || id || "Klearnow";
+    return LEVELS.find((item) => item.id === id)?.label || id || "Customer";
+  }
+
+  function levelListLabel(id) {
+    return LEVELS.find((item) => item.id === id)?.listLabel || levelLabel(id);
+  }
+
+  function listUserLevel(user) {
+    return levelListLabel(normalizeLevelId(user?.level));
+  }
+
+  function normalizeLevelId(level) {
+    if (!level) {
+      return "CUSTOMER";
+    }
+    if (LEGACY_LEVEL_MAP[level]) {
+      return LEGACY_LEVEL_MAP[level];
+    }
+    if (LEVELS.some((item) => item.id === level)) {
+      return level;
+    }
+    const upper = String(level).toUpperCase().replace(/[\s-]+/g, "_");
+    if (LEGACY_LEVEL_MAP[upper]) {
+      return LEGACY_LEVEL_MAP[upper];
+    }
+    return LEVELS.some((item) => item.id === upper) ? upper : "CUSTOMER";
+  }
+
+  function subCustomerLabel(id) {
+    return SUB_CUSTOMERS.find((item) => item.id === id)?.label || id || "—";
+  }
+
+  function partyLabel(id) {
+    return PARTIES.find((item) => item.id === id)?.label || id || "—";
+  }
+
+  function partyOptionLabel(item) {
+    return item.hint ? `${item.label} (${item.hint})` : item.label;
+  }
+
+  function customerEntityLabel(id) {
+    return CUSTOMER_ENTITIES.find((item) => item.id === id)?.label || id || "—";
+  }
+
+  function entityForUser(user) {
+    return ENTITY_DISPLAY_NAME;
+  }
+
+  function normalizeStoredUser(user) {
+    const level = normalizeLevelId(user?.level);
+    const next = {
+      ...user,
+      level,
+      entity: ENTITY_DISPLAY_NAME,
+      entityName: ENTITY_DISPLAY_NAME
+    };
+    delete next.userLevelDisplay;
+    return next;
+  }
+
+  function resolveEntity() {
+    return ENTITY_DISPLAY_NAME;
   }
 
   function seedReporters() {
     return [
       { id: "rep-tanya", name: "Tanya Agrawal", email: "tanya.agrawal@klearnow.com" },
       { id: "rep-priya", name: "Priya Menon", email: "priya.menon@klearnow.com" },
-      { id: "rep-daniel", name: "Daniel Chen", email: "daniel.chen@klearnow.com" }
+      { id: "rep-daniel", name: "Daniel Chen", email: "daniel.chen@klearnow.com" },
+      { id: "rep-vipul", name: "Vipul Pachauri", email: "vipul.pachauri@klearnow.com" }
     ];
   }
 
@@ -115,31 +214,259 @@
   }
 
   function seedUsers() {
-    const kn = "KlearNow";
-    return [
-      { id: "tanya-agrawal", name: "Tanya Agrawal", email: "tanya.agrawal@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Product Lead", reportsTo: "", phoneCountry: "IN", phone: "9876543210", lastActive: "2026-08-20T09:40:00", roles: ["KN Administrator", "User Access Manager"] },
-      { id: "priya-menon", name: "Priya Menon", email: "priya.menon@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Customs Operations Lead", reportsTo: "rep-tanya", phoneCountry: "US", phone: "4155550142", lastActive: "2026-08-20T08:12:00", roles: ["ISF Filing Specialist", "OPS Hub Reviewer"] },
-      { id: "daniel-chen", name: "Daniel Chen", email: "daniel.chen@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Visibility Engineer", reportsTo: "rep-tanya", phoneCountry: "SG", phone: "91234567", lastActive: "2026-08-20T07:05:00", roles: ["Visibility 3.0 Operator", "Analytics Viewer"] },
-      { id: "sofia-alvarez", name: "Sofia Alvarez", email: "sofia.alvarez@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Broker Services Manager", reportsTo: "rep-priya", phoneCountry: "US", phone: "3105550198", lastActive: "2026-08-19T18:22:00", roles: ["Broker Association Admin", "Customer Entity Admin"] },
-      { id: "marcus-webb", name: "Marcus Webb", email: "marcus.webb@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "ISF Filing Specialist", reportsTo: "rep-priya", phoneCountry: "US", phone: "2125550174", lastActive: "2026-08-20T06:48:00", roles: ["ISF Filing Specialist"] },
-      { id: "aisha-rahman", name: "Aisha Rahman", email: "aisha.rahman@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Finance Controller", reportsTo: "rep-tanya", phoneCountry: "GB", phone: "7700900123", lastActive: "2026-08-19T11:10:00", roles: ["Finance Credits Owner"] },
-      { id: "hiroshi-tanaka", name: "Hiroshi Tanaka", email: "hiroshi.tanaka@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Data Engine Analyst", reportsTo: "rep-daniel", phoneCountry: "SG", phone: "81234567", lastActive: "2026-08-18T14:33:00", roles: ["Analytics Viewer", "Visibility Read Only"] },
-      { id: "kavya-iyer", name: "Kavya Iyer", email: "kavya.iyer@klearnow.com", level: "KLEARNOW", entity: kn, active: true, title: "Notification Operations", reportsTo: "rep-daniel", phoneCountry: "IN", phone: "9820011122", lastActive: "2026-08-20T05:16:00", roles: ["Notification Owner", "Content Publisher"] },
-      { id: "elena-petrova", name: "Elena Petrova", email: "elena.petrova@bosch.com", level: "CUSTOMER", entity: "Bosch North America", active: true, title: "Global Trade Manager", reportsTo: "rep-priya", phoneCountry: "DE", phone: "1705550101", lastActive: "2026-08-19T16:02:00", roles: ["Visibility Read Only", "Customer Entity Admin"] },
-      { id: "james-okonkwo", name: "James Okonkwo", email: "james.okonkwo@unilever.com", level: "CUSTOMER", entity: "Unilever Supply Chain", active: true, title: "Drayage Operations", reportsTo: "rep-tanya", phoneCountry: "GB", phone: "7400123456", lastActive: "2026-08-17T09:44:00", roles: ["OPS Hub Reviewer"] },
-      { id: "natalie-brooks", name: "Natalie Brooks", email: "natalie.brooks@siemens.com", level: "CUSTOMER", entity: "Siemens Logistics", active: false, title: "Trade Compliance", reportsTo: "rep-priya", phoneCountry: "US", phone: "6175550133", lastActive: "2026-07-22T13:00:00", roles: ["KN Administrator"] },
-      { id: "wei-chen", name: "Wei Chen", email: "wei.chen@expeditors.com", level: "BROKER", entity: "Expeditors", active: true, title: "Licensed Customs Broker", reportsTo: "rep-tanya", phoneCountry: "US", phone: "2065550188", lastActive: "2026-08-20T04:28:00", roles: ["Broker Association Admin", "ISF Filing Specialist"] }
+    const partyRoles = [
+      "Party Broker/Forwarder Transaction Manager",
+      "Party Broker/Forwarder Finance Admin",
+      "Party Broker/Forwarder Analytics",
+      "PSC Module",
+      "Vis 2.0",
+      "Party Broker/Forwarder Admin",
+      "Parts"
     ];
+    return [
+      {
+        id: "zeeky-le",
+        name: "Zeeky LE",
+        email: "zeeky.le@heritagecustoms.ai",
+        level: "PARTIES",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "kn-us",
+        party: "heritage",
+        customerEntity: "",
+        restrictions: "no",
+        active: true,
+        title: "",
+        reportsTo: "",
+        phoneCountry: "US",
+        phone: "8505205319",
+        lastActive: "2026-08-24T14:10:00",
+        roles: partyRoles.slice()
+      },
+      {
+        id: "will-mcdonald",
+        name: "Will McDonald",
+        email: "will@cssbrokers.com",
+        level: "PARTIES",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "kn-us",
+        party: "css-brokers",
+        customerEntity: "",
+        restrictions: "no",
+        active: true,
+        title: "Broker Operations",
+        reportsTo: "rep-tanya",
+        phoneCountry: "US",
+        phone: "3055550190",
+        lastActive: "2026-08-23T11:20:00",
+        roles: ["Party Broker/Forwarder Admin", "Vis 2.0"]
+      },
+      {
+        id: "vanessa-gonzalez",
+        name: "Vanessa Gonzalez",
+        email: "vgonzalez@americanrivergroup.com",
+        level: "PARTIES",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "kn-us",
+        party: "american-river",
+        customerEntity: "",
+        restrictions: "no",
+        active: true,
+        title: "Customs Broker",
+        reportsTo: "",
+        phoneCountry: "US",
+        phone: "9165550144",
+        lastActive: "2026-08-22T09:05:00",
+        roles: ["Party Broker/Forwarder Transaction Manager", "PSC Module"]
+      },
+      {
+        id: "vipul-pachauri",
+        name: "Vipul Pachauri",
+        email: "vipul.pachauri@klearnow.com",
+        level: "SUB_CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "kn-ca",
+        party: "",
+        customerEntity: "",
+        restrictions: "no",
+        active: true,
+        title: "",
+        reportsTo: "",
+        phoneCountry: "US",
+        phone: "",
+        lastActive: "2026-08-24T16:40:00",
+        roles: ["CANADA TRANSACTION MANAGER", "Klearhub Visibility", "Notification Admin"]
+      },
+      {
+        id: "vivek-singh",
+        name: "Vivek Singh",
+        email: "vivek.singh@klearnow.com",
+        level: "CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "",
+        party: "",
+        customerEntity: "kn-admin",
+        restrictions: "no",
+        active: true,
+        title: "Customer Success",
+        reportsTo: "rep-tanya",
+        phoneCountry: "IN",
+        phone: "9810012345",
+        lastActive: "2026-08-21T08:30:00",
+        roles: ["Customer Entity Admin", "Vis 2.0"]
+      },
+      {
+        id: "tanya-agrawal",
+        name: "Tanya Agrawal",
+        email: "tanya.agrawal@klearnow.com",
+        level: "CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "",
+        party: "",
+        customerEntity: "kn-admin",
+        restrictions: "no",
+        active: true,
+        title: "Product Lead",
+        reportsTo: "",
+        phoneCountry: "IN",
+        phone: "9876543210",
+        lastActive: "2026-08-20T09:40:00",
+        roles: ["KN Administrator", "User Access Manager"]
+      },
+      {
+        id: "priya-menon",
+        name: "Priya Menon",
+        email: "priya.menon@klearnow.com",
+        level: "COMPANY",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "kn-us",
+        party: "",
+        customerEntity: "",
+        restrictions: "no",
+        active: true,
+        title: "Customs Operations Lead",
+        reportsTo: "rep-tanya",
+        phoneCountry: "US",
+        phone: "4155550142",
+        lastActive: "2026-08-20T08:12:00",
+        roles: ["Company Admin", "HUB+ COMPANY ADMIN", "Vis 2.0"]
+      },
+      {
+        id: "daniel-chen",
+        name: "Daniel Chen",
+        email: "daniel.chen@klearnow.com",
+        level: "CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "",
+        party: "",
+        customerEntity: "kn-admin",
+        restrictions: "no",
+        active: true,
+        title: "Visibility Engineer",
+        reportsTo: "rep-tanya",
+        phoneCountry: "SG",
+        phone: "91234567",
+        lastActive: "2026-08-20T07:05:00",
+        roles: ["Visibility 3.0 Operator", "Analytics Viewer"]
+      },
+      {
+        id: "elena-petrova",
+        name: "Elena Petrova",
+        email: "elena.petrova@bosch.com",
+        level: "CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "",
+        party: "",
+        customerEntity: "bosch",
+        restrictions: "no",
+        active: true,
+        title: "Global Trade Manager",
+        reportsTo: "rep-priya",
+        phoneCountry: "DE",
+        phone: "1705550101",
+        lastActive: "2026-08-19T16:02:00",
+        roles: ["Visibility Read Only", "Customer Entity Admin"]
+      },
+      {
+        id: "james-okonkwo",
+        name: "James Okonkwo",
+        email: "james.okonkwo@unilever.com",
+        level: "CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "",
+        party: "",
+        customerEntity: "unilever",
+        restrictions: "no",
+        active: true,
+        title: "Drayage Operations",
+        reportsTo: "rep-tanya",
+        phoneCountry: "GB",
+        phone: "7400123456",
+        lastActive: "2026-08-17T09:44:00",
+        roles: ["OPS Hub Reviewer"]
+      },
+      {
+        id: "natalie-brooks",
+        name: "Natalie Brooks",
+        email: "natalie.brooks@siemens.com",
+        level: "CUSTOMER",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "",
+        party: "",
+        customerEntity: "siemens",
+        restrictions: "no",
+        active: false,
+        title: "Trade Compliance",
+        reportsTo: "rep-priya",
+        phoneCountry: "US",
+        phone: "6175550133",
+        lastActive: "2026-07-22T13:00:00",
+        roles: ["KN Administrator"]
+      },
+      {
+        id: "wei-chen",
+        name: "Wei Chen",
+        email: "wei.chen@expeditors.com",
+        level: "PARTIES",
+        entity: ENTITY_DISPLAY_NAME,
+        subCustomer: "kn-us",
+        party: "expeditors",
+        customerEntity: "",
+        restrictions: "no",
+        active: true,
+        title: "Licensed Customs Broker",
+        reportsTo: "rep-tanya",
+        phoneCountry: "US",
+        phone: "2065550188",
+        lastActive: "2026-08-20T04:28:00",
+        roles: ["Party Broker/Forwarder Admin", "ISF Filing Specialist"]
+      }
+    ].map(normalizeStoredUser);
   }
 
   function loadUsers() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
+      let users;
       if (!raw) {
-        return seedUsers();
+        users = seedUsers();
+      } else {
+        const parsed = JSON.parse(raw);
+        users = Array.isArray(parsed) && parsed.length ? parsed : seedUsers();
       }
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length ? parsed : seedUsers();
+      const migrated = users.map(normalizeStoredUser);
+      const needsSave = migrated.some((user, index) => {
+        const prev = users[index] || {};
+        return (
+          prev.level !== user.level ||
+          prev.entity !== user.entity ||
+          prev.entityName !== user.entityName ||
+          prev.userLevelDisplay != null
+        );
+      });
+      if (needsSave) {
+        saveUsers(migrated);
+      }
+      return migrated;
     } catch (error) {
       return seedUsers();
     }
@@ -168,17 +495,17 @@
   function parseRoute(hash = location.hash) {
     const path = (hash || "#dashboard").split("?")[0];
     if (path === "#kn-user-management/add") {
-      return { view: "form", id: "" };
+      return { view: "form", id: "", preferEdit: true };
     }
     const edit = path.match(/^#kn-user-management\/([^/?#]+)\/edit$/);
     if (edit) {
-      return { view: "detail", id: decodeURIComponent(edit[1]) };
+      return { view: "form", id: decodeURIComponent(edit[1]), preferEdit: true };
     }
     const detail = path.match(/^#kn-user-management\/([^/?#]+)$/);
     if (detail && detail[1] !== "add") {
-      return { view: "detail", id: decodeURIComponent(detail[1]) };
+      return { view: "detail", id: decodeURIComponent(detail[1]), preferEdit: false };
     }
-    return { view: "list", id: "" };
+    return { view: "list", id: "", preferEdit: false };
   }
 
   function goto(hash) {
@@ -245,7 +572,7 @@
       const nameOk = !state.filters.name || q(user.name).includes(q(state.filters.name));
       const emailOk = !state.filters.email || q(user.email).includes(q(state.filters.email));
       const levelOk = !state.filters.level || q(user.level) === q(state.filters.level);
-      const entityOk = !state.filters.entity || q(user.entity).includes(q(state.filters.entity));
+      const entityOk = !state.filters.entity || q(entityForUser(user)).includes(q(state.filters.entity));
       const statusHay = user.active ? "active" : "inactive";
       const statusOk = !state.filters.status || statusHay === q(state.filters.status);
       const chip = state.filters.chip;
@@ -254,17 +581,32 @@
         (chip === "active" && user.active) ||
         (chip === "inactive" && !user.active) ||
         (chip === "customer" && user.level === "CUSTOMER") ||
-        (chip === "broker" && user.level === "BROKER") ||
+        (chip === "sub-customer" && user.level === "SUB_CUSTOMER") ||
+        (chip === "company" && user.level === "COMPANY") ||
+        (chip === "parties" && user.level === "PARTIES") ||
         (chip === "admin" && (user.roles || []).includes("KN Administrator"));
       const roleOk = !state.filters.role || (user.roles || []).includes(state.filters.role);
       const inheritedNames = inheritedEntities();
-      const inheritedOk = !inheritedNames || inheritedNames.includes(user.entity);
+      const inheritedOk = !inheritedNames || inheritedNames.includes(entityForUser(user));
       return nameOk && emailOk && levelOk && entityOk && statusOk && chipOk && roleOk && inheritedOk;
     });
     const dir = state.sortDir === "desc" ? -1 : 1;
     rows.sort((a, b) => {
-      const av = state.sortKey === "status" ? Number(a.active) : String(a[state.sortKey] || "").toLowerCase();
-      const bv = state.sortKey === "status" ? Number(b.active) : String(b[state.sortKey] || "").toLowerCase();
+      let av;
+      let bv;
+      if (state.sortKey === "status") {
+        av = Number(a.active);
+        bv = Number(b.active);
+      } else if (state.sortKey === "entity") {
+        av = String(entityForUser(a) || "").toLowerCase();
+        bv = String(entityForUser(b) || "").toLowerCase();
+      } else if (state.sortKey === "level") {
+        av = String(listUserLevel(a) || "").toLowerCase();
+        bv = String(listUserLevel(b) || "").toLowerCase();
+      } else {
+        av = String(a[state.sortKey] || "").toLowerCase();
+        bv = String(b[state.sortKey] || "").toLowerCase();
+      }
       if (av < bv) return -1 * dir;
       if (av > bv) return 1 * dir;
       return 0;
@@ -333,6 +675,14 @@
       state.filters.entity = params.get("entity") || "";
       state.page = 1;
     }
+    if (params.has("level")) {
+      const rawLevel = params.get("level") || "";
+      state.filters.level = rawLevel && LEGACY_LEVEL_MAP[rawLevel] ? LEGACY_LEVEL_MAP[rawLevel] : rawLevel;
+      if (state.filters.level === "KLEARNOW" || state.filters.level === "klearnow") {
+        state.filters.level = "COMPANY";
+      }
+      state.page = 1;
+    }
     if (params.has("chip")) {
       state.filters.chip = params.get("chip") || "all";
       state.page = 1;
@@ -393,8 +743,24 @@
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/></svg>`;
   }
 
+  function iconBell() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>`;
+  }
+
+  function iconTrash() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>`;
+  }
+
   function iconClose() {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
+  }
+
+  function levelRadio(name, value, checked, label, dataAttr = "data-user-level") {
+    return `<label class="blade-radio">
+      <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${checked ? "checked" : ""} ${dataAttr}="${escapeHtml(value)}" />
+      <span class="blade-radio__control" aria-hidden="true"></span>
+      <span class="type-body-sm">${escapeHtml(label)}</span>
+    </label>`;
   }
 
   function renderReviewDrawer() {
@@ -434,13 +800,14 @@
             <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(window.KNAdminUX.initials(activeUser.name))}</span>
             <div>
               <p class="type-body-sm type-weight-semibold">${escapeHtml(activeUser.name)}</p>
-              <p class="type-caption-sm">${escapeHtml(activeUser.title || "")} · ${escapeHtml(activeUser.entity)}</p>
+              <p class="type-caption-sm">${escapeHtml(activeUser.title || "")} · ${escapeHtml(entityForUser(activeUser))}</p>
             </div>
           </div>
           <dl class="admin-review__grid">
             ${infoField("Email", escapeHtml(activeUser.email))}
             ${infoField("Last active", escapeHtml(window.KNAdminUX.relativeTime(activeUser.lastActive)))}
             ${infoField("Level", escapeHtml(levelLabel(activeUser.level)))}
+            ${infoField("Entity", escapeHtml(entityForUser(activeUser)))}
             ${infoField("Status", "Inactive", "user-status-label--negative")}
           </dl>
           <div>
@@ -523,20 +890,18 @@
             </div>
           </td>
           <td class="type-body-sm">${escapeHtml(user.email)}</td>
-          <td><span class="badge type-caption-sm type-weight-medium">${escapeHtml(levelLabel(user.level))}</span></td>
-          <td class="type-body-sm">${escapeHtml(user.entity)}</td>
-          <td>${window.KNAdminUX.statusBadge(user.active)}</td>
+          <td><span class="badge type-caption-sm type-weight-medium">${escapeHtml(listUserLevel(user))}</span></td>
+          <td class="type-body-sm">${escapeHtml(entityForUser(user))}</td>
+          <td>${window.KNAdminUX.statusSwitch({
+            active: user.active,
+            toggleAttr: `data-user-toggle="${escapeHtml(user.id)}"`,
+            labelId: `kn-user-row-status-${escapeHtml(user.id)}`
+          })}</td>
           <td>
             <div class="user-row-actions">
               <button class="icon-btn" type="button" data-user-edit="${escapeHtml(user.id)}" aria-label="Edit ${escapeHtml(user.name)}" data-tooltip="Edit user">${iconPencil()}</button>
-              ${window.KNAdminUX.moreMenu({
-                id: user.id,
-                open: state.menuOpen === user.id,
-                items: [
-                  { label: user.active ? "Deactivate" : "Activate", attr: `data-user-row-toggle="${escapeHtml(user.id)}"` },
-                  { label: "Delete", attr: `data-user-delete="${escapeHtml(user.id)}"`, tone: "negative" }
-                ]
-              })}
+              <button class="icon-btn" type="button" data-user-notify="${escapeHtml(user.id)}" aria-label="Notifications for ${escapeHtml(user.name)}" data-tooltip="Notifications">${iconBell()}</button>
+              <button class="icon-btn" type="button" data-user-delete="${escapeHtml(user.id)}" aria-label="Delete ${escapeHtml(user.name)}" data-tooltip="Delete user">${iconTrash()}</button>
             </div>
           </td>
         </tr>`;
@@ -559,8 +924,8 @@
 
     return `<header class="role-page__head">
       <div>
-        <h1 class="type-heading-h3 type-weight-semibold">KN User Management</h1>
-        <p class="type-body-sm">People across KlearNow, customers, and licensed brokers.</p>
+        <h1 class="type-heading-h3 type-weight-semibold">User Management</h1>
+        <p class="type-body-sm">People across customers, sub-customers, companies, and parties.</p>
       </div>
       <a class="btn btn--primary btn--md type-ui-md" href="#kn-user-management/add" data-user-nav="add">Add User</a>
     </header>
@@ -570,7 +935,9 @@
         { id: "active", label: "Active", count: all.filter((user) => user.active).length, selected: chip === "active" },
         { id: "inactive", label: "Inactive", count: all.filter((user) => !user.active).length, selected: chip === "inactive" },
         { id: "customer", label: "Customers", count: all.filter((user) => user.level === "CUSTOMER").length, selected: chip === "customer" },
-        { id: "broker", label: "Brokers", count: all.filter((user) => user.level === "BROKER").length, selected: chip === "broker" }
+        { id: "sub-customer", label: "Sub-customers", count: all.filter((user) => user.level === "SUB_CUSTOMER").length, selected: chip === "sub-customer" },
+        { id: "company", label: "Company", count: all.filter((user) => user.level === "COMPANY").length, selected: chip === "company" },
+        { id: "parties", label: "Parties", count: all.filter((user) => user.level === "PARTIES").length, selected: chip === "parties" }
       ],
       applied: appliedFilterItems(),
       results: `${rows.length} ${rows.length === 1 ? "person" : "people"}. Page ${state.page} of ${pages}. Sorted by ${state.sortKey}, ${state.sortDir === "desc" ? "descending" : "ascending"}.`,
@@ -591,7 +958,16 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-user-filter", key: "name", value: state.filters.name, label: "full name", placeholder: "Enter full name" })}
               ${ux.colFilter({ attr: "data-user-filter", key: "email", value: state.filters.email, label: "email address", placeholder: "Enter email address" })}
-              ${ux.colBladeSelect({ attr: "data-user-filter", key: "level", value: state.filters.level, label: "user level", open: state.selectOpen, options: [{ value: "KLEARNOW", label: "Klearnow" }, { value: "CUSTOMER", label: "Customer" }, { value: "BROKER", label: "Broker" }] })}
+              ${ux.colBladeSelect({
+                attr: "data-user-filter",
+                key: "level",
+                value: state.filters.level,
+                label: "user level",
+                open: state.selectOpen,
+                placeholder: "Select user level",
+                emptyLabel: "All",
+                options: LEVELS.map((item) => ({ value: item.id, label: item.listLabel }))
+              })}
               ${ux.colFilter({ attr: "data-user-filter", key: "entity", value: state.filters.entity, label: "entity name", placeholder: "Enter entity name" })}
               ${ux.colBladeSelect({ attr: "data-user-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] })}
               ${ux.emptyColFilter()}
@@ -640,20 +1016,30 @@
   }
 
   function renderProfileDrawer(user) {
-    const form = state.form?.id === user.id ? state.form : blankForm(user);
-    const reporters = loadReporters();
+    const roles = (user.roles || [])
+      .map((role) => `<span class="badge type-caption-sm user-chip">${escapeHtml(role)}</span>`)
+      .join("");
+    const reportsLabel = reporterName(user.reportsTo);
+    const dash = (value) => (value && value !== "—" ? escapeHtml(value) : "—");
+    const conditionalFields = [];
+    if (user.level === "PARTIES" || user.level === "SUB_CUSTOMER" || user.level === "COMPANY") {
+      conditionalFields.push(infoField("Sub-customer", dash(subCustomerLabel(user.subCustomer))));
+    }
+    if (user.level === "PARTIES") {
+      conditionalFields.push(infoField("Parties", dash(partyLabel(user.party))));
+    }
+    if (user.level === "CUSTOMER" || user.level === "SUB_CUSTOMER") {
+      conditionalFields.push(infoField("Restrictions", user.restrictions === "yes" ? "Yes" : "No"));
+    }
     return `<div class="blade-drawer-root admin-profile-drawer is-open" id="admin-profile-drawer">
       <div class="blade-drawer__overlay" data-user-profile-close tabindex="-1"></div>
       <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-user-profile-title">
         <header class="blade-drawer__header">
-          <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(window.KNAdminUX.initials(form.name || user.name))}</span>
           <div class="blade-drawer__titles">
             <div class="admin-drawer-title-row">
-              <h2 class="type-heading-h5 type-weight-semibold" id="kn-user-profile-title" tabindex="-1">${escapeHtml(form.name || user.name)}</h2>
-              ${window.KNAdminUX.statusBadge(user.active)}
-              ${!user.active && (user.roles || []).includes("KN Administrator") ? `<span class="badge badge--negative type-caption-sm type-weight-medium">Privileged</span>` : ""}
+              <h2 class="type-heading-h5 type-weight-semibold" id="kn-user-profile-title" tabindex="-1">${escapeHtml(user.name)}</h2>
+              <span class="badge type-caption-sm type-weight-medium">${escapeHtml(levelLabel(user.level))}</span>
             </div>
-            <p class="type-caption-sm">${escapeHtml(form.email || user.email)}</p>
           </div>
           ${window.KNAdminUX.statusSwitch({
             active: user.active,
@@ -662,72 +1048,26 @@
           })}
           <button class="icon-btn" type="button" data-user-profile-close aria-label="Close user details">${iconClose()}</button>
         </header>
-        <form class="blade-drawer__body admin-review user-form" id="kn-user-form" novalidate>
-          <section class="admin-drawer-section--muted" aria-label="Details">
-            <div class="user-details-strip">
-              <div class="form-display-field">
-                <span class="form-display-field__label">USER LEVEL</span>
-                <span class="form-display-field__value">${escapeHtml(levelLabel(user.level))}</span>
-              </div>
-              <div class="form-display-field">
-                <span class="form-display-field__label">ENTITY</span>
-                <span class="form-display-field__value">${escapeHtml(user.entity || "—")}</span>
-              </div>
-              <div class="form-display-field">
-                <span class="form-display-field__label">LAST ACTIVE</span>
-                <span class="form-display-field__value">${escapeHtml(window.KNAdminUX.relativeTime(user.lastActive))}</span>
-              </div>
-            </div>
+        <div class="blade-drawer__body admin-review user-form">
+          <section class="user-form-section" aria-label="User details">
+            <dl class="user-info-grid">
+              ${infoField("Email Address", escapeHtml(user.email))}
+              ${infoField("Title", dash(user.title))}
+              ${infoField("Reports To", dash(reportsLabel))}
+              ${infoField("Status", user.active ? "Active" : "Inactive", user.active ? "user-status-label" : "user-status-label--negative")}
+              ${infoField("User Level", escapeHtml(levelLabel(user.level)))}
+              ${conditionalFields.join("")}
+            </dl>
           </section>
-          <section class="user-form-section" aria-labelledby="kn-user-access-title">
-            <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-access-title">Access</h3>
-            <div class="user-form-grid">
-              ${textField({ id: "kn-user-name", label: "Full Name", value: form.name, required: true, error: form.error, placeholder: "Enter full name", autocomplete: "name" })}
-              ${textField({ id: "kn-user-email", label: "Email", value: form.email, type: "email", required: true, error: form.emailError, placeholder: "Enter email address", autocomplete: "email", maxlength: "120" })}
-              <div class="blade-field">
-                <span class="type-caption-sm type-weight-medium" id="kn-user-phone-label">Phone Number</span>
-                <div class="blade-phone">
-                  ${adminSelect({
-                    id: "kn-user-phone-country",
-                    name: "phoneCountry",
-                    value: form.phoneCountry,
-                    options: COUNTRIES,
-                    placeholder: "Select country code",
-                    labelledBy: "kn-user-phone-label",
-                    openKey: "country",
-                    includeEmpty: false
-                  })}
-                  <input class="blade-field__control type-body-sm" id="kn-user-phone" name="phone" type="tel" inputmode="tel" placeholder="Enter phone number" value="${escapeHtml(form.phone)}" autocomplete="tel" />
-                </div>
-              </div>
-              ${textField({ id: "kn-user-title", label: "Title", value: form.title, placeholder: "Enter title" })}
-              <div class="blade-field">
-                <span class="type-caption-sm type-weight-medium" id="kn-user-reports-label">Reports To</span>
-                <div class="blade-select-row">
-                  ${adminSelect({
-                    id: "kn-user-reports",
-                    name: "reportsTo",
-                    value: form.reportsTo,
-                    options: reporters.map((item) => ({ id: item.id, label: item.name, hint: item.email })),
-                    placeholder: "Select reporting user",
-                    labelledBy: "kn-user-reports-label",
-                    openKey: "reports",
-                    includeEmpty: false
-                  })}
-                  <button class="blade-link type-ui-sm" type="button" data-user-add-reporter>Add Reporter</button>
-                </div>
-              </div>
-              <div class="blade-field blade-field--full">
-                <span class="type-caption-sm type-weight-medium" id="kn-user-role-label">User Role <span class="role-req" aria-hidden="true">*</span></span>
-                ${renderRoleSelect(form)}
-              </div>
-            </div>
+          <section class="user-form-section" aria-labelledby="kn-user-profile-roles-title">
+            <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-profile-roles-title">User Role</h3>
+            <div class="user-chips">${roles || `<span class="type-body-sm">—</span>`}</div>
           </section>
-        </form>
+        </div>
         <footer class="blade-drawer__footer">
-          <button class="btn btn--tertiary btn--color-negative btn--md type-ui-md" type="button" data-user-delete="${escapeHtml(user.id)}">Delete User</button>
+          <button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-user-delete="${escapeHtml(user.id)}">Delete User</button>
           <div class="blade-drawer__footer-actions">
-            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-user-form" id="kn-update-user-btn" disabled>Update User</button>
+            <a class="btn btn--primary btn--md type-ui-md" href="#kn-user-management/${encodeURIComponent(user.id)}/edit" data-user-nav="edit" data-user-id="${escapeHtml(user.id)}">Edit Details</a>
           </div>
         </footer>
       </aside>
@@ -739,133 +1079,31 @@
       id: user?.id || "",
       name: user?.name || "",
       email: user?.email || "",
-      phoneCountry: user?.phoneCountry || "",
+      phoneCountry: user?.phoneCountry || "US",
       phone: user?.phone || "",
       title: user?.title || "",
       reportsTo: user?.reportsTo || "",
-      level: user?.level || "KLEARNOW",
-      entity: user?.entity || "KlearNow",
+      level: normalizeLevelId(user?.level || "CUSTOMER"),
+      entity: ENTITY_DISPLAY_NAME,
+      subCustomer: user?.subCustomer || "",
+      party: user?.party || "",
+      customerEntity: user?.customerEntity || (user?.level === "CUSTOMER" ? "kn-admin" : ""),
+      restrictions: user?.restrictions || "no",
       roles: user?.roles?.slice() || [],
       active: user ? user.active : true,
       error: "",
-      emailError: ""
+      emailError: "",
+      levelError: "",
+      subCustomerError: "",
+      partyError: "",
+      customerEntityError: "",
+      rolesError: ""
     };
   }
 
   function resetAiUserState() {
-    clearTimeout(state._aiDebounce);
-    state.aiDescribe = "";
-    state.aiLoading = false;
-    state.aiNoMatch = false;
-    state.aiRoleSuggestions = [];
     state.aiRoleOnly = [];
-    state.aiRoleReasons = {};
     state.aiFieldMeta = {};
-  }
-
-  function applyAiUserDescribe(description) {
-    if (!state.form) {
-      return;
-    }
-    state.aiDescribe = description;
-    clearTimeout(state._aiDebounce);
-    if (!String(description || "").trim()) {
-      state.aiLoading = false;
-      state.aiNoMatch = false;
-      state.aiRoleSuggestions = [];
-      render();
-      return;
-    }
-    state.aiLoading = true;
-    render();
-    state._aiDebounce = setTimeout(() => {
-      if (!state.form) {
-        state.aiLoading = false;
-        return;
-      }
-      const text = [state.form.title, description].filter(Boolean).join(" ");
-      const result = window.KNAiSuggest.deriveUserRoles(text, roleCatalog());
-      state.aiRoleSuggestions = result.roles;
-      state.aiNoMatch = Boolean(result.noMatch);
-      state.aiLoading = false;
-      const reasons = {};
-      result.roles.forEach((item) => {
-        reasons[item.name] = item.reason;
-      });
-      state.aiRoleReasons = reasons;
-      window.KNAiSuggest?.logAudit?.({
-        action: "suggest-user-roles",
-        context: "kn-user",
-        field: "roles",
-        origin: "ai",
-        value: result.roles.map((r) => r.name).join(","),
-        meta: { noMatch: result.noMatch, edgeMessage: result.edgeMessage || "" }
-      });
-      render();
-      requestAnimationFrame(() => {
-        const input = document.getElementById("kn-user-root")?.querySelector("[data-ai-describe='user']");
-        if (input) {
-          input.focus();
-          const end = input.value.length;
-          input.setSelectionRange(end, end);
-        }
-      });
-    }, 450);
-  }
-
-  function toggleAiSuggestedRole(name) {
-    if (!state.form || !name) {
-      return;
-    }
-    const roles = new Set(state.form.roles || []);
-    const aiOnly = new Set(state.aiRoleOnly || []);
-    if (roles.has(name)) {
-      roles.delete(name);
-      aiOnly.delete(name);
-      window.KNAiSuggest?.logAudit?.({
-        action: "uncheck-role",
-        context: "kn-user",
-        field: "roles",
-        origin: aiOnly.has(name) ? "ai" : "manual",
-        value: name
-      });
-    } else {
-      roles.add(name);
-      aiOnly.add(name);
-      window.KNAiSuggest?.logAudit?.({
-        action: "accept-role-suggestion",
-        context: "kn-user",
-        field: "roles",
-        origin: "ai",
-        value: name
-      });
-    }
-    state.form = { ...state.form, roles: [...roles] };
-    state.aiRoleOnly = [...aiOnly];
-    state.dirty = isFormDataDirty(state.form);
-    render();
-  }
-
-  function clearAiOnlyRoles() {
-    if (!state.form) {
-      return;
-    }
-    const next = window.KNAiSuggest.clearAiOnly(state.form.roles, state.aiRoleOnly);
-    state.form = { ...state.form, roles: next };
-    state.aiRoleOnly = [];
-    state.aiDescribe = "";
-    state.aiRoleSuggestions = [];
-    state.aiNoMatch = false;
-    state.aiRoleReasons = {};
-    state.dirty = isFormDataDirty(state.form);
-    window.KNAiSuggest?.logAudit?.({
-      action: "clear-ai-roles",
-      context: "kn-user",
-      field: "roles",
-      origin: "manual",
-      value: ""
-    });
-    render();
   }
 
   /** Prefill Add User from panel draft — never submits. */
@@ -879,12 +1117,13 @@
       state.aiFieldMeta = { title: draft.titleReason || "Prefill from Klear Assistant draft" };
     }
     const suggested = (draft.roles || []).map((r) => r.name).filter(Boolean);
-    const merge = window.KNAiSuggest.mergeAiSelections(state.form.roles, suggested, []);
-    state.form.roles = merge.next;
-    state.aiRoleOnly = merge.aiOnly;
-    state.aiRoleSuggestions = draft.roles || [];
-    state.aiRoleReasons = Object.fromEntries((draft.roles || []).map((r) => [r.name, r.reason]));
-    state.aiDescribe = draft.description || "";
+    if (suggested.length && window.KNAiSuggest?.mergeAiSelections) {
+      const merge = window.KNAiSuggest.mergeAiSelections(state.form.roles, suggested, []);
+      state.form.roles = merge.next;
+      state.aiRoleOnly = merge.aiOnly;
+    } else if (suggested.length) {
+      state.form.roles = [...new Set([...(state.form.roles || []), ...suggested])];
+    }
     state.formSnapshot = snapshotForm(state.form);
     state.dirty = isFormDataDirty(state.form);
     window.KNAiSuggest?.logAudit?.({
@@ -908,11 +1147,10 @@
     const query = state.roleQuery.trim().toLowerCase();
     const options = catalog.filter((name) => !query || name.toLowerCase().includes(query));
     const selected = new Set(form.roles);
-    const aiOnly = new Set(state.aiRoleOnly || []);
     return window.KNAdminUX.multiSelect({
       labelledBy: "kn-user-role-label",
       triggerAttr: 'id="kn-user-role-toggle" data-user-role-toggle',
-      triggerLabel: "Select roles",
+      triggerLabel: "Select user role",
       open: state.roleMenuOpen,
       menuId: "kn-user-role-menu",
       searchId: "kn-user-role-search",
@@ -922,64 +1160,67 @@
       emptyLabel: "No roles match.",
       chipsInTrigger: true,
       chips: (form.roles || []).map((name) => ({
-        label: `${aiOnly.has(name) ? "✦ " : ""}${name}`,
+        label: name,
         removeAttr: `data-user-role-remove="${escapeHtml(name)}"`
       })),
       options: options.map((name) => ({
-        label: `${aiOnly.has(name) ? "✦ " : ""}${name}`,
+        label: name,
         checked: selected.has(name),
-        attr: `data-user-role="${escapeHtml(name)}"${aiOnly.has(name) ? ' data-ai-suggested="1"' : ""}`
+        attr: `data-user-role="${escapeHtml(name)}"`
       }))
     });
   }
 
-  function renderUserAiAssist() {
-    const sparkleIcon = `<svg class="ai-describe-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" width="16" height="16">
-      <path d="M8 1.5 L9 6 L13.5 7 L9 8 L8 13.5 L7 8 L2.5 7 L7 6 Z" fill="currentColor" opacity="0.9"/>
-      <path d="M12.5 1 L13 3 L15 3.5 L13 4 L12.5 6 L12 4 L10 3.5 L12 3 Z" fill="currentColor" opacity="0.6"/>
-    </svg>`;
-    const loading = state.aiLoading
-      ? `<span class="ai-describe-loading" aria-live="polite" aria-label="Generating suggestions"><span></span><span></span><span></span></span>`
-      : "";
-    const noMatch = state.aiNoMatch
-      ? `<p class="ai-describe-no-match type-caption-sm" role="alert">${escapeHtml(window.KNAiSuggest?.MESSAGES?.noMatch || "No strong matches.")}</p>`
-      : "";
-    return `<div class="ai-user-assist">
-      <label class="type-caption-sm type-weight-medium" for="ai-describe-input-user">Describe the user</label>
-      <div class="ai-describe-input-wrap${state.aiLoading ? " is-loading" : ""}">
-        <span class="ai-describe-input-icon" aria-hidden="true">${sparkleIcon}</span>
-        <input
-          class="ai-describe-field type-body-sm"
-          id="ai-describe-input-user"
-          data-ai-describe="user"
-          type="text"
-          maxlength="200"
-          placeholder="e.g. New hire analytics viewer who should only read dashboards"
-          value="${escapeHtml(state.aiDescribe || "")}"
-          aria-label="Describe the user to get AI-suggested roles"
-          aria-describedby="ai-describe-hint-user"
-          autocomplete="off"
-        />
-        ${loading}
-        ${
-          state.aiDescribe
-            ? `<button class="ai-describe-clear icon-btn" type="button" data-ai-describe-clear="user" aria-label="Clear AI suggestions">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="14" height="14"><path d="M4 4 L12 12 M12 4 L4 12"/></svg>
-        </button>`
-            : ""
-        }
-      </div>
-      ${window.KNAiSuggest?.reviewHint?.() || `<p class="type-caption-sm ai-describe-hint" id="ai-describe-hint-user">AI only suggests — review and adjust before saving.</p>`}
-      ${noMatch}
-      ${window.KNAiSuggest?.userRoleChipsHtml?.(state.aiRoleSuggestions, {
-        selected: state.form?.roles || [],
-        aiOnly: state.aiRoleOnly || []
-      }) || ""}
-    </div>`;
-  }
-
   function formLeaveHash() {
     return state.form?.id ? `#kn-user-management/${encodeURIComponent(state.form.id)}` : "#kn-user-management";
+  }
+
+  function renderConditionalLevelFields(form) {
+    const level = form.level;
+    const fields = [];
+    if (level === "PARTIES" || level === "SUB_CUSTOMER" || level === "COMPANY") {
+      fields.push(`<div class="blade-field blade-field--full">
+        <span class="type-caption-sm type-weight-medium" id="kn-user-subcustomer-label">Select Sub-customer <span class="role-req" aria-hidden="true">*</span></span>
+        ${adminSelect({
+          id: "kn-user-subcustomer",
+          name: "subCustomer",
+          value: form.subCustomer,
+          options: SUB_CUSTOMERS,
+          placeholder: "Select sub-customer",
+          labelledBy: "kn-user-subcustomer-label",
+          openKey: "subCustomer",
+          includeEmpty: false
+        })}
+        ${form.subCustomerError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.subCustomerError)}</p>` : ""}
+      </div>`);
+    }
+    if (level === "PARTIES") {
+      fields.push(`<div class="blade-field blade-field--full">
+        <span class="type-caption-sm type-weight-medium" id="kn-user-party-label">Select Party <span class="role-req" aria-hidden="true">*</span></span>
+        ${adminSelect({
+          id: "kn-user-party",
+          name: "party",
+          value: form.party,
+          options: PARTIES.map((item) => ({ id: item.id, label: partyOptionLabel(item) })),
+          placeholder: "Select party",
+          labelledBy: "kn-user-party-label",
+          openKey: "party",
+          includeEmpty: false,
+          searchable: true
+        })}
+        ${form.partyError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.partyError)}</p>` : ""}
+      </div>`);
+    }
+    if (level === "CUSTOMER" || level === "SUB_CUSTOMER") {
+      fields.push(`<div class="blade-field blade-field--full" role="radiogroup" aria-labelledby="kn-user-restrictions-label">
+        <span class="type-caption-sm type-weight-medium" id="kn-user-restrictions-label">Are there any type of restriction applicable? <span class="role-req" aria-hidden="true">*</span></span>
+        <div class="user-level-radios">
+          ${levelRadio("restrictions", "yes", form.restrictions === "yes", "Yes", "data-user-restrictions")}
+          ${levelRadio("restrictions", "no", form.restrictions !== "yes", "No", "data-user-restrictions")}
+        </div>
+      </div>`);
+    }
+    return fields.join("");
   }
 
   function renderFormDrawer() {
@@ -1007,7 +1248,7 @@
               </div>
               <div class="blade-field">
                 <label class="type-caption-sm type-weight-medium" for="kn-user-email">Email <span class="role-req" aria-hidden="true">*</span></label>
-                <input class="blade-field__control type-body-sm" id="kn-user-email" name="email" type="email" required maxlength="120" placeholder="Enter email address" value="${escapeHtml(form.email)}" autocomplete="email" />
+                <input class="blade-field__control type-body-sm" id="kn-user-email" name="email" type="email" required maxlength="120" placeholder="Enter email address" value="${escapeHtml(form.email)}" autocomplete="email" ${isEdit ? "disabled" : ""} />
                 ${form.emailError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.emailError)}</p>` : ""}
               </div>
               <div class="blade-field">
@@ -1031,7 +1272,7 @@
                 <input class="blade-field__control type-body-sm${state.aiFieldMeta?.title ? " is-ai-suggested-field" : ""}" id="kn-user-title" name="title" type="text" maxlength="80" placeholder="Enter title" value="${escapeHtml(form.title)}" />
                 ${state.aiFieldMeta?.title ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.title) : ""}
               </div>
-              <div class="blade-field">
+              <div class="blade-field blade-field--full">
                 <span class="type-caption-sm type-weight-medium" id="kn-user-reports-label">Reports To</span>
                 <div class="blade-select-row">
                   ${adminSelect({
@@ -1039,22 +1280,31 @@
                     name: "reportsTo",
                     value: form.reportsTo,
                     options: reporters.map((item) => ({ id: item.id, label: item.name, hint: item.email })),
-                    placeholder: "Select reporting user",
+                    placeholder: "Select reports to",
                     labelledBy: "kn-user-reports-label",
                     openKey: "reports",
-                    includeEmpty: false
+                    includeEmpty: false,
+                    searchable: true
                   })}
-                  <button class="blade-link type-ui-sm" type="button" data-user-add-reporter>Add Reporter</button>
+                  <button class="blade-link type-ui-sm" type="button" data-user-add-reporter>+ Add Reporter</button>
                 </div>
               </div>
+              <div class="blade-field blade-field--full" role="radiogroup" aria-labelledby="kn-user-level-label">
+                <span class="type-caption-sm type-weight-medium" id="kn-user-level-label">User Level <span class="role-req" aria-hidden="true">*</span></span>
+                <div class="user-level-radios">
+                  ${LEVELS.map((item) => levelRadio("level", item.id, form.level === item.id, item.label)).join("")}
+                </div>
+                ${form.levelError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.levelError)}</p>` : ""}
+              </div>
+              ${renderConditionalLevelFields(form)}
             </div>
           </section>
           <section class="user-form-section" aria-labelledby="kn-user-role-title">
             <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-role-title">User Role</h3>
-            ${renderUserAiAssist()}
             <div class="blade-field">
               <span class="type-caption-sm type-weight-medium" id="kn-user-role-label">Select User Role <span class="role-req" aria-hidden="true">*</span></span>
               ${renderRoleSelect(form)}
+              ${form.rolesError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.rolesError)}</p>` : ""}
             </div>
           </section>
         </form>
@@ -1223,19 +1473,30 @@
     const phoneEl = formEl.querySelector("#kn-user-phone");
     const titleEl = formEl.querySelector("#kn-user-title");
     const reportsEl = formEl.querySelector("#kn-user-reports");
+    const subCustomerEl = formEl.querySelector("#kn-user-subcustomer");
+    const partyEl = formEl.querySelector("#kn-user-party");
+    const customerEntityEl = formEl.querySelector("#kn-user-customer-entity");
+    const levelEl = formEl.querySelector('input[name="level"]:checked');
+    const restrictionsEl = formEl.querySelector('input[name="restrictions"]:checked');
     const roleInputs = [...formEl.querySelectorAll("[data-user-role]")];
     const roles = window.KNAdminUX.mergeDomMultiSelect(
       prior.roles,
       roleInputs.filter((input) => input.checked).map((input) => input.getAttribute("data-user-role")),
       roleInputs.map((input) => input.getAttribute("data-user-role"))
     );
+    const level = levelEl ? levelEl.value : prior.level || "CUSTOMER";
     return {
       name: nameEl ? nameEl.value.trim() : prior.name || "",
-      email: emailEl ? emailEl.value.trim() : prior.email || "",
+      email: emailEl && !emailEl.disabled ? emailEl.value.trim() : prior.email || "",
       phoneCountry: phoneCountryEl ? phoneCountryEl.value || "" : prior.phoneCountry || "",
       phone: phoneEl ? phoneEl.value.trim() : prior.phone || "",
       title: titleEl ? titleEl.value.trim() : prior.title || "",
       reportsTo: reportsEl ? reportsEl.value || "" : prior.reportsTo || "",
+      level,
+      subCustomer: subCustomerEl ? subCustomerEl.value || "" : prior.subCustomer || "",
+      party: partyEl ? partyEl.value || "" : prior.party || "",
+      customerEntity: customerEntityEl ? customerEntityEl.value || "" : prior.customerEntity || "",
+      restrictions: restrictionsEl ? restrictionsEl.value : prior.restrictions || "no",
       roles
     };
   }
@@ -1293,6 +1554,11 @@
       phone: form.phone || "",
       title: form.title || "",
       reportsTo: form.reportsTo || "",
+      level: form.level || "",
+      subCustomer: form.subCustomer || "",
+      party: form.party || "",
+      customerEntity: form.customerEntity || "",
+      restrictions: form.restrictions || "no",
       roles: (form.roles || []).slice().sort().join("\0")
     };
   }
@@ -1305,6 +1571,11 @@
       phone: String(form?.phone || "").trim(),
       title: String(form?.title || "").trim(),
       reportsTo: String(form?.reportsTo || ""),
+      level: String(form?.level || ""),
+      subCustomer: String(form?.subCustomer || ""),
+      party: String(form?.party || ""),
+      customerEntity: String(form?.customerEntity || ""),
+      restrictions: String(form?.restrictions || "no"),
       roles: (form?.roles || []).slice().sort().join("\0")
     };
   }
@@ -1321,6 +1592,11 @@
       current.phone !== state.formSnapshot.phone ||
       current.title !== state.formSnapshot.title ||
       current.reportsTo !== state.formSnapshot.reportsTo ||
+      current.level !== state.formSnapshot.level ||
+      current.subCustomer !== state.formSnapshot.subCustomer ||
+      current.party !== state.formSnapshot.party ||
+      current.customerEntity !== state.formSnapshot.customerEntity ||
+      current.restrictions !== state.formSnapshot.restrictions ||
       current.roles !== state.formSnapshot.roles
     );
   }
@@ -1497,15 +1773,30 @@
             return;
           }
           const current = readForm(root.querySelector("#kn-user-form"));
-          if ((key === "country" && current.phoneCountry === value) || (key === "reports" && current.reportsTo === value)) {
+          const fieldMap = {
+            country: "phoneCountry",
+            reports: "reportsTo",
+            subCustomer: "subCustomer",
+            party: "party",
+            customerEntity: "customerEntity"
+          };
+          const field = fieldMap[key];
+          if (!field) {
+            state.selectOpen = "";
+            render();
+            return;
+          }
+          if (current[field] === value) {
             state.selectOpen = "";
             render();
             return;
           }
           persistForm({
             ...current,
-            ...(key === "country" ? { phoneCountry: value } : {}),
-            ...(key === "reports" ? { reportsTo: value } : {})
+            [field]: value,
+            ...(field === "subCustomer" ? { subCustomerError: "" } : {}),
+            ...(field === "party" ? { partyError: "" } : {}),
+            ...(field === "customerEntity" ? { customerEntityError: "" } : {})
           });
           state.selectOpen = "";
           render();
@@ -1534,7 +1825,8 @@
         state.aiRoleOnly = (state.aiRoleOnly || []).filter((role) => role !== name);
         persistForm({
           ...snap,
-          roles: (snap.roles || []).filter((role) => role !== name)
+          roles: (snap.roles || []).filter((role) => role !== name),
+          rolesError: ""
         });
         window.KNAiSuggest?.logAudit?.({
           action: "remove-role-chip",
@@ -1553,13 +1845,10 @@
       }
       if (event.target.closest("[data-ai-user-role-chip]")) {
         event.preventDefault();
-        const chip = event.target.closest("[data-ai-user-role-chip]");
-        toggleAiSuggestedRole(chip.getAttribute("data-ai-user-role-chip") || "");
         return;
       }
       if (event.target.closest("[data-ai-user-roles-clear], [data-ai-describe-clear='user']")) {
         event.preventDefault();
-        clearAiOnlyRoles();
         return;
       }
       const roleToggle = event.target.closest("[data-user-role-toggle]");
@@ -1664,7 +1953,14 @@
       }
       const edit = event.target.closest("[data-user-edit]");
       if (edit) {
-        goto(`#kn-user-management/${encodeURIComponent(edit.getAttribute("data-user-edit"))}`);
+        goto(`#kn-user-management/${encodeURIComponent(edit.getAttribute("data-user-edit"))}/edit`);
+        return;
+      }
+      const notify = event.target.closest("[data-user-notify]");
+      if (notify) {
+        event.preventDefault();
+        const user = findUser(notify.getAttribute("data-user-notify") || "");
+        toast(user ? `Notifications for ${user.name} are managed in Notification Management.` : "Notifications are managed separately.", "notice");
         return;
       }
     });
@@ -1704,7 +2000,40 @@
             value: name
           });
         }
-        persistForm(readForm(root.querySelector("#kn-user-form")));
+        persistForm({
+          ...readForm(root.querySelector("#kn-user-form")),
+          rolesError: ""
+        });
+        render();
+        return;
+      }
+      const levelPick = event.target.closest("[data-user-level]");
+      if (levelPick && event.target.matches("input[type='radio']")) {
+        const nextLevel = levelPick.getAttribute("data-user-level") || "CUSTOMER";
+        const current = readForm(root.querySelector("#kn-user-form"));
+        persistForm({
+          ...current,
+          level: nextLevel,
+          levelError: "",
+          subCustomerError: "",
+          partyError: "",
+          customerEntityError: "",
+          rolesError: "",
+          subCustomer: nextLevel === "CUSTOMER" ? "" : current.subCustomer,
+          party: nextLevel === "PARTIES" ? current.party : "",
+          customerEntity: nextLevel === "CUSTOMER" ? current.customerEntity || "kn-admin" : "",
+          restrictions:
+            nextLevel === "CUSTOMER" || nextLevel === "SUB_CUSTOMER" ? current.restrictions || "no" : "no"
+        });
+        render();
+        return;
+      }
+      const restrictionPick = event.target.closest("[data-user-restrictions]");
+      if (restrictionPick && event.target.matches("input[type='radio']")) {
+        persistForm({
+          ...readForm(root.querySelector("#kn-user-form")),
+          restrictions: restrictionPick.getAttribute("data-user-restrictions") || "no"
+        });
         render();
         return;
       }
@@ -1729,7 +2058,6 @@
         return;
       }
       if (event.target.matches("[data-ai-describe='user']")) {
-        applyAiUserDescribe(event.target.value);
         return;
       }
       if (event.target.id === "kn-user-title") {
@@ -1744,11 +2072,7 @@
           });
         }
         persistForm(window.KNAdminUX.applyUserField(readForm(root.querySelector("#kn-user-form")), "title", event.target.value.trim()));
-        if (state.aiDescribe || event.target.value.trim()) {
-          applyAiUserDescribe(state.aiDescribe || event.target.value);
-        } else {
-          syncUpdateBtn(root);
-        }
+        syncUpdateBtn(root);
         return;
       }
       if (event.target.closest("#kn-user-form")) {
@@ -1847,62 +2171,94 @@
         document.getElementById("kn-user-name")?.focus();
         return;
       }
-      if (!validEmail(snap.email)) {
+      if (!state.form.id && !validEmail(snap.email)) {
         state.form = { ...state.form, ...snap, error: "", emailError: "Enter a valid email address." };
         render();
         document.getElementById("kn-user-email")?.focus();
         return;
       }
+      if (!snap.level || !LEVELS.some((item) => item.id === snap.level)) {
+        state.form = { ...state.form, ...snap, levelError: "Select a user level." };
+        render();
+        return;
+      }
+      if ((snap.level === "PARTIES" || snap.level === "SUB_CUSTOMER" || snap.level === "COMPANY") && !snap.subCustomer) {
+        state.form = {
+          ...state.form,
+          ...snap,
+          subCustomerError: "Sub-customer is required",
+          partyError: "",
+          customerEntityError: "",
+          rolesError: ""
+        };
+        render();
+        document.getElementById("kn-user-subcustomer")?.focus();
+        return;
+      }
+      if (snap.level === "PARTIES" && !snap.party) {
+        state.form = { ...state.form, ...snap, partyError: "Party is required", subCustomerError: "", rolesError: "" };
+        render();
+        document.getElementById("kn-user-party")?.focus();
+        return;
+      }
       if (!snap.roles.length) {
-        state.form = { ...state.form, ...snap, error: "", emailError: "" };
-        toast(
-          "Select at least one user role.",
-          "negative",
-          event.submitter instanceof HTMLElement ? event.submitter : event.currentTarget
-        );
+        state.form = {
+          ...state.form,
+          ...snap,
+          error: "",
+          emailError: "",
+          subCustomerError: "",
+          partyError: "",
+          rolesError: "User Role field must have at least 1 item"
+        };
         state.roleMenuOpen = true;
         render();
         return;
       }
       const users = loadUsers();
-      const duplicate = users.some((user) => user.id !== state.form.id && user.email.toLowerCase() === snap.email.toLowerCase());
+      const emailValue = state.form.id ? state.form.email : snap.email;
+      const duplicate = users.some((user) => user.id !== state.form.id && user.email.toLowerCase() === emailValue.toLowerCase());
       if (duplicate) {
         state.form = { ...state.form, ...snap, error: "", emailError: "A user with this email already exists." };
         render();
         document.getElementById("kn-user-email")?.focus();
         return;
       }
+      const entity = resolveEntity();
+      const normalized = {
+        name: snap.name,
+        email: emailValue,
+        phoneCountry: snap.phoneCountry,
+        phone: snap.phone,
+        title: snap.title,
+        reportsTo: snap.reportsTo,
+        level: snap.level,
+        entityName: ENTITY_DISPLAY_NAME,
+        entity,
+        subCustomer: snap.level === "CUSTOMER" ? "" : snap.subCustomer,
+        party: snap.level === "PARTIES" ? snap.party : "",
+        customerEntity: snap.level === "CUSTOMER" ? snap.customerEntity || "kn-admin" : "",
+        restrictions:
+          snap.level === "CUSTOMER" || snap.level === "SUB_CUSTOMER" ? snap.restrictions || "no" : "no",
+        roles: snap.roles
+      };
       if (state.form.id) {
         const current = users.find((user) => user.id === state.form.id);
         if (current) {
-          current.name = snap.name;
-          current.email = snap.email;
-          current.phoneCountry = snap.phoneCountry;
-          current.phone = snap.phone;
-          current.title = snap.title;
-          current.reportsTo = snap.reportsTo;
-          current.roles = snap.roles;
+          Object.assign(current, normalized);
         }
         saveUsers(users);
         state.dirty = false;
         toast(`${snap.name} updated.`);
-        goto("#kn-user-management");
+        goto(`#kn-user-management/${encodeURIComponent(state.form.id)}`);
         return;
       }
       const id = uniqueId(snap.name, users);
       users.unshift({
         id,
-        name: snap.name,
-        email: snap.email,
-        level: "KLEARNOW",
-        entity: "KlearNow",
+        ...normalized,
         active: true,
-        lastActive: new Date().toISOString(),
-        title: snap.title,
-        reportsTo: snap.reportsTo,
-        phoneCountry: snap.phoneCountry,
-        phone: snap.phone,
-        roles: snap.roles
+        lastActive: new Date().toISOString()
       });
       saveUsers(users);
       state.dirty = false;

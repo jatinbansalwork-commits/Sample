@@ -293,20 +293,20 @@ function setEq(a, b) {
 // --- Seed-shaped roles (Customer Administrator / Finance Credits Owner / Analytics Viewer) ---
 {
   const finance = [
-    "kn-credits-management:create",
-    "kn-credits-management:update",
-    "kn-credits-management:delete",
-    "kn-credits-management:read",
-    "kn-promo-code-management:create",
-    "kn-promo-code-management:update",
-    "kn-promo-code-management:delete",
-    "kn-promo-code-management:read"
+    "credit-tracking:create",
+    "credit-tracking:update",
+    "credit-tracking:delete",
+    "credit-tracking:read",
+    "credit-purchase:create",
+    "credit-purchase:update",
+    "credit-purchase:delete",
+    "credit-purchase:read"
   ];
   const analytics = [
-    "hevo-dashboard:create",
-    "hevo-dashboard:update",
-    "hevo-dashboard:delete",
-    "hevo-dashboard:read"
+    "klearhub-dashboard:create",
+    "klearhub-dashboard:update",
+    "klearhub-dashboard:delete",
+    "klearhub-dashboard:read"
   ];
   const customerAdmin = [
     "user-management:create",
@@ -327,10 +327,10 @@ function setEq(a, b) {
     "sub-customer-profile:read"
   ];
   const visRow = [
-    "visibility-data:create",
-    "visibility-data:update",
-    "visibility-data:delete",
-    "visibility-data:read"
+    "visibility:create",
+    "visibility:update",
+    "visibility:delete",
+    "visibility:read"
   ];
 
   function emulateToggleKeys(live, keys) {
@@ -347,10 +347,10 @@ function setEq(a, b) {
 
   {
     const prior = new Set(finance);
-    const toggled = ux.applyPermissionToggle(prior, "hevo-dashboard:read", true);
+    const toggled = ux.applyPermissionToggle(prior, "klearhub-dashboard:read", true);
     assert(
       "Finance Credits Owner: one checkbox leaves finance keys untouched",
-      finance.every((key) => toggled.permissions.has(key)) && toggled.permissions.has("hevo-dashboard:read"),
+      finance.every((key) => toggled.permissions.has(key)) && toggled.permissions.has("klearhub-dashboard:read"),
       `got size ${toggled.permissions.size}`
     );
   }
@@ -371,15 +371,15 @@ function setEq(a, b) {
     assert("Finance storage key is kn-roles-v2", storageKey === "kn-roles-v2");
     assert(
       "Finance Credits Owner survives localStorage JSON round-trip",
-      finance.every((key) => role.permissions.includes(key)) && role.permissions.includes("visibility-data:read")
+      finance.every((key) => role.permissions.includes(key)) && role.permissions.includes("visibility:read")
     );
   }
 
   {
     const live = new Set(analytics);
-    emulateToggleKeys(live, ["overview:create", "kn-visibility:create"]);
+    emulateToggleKeys(live, ["overview:create", "visibility:create"]);
     assert(
-      "Analytics Viewer: unrelated create toggles keep hevo-dashboard",
+      "Analytics Viewer: unrelated create toggles keep klearhub-dashboard",
       analytics.every((key) => live.has(key)),
       `got ${[...live].sort().join(",")}`
     );
@@ -422,7 +422,7 @@ function setEq(a, b) {
     assert(
       "Customer Administrator survives localStorage JSON round-trip",
       customerAdmin.every((key) => role.permissions.includes(key)) &&
-        role.permissions.includes("visibility-data:read") &&
+        role.permissions.includes("visibility:read") &&
         role.permissions.includes("credit-tracking:read")
     );
   }
@@ -431,20 +431,20 @@ function setEq(a, b) {
 // --- AI Describe ownership: clear must not wipe pre-existing permissions ---
 {
   const finance = [
-    "kn-credits-management:create",
-    "kn-credits-management:update",
-    "kn-credits-management:delete",
-    "kn-credits-management:read",
-    "kn-promo-code-management:create",
-    "kn-promo-code-management:update",
-    "kn-promo-code-management:delete",
-    "kn-promo-code-management:read"
+    "credit-tracking:create",
+    "credit-tracking:update",
+    "credit-tracking:delete",
+    "credit-tracking:read",
+    "credit-purchase:create",
+    "credit-purchase:update",
+    "credit-purchase:delete",
+    "credit-purchase:read"
   ];
   const entityNew = [
-    "kn-customers:create",
-    "kn-customers:update",
-    "kn-customers:delete",
-    "kn-customers:read"
+    "customer-profile:create",
+    "customer-profile:update",
+    "customer-profile:delete",
+    "customer-profile:read"
   ];
   const suggested = [...finance, ...entityNew];
   const reasons = Object.fromEntries(suggested.map((key) => [key, "Matched finance/entity"]));
@@ -486,7 +486,7 @@ function setEq(a, b) {
   );
 
   // Second Describe replaces prior AI layer without stacking or wiping baseline
-  const secondSuggested = ["hevo-dashboard:read", ...finance];
+  const secondSuggested = ["klearhub-dashboard:read", ...finance];
   const second = ai.applyAiPermissionLayer({
     current: new Set([...finance, ...entityNew]),
     previousAiOnly: owned.aiOnly,
@@ -495,15 +495,15 @@ function setEq(a, b) {
   const secondOwned = ai.finalizeAiPermissionOwnership({
     baseline: second.baseline,
     permissions: second.permissions,
-    reasonsByKey: { "hevo-dashboard:read": "Analytics" }
+    reasonsByKey: { "klearhub-dashboard:read": "Analytics" }
   });
   assert(
     "Re-describe strips prior AI-only and does not re-own finance",
     finance.every((key) => second.baseline.has(key)) &&
-      !second.permissions.has("kn-customers:create") &&
-      second.permissions.has("hevo-dashboard:read") &&
+      !second.permissions.has("customer-profile:create") &&
+      second.permissions.has("klearhub-dashboard:read") &&
       secondOwned.aiOnly.length === 1 &&
-      secondOwned.aiSuggestions["hevo-dashboard:read"]
+      secondOwned.aiSuggestions["klearhub-dashboard:read"]
   );
 }
 
@@ -550,13 +550,13 @@ function setEq(a, b) {
   );
 
   const adminFull = [];
-  for (const mod of ["kn-user-management", "kn-role-management", "default-role-management"]) {
+  for (const mod of ["user-management", "role-management", "contract-management"]) {
     for (const action of ROLE_ACTIONS) {
       adminFull.push(`${mod}:${action}`);
     }
   }
   const adminDesc = ai.deriveRolePermissions(
-    "concentrated in Administration — user access, roles, and default role templates",
+    "concentrated in Administration — user access, roles, and contracts",
     { actions: ROLE_ACTIONS }
   );
   assert("Admin describe produces suggestions", adminDesc.suggestions.size > 0 && !adminDesc.noMatch);
@@ -663,6 +663,14 @@ function setEq(a, b) {
     droleFinance.suggestions.size > 0 && !droleFinance.noMatch
   );
 
+  const droleMaster = ai.deriveDefaultRoleSuggestions("hts ports country currency customs master tables", {
+    actions: ROLE_ACTIONS
+  });
+  assert(
+    "Default-role master-data describe maps to HTS split module",
+    [...droleMaster.suggestions.keys()].some((key) => key.startsWith("customs-master-hts:"))
+  );
+
   const greenfield = ai.deriveRolePermissions(
     "manage users and roles with finance credits analytics dashboard",
     { actions: ROLE_ACTIONS }
@@ -692,6 +700,190 @@ function setEq(a, b) {
         suggestionsSize: greenfield.suggestions.size
       })
     )
+  );
+}
+
+
+// --- Default Role / Role Management catalog + Parties category ---
+{
+  const droleCode = readFileSync(join(root, "default-role-management.js"), "utf8");
+  sandbox.document = {
+    readyState: "complete",
+    addEventListener() {},
+    getElementById() {
+      return null;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+    dispatchEvent() {}
+  };
+  sandbox.location = { hash: "#default-role-management" };
+  sandbox.CSS = { escape: (value) => String(value) };
+  memoryStore.clear();
+  vm.runInNewContext(droleCode, sandbox, { filename: "default-role-management.js" });
+  const drole = sandbox.window.KNDefaultRoles;
+  assert("KNDefaultRoles API exported", Boolean(drole?.permissionCatalog && drole?.partiesCategories && drole?.list));
+
+  const catalog = drole.permissionCatalog();
+  const moduleIds = catalog.flatMap((group) => group.modules.map((mod) => mod.id));
+  const groupIds = catalog.map((group) => group.id);
+  assert("Catalog includes Payment - US", groupIds.includes("payment-us"));
+  assert("Catalog includes Txn NL + ES", groupIds.includes("txn-nl") && groupIds.includes("txn-es"));
+  assert(
+    "Catalog splits Customs Master Tables",
+    ["customs-master-hts", "customs-master-ports", "customs-master-country", "customs-master-currency"].every((id) =>
+      moduleIds.includes(id)
+    ) && !moduleIds.includes("customs-master")
+  );
+  assert(
+    "Catalog keeps Visibility SEC / 3.0 and adds 360 + Overview",
+    ["visibility-sec", "visibility-3", "visibility-360", "visibility-overview"].every((id) => moduleIds.includes(id))
+  );
+  assert("Catalog includes FTZ US", moduleIds.includes("ftz-us"));
+
+  const parties = drole.partiesCategories();
+  assert(
+    "Parties categories match production radios",
+    parties.map((item) => item.id).join(",") === "brokers-forwarders,dray-providers,other-parties"
+  );
+
+  const migrated = drole.migratePermissions(["customs-master:read", "customs-master:create", "visibility:read"]);
+  assert(
+    "Legacy customs-master keys expand to HTS/Ports/Country/Currency",
+    migrated.changed &&
+      !migrated.permissions.includes("customs-master:read") &&
+      ["customs-master-hts:read", "customs-master-ports:create", "visibility:read"].every((key) =>
+        migrated.permissions.includes(key)
+      )
+  );
+
+  const roles = drole.list();
+  const partyAdmin = roles.find((role) => role.id === "def-party-admin");
+  const vis20 = roles.find((role) => role.id === "def-vis-2");
+  assert("Seed includes Party Broker/Forwarder Admin", Boolean(partyAdmin?.name === "Party Broker/Forwarder Admin"));
+  assert(
+    "Party Broker Admin persists Brokers/Forwarders category",
+    partyAdmin?.partiesCategory === "brokers-forwarders" && partyAdmin.applicable.includes("parties")
+  );
+  assert("Seed includes Vis 2.0", Boolean(vis20));
+  assert(
+    "Seed permissions reference real catalog keys",
+    roles.every((role) => (role.permissions || []).every((key) => moduleIds.some((id) => key.startsWith(`${id}:`))))
+  );
+
+  const snap = ux.snapshotRoleForm({
+    name: "Party test",
+    applicable: ["parties"],
+    partiesCategory: "dray-providers",
+    services: ["customs-broker"],
+    permissions: new Set(["party-profile:read"])
+  });
+  assert("Role form snapshot tracks partiesCategory", snap.partiesCategory === "dray-providers");
+  assert(
+    "Role form dirty when parties category changes",
+    ux.isRoleFormDirty(
+      {
+        name: "Party test",
+        applicable: ["parties"],
+        partiesCategory: "other-parties",
+        services: ["customs-broker"],
+        permissions: new Set(["party-profile:read"])
+      },
+      snap
+    )
+  );
+}
+
+// --- KN Role Management catalog (customer-dashboard screenshot parity) ---
+{
+  const roleCode = readFileSync(join(root, "role-management.js"), "utf8");
+  sandbox.document = {
+    readyState: "complete",
+    addEventListener() {},
+    getElementById() {
+      return null;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+    dispatchEvent() {}
+  };
+  sandbox.location = { hash: "#kn-role-management" };
+  sandbox.CSS = { escape: (value) => String(value) };
+  memoryStore.clear();
+  vm.runInNewContext(roleCode, sandbox, { filename: "role-management.js" });
+  const knRoles = sandbox.window.KNRoles;
+  assert("KNRoles API exported", Boolean(knRoles?.permissionCatalog && knRoles?.partiesCategories && knRoles?.list));
+
+  const catalog = knRoles.permissionCatalog();
+  const moduleIds = catalog.flatMap((group) => group.modules.map((mod) => mod.id));
+  const groupIds = catalog.map((group) => group.id);
+  assert(
+    "KN catalog includes Administration + Entity + Finance + Billing",
+    ["administration", "entity", "finance", "billing"].every((id) => groupIds.includes(id))
+  );
+  assert(
+    "KN catalog includes TM regions US/UK/CA/NL/ES",
+    ["txn-us", "txn-uk", "txn-ca", "txn-nl", "txn-es"].every((id) => groupIds.includes(id))
+  );
+  assert(
+    "KN catalog includes Operations, Drayage, Analytics, Payments, E-Invoices, NotificationManagement",
+    ["operations", "drayage", "analytics", "payment-us", "payment-ca", "einvoices", "notifications"].every((id) =>
+      groupIds.includes(id)
+    )
+  );
+  assert(
+    "KN catalog drops sample-only modules",
+    !moduleIds.includes("kn-user-management") &&
+      !moduleIds.includes("default-role-management") &&
+      !moduleIds.includes("hevo-dashboard") &&
+      !moduleIds.includes("intelligent-ops-hub")
+  );
+  assert(
+    "KN catalog has screenshot modules",
+    ["role-management", "customer-profile", "credit-purchase", "visibility-360", "isf-us", "intake-pp", "statement-ca", "notification-management"].every(
+      (id) => moduleIds.includes(id)
+    )
+  );
+  assert(
+    "KN Parties categories match production radios",
+    knRoles.partiesCategories().map((item) => item.id).join(",") === "brokers-forwarders,dray-providers,other-parties"
+  );
+
+  const migrated = knRoles.migratePermissions([
+    "kn-user-management:read",
+    "kn-credits-management:create",
+    "isf:update",
+    "hevo-dashboard:read",
+    "visibility-3:read"
+  ]);
+  assert(
+    "KN legacy permission keys alias into screenshot catalog",
+    migrated.changed &&
+      migrated.permissions.includes("user-management:read") &&
+      migrated.permissions.includes("credit-tracking:create") &&
+      migrated.permissions.includes("isf-us:update") &&
+      migrated.permissions.includes("klearhub-dashboard:read") &&
+      migrated.permissions.includes("visibility-3:read") &&
+      !migrated.permissions.includes("kn-user-management:read")
+  );
+
+  const roles = knRoles.list();
+  assert("KN seed roles load", roles.length >= 10);
+  assert(
+    "KN seed permissions reference real catalog keys",
+    roles.every((role) => (role.permissions || []).every((key) => moduleIds.some((id) => key.startsWith(`${id}:`))))
+  );
+  assert(
+    "KN seed roles do not use legacy klearnow applicable",
+    roles.every((role) => !(role.applicable || []).includes("klearnow"))
   );
 }
 

@@ -19,82 +19,88 @@
   /** KN Role Management permission keyword map */
   const ROLE_PERM_MAP = [
     {
-      keywords: ["user", "users", "manage users", "add user", "remove user", "access control"],
+      keywords: ["user", "users", "manage users", "add user", "remove user", "access control", "user management"],
       groupId: "administration",
-      moduleId: "kn-user-management",
+      moduleId: "user-management",
       reason: "Involves managing user access"
     },
     {
       keywords: ["role", "roles", "permissions", "assign role", "role management"],
       groupId: "administration",
-      moduleId: "kn-role-management",
+      moduleId: "role-management",
       reason: "Involves managing roles and permissions"
     },
     {
-      keywords: ["default role", "template", "customer template", "default access"],
+      keywords: ["contract", "contracts", "agreement", "contract management"],
       groupId: "administration",
-      moduleId: "default-role-management",
-      reason: "Involves default role templates"
+      moduleId: "contract-management",
+      reason: "Involves contract management"
     },
     {
-      keywords: ["customer", "customers", "client", "clients", "entity", "entities"],
+      keywords: ["customer", "customers", "client", "clients", "customer profile", "entity"],
       groupId: "entity",
-      moduleId: "kn-customers",
+      moduleId: "customer-profile",
       reason: "Involves customer or entity management"
     },
     {
-      keywords: ["broker", "freight broker", "broker association", "customs broker"],
+      keywords: ["sub-customer", "sub customer", "subcustomer", "subsidiary"],
       groupId: "entity",
-      moduleId: "broker-association",
-      reason: "Involves broker relationships"
+      moduleId: "sub-customer-profile",
+      reason: "Involves sub-customer entities"
     },
     {
-      keywords: ["finance", "credit", "credits", "billing", "payment", "invoice"],
+      keywords: ["company", "companies", "company profile", "companies profile"],
+      groupId: "entity",
+      moduleId: "companies-profile",
+      reason: "Involves company profiles"
+    },
+    {
+      keywords: ["finance", "credit", "credits", "credit tracking", "financial"],
       groupId: "finance",
-      moduleId: "kn-credits-management",
+      moduleId: "credit-tracking",
       reason: "Involves financial or credit management"
     },
     {
-      keywords: ["promo", "promotion", "discount", "coupon", "promo code"],
+      keywords: ["purchase", "buy credits", "credit purchase"],
       groupId: "finance",
-      moduleId: "kn-promo-code-management",
-      reason: "Involves promotional codes"
+      moduleId: "credit-purchase",
+      reason: "Involves purchasing credits"
     },
     {
-      keywords: ["visibility", "shipment visibility", "tracking", "track shipments", "cargo tracking"],
+      keywords: ["invoice", "invoicing", "ar invoice", "billing", "accounts receivable", "ap invoice"],
+      groupId: "billing",
+      moduleId: "ar-invoices",
+      reason: "Involves billing and invoices"
+    },
+    {
+      keywords: ["broker", "broker invoice", "customs broker", "forwarder"],
+      groupId: "billing",
+      moduleId: "broker-invoice-us",
+      reason: "Involves broker invoicing"
+    },
+    {
+      keywords: ["visibility", "shipment visibility", "tracking", "track shipments", "cargo tracking", "klearhub"],
       groupId: "klearhub",
-      moduleId: "kn-visibility-data",
+      moduleId: "visibility",
       reason: "Involves shipment visibility data"
     },
     {
-      keywords: ["analytics", "dashboard", "reporting", "report", "metrics", "data analysis"],
-      groupId: "analytics",
-      moduleId: "hevo-dashboard",
-      reason: "Involves analytics and reporting"
+      keywords: ["visibility 2", "vis 2.0", "visibility 2.0"],
+      groupId: "klearhub",
+      moduleId: "visibility-2",
+      reason: "Involves Visibility 2.0"
     },
     {
-      keywords: ["notification", "notify", "alert", "email notification", "trigger"],
-      groupId: "notifications",
-      moduleId: "default-notification",
-      reason: "Involves notification management"
+      keywords: ["visibility 360", "vis 360"],
+      groupId: "klearhub",
+      moduleId: "visibility-360",
+      reason: "Involves Visibility 360"
     },
     {
-      keywords: ["content", "release notes", "announcements", "user guides", "documentation"],
-      groupId: "content",
-      moduleId: "release-notes",
-      reason: "Involves content management"
-    },
-    {
-      keywords: ["ops", "operations", "intelligent ops", "operational hub"],
-      groupId: "ops-hub",
-      moduleId: "intelligent-ops-hub",
-      reason: "Involves operational management"
-    },
-    {
-      keywords: ["customs", "filing", "isf", "import", "export", "transaction", "customs docs"],
-      groupId: "transaction-us",
-      moduleId: "isf",
-      reason: "Involves customs or filing operations"
+      keywords: ["visibility 3", "vis 3.0", "visibility 3.0"],
+      groupId: "klearhub",
+      moduleId: "visibility-3",
+      reason: "Involves Visibility 3.0"
     },
     {
       keywords: ["overview", "summary", "hub overview"],
@@ -103,9 +109,51 @@
       reason: "Involves hub overview access"
     },
     {
+      keywords: ["analytics", "dashboard", "reporting", "report", "metrics", "klearhub dashboard", "customs engine reports", "data engine reports"],
+      groupId: "analytics",
+      moduleId: "klearhub-dashboard",
+      reason: "Involves analytics and reporting"
+    },
+    {
+      keywords: ["notification", "notify", "alert", "email notification", "notification management"],
+      groupId: "notifications",
+      moduleId: "notification-management",
+      reason: "Involves notification management"
+    },
+    {
+      keywords: ["ops", "operations", "intake", "supervisor", "intake/pp"],
+      groupId: "operations",
+      moduleId: "intake-pp",
+      reason: "Involves operational management"
+    },
+    {
+      keywords: ["customs", "filing", "isf", "import", "export", "transaction", "customs docs", "inbond", "ftz", "entry"],
+      groupId: "txn-us",
+      moduleId: "isf-us",
+      reason: "Involves customs or filing operations"
+    },
+    {
+      keywords: ["drayage", "dray", "marketplace"],
+      groupId: "drayage",
+      moduleId: "drayage-marketplace",
+      reason: "Involves drayage marketplace"
+    },
+    {
+      keywords: ["e-invoice", "einvoice", "documents", "e-invoices"],
+      groupId: "einvoices",
+      moduleId: "einvoices-docs",
+      reason: "Involves e-invoices and documents"
+    },
+    {
+      keywords: ["payment", "statement", "payment us", "payment ca"],
+      groupId: "payment-us",
+      moduleId: "statement-us",
+      reason: "Involves payment statements"
+    },
+    {
       keywords: ["read-only", "readonly", "read only", "view only", "viewer"],
       groupId: "analytics",
-      moduleId: "hevo-dashboard",
+      moduleId: "klearhub-dashboard",
       reason: "Read-only / viewer access implied",
       readOnlyHint: true
     }
@@ -186,7 +234,7 @@
       services: []
     },
     {
-      keywords: ["visibility", "shipment visibility", "tracking", "track shipments", "cargo"],
+      keywords: ["visibility", "shipment visibility", "tracking", "track shipments", "cargo", "klearhub", "visibility 360", "overview"],
       groupId: "visibility",
       moduleId: "visibility",
       reason: "Involves shipment visibility",
@@ -194,7 +242,15 @@
       services: ["klear-360"]
     },
     {
-      keywords: ["analytics", "dashboard", "reporting", "report", "metrics"],
+      keywords: ["visibility 2", "vis 2.0", "visibility 2.0"],
+      groupId: "visibility",
+      moduleId: "visibility-2",
+      reason: "Involves Visibility 2.0",
+      applicables: ["customer", "sub-customer"],
+      services: ["klear-360"]
+    },
+    {
+      keywords: ["analytics", "dashboard", "reporting", "report", "metrics", "klearhub dashboard", "customs engine reports", "data engine reports", "hevo"],
       groupId: "analytics",
       moduleId: "klearnow-dashboards",
       reason: "Involves analytics and reporting",
@@ -210,15 +266,15 @@
       services: []
     },
     {
-      keywords: ["broker", "customs broker", "broker invoice", "broker filing"],
+      keywords: ["broker", "customs broker", "broker invoice", "broker filing", "forwarder"],
       groupId: "billing",
       moduleId: "broker-invoice-us",
       reason: "Involves broker invoicing",
-      applicables: ["company"],
+      applicables: ["parties", "company"],
       services: ["customs-broker"]
     },
     {
-      keywords: ["customs", "filing", "isf", "import", "entry", "customs docs", "customs clearance"],
+      keywords: ["customs", "filing", "isf", "import", "entry", "customs docs", "customs clearance", "inbond", "ftz"],
       groupId: "txn-us",
       moduleId: "isf-us",
       reason: "Involves US customs filings",
@@ -226,7 +282,7 @@
       services: ["customs-broker", "customs-engine"]
     },
     {
-      keywords: ["export", "export filing"],
+      keywords: ["export", "export filing", "exports"],
       groupId: "txn-us",
       moduleId: "export-us",
       reason: "Involves export filings",
@@ -234,15 +290,39 @@
       services: ["customs-broker"]
     },
     {
-      keywords: ["drayage", "trucking", "inland transport"],
+      keywords: ["netherlands", "nl transaction", "dutch"],
+      groupId: "txn-nl",
+      moduleId: "import-nl",
+      reason: "Involves Netherlands transactions",
+      applicables: ["customer", "company"],
+      services: ["customs-engine"]
+    },
+    {
+      keywords: ["spain", "es transaction", "spanish"],
+      groupId: "txn-es",
+      moduleId: "import-es",
+      reason: "Involves Spain transactions",
+      applicables: ["customer", "company"],
+      services: ["customs-engine"]
+    },
+    {
+      keywords: ["payment us", "us statement", "payment statement"],
+      groupId: "payment-us",
+      moduleId: "statement-us",
+      reason: "Involves US payment statements",
+      applicables: ["customer"],
+      services: []
+    },
+    {
+      keywords: ["drayage", "trucking", "inland transport", "dray provider"],
       groupId: "drayage",
       moduleId: "drayage-marketplace",
       reason: "Involves drayage operations",
-      applicables: ["customer"],
+      applicables: ["customer", "parties"],
       services: ["drayage"]
     },
     {
-      keywords: ["notification", "notify", "alert", "email notification"],
+      keywords: ["notification", "notify", "alert", "email notification", "notification management"],
       groupId: "notifications",
       moduleId: "notifications-system",
       reason: "Involves notification management",
@@ -250,9 +330,9 @@
       services: []
     },
     {
-      keywords: ["master data", "parts library", "customs master"],
+      keywords: ["master data", "parts library", "customs master", "hts", "ports", "currency", "country table"],
       groupId: "master-data",
-      moduleId: "customs-master",
+      moduleId: "customs-master-hts",
       reason: "Involves master data management",
       applicables: [],
       services: []
@@ -263,57 +343,72 @@
   const USER_ROLE_MAP = [
     {
       keywords: ["admin", "administrator", "access manager", "user access"],
-      roles: ["KN Administrator", "User Access Manager"],
+      roles: ["KN Administrator", "User Access Manager", "Company Admin"],
       reason: "Title implies elevated access administration"
     },
     {
-      keywords: ["visibility", "tracking", "shipment", "cargo"],
-      roles: ["Visibility 3.0 Operator", "Visibility Read Only"],
+      keywords: ["visibility", "tracking", "shipment", "cargo", "klearhub", "vis 2"],
+      roles: ["Vis 2.0", "Klearhub Visibility", "Visibility 3.0 Operator", "Visibility Read Only"],
       reason: "Title relates to shipment visibility"
     },
     {
       keywords: ["read-only", "readonly", "viewer", "analyst"],
-      roles: ["Visibility Read Only", "Analytics Viewer"],
+      roles: ["Visibility Read Only", "Analytics Viewer", "Party Broker/Forwarder Analytics"],
       reason: "Implies view-only or analytics access"
     },
     {
-      keywords: ["isf", "customs", "filing", "compliance", "trade"],
-      roles: ["ISF Filing Specialist"],
-      reason: "Title relates to customs / ISF filing"
+      keywords: ["isf", "customs", "filing", "compliance", "trade", "psc"],
+      roles: ["ISF Filing Specialist", "PSC Module"],
+      reason: "Title relates to customs / ISF / PSC"
     },
     {
       keywords: ["finance", "credit", "billing", "controller", "accounts"],
-      roles: ["Finance Credits Owner"],
+      roles: ["Finance Credits Owner", "Party Broker/Forwarder Finance Admin"],
       reason: "Title relates to finance or credits"
     },
     {
-      keywords: ["broker"],
-      roles: ["Broker Association Admin", "ISF Filing Specialist"],
-      reason: "Title relates to broker services"
+      keywords: ["broker", "forwarder", "party", "heritage", "customs broker"],
+      roles: [
+        "Party Broker/Forwarder Admin",
+        "Party Broker/Forwarder Transaction Manager",
+        "Party Broker/Forwarder Finance Admin",
+        "Party Broker/Forwarder Analytics"
+      ],
+      reason: "Title relates to party broker / forwarder services"
     },
     {
-      keywords: ["customer", "entity", "account manager"],
-      roles: ["Customer Entity Admin"],
-      reason: "Title relates to customer entity management"
+      keywords: ["customer", "entity", "account manager", "subcustomer", "sub-customer"],
+      roles: ["Customer Entity Admin", "KlearNow CS Subcustomer"],
+      reason: "Title relates to customer / sub-customer management"
     },
     {
-      keywords: ["content", "publisher", "release notes", "documentation"],
-      roles: ["Content Publisher"],
-      reason: "Title relates to content publishing"
+      keywords: ["canada", "transaction manager", "ca tm"],
+      roles: ["CANADA TRANSACTION MANAGER"],
+      reason: "Title relates to Canada transaction management"
+    },
+    {
+      keywords: ["company", "hub+", "hub plus"],
+      roles: ["Company Admin", "HUB+ COMPANY ADMIN", "HUB+ COMPANY USER"],
+      reason: "Title relates to company / HUB+ access"
+    },
+    {
+      keywords: ["content", "publisher", "release notes", "documentation", "einvoice", "e-invoice"],
+      roles: ["E-Invoice Publisher"],
+      reason: "Title relates to e-invoice publishing"
     },
     {
       keywords: ["notification", "alert", "ops"],
-      roles: ["Notification Owner", "OPS Hub Reviewer"],
+      roles: ["Notification Admin", "Notification Owner", "OPS Hub Reviewer"],
       reason: "Title relates to notifications or ops"
     },
     {
-      keywords: ["analytics", "dashboard", "reporting", "data"],
-      roles: ["Analytics Viewer"],
-      reason: "Title relates to analytics and reporting"
+      keywords: ["analytics", "dashboard", "reporting", "data", "parts"],
+      roles: ["Analytics Viewer", "Parts", "Party Broker/Forwarder Analytics"],
+      reason: "Title relates to analytics, reporting, or parts"
     },
     {
       keywords: ["new hire", "onboard", "junior", "associate"],
-      roles: ["Visibility Read Only", "Analytics Viewer"],
+      roles: ["Visibility Read Only", "Analytics Viewer", "HUB+ COMPANY USER"],
       reason: "New-hire / junior profiles often start read-only"
     }
   ];
@@ -532,10 +627,12 @@
       ? derived.applicables.length
         ? derived.applicables
         : ["customer"]
-      : ["klearnow"];
+      : derived.applicables?.length
+        ? derived.applicables
+        : ["customer"];
     const applicableReason = isDefault
       ? derived.reasonsByField[`applicable:${applicable[0]}`] || "Inferred from description"
-      : "Internal KN roles apply to KlearNow";
+      : derived.reasonsByField?.[`applicable:${applicable[0]}`] || "Inferred from description";
 
     const permSummary = [];
     if (readOnly) {

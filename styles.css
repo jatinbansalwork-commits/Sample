@@ -689,10 +689,20 @@ img.klear-assistant-mark {
   padding: var(--theme-spacing-5) var(--theme-spacing-0) var(--theme-spacing-0);
   border-left: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
   overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--blade-motion-duration-xquick) var(--blade-motion-easing-entrance),
+    transform var(--blade-motion-duration-xquick) var(--blade-motion-easing-entrance);
 }
 
 .side-nav-l2[hidden] {
   display: none;
+}
+
+.side-nav-l2.is-entering {
+  opacity: 0;
+  transform: translateX(calc(var(--theme-spacing-3) * -1));
 }
 
 .side-nav-l2__header {
@@ -830,12 +840,13 @@ img.klear-assistant-mark {
   text-decoration: none;
   cursor: pointer;
   transition:
-    background-color var(--theme-motion-duration-2xquick) var(--theme-motion-easing-standard),
-    font-weight var(--theme-motion-duration-2xquick) var(--theme-motion-easing-standard);
+    background-color var(--blade-motion-duration-2xquick) var(--blade-motion-easing-standard),
+    color var(--blade-motion-duration-2xquick) var(--blade-motion-easing-standard),
+    font-weight var(--blade-motion-duration-2xquick) var(--blade-motion-easing-standard);
 }
 
 .side-nav-link:hover {
-  background: var(--kn-color-background-interactive-gray-highlighted);
+  background: var(--kn-color-background-interactive-gray-default);
   color: var(--kn-color-text-surface-gray-normal);
   font-weight: var(--kn-weight-medium);
 }
@@ -845,6 +856,19 @@ img.klear-assistant-mark {
   background: var(--kn-color-background-interactive-gray-highlighted);
   color: var(--kn-color-text-surface-gray-normal);
   font-weight: var(--kn-weight-medium);
+}
+
+.side-nav-link:focus-visible {
+  outline: var(--kn-border-thicker) solid var(--kn-color-border-interactive-information-default);
+  outline-offset: var(--kn-spacing-00);
+  box-shadow: var(--kn-focus-ring);
+}
+
+/* Expanded TreeView branches stay neutral (Blade: chevron signals open, not selection) */
+.side-nav-tree__row[data-tree-trigger][aria-expanded="true"]:not(:hover):not([aria-current="page"]) {
+  background: var(--theme-colors-transparent);
+  color: var(--kn-color-text-surface-gray-subtle);
+  font-weight: var(--kn-weight-regular);
 }
 
 .side-nav-link__title {
@@ -875,7 +899,7 @@ img.klear-assistant-mark {
   flex-shrink: 0;
 }
 
-.side-nav-link[aria-current="page"]::before {
+.side-nav-link::before {
   content: "";
   position: absolute;
   inset-block: 18%;
@@ -883,6 +907,18 @@ img.klear-assistant-mark {
   width: 3px;
   border-radius: var(--radius-round);
   background: var(--kn-color-background-interactive-primary-default);
+  opacity: 0;
+  transform: scaleY(0.65);
+  transform-origin: center;
+  pointer-events: none;
+  transition:
+    opacity var(--blade-motion-duration-2xquick) var(--blade-motion-easing-standard),
+    transform var(--blade-motion-duration-xquick) var(--blade-motion-easing-entrance);
+}
+
+.side-nav-link[aria-current="page"]::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .side-nav-l2 .side-nav-link {
@@ -930,11 +966,155 @@ img.klear-assistant-mark {
   height: var(--theme-spacing-4);
   margin-inline-start: auto;
   color: var(--kn-color-icon-surface-gray-muted);
+  transition: transform var(--blade-motion-duration-quick) var(--blade-motion-easing-standard);
 }
 
 .side-nav-link:hover .side-nav-link__chevron,
 .side-nav-link[aria-current="page"] .side-nav-link__chevron {
   color: inherit;
+}
+
+.side-nav-link[data-l2trigger][aria-expanded="true"] .side-nav-link__chevron {
+  transform: rotate(90deg);
+}
+
+/* Blade TreeView-style nesting inside L2 (left chevron slot + indentation) */
+.side-nav-tree-wrap {
+  list-style: none;
+  margin: var(--theme-spacing-0);
+  padding: var(--theme-spacing-0);
+}
+
+.side-nav-tree {
+  list-style: none;
+  margin: var(--theme-spacing-0);
+  padding: var(--theme-spacing-0);
+  display: flex;
+  flex-direction: column;
+}
+
+.side-nav-tree__item {
+  margin: var(--theme-spacing-0);
+  padding: var(--theme-spacing-0);
+}
+
+.side-nav-tree__row {
+  /* full-bleed hover like Blade TreeView; indent via padding-left */
+  gap: var(--theme-spacing-2);
+  height: var(--blade-sidenav-item-height);
+  min-height: var(--blade-sidenav-item-height);
+  margin-block: var(--theme-spacing-0);
+  padding-block: var(--theme-spacing-0);
+  padding-inline: var(--theme-spacing-3) var(--theme-spacing-4);
+  border: var(--theme-border-width-none);
+  background: var(--theme-colors-transparent);
+  font: inherit;
+  text-align: left;
+}
+
+button.side-nav-tree__row {
+  width: 100%;
+  cursor: pointer;
+  color: inherit;
+}
+
+.side-nav-tree__row[data-tree-level="1"],
+.side-nav-tree__item[data-tree-level="1"] > .side-nav-tree__row {
+  padding-left: var(--theme-spacing-3);
+}
+
+.side-nav-tree__group .side-nav-tree__row,
+.side-nav-tree__row[data-level="3"] {
+  /* level 2 leaf: spacing.3 + 24px indentation step */
+  padding-left: calc(var(--theme-spacing-3) + 1.5rem);
+}
+
+.side-nav-tree__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem; /* 20px Blade chevron gutter */
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: var(--kn-color-icon-surface-gray-muted);
+  transition:
+    transform var(--blade-motion-duration-quick) var(--blade-motion-easing-standard),
+    color var(--blade-motion-duration-2xquick) var(--blade-motion-easing-standard);
+}
+
+.side-nav-tree__chevron svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
+
+.side-nav-tree__chevron--leaf {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.side-nav-tree__row[aria-expanded="true"] > .side-nav-tree__chevron {
+  transform: rotate(90deg);
+  color: inherit;
+}
+
+.side-nav-tree__row:hover > .side-nav-tree__chevron {
+  color: inherit;
+}
+
+.side-nav-tree__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Blade TreeView B5: animate grid-template-rows 0fr ↔ 1fr (never max-height) */
+.side-nav-tree__animator {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--blade-motion-duration-quick) var(--blade-motion-easing-standard);
+}
+
+.side-nav-tree__animator.is-expanded {
+  grid-template-rows: 1fr;
+}
+
+.side-nav-tree__clip {
+  overflow: hidden;
+  min-height: 0;
+  visibility: hidden;
+  transition: visibility 0s linear var(--blade-motion-duration-quick);
+}
+
+.side-nav-tree__animator.is-expanded > .side-nav-tree__clip {
+  visibility: visible;
+  transition: none;
+}
+
+.side-nav-tree__animator.is-expanded:not(.is-animating) > .side-nav-tree__clip {
+  overflow: visible;
+}
+
+.side-nav-tree__group {
+  list-style: none;
+  margin: var(--theme-spacing-0);
+  padding: var(--theme-spacing-0);
+  display: flex;
+  flex-direction: column;
+}
+
+.side-nav-tree__group[hidden] {
+  display: none;
+}
+
+.side-nav-tree__animator .side-nav-tree__group[hidden] {
+  display: flex;
+}
+
+.side-nav-tree__row[aria-current="page"]::before {
+  left: var(--theme-spacing-0);
 }
 
 .side-nav-level {
@@ -954,8 +1134,50 @@ img.klear-assistant-mark {
   padding: var(--theme-spacing-4) var(--theme-spacing-3) var(--theme-spacing-3);
 }
 
+.side-nav-l2 .side-nav-level.side-nav-level--l3 {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: var(--theme-spacing-0) var(--theme-spacing-0) var(--theme-spacing-1) var(--theme-spacing-6);
+}
+
+.side-nav-l2 .side-nav-level.side-nav-level--l3:not([hidden]) {
+  display: flex;
+}
+
+.l2-tree-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-nav-link[data-l3trigger] .side-nav-link__chevron {
+  transition: transform var(--blade-motion-duration-quick) var(--blade-motion-easing-standard);
+}
+
+.side-nav-link[data-l3trigger][aria-expanded="true"] .side-nav-link__chevron {
+  transform: rotate(90deg);
+}
+
+.side-nav-l2 .side-nav-link[data-level="3"] {
+  padding-inline: var(--theme-spacing-4);
+}
+
 .side-nav-l2 .side-nav-link {
   padding-inline: var(--theme-spacing-4);
+}
+
+.side-nav-l2 .side-nav-tree__row.side-nav-link,
+.side-nav-tree__row.side-nav-link {
+  height: var(--blade-sidenav-item-height);
+  min-height: var(--blade-sidenav-item-height);
+  padding-block: var(--theme-spacing-0);
+  padding-inline-end: var(--theme-spacing-4);
+  padding-inline-start: var(--theme-spacing-3);
+}
+
+.side-nav-l2 .side-nav-tree__group .side-nav-tree__row.side-nav-link,
+.side-nav-tree__group .side-nav-tree__row.side-nav-link,
+.side-nav-tree__animator .side-nav-tree__row.side-nav-link[data-level="3"] {
+  padding-inline-start: calc(var(--theme-spacing-3) + 1.5rem);
 }
 
 @media screen and (min-width: 1024px) {
@@ -1055,9 +1277,23 @@ img.klear-assistant-mark {
 .app-shell.ai-assistant-open #kn-role-page,
 .app-shell.ai-assistant-open #kn-user-page,
 .app-shell.ai-assistant-open #kn-default-role-page,
+.app-shell.ai-assistant-open #kn-isf-page,
+.app-shell.ai-assistant-open #kn-inb-page,
+.app-shell.ai-assistant-open #kn-entry-page,
+.app-shell.ai-assistant-open #kn-ftz-page,
+.app-shell.ai-assistant-open #kn-psc-page,
+.app-shell.ai-assistant-open #kn-do-page,
+.app-shell.ai-assistant-open #kn-tmship-page,
 .app-shell.ai-assistant-open #kn-role-root,
 .app-shell.ai-assistant-open #kn-user-root,
 .app-shell.ai-assistant-open #kn-default-role-root,
+.app-shell.ai-assistant-open #kn-isf-root,
+.app-shell.ai-assistant-open #kn-inb-root,
+.app-shell.ai-assistant-open #kn-entry-root,
+.app-shell.ai-assistant-open #kn-ftz-root,
+.app-shell.ai-assistant-open #kn-psc-root,
+.app-shell.ai-assistant-open #kn-do-root,
+.app-shell.ai-assistant-open #kn-tmship-root,
 .app-shell.ai-assistant-open .vis-table-wrap,
 .app-shell.ai-assistant-open .role-table-card,
 .app-shell.ai-assistant-open .vis-table-scroll,
@@ -3974,7 +4210,6 @@ p:has(.info-tip) {
   gap: var(--theme-spacing-4);
   width: 100%;
   min-width: 0;
-  height: 100%;
   padding: var(--theme-spacing-5);
   border-radius: var(--radius-surface);
   border: var(--kn-border-thin) solid;
@@ -6428,6 +6663,7 @@ a.metric-row.notice:hover {
 .vis-chip {
   display: inline-flex;
   align-items: center;
+  gap: var(--theme-spacing-2);
   min-height: var(--theme-spacing-8);
   padding: var(--theme-spacing-2) var(--theme-spacing-4);
   border: var(--kn-border-thin) solid var(--kn-color-border-interactive-gray-default);
@@ -6454,7 +6690,8 @@ a.metric-row.notice:hover {
 }
 
 .vis-chip .counter {
-  margin-left: var(--theme-spacing-2);
+  margin-left: var(--theme-spacing-0);
+  flex-shrink: 0;
 }
 
 .vis-split {
@@ -6954,10 +7191,16 @@ a.metric-row.notice:hover {
   border-radius: var(--radius-input);
   background: var(--kn-color-background-interactive-staticWhite-default);
   color: var(--kn-color-text-surface-gray-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vis-th-filter::placeholder {
   color: var(--kn-color-text-surface-gray-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vis-th-filter:focus-visible {
@@ -8850,13 +9093,331 @@ body.is-widget-sorting * {
 
 #kn-role-root,
 #kn-user-root,
-#kn-default-role-root {
+#kn-default-role-root,
+#kn-isf-root,
+#kn-inb-root,
+#kn-entry-root,
+#kn-ftz-root,
+#kn-psc-root,
+#kn-do-root,
+#kn-tmship-root {
   display: flex;
   flex-direction: column;
   gap: var(--theme-spacing-6);
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+}
+
+.isf-toolbar.vis-toolbar,
+.inb-toolbar.vis-toolbar,
+.tm-toolbar.vis-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-spacing-4);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.isf-toolbar__meta,
+.inb-toolbar__meta,
+.tm-toolbar__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-spacing-4);
+  margin-inline-start: auto;
+}
+
+.isf-updated,
+.inb-updated,
+.tm-updated {
+  color: var(--kn-color-text-surface-gray-muted);
+  white-space: nowrap;
+}
+
+.tm-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-spacing-4);
+  flex-shrink: 0;
+}
+
+.tm-page-head h1 {
+  margin: var(--theme-spacing-0);
+}
+
+.tm-shipments-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-5);
+  min-width: 0;
+}
+
+.tm-shipments-group__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--theme-spacing-3);
+  justify-content: flex-end;
+}
+
+.tm-shipments-group__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-spacing-8);
+  color: var(--kn-color-text-surface-gray-muted);
+}
+
+.tm-shipments-group__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--theme-spacing-4);
+  padding: var(--theme-spacing-5) var(--theme-spacing-6);
+  border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);
+  border-radius: var(--kn-table-radius);
+  background: var(--kn-color-background-interactive-staticWhite-default);
+}
+
+.tm-shipments-group__card-main,
+.tm-shipments-group__card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-spacing-3);
+}
+
+.tm-shipments-group__card-actions {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--theme-spacing-2);
+}
+
+.tm-shipments-group__card-actions .btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.isf-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-1);
+  min-width: 0;
+}
+
+/* TM density: one-line cells; full value via title tooltip */
+.role-table-card .tm-table.vis-table--admin tbody td,
+.role-table-card .isf-table.vis-table--admin tbody td,
+.role-table-card .inb-table.vis-table--admin tbody td {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  height: var(--theme-spacing-10);
+}
+
+.role-table-card .tm-table.vis-table--admin tbody td:last-child,
+.role-table-card .isf-table.vis-table--admin tbody td:last-child,
+.role-table-card .inb-table.vis-table--admin tbody td:last-child {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.tm-ellipsis,
+.role-table-card .tm-table .code,
+.role-table-card .isf-table .code,
+.role-table-card .inb-table .code {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.role-table-card .tm-table .isf-cell-stack,
+.role-table-card .isf-table .isf-cell-stack,
+.role-table-card .inb-table .isf-cell-stack {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.role-table-card .tm-table .isf-cell-stack > span,
+.role-table-card .isf-table .isf-cell-stack > span,
+.role-table-card .inb-table .isf-cell-stack > span {
+  display: inline;
+}
+
+.role-table-card .tm-table .isf-cell-stack > span + span::before,
+.role-table-card .isf-table .isf-cell-stack > span + span::before,
+.role-table-card .inb-table .isf-cell-stack > span + span::before {
+  content: " · ";
+  color: var(--kn-color-text-surface-gray-muted);
+}
+
+.skeleton--tm-cell {
+  display: block;
+  width: 100%;
+  height: var(--theme-spacing-4);
+  border-radius: var(--radius-control);
+}
+
+.tm-skeleton-row td {
+  pointer-events: none;
+}
+
+.admin-toolbar.vis-toolbar {
+  margin-bottom: var(--theme-spacing-0);
+}
+
+.role-page .admin-toolbar + .vis-table-wrap,
+.role-page .admin-toolbar + .role-table-card {
+  margin-top: var(--theme-spacing-4);
+}
+
+.isf-shipment-empty {
+  padding: var(--theme-spacing-8);
+  border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);
+  border-radius: var(--kn-table-radius);
+  background: var(--kn-color-background-interactive-staticWhite-default);
+}
+
+.isf-shipment-empty h2,
+.isf-shipment-empty p {
+  margin: var(--theme-spacing-0);
+}
+
+.isf-shipment-empty p {
+  margin-top: var(--theme-spacing-3);
+  color: var(--kn-color-text-surface-gray-muted);
+  max-width: 36rem;
+}
+
+/*
+ * TM sticky columns (ISF / IN-Bond / shared .tm-table):
+ * 1–2 left: ID + Company Name; trailing: Actions.
+ * Widths beat .role-table-card first-child via equal specificity later below.
+ */
+.tm-table,
+.isf-table,
+.inb-table {
+  --tm-sticky-id-width: calc(var(--theme-spacing-8) * 5);
+  --tm-sticky-company-width: var(--blade-admin-name-col);
+  /* 3× icon-btn (2rem) + gaps + cell pad-x ×2 — avoid clipping always-visible icons */
+  --tm-sticky-actions-width: calc(var(--theme-spacing-8) * 5);
+  --isf-sticky-id-width: var(--tm-sticky-id-width);
+  --isf-sticky-company-width: var(--tm-sticky-company-width);
+  --isf-sticky-actions-width: var(--tm-sticky-actions-width);
+}
+
+.role-table-card .tm-table.vis-table--admin th:first-child,
+.role-table-card .tm-table.vis-table--admin td:first-child,
+.role-table-card .isf-table.vis-table--admin th:first-child,
+.role-table-card .isf-table.vis-table--admin td:first-child,
+.role-table-card .inb-table.vis-table--admin th:first-child,
+.role-table-card .inb-table.vis-table--admin td:first-child {
+  position: sticky;
+  left: var(--theme-spacing-0);
+  min-width: var(--tm-sticky-id-width);
+  width: var(--tm-sticky-id-width);
+  max-width: var(--tm-sticky-id-width);
+  z-index: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: none;
+}
+
+.role-table-card .tm-table.vis-table--admin th:nth-child(2),
+.role-table-card .tm-table.vis-table--admin td:nth-child(2),
+.role-table-card .isf-table.vis-table--admin th:nth-child(2),
+.role-table-card .isf-table.vis-table--admin td:nth-child(2),
+.role-table-card .inb-table.vis-table--admin th:nth-child(2),
+.role-table-card .inb-table.vis-table--admin td:nth-child(2) {
+  position: sticky;
+  left: var(--tm-sticky-id-width);
+  min-width: var(--tm-sticky-company-width);
+  width: var(--tm-sticky-company-width);
+  max-width: var(--tm-sticky-company-width);
+  z-index: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow:
+    1px 0 0 var(--kn-color-border-surface-gray-muted),
+    8px 0 12px color-mix(in srgb, var(--kn-color-background-interactive-primary-default) 8%, transparent);
+}
+
+.role-table-card .tm-table.vis-table--admin th:last-child,
+.role-table-card .tm-table.vis-table--admin td:last-child,
+.role-table-card .isf-table.vis-table--admin th:last-child,
+.role-table-card .isf-table.vis-table--admin td:last-child,
+.role-table-card .inb-table.vis-table--admin th:last-child,
+.role-table-card .inb-table.vis-table--admin td:last-child {
+  position: sticky;
+  right: var(--theme-spacing-0);
+  min-width: var(--tm-sticky-actions-width);
+  width: var(--tm-sticky-actions-width);
+  z-index: 2;
+  overflow: visible;
+  white-space: nowrap;
+  box-shadow:
+    -1px 0 0 var(--kn-color-border-surface-gray-muted),
+    -8px 0 12px color-mix(in srgb, var(--kn-color-background-interactive-primary-default) 8%, transparent);
+}
+
+.role-table-card .tm-table.vis-table--admin thead th:first-child,
+.role-table-card .tm-table.vis-table--admin thead th:nth-child(2),
+.role-table-card .tm-table.vis-table--admin thead th:last-child,
+.role-table-card .isf-table.vis-table--admin thead th:first-child,
+.role-table-card .isf-table.vis-table--admin thead th:nth-child(2),
+.role-table-card .isf-table.vis-table--admin thead th:last-child,
+.role-table-card .inb-table.vis-table--admin thead th:first-child,
+.role-table-card .inb-table.vis-table--admin thead th:nth-child(2),
+.role-table-card .inb-table.vis-table--admin thead th:last-child {
+  z-index: 5;
+}
+
+.role-table-card .tm-table.vis-table--admin tbody tr:hover td:first-child,
+.role-table-card .tm-table.vis-table--admin tbody tr:focus-visible td:first-child,
+.role-table-card .tm-table.vis-table--admin tbody tr.is-selected td:first-child,
+.role-table-card .tm-table.vis-table--admin tbody tr:hover td:nth-child(2),
+.role-table-card .tm-table.vis-table--admin tbody tr:focus-visible td:nth-child(2),
+.role-table-card .tm-table.vis-table--admin tbody tr.is-selected td:nth-child(2),
+.role-table-card .tm-table.vis-table--admin tbody tr:hover td:last-child,
+.role-table-card .tm-table.vis-table--admin tbody tr:focus-visible td:last-child,
+.role-table-card .tm-table.vis-table--admin tbody tr.is-selected td:last-child,
+.role-table-card .isf-table.vis-table--admin tbody tr:hover td:first-child,
+.role-table-card .isf-table.vis-table--admin tbody tr:focus-visible td:first-child,
+.role-table-card .isf-table.vis-table--admin tbody tr.is-selected td:first-child,
+.role-table-card .isf-table.vis-table--admin tbody tr:hover td:nth-child(2),
+.role-table-card .isf-table.vis-table--admin tbody tr:focus-visible td:nth-child(2),
+.role-table-card .isf-table.vis-table--admin tbody tr.is-selected td:nth-child(2),
+.role-table-card .isf-table.vis-table--admin tbody tr:hover td:last-child,
+.role-table-card .isf-table.vis-table--admin tbody tr:focus-visible td:last-child,
+.role-table-card .isf-table.vis-table--admin tbody tr.is-selected td:last-child,
+.role-table-card .inb-table.vis-table--admin tbody tr:hover td:first-child,
+.role-table-card .inb-table.vis-table--admin tbody tr:focus-visible td:first-child,
+.role-table-card .inb-table.vis-table--admin tbody tr.is-selected td:first-child,
+.role-table-card .inb-table.vis-table--admin tbody tr:hover td:nth-child(2),
+.role-table-card .inb-table.vis-table--admin tbody tr:focus-visible td:nth-child(2),
+.role-table-card .inb-table.vis-table--admin tbody tr.is-selected td:nth-child(2),
+.role-table-card .inb-table.vis-table--admin tbody tr:hover td:last-child,
+.role-table-card .inb-table.vis-table--admin tbody tr:focus-visible td:last-child,
+.role-table-card .inb-table.vis-table--admin tbody tr.is-selected td:last-child {
+  z-index: 3;
+}
+
+/* Always show Copy / Delete / kebab — do not use admin hover-reveal on TM lists */
+.role-table-card .tm-table tbody .user-row-actions,
+.role-table-card .isf-table tbody .user-row-actions,
+.role-table-card .inb-table tbody .user-row-actions {
+  opacity: 1;
 }
 
 .role-page__head {
@@ -8947,6 +9508,17 @@ body.is-widget-sorting * {
 
 .vis-table--admin .vis-th-filter {
   min-width: 5.5rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* TM sticky ID col (~10rem): let filter shrink inside cell instead of hard-clipping mid-glyph */
+.role-table-card .tm-table.vis-table--admin th:first-child .vis-th-filter,
+.role-table-card .isf-table.vis-table--admin th:first-child .vis-th-filter,
+.role-table-card .inb-table.vis-table--admin th:first-child .vis-th-filter {
+  min-width: 0;
 }
 
 .vis-table--admin tbody td,
@@ -8974,6 +9546,18 @@ body.is-widget-sorting * {
 .role-table-card .vis-table--admin td:first-child {
   min-width: var(--blade-admin-name-col);
   width: var(--blade-admin-name-col-wide);
+}
+
+/* TM ID col: keep content-fit width (overrides admin name-col-wide above) */
+.role-table-card .tm-table.vis-table--admin th:first-child,
+.role-table-card .tm-table.vis-table--admin td:first-child,
+.role-table-card .isf-table.vis-table--admin th:first-child,
+.role-table-card .isf-table.vis-table--admin td:first-child,
+.role-table-card .inb-table.vis-table--admin th:first-child,
+.role-table-card .inb-table.vis-table--admin td:first-child {
+  min-width: var(--tm-sticky-id-width);
+  width: var(--tm-sticky-id-width);
+  max-width: var(--tm-sticky-id-width);
 }
 
 .vis-table--admin .admin-table-chips {
@@ -9102,6 +9686,12 @@ body.is-widget-sorting * {
   border-bottom: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);
 }
 
+/* Edit mode: meta is Details-only — keep the strip thin. */
+.role-form-zone--summary-compact {
+  gap: var(--theme-spacing-0);
+  padding-block: var(--theme-spacing-3);
+}
+
 .role-meta {
   display: flex;
   flex-direction: column;
@@ -9112,7 +9702,7 @@ body.is-widget-sorting * {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--theme-spacing-3);
 }
 
@@ -9132,6 +9722,10 @@ body.is-widget-sorting * {
 
 .role-form-zone--summary > .role-meta + .role-access-summary {
   margin-top: calc(var(--theme-spacing-3) - var(--theme-spacing-5));
+}
+
+.role-form-zone--access {
+  gap: var(--theme-spacing-5);
 }
 
 .role-access-readonly {
@@ -9425,6 +10019,69 @@ body.is-widget-sorting * {
   gap: var(--theme-spacing-5) var(--theme-spacing-7);
 }
 
+.role-parties-category {
+  width: 100%;
+  margin: var(--theme-spacing-0);
+  padding: var(--theme-spacing-4) var(--theme-spacing-5);
+  border-width: var(--theme-border-width-none);
+  border-radius: var(--theme-border-radius-md, 8px);
+  background: var(--kn-color-bg-surface-info-subtle, rgba(37, 99, 235, 0.06));
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-3);
+}
+
+.role-parties-category__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--theme-spacing-5) var(--theme-spacing-7);
+}
+
+.blade-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-spacing-3);
+  cursor: pointer;
+  min-height: var(--theme-spacing-6);
+}
+
+.blade-radio input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.blade-radio__control {
+  width: var(--theme-spacing-5);
+  height: var(--theme-spacing-5);
+  border-radius: 50%;
+  border: var(--theme-border-width-md, 1.5px) solid var(--kn-color-border-surface-gray-muted, currentColor);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
+  background: var(--kn-color-bg-surface-raised, transparent);
+}
+
+.blade-radio input:checked + .blade-radio__control {
+  border-color: var(--kn-color-border-action-primary, var(--kn-color-text-action-primary));
+}
+
+.blade-radio input:checked + .blade-radio__control::after {
+  content: "";
+  position: absolute;
+  inset: 25%;
+  border-radius: 50%;
+  background: var(--kn-color-bg-action-primary, var(--kn-color-text-action-primary));
+}
+
+.blade-radio input:focus-visible + .blade-radio__control {
+  outline: 2px solid var(--kn-color-border-action-primary, currentColor);
+  outline-offset: 2px;
+}
+
 .role-perm {
   display: flex;
   flex-direction: column;
@@ -9658,11 +10315,11 @@ h3.role-perm__heading:has(.info-tip) {
 
 .role-perm__row.is-ai-suggested {
   align-items: center;
-  background: color-mix(in srgb, var(--ai-assistant-accent-faded, var(--blade-ai-accent-subtle)) 55%, transparent);
+  background: color-mix(in srgb, var(--ai-assistant-accent-faded, var(--blade-ai-accent-subtle)) 28%, transparent);
 }
 
 .role-perm__row.is-ai-suggested:hover {
-  background: color-mix(in srgb, var(--ai-assistant-accent-faded, var(--blade-ai-accent-subtle)) 85%, transparent);
+  background: color-mix(in srgb, var(--ai-assistant-accent-faded, var(--blade-ai-accent-subtle)) 42%, transparent);
 }
 
 .role-perm__row.is-ai-suggested .role-perm__actions {
@@ -10243,9 +10900,9 @@ img.ai-describe-icon {
   animation: ai-suggest-mark-rotate 2.8s var(--blade-motion-easing-standard) infinite;
 }
 
-/* AI-suggested permission rows — light purple wash; reason is a caption, not a card */
+/* AI-suggested permission rows — quiet wash; Describe status carries the count */
 .role-perm__row.is-ai-suggested {
-  background: color-mix(in srgb, var(--ai-assistant-accent-faded, var(--blade-ai-accent-subtle)) 55%, transparent);
+  background: color-mix(in srgb, var(--ai-assistant-accent-faded, var(--blade-ai-accent-subtle)) 28%, transparent);
 }
 
 .role-perm__module-wrap {
@@ -10256,14 +10913,16 @@ img.ai-describe-icon {
   min-width: 0;
 }
 
-/* AI cue: purple sparkle immediately after the module name */
+/* AI cue: subtle spark after the module name (lower contrast, no motion) */
 .role-perm__row.is-ai-suggested .role-perm__module .ai-suggest-mark {
   display: inline-block;
   margin-left: var(--theme-spacing-1);
-  color: var(--ai-assistant-accent, var(--blade-ai-accent-text));
+  color: var(--ai-assistant-accent-text, var(--blade-ai-accent-text));
+  opacity: 0.55;
+  font-size: 0.75em;
   font-weight: var(--kn-font-weight-regular, 400);
   transform-origin: center;
-  animation: ai-suggest-mark-rotate 2.8s var(--blade-motion-easing-standard) infinite;
+  animation: none;
 }
 
 @keyframes ai-suggest-mark-rotate {
@@ -10456,6 +11115,10 @@ img.ai-describe-icon {
   gap: var(--theme-spacing-3);
 }
 
+.role-form-zone--access .role-parties-category {
+  margin-block-start: var(--theme-spacing-1);
+}
+
 .def-role-form-top .blade-field,
 .def-role-form .blade-select--multi {
   max-width: none;
@@ -10565,6 +11228,25 @@ img.ai-describe-icon {
 
 .user-form-grid .blade-field--full {
   grid-column: 1 / -1;
+}
+
+.user-level-radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--theme-spacing-5) var(--theme-spacing-7);
+  align-items: center;
+  min-height: 2.25rem;
+}
+
+.role-table-card tbody td .admin-drawer-status,
+.role-table-card tbody td .role-status {
+  justify-content: flex-start;
+  gap: var(--theme-spacing-3);
+  min-width: 0;
+}
+
+.role-table-card tbody td .admin-drawer-status .type-caption-sm {
+  white-space: nowrap;
 }
 
 .admin-profile-drawer .user-form-grid {

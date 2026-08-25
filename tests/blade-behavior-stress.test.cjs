@@ -637,6 +637,32 @@ test("user roles: mergeDomMultiSelect preserves hidden roles under search", () =
   );
 });
 
+test("user roles: mergeDomMultiSelect preserves prior chip order on full reopen", () => {
+  // Catalog/DOM checkbox order differs from saved selection order — opening the
+  // role menu must not reorder chips (Visibility Read Only before Customer Entity Admin).
+  const prior = ["Visibility Read Only", "Customer Entity Admin"];
+  const visible = [
+    "Analytics Viewer",
+    "Customer Entity Admin",
+    "Visibility Read Only"
+  ];
+  const checked = ["Customer Entity Admin", "Visibility Read Only"];
+  const next = UX.mergeDomMultiSelect(prior, checked, visible);
+  assert.deepStrictEqual(hostArr(next), ["Visibility Read Only", "Customer Entity Admin"]);
+});
+
+test("user roles: mergeDomMultiSelect appends newly checked after prior order", () => {
+  const prior = ["Visibility Read Only", "Customer Entity Admin"];
+  const visible = ["Analytics Viewer", "Customer Entity Admin", "Visibility Read Only"];
+  const checked = ["Analytics Viewer", "Customer Entity Admin", "Visibility Read Only"];
+  const next = UX.mergeDomMultiSelect(prior, checked, visible);
+  assert.deepStrictEqual(hostArr(next), [
+    "Visibility Read Only",
+    "Customer Entity Admin",
+    "Analytics Viewer"
+  ]);
+});
+
 console.log("\nShared helper unit checks");
 test("applyUserField is scoped immutable", () => {
   const form = { name: "A", email: "a@x.com", phone: "1", roles: ["R"] };

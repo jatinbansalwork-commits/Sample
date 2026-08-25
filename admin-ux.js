@@ -83,12 +83,13 @@
   function chips(items) {
     return `<div class="vis-chips vis-quickfilters admin-chips" role="radiogroup" aria-label="Quick filters">
       ${items
-        .map(
-          (item) => `<button class="vis-chip type-ui-sm ${item.selected ? "is-selected" : ""}" type="button" role="radio" data-admin-chip="${escapeHtml(item.id)}" aria-checked="${item.selected}">
-            ${escapeHtml(item.label)}
-            <span class="counter type-caption-sm">${item.count}</span>
-          </button>`
-        )
+        .map((item) => {
+          const count =
+            item.count == null || item.count === ""
+              ? ""
+              : `<span class="counter type-caption-sm">${escapeHtml(String(item.count))}</span>`;
+          return `<button class="vis-chip type-ui-sm ${item.selected ? "is-selected" : ""}" type="button" role="radio" data-admin-chip="${escapeHtml(item.id)}" aria-checked="${item.selected}"><span>${escapeHtml(item.label)}</span>${count}</button>`;
+        })
         .join("")}
     </div>`;
   }
@@ -144,7 +145,7 @@
     </th>`;
   }
 
-  function colBladeSelect({ attr, key, value, label, options, open }) {
+  function colBladeSelect({ attr, key, value, label, options, open, placeholder = "All", emptyLabel = "All" }) {
     const uid = `${attr.replace(/^data-/, "")}-${key}`;
     const labelId = `${uid}-label`;
     return `<th scope="col" class="vis-th-filter-cell--blade-select">
@@ -154,13 +155,13 @@
         name: key,
         value: value || "",
         options: options.map((item) => ({ id: item.value, label: item.label })),
-        placeholder: "All",
+        placeholder,
         labelledBy: labelId,
         openKey: key,
         open,
         compact: true,
         includeEmpty: true,
-        emptyLabel: "All"
+        emptyLabel
       })}
     </th>`;
   }
@@ -169,12 +170,31 @@
     return `<th scope="col" aria-hidden="true"></th>`;
   }
 
+  const TM_COL_FILTER_ATTRS = [
+    "data-user-filter",
+    "data-role-filter",
+    "data-drole-filter",
+    "data-isf-filter",
+    "data-isf-ship-filter",
+    "data-inb-filter",
+    "data-inb-ship-filter",
+    "data-entry-filter",
+    "data-entry-ship-filter",
+    "data-ftz-filter",
+    "data-ftz-ship-filter",
+    "data-psc-filter",
+    "data-psc-ship-filter",
+    "data-do-filter",
+    "data-do-ship-filter",
+    "data-tmship-filter"
+  ];
+
   function captureColFilterFocus(scope) {
     const el = document.activeElement;
     if (!el || !scope?.contains(el)) {
       return null;
     }
-    const attr = ["data-user-filter", "data-role-filter", "data-drole-filter"].find((name) => el.hasAttribute(name));
+    const attr = TM_COL_FILTER_ATTRS.find((name) => el.hasAttribute(name));
     if (!attr) {
       return null;
     }
@@ -221,6 +241,47 @@
 
   function statusBadge(active) {
     return `<span class="badge badge--${active ? "positive" : "negative"} type-caption-sm type-weight-medium">${active ? "Active" : "Inactive"}</span>`;
+  }
+
+  /**
+   * Blade status pill for Transaction Manager lists.
+   * green=accepted/complete; amber=pending/in-progress; information=new/ready; negative=error/hold/reject; neutral=N/A.
+   */
+  function tmStatusBadge(label, tone) {
+    const text = String(label ?? "").trim() || "—";
+    let resolved = tone || "";
+    if (!resolved) {
+      if (/accepted|replace accepted|completed|complete|filed|intranet|published|doc generated|positive/i.test(text)) {
+        resolved = "positive";
+      } else if (/pending|in process|in progress|hold|not created|fin bill|notice/i.test(text)) {
+        resolved = "notice";
+      } else if (/error|reject|negative/i.test(text)) {
+        resolved = "negative";
+      } else if (/n\/a|not applicable|none|—/i.test(text)) {
+        resolved = "neutral";
+      } else {
+        resolved = "information";
+      }
+    }
+    return `<span class="badge badge--${resolved} type-caption-sm type-weight-medium">${escapeHtml(text)}</span>`;
+  }
+
+  /** Single-line cell with ellipsis + native tooltip. */
+  function ellipsisCell(value, className = "type-body-sm") {
+    const text = emptyDisplay(value);
+    return `<span class="${className} tm-ellipsis" title="${escapeHtml(text)}">${escapeHtml(text)}</span>`;
+  }
+
+  /** Skeleton rows for TM table first paint (avoids blank flash). */
+  function tableSkeletonRows({ cols = 8, rows = 8 } = {}) {
+    const cells = Array.from(
+      { length: Math.max(1, cols) },
+      () => `<td><span class="skeleton skeleton--tm-cell" aria-hidden="true"></span></td>`
+    ).join("");
+    return Array.from(
+      { length: Math.max(1, rows) },
+      () => `<tr class="tm-skeleton-row" aria-hidden="true">${cells}</tr>`
+    ).join("");
   }
 
   function statusSwitch({ active, toggleAttr, labelId }) {
@@ -275,8 +336,9 @@
         return `<button class="btn btn--tertiary btn--sm type-ui-sm vis-pagination__page${on ? " is-current" : ""}" type="button" ${pageAttr}="${item}" ${on ? 'aria-current="page"' : ""} aria-label="Page ${item}">${item}</button>`;
       })
       .join("");
+    const fmt = (n) => Number(n).toLocaleString();
     return `<nav class="admin-table__footer vis-pagination" aria-label="${escapeHtml(label || "Pagination")}">
-      <p class="type-caption-sm vis-pagination__label" aria-live="polite">Showing ${from}–${to} of ${total}</p>
+      <p class="type-caption-sm vis-pagination__label" aria-live="polite">Showing ${fmt(from)}–${fmt(to)} of ${fmt(total)}</p>
       <div class="vis-pagination__pages">
         <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" ${pageAttr}="${current - 1}" ${current <= 1 ? "disabled" : ""} aria-label="Previous page">Previous</button>
         ${numbers}
@@ -603,6 +665,7 @@
     return {
       name: String(form?.name || "").trim(),
       applicable: sortedJoin(form?.applicable),
+      partiesCategory: String(form?.partiesCategory || "").trim(),
       permissions: sortedJoin(permList),
       services: sortedJoin(form?.services)
     };
@@ -616,6 +679,7 @@
     return (
       current.name !== snapshot.name ||
       current.applicable !== snapshot.applicable ||
+      current.partiesCategory !== (snapshot.partiesCategory || "") ||
       current.permissions !== snapshot.permissions ||
       current.services !== snapshot.services
     );
@@ -626,37 +690,17 @@
   }
 
   function roleMetaLine({
-    owner,
-    updatedAt,
-    count,
-    countSingular,
-    countPlural,
-    countHref,
-    coveragePct,
     detailsOpen,
     detailsId,
     detailsHtml,
     toggleAttr
   }) {
-    const noun = count === 1 ? countSingular || "person" : countPlural || "people";
-    const countLabel = `${count || 0} ${noun}`;
-    const countPart =
-      countHref && count
-        ? `<a class="blade-link type-caption-sm" href="${escapeHtml(countHref)}">${escapeHtml(countLabel)}</a>`
-        : `<span>${escapeHtml(countLabel)}</span>`;
-    const cov = typeof coveragePct === "number" ? `${coveragePct}% coverage` : "";
-    const bits = [
-      `<span>${escapeHtml(owner || "Unknown")}</span>`,
-      `<span>${escapeHtml(formatMetaDate(updatedAt))}</span>`,
-      countPart,
-      cov ? `<span>${escapeHtml(cov)}</span>` : ""
-    ].filter(Boolean);
+    // Owner / updated / people / coverage live in the Details panel — avoid a dense always-on meta strip.
     const open = Boolean(detailsOpen);
     const panelId = detailsId || "role-meta-details";
     return `<div class="role-meta">
       <div class="role-meta__bar">
-        <p class="role-meta-line type-caption-sm">${bits.join(`<span class="role-meta-line__dot" aria-hidden="true"> · </span>`)}</p>
-        <button class="blade-link type-caption-sm role-meta__details-btn" type="button" ${toggleAttr || "data-admin-details-toggle"} aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}">Details</button>
+        <button class="blade-link type-caption-sm role-meta__details-btn" type="button" ${toggleAttr || "data-admin-details-toggle"} aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}">${open ? "Hide details" : "Details"}</button>
       </div>
       <div class="role-meta__panel" id="${escapeHtml(panelId)}" ${open ? "" : "hidden"}>
         ${detailsHtml || ""}
@@ -1258,7 +1302,7 @@
   function applicableHead({ titleId, title, allSelected, attr }) {
     return `<div class="blade-field__head">
       <span class="type-caption-sm type-weight-medium blade-field__label" id="${escapeHtml(titleId)}">${escapeHtml(title)}</span>
-      <button class="blade-link type-caption-sm" type="button" ${attr}>${allSelected ? "Clear all" : "Select all"}</button>
+      <button class="blade-link type-caption-sm" type="button" ${attr}>${allSelected ? "Unselect All" : "Select All"}</button>
     </div>`;
   }
 
@@ -1770,8 +1814,13 @@
   function mergeDomMultiSelect(priorList, domCheckedKeys, domVisibleKeys) {
     const prior = toKeyList(priorList);
     const visible = new Set(domVisibleKeys || []);
-    const checked = (domCheckedKeys || []).filter(Boolean);
-    return [...prior.filter((key) => key && !visible.has(key)), ...checked];
+    const checkedList = (domCheckedKeys || []).filter(Boolean);
+    const checked = new Set(checkedList);
+    // Keep prior selection order: drop only unchecked *visible* keys; append newly checked at end.
+    const kept = prior.filter((key) => key && (!visible.has(key) || checked.has(key)));
+    const keptSet = new Set(kept);
+    const appended = checkedList.filter((key) => !keptSet.has(key));
+    return [...kept, ...appended];
   }
 
   /**
@@ -1960,6 +2009,9 @@
     confirmModal,
     emptyState,
     statusBadge,
+    tmStatusBadge,
+    ellipsisCell,
+    tableSkeletonRows,
     statusSwitch,
     pagination,
     moreMenu,

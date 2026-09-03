@@ -27,7 +27,7 @@
 
   function escapeHtml(v) { return window.KNAdminUX.escapeHtml(v); }
   function pad(n, w) { return String(n).padStart(w, "0"); }
-  function toast(content, color = "positive") { if (typeof window.showBladeToast === "function") window.showBladeToast({ content, color }); }
+  function toast(content, color = "positive") { if (typeof window.showKnToast === "function") window.showKnToast({ content, color }); }
   function iconCopy() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`; }
   function iconTrash() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`; }
 
@@ -194,7 +194,7 @@
     const chip = state.txn.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-do-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-do-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-do-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.entryNumber)}</span></td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.shipments)}</span></td>
@@ -236,7 +236,7 @@
               ${ux.colFilter({ attr: "data-do-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "entryNumber", value: state.txn.filters.entryNumber, label: "entry number" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments" })}
-              ${ux.colBladeSelect({ attr: "data-do-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }, { value: "OCEAN", label: "OCEAN" }] })}
+              ${ux.colKnSelect({ attr: "data-do-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }, { value: "OCEAN", label: "OCEAN" }] })}
               ${ux.colFilter({ attr: "data-do-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "hbl", value: state.txn.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "carrier", value: state.txn.filters.carrier, label: "carrier" })}
@@ -264,7 +264,7 @@
     const chip = state.ship.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-do-ship-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-do-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-do-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.mbol)}</span></td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.hbol)}</span></td>
@@ -299,7 +299,7 @@
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "mbol", value: state.ship.filters.mbol, label: "MBOL" })}
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "hbol", value: state.ship.filters.hbol, label: "HBOL" })}
-              ${ux.colBladeSelect({ attr: "data-do-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
+              ${ux.colKnSelect({ attr: "data-do-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
               ${ux.emptyColFilter()}
             </tr>
           </thead>
@@ -382,9 +382,9 @@
         }
       })) return;
       const open = event.target.closest("[data-do-open]");
-      if (open) { event.preventDefault(); const row = findTxnRow(open.getAttribute("data-do-open")); toast(`${row?.transactionId || "Filing"} opened as read-only in this sample.`, "notice"); return; }
+      if (open) { event.preventDefault(); const row = findTxnRow(open.getAttribute("data-do-open")); if (row) { location.hash = `#transaction-us-delivery-order/history/${encodeURIComponent(row.id)}`; } return; }
       const shipOpen = event.target.closest("[data-do-ship-open]");
-      if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-do-ship-open")); toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice"); return; }
+      if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-do-ship-open")); if (row) { location.hash = `#transaction-us-delivery-order/history/${encodeURIComponent(row.id)}`; } return; }
       const copy = event.target.closest("[data-do-copy], [data-do-ship-copy]");
       if (copy) {
         event.preventDefault();

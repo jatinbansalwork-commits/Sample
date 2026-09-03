@@ -517,8 +517,8 @@
   }
 
   function toast(content, color = "positive", anchor) {
-    if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color, anchor });
+    if (typeof window.showKnToast === "function") {
+      window.showKnToast({ content, color, anchor });
     }
   }
 
@@ -756,9 +756,9 @@
   }
 
   function levelRadio(name, value, checked, label, dataAttr = "data-user-level") {
-    return `<label class="blade-radio">
+    return `<label class="kn-radio">
       <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${checked ? "checked" : ""} ${dataAttr}="${escapeHtml(value)}" />
-      <span class="blade-radio__control" aria-hidden="true"></span>
+      <span class="kn-radio__control" aria-hidden="true"></span>
       <span class="type-body-sm">${escapeHtml(label)}</span>
     </label>`;
   }
@@ -773,31 +773,33 @@
     }
     const open = inQueue;
     const activeUser = inQueue ? user : null;
-    const roles = (activeUser?.roles || []).map((role) => `<span class="badge type-caption-sm">${escapeHtml(role)}</span>`).join("");
-    return `<div class="blade-drawer-root admin-review-drawer${open ? " is-open" : ""}" id="admin-review-drawer" ${open ? "" : "hidden"}>
-      <div class="blade-drawer__overlay" data-admin-review-close tabindex="-1"></div>
-      <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
-        <header class="blade-drawer__header">
-          <span class="blade-drawer__header-icon" aria-hidden="true">
+    const roles = (activeUser?.roles || []).map((role) => `<span class="badge type-caption-sm kn-badge">${escapeHtml(role)}</span>`).join("");
+    return `<div class="kn-drawer-root admin-review-drawer${open ? " is-open" : ""}" id="admin-review-drawer" ${open ? "" : "hidden"}>
+      <div class="kn-drawer__overlay" data-admin-review-close tabindex="-1"></div>
+      <aside class="kn-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-review-title">
+        <header class="kn-drawer__header">
+          <span class="kn-drawer__header-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.75" fill="currentColor"/></svg>
           </span>
-          <div class="blade-drawer__titles">
+          <div class="kn-drawer__titles">
             <h2 class="type-heading-h5 type-weight-semibold" id="admin-review-title" tabindex="-1">Review inactive access</h2>
             <p class="type-caption-sm">${activeUser ? `${queueIndex + 1} of ${queue.length} privileged inactive ${queue.length === 1 ? "account" : "accounts"}` : "Queue is clear"}</p>
           </div>
           <button class="icon-btn" type="button" data-admin-review-close aria-label="Close review">${iconClose()}</button>
         </header>
-        <div class="blade-drawer__body admin-review">
-          <aside class="blade-alert blade-alert--notice">
-            <span class="blade-alert__icon" aria-hidden="true">
+        <div class="kn-drawer__body admin-review kn-box kn-box--column">
+          <aside class="kn-alert kn-alert--notice kn-alert--full kn-alert--subtle" role="alert" aria-live="polite">
+            <span class="kn-alert__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="17" r="0.75" fill="currentColor"/><path d="M10.3 5.2 3.2 17.5A2 2 0 0 0 4.9 20.5h14.2a2 2 0 0 0 1.7-3L13.7 5.2a2 2 0 0 0-3.4 0Z"/></svg>
             </span>
-            <p class="type-body-sm blade-alert__desc">Inactive people should not keep KN Administrator. Remove the role or reactivate the account.</p>
+            <div class="kn-alert__content">
+              <p class="kn-alert__desc">Inactive people should not keep KN Administrator. Remove the role or reactivate the account.</p>
+            </div>
           </aside>
           ${
             activeUser
               ? `<div class="admin-review__person">
-            <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(window.KNAdminUX.initials(activeUser.name))}</span>
+            <span class="avatar avatar--information type-weight-semibold kn-avatar" aria-hidden="true">${escapeHtml(window.KNAdminUX.initials(activeUser.name))}</span>
             <div>
               <p class="type-body-sm type-weight-semibold">${escapeHtml(activeUser.name)}</p>
               <p class="type-caption-sm">${escapeHtml(activeUser.title || "")} · ${escapeHtml(entityForUser(activeUser))}</p>
@@ -814,21 +816,21 @@
             <p class="type-caption-sm">Roles</p>
             <div class="user-chips">${roles}</div>
           </div>`
-              : `<div class="empty-state"><h3 class="type-heading-h6 type-weight-semibold">Nothing left to review</h3><p class="type-body-sm">Privileged inactive access is cleared.</p></div>`
+              : `<div class="empty-state kn-empty"><div class="kn-empty__copy"><h3 class="kn-empty__title type-heading-h6 type-weight-semibold">Nothing left to review</h3><p class="kn-empty__desc type-body-sm">Privileged inactive access is cleared.</p></div></div>`
           }
         </div>
         ${
           activeUser
-            ? `<footer class="blade-drawer__footer">
-          ${queue.length > 1 ? `<button class="btn btn--tertiary btn--md type-ui-md" type="button" data-admin-review-next>Next person</button>` : `<span></span>`}
-          <div class="blade-drawer__footer-actions">
-            <a class="btn btn--tertiary btn--md type-ui-md" href="#kn-user-management/${encodeURIComponent(activeUser.id)}" data-user-nav="detail" data-user-id="${escapeHtml(activeUser.id)}">View user</a>
-            <button class="btn btn--secondary btn--md type-ui-md" type="button" data-admin-review-activate="${escapeHtml(activeUser.id)}">Reactivate</button>
-            <button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-admin-review-revoke="${escapeHtml(activeUser.id)}">Remove KN Administrator</button>
+            ? `<footer class="kn-drawer__footer">
+          ${queue.length > 1 ? `<button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-admin-review-next>Next person</button>` : `<span></span>`}
+          <div class="kn-drawer__footer-actions">
+            <a class="btn btn--tertiary btn--md type-ui-md kn-btn" href="#kn-user-management/${encodeURIComponent(activeUser.id)}" data-user-nav="detail" data-user-id="${escapeHtml(activeUser.id)}">View user</a>
+            <button class="btn btn--secondary btn--md type-ui-md kn-btn" type="button" data-admin-review-activate="${escapeHtml(activeUser.id)}">Reactivate</button>
+            <button class="btn btn--primary btn--color-negative btn--md type-ui-md kn-btn" type="button" data-admin-review-revoke="${escapeHtml(activeUser.id)}">Remove KN Administrator</button>
           </div>
         </footer>`
-            : `<footer class="blade-drawer__footer">
-          <button class="btn btn--primary btn--md type-ui-md" type="button" data-admin-review-close>Done</button>
+            : `<footer class="kn-drawer__footer">
+          <button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" data-admin-review-close>Done</button>
         </footer>`
         }
       </aside>
@@ -890,7 +892,7 @@
             </div>
           </td>
           <td class="type-body-sm">${escapeHtml(user.email)}</td>
-          <td><span class="badge type-caption-sm type-weight-medium">${escapeHtml(listUserLevel(user))}</span></td>
+          <td><span class="badge type-caption-sm type-weight-medium kn-badge">${escapeHtml(listUserLevel(user))}</span></td>
           <td class="type-body-sm">${escapeHtml(entityForUser(user))}</td>
           <td>${window.KNAdminUX.statusSwitch({
             active: user.active,
@@ -927,7 +929,7 @@
         <h1 class="type-heading-h3 type-weight-semibold">User Management</h1>
         <p class="type-body-sm">People across customers, sub-customers, companies, and parties.</p>
       </div>
-      <a class="btn btn--primary btn--md type-ui-md" href="#kn-user-management/add" data-user-nav="add">Add User</a>
+      <a class="btn btn--primary btn--md type-ui-md kn-btn" href="#kn-user-management/add" data-user-nav="add">Add User</a>
     </header>
     ${ux.toolbar({
       chips: [
@@ -958,7 +960,7 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-user-filter", key: "name", value: state.filters.name, label: "full name", placeholder: "Enter full name" })}
               ${ux.colFilter({ attr: "data-user-filter", key: "email", value: state.filters.email, label: "email address", placeholder: "Enter email address" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-user-filter",
                 key: "level",
                 value: state.filters.level,
@@ -969,7 +971,7 @@
                 options: LEVELS.map((item) => ({ value: item.id, label: item.listLabel }))
               })}
               ${ux.colFilter({ attr: "data-user-filter", key: "entity", value: state.filters.entity, label: "entity name", placeholder: "Enter entity name" })}
-              ${ux.colBladeSelect({ attr: "data-user-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] })}
+              ${ux.colKnSelect({ attr: "data-user-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] })}
               ${ux.emptyColFilter()}
             </tr>
           </thead>
@@ -1008,16 +1010,16 @@
   }
 
   function textField({ id, label, value, type = "text", required = false, disabled = false, error = "", placeholder = "", autocomplete = "off", maxlength = "80" }) {
-    return `<div class="blade-field">
-      <label class="type-caption-sm type-weight-medium" for="${id}">${escapeHtml(label)}${required && !disabled ? ` <span class="role-req" aria-hidden="true">*</span>` : ""}</label>
-      <input class="blade-field__control type-body-sm" id="${id}" name="${id.replace(/^kn-user-/, "")}" type="${type}" ${required && !disabled ? "required" : ""} ${disabled ? "disabled" : ""} maxlength="${maxlength}" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" autocomplete="${autocomplete}" />
-      ${error ? `<p class="type-caption-sm role-form__error">${escapeHtml(error)}</p>` : ""}
+    return `<div class="kn-field">
+      <label class="type-caption-sm type-weight-medium kn-form-label kn-field__label" for="${id}">${escapeHtml(label)}${required && !disabled ? ` <span class="role-req kn-form-necessity" aria-hidden="true">*</span>` : ""}</label>
+      <input class="kn-field__control type-body-sm" id="${id}" name="${id.replace(/^kn-user-/, "")}" type="${type}" ${required && !disabled ? "required" : ""} ${disabled ? "disabled" : ""} maxlength="${maxlength}" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" autocomplete="${autocomplete}" />
+      ${error ? `<p class="type-caption-sm role-form__error kn-form-hint kn-form-hint--error">${escapeHtml(error)}</p>` : ""}
     </div>`;
   }
 
   function renderProfileDrawer(user) {
     const roles = (user.roles || [])
-      .map((role) => `<span class="badge type-caption-sm user-chip">${escapeHtml(role)}</span>`)
+      .map((role) => `<span class="badge type-caption-sm user-chip kn-badge">${escapeHtml(role)}</span>`)
       .join("");
     const reportsLabel = reporterName(user.reportsTo);
     const dash = (value) => (value && value !== "—" ? escapeHtml(value) : "—");
@@ -1031,14 +1033,14 @@
     if (user.level === "CUSTOMER" || user.level === "SUB_CUSTOMER") {
       conditionalFields.push(infoField("Restrictions", user.restrictions === "yes" ? "Yes" : "No"));
     }
-    return `<div class="blade-drawer-root admin-profile-drawer is-open" id="admin-profile-drawer">
-      <div class="blade-drawer__overlay" data-user-profile-close tabindex="-1"></div>
-      <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-user-profile-title">
-        <header class="blade-drawer__header">
-          <div class="blade-drawer__titles">
+    return `<div class="kn-drawer-root admin-profile-drawer is-open" id="admin-profile-drawer">
+      <div class="kn-drawer__overlay" data-user-profile-close tabindex="-1"></div>
+      <aside class="kn-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-user-profile-title">
+        <header class="kn-drawer__header">
+          <div class="kn-drawer__titles">
             <div class="admin-drawer-title-row">
               <h2 class="type-heading-h5 type-weight-semibold" id="kn-user-profile-title" tabindex="-1">${escapeHtml(user.name)}</h2>
-              <span class="badge type-caption-sm type-weight-medium">${escapeHtml(levelLabel(user.level))}</span>
+              <span class="badge type-caption-sm type-weight-medium kn-badge">${escapeHtml(levelLabel(user.level))}</span>
             </div>
           </div>
           ${window.KNAdminUX.statusSwitch({
@@ -1048,7 +1050,7 @@
           })}
           <button class="icon-btn" type="button" data-user-profile-close aria-label="Close user details">${iconClose()}</button>
         </header>
-        <div class="blade-drawer__body admin-review user-form">
+        <div class="kn-drawer__body admin-review user-form kn-box kn-box--column">
           <section class="user-form-section" aria-label="User details">
             <dl class="user-info-grid">
               ${infoField("Email Address", escapeHtml(user.email))}
@@ -1064,10 +1066,10 @@
             <div class="user-chips">${roles || `<span class="type-body-sm">—</span>`}</div>
           </section>
         </div>
-        <footer class="blade-drawer__footer">
-          <button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-user-delete="${escapeHtml(user.id)}">Delete User</button>
-          <div class="blade-drawer__footer-actions">
-            <a class="btn btn--primary btn--md type-ui-md" href="#kn-user-management/${encodeURIComponent(user.id)}/edit" data-user-nav="edit" data-user-id="${escapeHtml(user.id)}">Edit Details</a>
+        <footer class="kn-drawer__footer">
+          <button class="btn btn--primary btn--color-negative btn--md type-ui-md kn-btn" type="button" data-user-delete="${escapeHtml(user.id)}">Delete User</button>
+          <div class="kn-drawer__footer-actions">
+            <a class="btn btn--primary btn--md type-ui-md kn-btn" href="#kn-user-management/${encodeURIComponent(user.id)}/edit" data-user-nav="edit" data-user-id="${escapeHtml(user.id)}">Edit Details</a>
           </div>
         </footer>
       </aside>
@@ -1179,7 +1181,7 @@
     const level = form.level;
     const fields = [];
     if (level === "PARTIES" || level === "SUB_CUSTOMER" || level === "COMPANY") {
-      fields.push(`<div class="blade-field blade-field--full">
+      fields.push(`<div class="kn-field kn-field--full">
         <span class="type-caption-sm type-weight-medium" id="kn-user-subcustomer-label">Select Sub-customer <span class="role-req" aria-hidden="true">*</span></span>
         ${adminSelect({
           id: "kn-user-subcustomer",
@@ -1195,7 +1197,7 @@
       </div>`);
     }
     if (level === "PARTIES") {
-      fields.push(`<div class="blade-field blade-field--full">
+      fields.push(`<div class="kn-field kn-field--full">
         <span class="type-caption-sm type-weight-medium" id="kn-user-party-label">Select Party <span class="role-req" aria-hidden="true">*</span></span>
         ${adminSelect({
           id: "kn-user-party",
@@ -1212,7 +1214,7 @@
       </div>`);
     }
     if (level === "CUSTOMER" || level === "SUB_CUSTOMER") {
-      fields.push(`<div class="blade-field blade-field--full" role="radiogroup" aria-labelledby="kn-user-restrictions-label">
+      fields.push(`<div class="kn-field kn-field--full" role="radiogroup" aria-labelledby="kn-user-restrictions-label">
         <span class="type-caption-sm type-weight-medium" id="kn-user-restrictions-label">Are there any type of restriction applicable? <span class="role-req" aria-hidden="true">*</span></span>
         <div class="user-level-radios">
           ${levelRadio("restrictions", "yes", form.restrictions === "yes", "Yes", "data-user-restrictions")}
@@ -1228,32 +1230,32 @@
     const isEdit = Boolean(form.id);
     const title = isEdit ? "Edit User" : "Add User";
     const reporters = loadReporters();
-    return `<div class="blade-drawer-root admin-form-drawer is-open" id="admin-user-form-drawer">
-      <div class="blade-drawer__overlay" data-user-form-close tabindex="-1"></div>
-      <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-user-form-title">
-        <header class="blade-drawer__header">
-          <div class="blade-drawer__titles">
+    return `<div class="kn-drawer-root admin-form-drawer is-open" id="admin-user-form-drawer">
+      <div class="kn-drawer__overlay" data-user-form-close tabindex="-1"></div>
+      <aside class="kn-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-user-form-title">
+        <header class="kn-drawer__header">
+          <div class="kn-drawer__titles">
             <h2 class="type-heading-h5 type-weight-semibold" id="kn-user-form-title" tabindex="-1">${title}</h2>
           </div>
           <button class="icon-btn" type="button" data-user-form-close aria-label="Close">${iconClose()}</button>
         </header>
-        <form class="blade-drawer__body user-form" id="kn-user-form" novalidate>
+        <form class="kn-drawer__body user-form kn-form-group kn-box kn-box--column" id="kn-user-form" novalidate>
           <section class="user-form-section" aria-labelledby="kn-user-basic-title">
             <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-basic-title">Basic Information</h3>
             <div class="user-form-grid">
-              <div class="blade-field">
+              <div class="kn-field">
                 <label class="type-caption-sm type-weight-medium" for="kn-user-name">Full Name <span class="role-req" aria-hidden="true">*</span></label>
-                <input class="blade-field__control type-body-sm" id="kn-user-name" name="name" type="text" required maxlength="80" placeholder="Enter full name" value="${escapeHtml(form.name)}" autocomplete="name" />
+                <input class="kn-field__control type-body-sm" id="kn-user-name" name="name" type="text" required maxlength="80" placeholder="Enter full name" value="${escapeHtml(form.name)}" autocomplete="name" />
                 ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
               </div>
-              <div class="blade-field">
+              <div class="kn-field">
                 <label class="type-caption-sm type-weight-medium" for="kn-user-email">Email <span class="role-req" aria-hidden="true">*</span></label>
-                <input class="blade-field__control type-body-sm" id="kn-user-email" name="email" type="email" required maxlength="120" placeholder="Enter email address" value="${escapeHtml(form.email)}" autocomplete="email" ${isEdit ? "disabled" : ""} />
+                <input class="kn-field__control type-body-sm" id="kn-user-email" name="email" type="email" required maxlength="120" placeholder="Enter email address" value="${escapeHtml(form.email)}" autocomplete="email" ${isEdit ? "disabled" : ""} />
                 ${form.emailError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.emailError)}</p>` : ""}
               </div>
-              <div class="blade-field">
+              <div class="kn-field">
                 <span class="type-caption-sm type-weight-medium" id="kn-user-phone-label">Phone Number</span>
-                <div class="blade-phone">
+                <div class="kn-phone">
                   ${adminSelect({
                     id: "kn-user-phone-country",
                     name: "phoneCountry",
@@ -1264,17 +1266,17 @@
                     openKey: "country",
                     includeEmpty: false
                   })}
-                  <input class="blade-field__control type-body-sm" id="kn-user-phone" name="phone" type="tel" inputmode="tel" placeholder="Enter phone number" value="${escapeHtml(form.phone)}" autocomplete="tel" />
+                  <input class="kn-field__control kn-phone__input type-body-sm" id="kn-user-phone" name="phone" type="tel" inputmode="tel" placeholder="Enter phone number" value="${escapeHtml(form.phone)}" autocomplete="tel" aria-labelledby="kn-user-phone-label" />
                 </div>
               </div>
-              <div class="blade-field">
+              <div class="kn-field">
                 <label class="type-caption-sm type-weight-medium" for="kn-user-title">Title</label>
-                <input class="blade-field__control type-body-sm${state.aiFieldMeta?.title ? " is-ai-suggested-field" : ""}" id="kn-user-title" name="title" type="text" maxlength="80" placeholder="Enter title" value="${escapeHtml(form.title)}" />
+                <input class="kn-field__control type-body-sm${state.aiFieldMeta?.title ? " is-ai-suggested-field" : ""}" id="kn-user-title" name="title" type="text" maxlength="80" placeholder="Enter title" value="${escapeHtml(form.title)}" />
                 ${state.aiFieldMeta?.title ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.title) : ""}
               </div>
-              <div class="blade-field blade-field--full">
+              <div class="kn-field kn-field--full">
                 <span class="type-caption-sm type-weight-medium" id="kn-user-reports-label">Reports To</span>
-                <div class="blade-select-row">
+                <div class="kn-select-row">
                   ${adminSelect({
                     id: "kn-user-reports",
                     name: "reportsTo",
@@ -1286,10 +1288,10 @@
                     includeEmpty: false,
                     searchable: true
                   })}
-                  <button class="blade-link type-ui-sm" type="button" data-user-add-reporter>+ Add Reporter</button>
+                  <button class="kn-link type-ui-sm" type="button" data-user-add-reporter>+ Add Reporter</button>
                 </div>
               </div>
-              <div class="blade-field blade-field--full" role="radiogroup" aria-labelledby="kn-user-level-label">
+              <div class="kn-field kn-field--full" role="radiogroup" aria-labelledby="kn-user-level-label">
                 <span class="type-caption-sm type-weight-medium" id="kn-user-level-label">User Level <span class="role-req" aria-hidden="true">*</span></span>
                 <div class="user-level-radios">
                   ${LEVELS.map((item) => levelRadio("level", item.id, form.level === item.id, item.label)).join("")}
@@ -1301,17 +1303,17 @@
           </section>
           <section class="user-form-section" aria-labelledby="kn-user-role-title">
             <h3 class="type-heading-h6 type-weight-semibold" id="kn-user-role-title">User Role</h3>
-            <div class="blade-field">
+            <div class="kn-field">
               <span class="type-caption-sm type-weight-medium" id="kn-user-role-label">Select User Role <span class="role-req" aria-hidden="true">*</span></span>
               ${renderRoleSelect(form)}
               ${form.rolesError ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.rolesError)}</p>` : ""}
             </div>
           </section>
         </form>
-        <footer class="blade-drawer__footer">
-          <div class="blade-drawer__footer-actions">
-            <a class="btn btn--tertiary btn--md type-ui-md" href="${isEdit ? `#kn-user-management/${encodeURIComponent(form.id)}` : "#kn-user-management"}" data-user-nav="${isEdit ? "detail" : "list"}" data-user-id="${escapeHtml(form.id)}">Cancel</a>
-            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-user-form">${isEdit ? "Update User" : "Add User"}</button>
+        <footer class="kn-drawer__footer">
+          <div class="kn-drawer__footer-actions">
+            <a class="btn btn--tertiary btn--md type-ui-md kn-btn" href="${isEdit ? `#kn-user-management/${encodeURIComponent(form.id)}` : "#kn-user-management"}" data-user-nav="${isEdit ? "detail" : "list"}" data-user-id="${escapeHtml(form.id)}">Cancel</a>
+            <button class="btn btn--primary btn--md type-ui-md kn-btn" type="submit" form="kn-user-form">${isEdit ? "Update User" : "Add User"}</button>
           </div>
         </footer>
       </aside>
@@ -1321,29 +1323,29 @@
   function renderModals() {
     const reporterOpen = state.modal === "reporter";
     const deleteUser = state.modal === "delete" ? findUser(state.deleteId) : null;
-    return `<div class="blade-modal-root" ${reporterOpen ? "" : "hidden"}>
-      <div class="blade-modal__overlay" data-user-modal-dismiss tabindex="-1"></div>
-      <div class="blade-modal" role="dialog" aria-modal="true" aria-labelledby="kn-user-reporter-title">
-        <header class="blade-modal__header">
+    return `<div class="kn-modal-root" ${reporterOpen ? "" : "hidden"}>
+      <div class="kn-modal__overlay" data-user-modal-dismiss tabindex="-1"></div>
+      <div class="kn-modal" role="dialog" aria-modal="true" aria-labelledby="kn-user-reporter-title">
+        <header class="kn-modal__header">
           <div>
             <h2 class="type-heading-h5 type-weight-semibold" id="kn-user-reporter-title">Add Reporting User</h2>
             <p class="type-caption-sm">Please enter the below information</p>
           </div>
           <button class="icon-btn" type="button" data-user-modal-dismiss aria-label="Close">${iconClose()}</button>
         </header>
-        <form class="blade-modal__body" id="kn-user-reporter-form" novalidate>
-          <div class="blade-field">
+        <form class="kn-modal__body" id="kn-user-reporter-form" novalidate>
+          <div class="kn-field">
             <label class="type-caption-sm type-weight-medium" for="kn-reporter-name">Full Name <span class="role-req" aria-hidden="true">*</span></label>
-            <input class="blade-field__control type-body-sm" id="kn-reporter-name" name="name" type="text" required maxlength="80" placeholder="Enter full name" value="${escapeHtml(state.reporterForm.name)}" />
+            <input class="kn-field__control type-body-sm" id="kn-reporter-name" name="name" type="text" required maxlength="80" placeholder="Enter full name" value="${escapeHtml(state.reporterForm.name)}" />
           </div>
-          <div class="blade-field">
+          <div class="kn-field">
             <label class="type-caption-sm type-weight-medium" for="kn-reporter-email">Email <span class="role-req" aria-hidden="true">*</span></label>
-            <input class="blade-field__control type-body-sm" id="kn-reporter-email" name="email" type="email" required maxlength="120" placeholder="Enter email address" value="${escapeHtml(state.reporterForm.email)}" />
+            <input class="kn-field__control type-body-sm" id="kn-reporter-email" name="email" type="email" required maxlength="120" placeholder="Enter email address" value="${escapeHtml(state.reporterForm.email)}" />
           </div>
           ${state.reporterForm.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(state.reporterForm.error)}</p>` : ""}
-          <div class="blade-modal__footer">
-            <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-user-modal-dismiss>Cancel</button>
-            <button class="btn btn--primary btn--md type-ui-md" type="submit">Add</button>
+          <div class="kn-modal__footer">
+            <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-user-modal-dismiss>Cancel</button>
+            <button class="btn btn--primary btn--md type-ui-md kn-btn" type="submit">Add</button>
           </div>
         </form>
       </div>
@@ -1897,7 +1899,7 @@
         return;
       }
       const row = event.target.closest("tr[data-user-id]");
-      if (row && !event.target.closest("a, button, input, label, .blade-select, .user-row-actions, .admin-more")) {
+      if (row && !event.target.closest("a, button, input, label, .kn-select, .user-row-actions, .admin-more")) {
         const id = row.getAttribute("data-user-id");
         const route = parseRoute();
         if (route.view !== "list" && route.id === id) {
@@ -2281,7 +2283,7 @@
     closeFormMenus();
     document
       .getElementById("kn-user-root")
-      ?.querySelectorAll(".blade-drawer-root, .blade-modal-root")
+      ?.querySelectorAll(".kn-drawer-root, .kn-modal-root")
       .forEach((node) => node.remove());
   }
 
@@ -2304,7 +2306,7 @@
       if ((!state.roleMenuOpen && !state.selectOpen && !state.menuOpen) || page.hidden) {
         return;
       }
-      if (event.target.closest(".blade-select, .admin-more, [data-user-role-toggle], [data-admin-select-toggle], [data-admin-more-toggle]")) {
+      if (event.target.closest(".kn-select, .admin-more, [data-user-role-toggle], [data-admin-select-toggle], [data-admin-more-toggle]")) {
         return;
       }
       if (state.form) {

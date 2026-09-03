@@ -18,16 +18,26 @@
       const label = node.querySelector("[data-ais-label]");
       const dot = node.querySelector(".indicator");
       if (label) {
-        label.textContent = list.length ? `Live positions · ${list.length}` : "Connecting…";
+        label.textContent = live
+          ? `Live positions · ${list.length}`
+          : list.length
+            ? `Demo positions · ${list.length}`
+            : "Connecting…";
       }
       if (dot) {
-        const isLive = list.length > 0;
-        dot.classList.toggle("indicator--positive", isLive);
-        dot.classList.toggle("indicator--notice", !isLive);
+        // Reflect the actual feed state, not just "do we have any rows" — a demo
+        // fallback has rows too, and showing it as "positive/live" hides that the
+        // real feed is down.
+        dot.classList.toggle("indicator--positive", live);
+        dot.classList.toggle("indicator--notice", !live);
       }
       node.setAttribute(
         "data-tooltip",
-        list.length ? "Vessel positions update as they report in" : "Waiting for vessel positions"
+        live
+          ? "Vessel positions update as they report in"
+          : list.length
+            ? "Showing simulated demo positions — live feed unavailable"
+            : "Waiting for vessel positions"
       );
     });
   }
@@ -127,18 +137,41 @@
     const urls = [`${location.origin}/ais`, "http://127.0.0.1:8787/ais"];
     const unique = [...new Set(urls)];
     let index = 0;
+    let retryTimer = 0;
+    let retryDelay = 3000;
+    const MAX_RETRY_DELAY = 15000;
+
+    // Exhausting the candidate list, or losing a connection that was live, both fall
+    // back to demo mode — but neither is permanent. Without this, a transient blip
+    // strands the map in demo mode until a full page reload (no reconnect ever fires).
+    const scheduleRetry = () => {
+      if (retryTimer) {
+        return;
+      }
+      live = false;
+      reason = "demo";
+      if (demo.length) {
+        setVessels(demo, false, "demo");
+      } else {
+        emit();
+      }
+      retryTimer = window.setTimeout(() => {
+        retryTimer = 0;
+        retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+        index = 0;
+        tryNext();
+      }, retryDelay);
+    };
+
     const tryNext = () => {
       if (index >= unique.length) {
-        live = false;
-        reason = "demo";
-        if (demo.length) {
-          setVessels(demo, false, "demo");
-        }
+        scheduleRetry();
         return;
       }
       const url = unique[index];
       index += 1;
       const es = connect(url);
+      let wasLive = false;
       const timer = window.setTimeout(() => {
         if (!live && source === es) {
           es.close();
@@ -146,15 +179,27 @@
           tryNext();
         }
       }, 1800);
-      const stopTimer = () => window.clearTimeout(timer);
-      es.addEventListener("status", stopTimer);
-      es.addEventListener("vessels", stopTimer);
+      const markLive = () => {
+        window.clearTimeout(timer);
+        wasLive = true;
+        retryDelay = 3000;
+      };
+      es.addEventListener("status", markLive);
+      es.addEventListener("vessels", markLive);
       es.addEventListener("error", () => {
         window.clearTimeout(timer);
         if (source === es) {
           es.close();
           source = null;
-          tryNext();
+          if (wasLive) {
+            // This candidate was working and just dropped — retry the walk from the
+            // top (it's the one worth reconnecting to) instead of continuing past it
+            // through an already-exhausted remainder of the list.
+            index = 0;
+            scheduleRetry();
+          } else {
+            tryNext();
+          }
         }
       });
     };

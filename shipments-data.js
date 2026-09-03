@@ -55,7 +55,108 @@ function knShipmentAmount(id) {
 }
 
 function knFormatUsd(value) {
-  return `$${Number(value || 0).toLocaleString("en-US")}`;
+  return formatKnAmountParts(value, { currency: "USD", suffix: "none" }).label;
+}
+
+function formatKnAmountParts(value, options = {}) {
+  const currency = options.currency || "USD";
+  const suffix = options.suffix || "decimals";
+  const fractionDigits = options.fractionDigits === undefined ? 2 : options.fractionDigits;
+  const currencyIndicator = options.currencyIndicator || "currency-symbol";
+  const locale = options.locale || "en-US";
+  const empty = {
+    sign: "",
+    currency: "",
+    integer: "—",
+    decimal: "",
+    compact: "",
+    prefix: true,
+    label: "—",
+    code: currency
+  };
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return empty;
+  }
+
+  const intl = { style: "currency", currency };
+  if (suffix === "none") {
+    intl.maximumFractionDigits = 0;
+    intl.minimumFractionDigits = 0;
+    intl.roundingMode = "floor";
+  } else if (suffix === "humanize") {
+    intl.notation = "compact";
+    intl.maximumFractionDigits = 2;
+    intl.minimumFractionDigits = 0;
+  } else if (fractionDigits !== "auto") {
+    intl.maximumFractionDigits = fractionDigits;
+    intl.minimumFractionDigits = fractionDigits;
+  }
+
+  let formatter;
+  try {
+    formatter = new Intl.NumberFormat(locale, intl);
+  } catch {
+    try {
+      delete intl.roundingMode;
+      formatter = new Intl.NumberFormat(locale, intl);
+    } catch {
+      return { ...empty, integer: String(num), currency, label: `${currency} ${num}` };
+    }
+  }
+
+  const parts = formatter.formatToParts(num);
+  let sign = "";
+  let curr = "";
+  let integer = "";
+  let decimalSep = "";
+  let fraction = "";
+  let compact = "";
+  let prefix = true;
+  let seenNumber = false;
+  parts.forEach((part) => {
+    if (part.type === "minusSign" || part.type === "plusSign") {
+      sign = part.value;
+    } else if (part.type === "currency") {
+      curr = currencyIndicator === "currency-code" ? currency : part.value;
+      if (seenNumber) {
+        prefix = false;
+      }
+    } else if (part.type === "integer" || part.type === "group") {
+      integer += part.value;
+      seenNumber = true;
+    } else if (part.type === "decimal") {
+      decimalSep = part.value;
+    } else if (part.type === "fraction") {
+      fraction += part.value;
+    } else if (part.type === "compact") {
+      compact += part.value;
+    }
+  });
+
+  return {
+    sign,
+    currency: curr,
+    integer: integer || "0",
+    decimal: fraction ? `${decimalSep}${fraction}` : "",
+    compact,
+    prefix,
+    label: formatter.format(num),
+    code: currency
+  };
+}
+
+function knAmountHtml(value, className, options) {
+  const parts = formatKnAmountParts(value, options);
+  const classes = `${className || "kn-amount kn-amount--body kn-amount--medium kn-amount--subtle-affix"}${
+    parts.prefix ? "" : " kn-amount--currency-end"
+  }`;
+  const currency = parts.currency ? `<span class="kn-amount__currency">${parts.currency}</span>` : "";
+  const number = `<span class="kn-amount__integer">${parts.integer}</span><span class="kn-amount__decimal">${parts.decimal}</span><span class="kn-amount__compact">${parts.compact}</span>`;
+  const inner = parts.prefix
+    ? `${currency}${number}`
+    : `${number}${currency}`;
+  return `<span class="${classes}" aria-label="Total value in ${parts.code}: ${parts.label}"><span class="kn-amount__sign">${parts.sign}</span>${inner}</span>`;
 }
 
 function knFormatEta(dateStr) {
@@ -149,6 +250,8 @@ function knSummarizeShipments(list) {
 window.knIsActionNeeded = knIsActionNeeded;
 window.knShipmentAmount = knShipmentAmount;
 window.knFormatUsd = knFormatUsd;
+window.formatKnAmountParts = formatKnAmountParts;
+window.knAmountHtml = knAmountHtml;
 window.knFormatEta = knFormatEta;
 window.knSummarizeShipments = knSummarizeShipments;
 window.KN_MOT_LABELS = KN_MOT_LABELS;

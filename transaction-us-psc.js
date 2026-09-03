@@ -34,7 +34,7 @@
   function escapeHtml(v) { return window.KNAdminUX.escapeHtml(v); }
   function pad(n, w) { return String(n).padStart(w, "0"); }
   function formatDate(date) { return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date); }
-  function toast(content, color = "positive") { if (typeof window.showBladeToast === "function") window.showBladeToast({ content, color }); }
+  function toast(content, color = "positive") { if (typeof window.showKnToast === "function") window.showKnToast({ content, color }); }
   function iconCopy() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`; }
   function iconTrash() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`; }
 
@@ -235,8 +235,8 @@
     const shown = expanded ? ids : ids.slice(0, 1);
     const joined = shown.join(" · ");
     const more = !expanded && ids.length > 1
-      ? ` <button class="blade-link type-caption-sm" type="button" data-psc-more="${escapeHtml(row.id)}">+${ids.length - 1}</button>`
-      : (expanded && ids.length > 1 ? ` <button class="blade-link type-caption-sm" type="button" data-psc-more="${escapeHtml(row.id)}">less</button>` : "");
+      ? ` <button class="kn-link type-caption-sm" type="button" data-psc-more="${escapeHtml(row.id)}">+${ids.length - 1}</button>`
+      : (expanded && ids.length > 1 ? ` <button class="kn-link type-caption-sm" type="button" data-psc-more="${escapeHtml(row.id)}">less</button>` : "");
     return `<span class="type-body-sm tm-ellipsis" title="${escapeHtml(ids.join(" · "))}">${escapeHtml(joined)}</span>${more}`;
   }
 
@@ -254,7 +254,7 @@
     const chip = state.txn.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-psc-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-psc-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-psc-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td>${pscIdCell(row)}</td>
           <td class="admin-table-nowrap">${pscTypeBadge(row.pscType)}</td>
@@ -296,11 +296,11 @@
               ${ux.colFilter({ attr: "data-psc-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
               ${ux.colFilter({ attr: "data-psc-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-psc-filter", key: "pscTransactionId", value: state.txn.filters.pscTransactionId, label: "PSC transaction ID" })}
-              ${ux.colBladeSelect({ attr: "data-psc-filter", key: "pscType", value: state.txn.filters.pscType, label: "PSC type", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "Standalone PSC", label: "Standalone PSC" }, { value: "PSC", label: "PSC" }] })}
+              ${ux.colKnSelect({ attr: "data-psc-filter", key: "pscType", value: state.txn.filters.pscType, label: "PSC type", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "Standalone PSC", label: "Standalone PSC" }, { value: "PSC", label: "PSC" }] })}
               ${ux.colFilter({ attr: "data-psc-filter", key: "entryNumber", value: state.txn.filters.entryNumber, label: "entry number" })}
               ${ux.colFilter({ attr: "data-psc-filter", key: "username", value: state.txn.filters.username, label: "username" })}
               ${ux.colFilter({ attr: "data-psc-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments" })}
-              ${ux.colBladeSelect({ attr: "data-psc-filter", key: "pscStatus", value: state.txn.filters.pscStatus, label: "PSC status", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "NONE", label: "NONE" }, { value: "IN PROCESS", label: "IN PROCESS" }, { value: "ACCEPTED", label: "ACCEPTED" }, { value: "READY", label: "READY" }] })}
+              ${ux.colKnSelect({ attr: "data-psc-filter", key: "pscStatus", value: state.txn.filters.pscStatus, label: "PSC status", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "NONE", label: "NONE" }, { value: "IN PROCESS", label: "IN PROCESS" }, { value: "ACCEPTED", label: "ACCEPTED" }, { value: "READY", label: "READY" }] })}
               ${ux.colFilter({ attr: "data-psc-filter", key: "filingDate", value: state.txn.filters.filingDate, label: "filing date" })}
               ${ux.emptyColFilter()}
             </tr>
@@ -326,7 +326,7 @@
     const chip = state.ship.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-psc-ship-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-psc-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-psc-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="admin-table-nowrap">${statusBadge(row.shipmentState, row.stateTone)}</td>
           <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(row.eta)}</td>
@@ -368,10 +368,10 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
-              ${ux.colBladeSelect({ attr: "data-psc-ship-filter", key: "shipmentState", value: state.ship.filters.shipmentState, label: "shipment state", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "New", label: "New" }, { value: "Completed", label: "Completed" }] })}
+              ${ux.colKnSelect({ attr: "data-psc-ship-filter", key: "shipmentState", value: state.ship.filters.shipmentState, label: "shipment state", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "New", label: "New" }, { value: "Completed", label: "Completed" }] })}
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "eta", value: state.ship.filters.eta, label: "ETA" })}
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "vesselName", value: state.ship.filters.vesselName, label: "vessel" })}
-              ${ux.colBladeSelect({ attr: "data-psc-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
+              ${ux.colKnSelect({ attr: "data-psc-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "mbl", value: state.ship.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "hbl", value: state.ship.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-psc-ship-filter", key: "countryExport", value: state.ship.filters.countryExport, label: "country of export" })}
@@ -454,9 +454,9 @@
         }
       })) return;
       const open = event.target.closest("[data-psc-open]");
-      if (open) { event.preventDefault(); const row = findTxnRow(open.getAttribute("data-psc-open")); toast(`${row?.transactionId || "Filing"} opened as read-only in this sample.`, "notice"); return; }
+      if (open) { event.preventDefault(); const row = findTxnRow(open.getAttribute("data-psc-open")); if (row) { location.hash = `#transaction-us-psc/history/${encodeURIComponent(row.id)}`; } return; }
       const shipOpen = event.target.closest("[data-psc-ship-open]");
-      if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-psc-ship-open")); toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice"); return; }
+      if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-psc-ship-open")); if (row) { location.hash = `#transaction-us-psc/history/${encodeURIComponent(row.id)}`; } return; }
       const copy = event.target.closest("[data-psc-copy], [data-psc-ship-copy]");
       if (copy) {
         event.preventDefault();

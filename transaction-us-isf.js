@@ -9,6 +9,16 @@
     return d.toISOString();
   })();
   let refreshTimer = null;
+  // Set right before a Prev/Next navigation so the detail view keeps the current
+  // tab instead of resetting to Header — consumed once by the very next render().
+  let keepDetailTabOnNextRender = false;
+  // Same brief-skeleton-then-reveal shape as shipment-detail.js's own detail
+  // load (loadToken guards a stale timeout from a superseded navigation firing
+  // after a newer one); id-based dedupe skips it when a within-record
+  // interaction (tab click, folder click, a modal) re-renders the same row.
+  let detailLoadedRowId = "";
+  let detailLoadToken = 0;
+  let detailLoadTimer = null;
 
   const COMPANIES = [
     "GLOBAL-PAK",
@@ -82,6 +92,19 @@
     { label: "PENDING SUBMISSION", chip: "pending" }
   ];
 
+  // Options offered in the "Update Transaction Status" modal, each mapped to the chip
+  // group (submitted/pending/finBill) it should file under once applied.
+  const TXN_STATUS_OPTIONS = [
+    { id: "New", label: "New", chip: "pending" },
+    { id: "In Process", label: "In Process", chip: "pending" },
+    { id: "Ready", label: "Ready", chip: "pending" },
+    { id: "Pending Submission", label: "Pending Submission", chip: "pending" },
+    { id: "Filed", label: "Filed", chip: "submitted" },
+    { id: "Accepted", label: "Accepted", chip: "submitted" },
+    { id: "Replace Accepted", label: "Replace Accepted", chip: "submitted" },
+    { id: "Fin Bill Match", label: "Fin Bill Match", chip: "finBill" }
+  ];
+
   const SHIP_STATES = [
     { label: "NOT CREATED", chip: "notCreated", tone: "notice" },
     { label: "IN PROGRESS", chip: "inProgress", tone: "information" },
@@ -126,6 +149,7 @@
     selectOpen: "",
     booting: false,
     ready: false,
+    statusModal: { id: "", value: "" },
     txn: {
       page: 1,
       pageSize: 100,
@@ -323,17 +347,25 @@
   }
 
   function toast(content, color = "positive") {
-    if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color });
+    if (typeof window.showKnToast === "function") {
+      window.showKnToast({ content, color });
     }
   }
 
-  function iconCopy() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`;
+  function iconList() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="6" r="1"/><path d="M9 6h11"/><circle cx="4" cy="12" r="1"/><path d="M9 12h11"/><circle cx="4" cy="18" r="1"/><path d="M9 18h11"/></svg>`;
   }
 
-  function iconTrash() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`;
+  function iconPencil() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+  }
+
+  function iconDoc() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>`;
+  }
+
+  function iconRefresh() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>`;
   }
 
   function statusBadge(label, tone) {
@@ -480,17 +512,67 @@
     });
   }
 
-  function rowActions(id, label, prefix) {
-    const ux = window.KNAdminUX;
+  function rowActions(id, label, prefix, opts = {}) {
+    if (opts.onlyDocument) {
+      return `<div class="user-row-actions">
+        <button class="icon-btn" type="button" data-${prefix}-document="${escapeHtml(id)}" aria-label="View document for ${escapeHtml(label)}" data-tooltip="Document">${iconDoc()}</button>
+      </div>`;
+    }
     return `<div class="user-row-actions">
-      <button class="icon-btn" type="button" data-${prefix}-copy="${escapeHtml(id)}" aria-label="Copy ${escapeHtml(label)}" data-tooltip="Copy">${iconCopy()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-delete="${escapeHtml(id)}" aria-label="Delete ${escapeHtml(label)}" data-tooltip="Delete">${iconTrash()}</button>
-      ${ux.moreMenu({
-        id,
-        open: state.menuOpen === id,
-        items: [{ label: "View history", attr: `data-${prefix}-history="${escapeHtml(id)}"` }]
-      })}
+      <button class="icon-btn" type="button" data-${prefix}-history="${escapeHtml(id)}" aria-label="History for ${escapeHtml(label)}" data-tooltip="History">${iconList()}</button>
+      <button class="icon-btn" type="button" data-${prefix}-open="${escapeHtml(id)}" aria-label="Edit ${escapeHtml(label)}" data-tooltip="Edit">${iconPencil()}</button>
+      <button class="icon-btn" type="button" data-${prefix}-document="${escapeHtml(id)}" aria-label="View document for ${escapeHtml(label)}" data-tooltip="Document">${iconDoc()}</button>
+      <button class="icon-btn" type="button" data-${prefix}-refresh="${escapeHtml(id)}" aria-label="Update status for ${escapeHtml(label)}" data-tooltip="Update Status">${iconRefresh()}</button>
     </div>`;
+  }
+
+  function openStatusModal(row) {
+    state.statusModal = { id: row.id, value: row.status || "" };
+    state.selectOpen = "";
+    render();
+  }
+
+  function closeStatusModal() {
+    state.statusModal = { id: "", value: "" };
+    state.selectOpen = "";
+  }
+
+  function renderStatusModal() {
+    const ux = window.KNAdminUX;
+    const row = state.statusModal.id ? findTxnRow(state.statusModal.id) : null;
+    if (!row) {
+      return "";
+    }
+    const bodyHtml = `
+      <div class="kn-field">
+        <span class="type-caption-sm type-weight-medium kn-field__label">Current Status</span>
+        <div>${statusBadge(row.status)}</div>
+      </div>
+      <div class="kn-field">
+        <span class="type-caption-sm type-weight-medium kn-field__label" id="kn-isf-status-select-label">Transaction Status</span>
+        ${ux.select({
+          id: "kn-isf-status-select",
+          name: "isfStatus",
+          value: state.statusModal.value,
+          options: TXN_STATUS_OPTIONS,
+          placeholder: "Select a status",
+          labelledBy: "kn-isf-status-select-label",
+          openKey: "isf-status",
+          open: state.selectOpen
+        })}
+      </div>`;
+    const footerHtml = `
+      <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-admin-modal-dismiss>Cancel</button>
+      <button class="btn btn--primary btn--md type-ui-md" type="button" data-isf-status-confirm ${state.statusModal.value ? "" : "disabled"}>Update</button>`;
+    return ux.modalShell({
+      open: true,
+      id: "kn-isf-status-modal",
+      titleId: "kn-isf-status-title",
+      title: `Update Transaction Status (Transaction ID: ${row.transactionId})`,
+      dismissAttr: "data-admin-modal-dismiss",
+      bodyHtml,
+      footerHtml
+    });
   }
 
   function renderTxnTable() {
@@ -513,10 +595,8 @@
       ? pageRows
           .map(
             (row) => `<tr data-isf-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap">
-            <a class="blade-link admin-name-link" href="#transaction-us-isf" data-isf-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}">
-              <span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span>
-            </a>
+          <td class="admin-table-nowrap" title="${escapeHtml(row.transactionId)}">
+            <span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span>
           </td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td>${multilineCell(row.cbpNumber)}</td>
@@ -615,7 +695,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading ISF shipments." })}
-      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table isf-table" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th><th scope="col">Actions</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
+      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table isf-table isf-table--ship" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th><th scope="col">Actions</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -632,7 +712,7 @@
           .map(
             (row) => `<tr data-isf-ship-id="${escapeHtml(row.id)}" tabindex="0">
           <td class="admin-table-nowrap">
-            <a class="blade-link admin-name-link" href="#transaction-us-isf" data-isf-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}">
+            <a class="kn-link admin-name-link" href="#transaction-us-isf" data-isf-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}">
               <span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span>
             </a>
           </td>
@@ -645,7 +725,7 @@
           <td class="type-body-sm">${escapeHtml(row.countryExport)}</td>
           <td class="type-body-sm">${escapeHtml(row.countryImport)}</td>
           <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
-          <td>${rowActions(row.id, row.shipmentId, "isf-ship")}</td>
+          <td>${rowActions(row.id, row.shipmentId, "isf-ship", { onlyDocument: true })}</td>
         </tr>`
           )
           .join("")
@@ -666,7 +746,7 @@
     })}
     <div class="vis-table-wrap role-table-card isf-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table isf-table" aria-label="US ISF shipments">
+        <table class="vis-table vis-table--admin tm-table isf-table isf-table--ship" aria-label="US ISF shipments">
           <thead>
             <tr class="vis-table__labels">
               ${sortHeader("shipmentId", "Shipment ID", "data-isf-ship-sort")}
@@ -684,7 +764,7 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-isf-ship-filter",
                 key: "shipmentState",
                 value: state.ship.filters.shipmentState,
@@ -704,7 +784,7 @@
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "hbl", value: state.ship.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "countryExport", value: state.ship.filters.countryExport, label: "country of export" })}
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "countryImport", value: state.ship.filters.countryImport, label: "country of import" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-isf-ship-filter",
                 key: "mot",
                 value: state.ship.filters.mot,
@@ -749,12 +829,89 @@
     </div>`;
   }
 
+  function goto(hash) {
+    if (location.hash === hash) {
+      render();
+      return;
+    }
+    location.hash = hash;
+  }
+
+  function historyRouteId() {
+    const match = String(location.hash || "").match(/^#transaction-us-isf\/history\/([^/]+)$/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function transactionLabel(id) {
+    return findTxnRow(id)?.transactionId || "";
+  }
+
   function render() {
     const page = document.getElementById("kn-isf-page");
     const root = document.getElementById("kn-isf-root");
     if (!page || !root || page.hidden) {
       return;
     }
+    const historyId = historyRouteId();
+    if (historyId) {
+      const row = findTxnRow(historyId);
+      if (!row) {
+        toast("That ISF transaction is no longer available.", "notice");
+        goto("#transaction-us-isf");
+        return;
+      }
+      const isNewRow = row.id !== detailLoadedRowId;
+      const keepTab = keepDetailTabOnNextRender;
+      keepDetailTabOnNextRender = false;
+      const revealDetail = () => {
+        detailLoadedRowId = row.id;
+        // The detail view re-renders on every keystroke in its doc-type search
+        // box (like the list page's own column filters) — same capture/restore
+        // shape as window.KNAdminUX.captureColFilterFocus, just scoped to this
+        // one input since it isn't one of that helper's known filter attributes.
+        const active = document.activeElement;
+        const searchFocus =
+          active && root.contains(active) && active.hasAttribute("data-isf-add-doc-search")
+            ? { start: active.selectionStart, end: active.selectionEnd }
+            : null;
+        root.innerHTML = window.KNIsfDetail.render(row, {
+          hasPrev: Boolean(adjacentTxnId(historyId, -1)),
+          hasNext: Boolean(adjacentTxnId(historyId, 1)),
+          keepTab
+        });
+        window.KNFileUpload?.hydrate(root);
+        if (searchFocus) {
+          const el = root.querySelector("[data-isf-add-doc-search]");
+          if (el) {
+            el.focus({ preventScroll: true });
+            el.setSelectionRange(searchFocus.start ?? el.value.length, searchFocus.end ?? el.value.length);
+          }
+        }
+      };
+      // Only a genuine navigation to a different filing shows the brief
+      // skeleton — same loadToken-guarded, reduced-motion-respecting shape as
+      // shipment-detail.js's own detail load. Every other re-render (tab
+      // click, folder click, a modal, typing in the search box) re-renders
+      // the same row and must stay instant.
+      if (isNewRow && !prefersReducedMotion() && typeof window.KNIsfDetail.renderSkeleton === "function") {
+        const token = ++detailLoadToken;
+        window.clearTimeout(detailLoadTimer);
+        root.innerHTML = window.KNIsfDetail.renderSkeleton();
+        detailLoadTimer = window.setTimeout(() => {
+          if (token !== detailLoadToken) {
+            return;
+          }
+          revealDetail();
+        }, 500);
+        return;
+      }
+      revealDetail();
+      return;
+    }
+    // Back on the list — clear the loaded-row marker so reopening the same
+    // filing later shows a fresh skeleton instead of skipping it.
+    detailLoadedRowId = "";
+    window.clearTimeout(detailLoadTimer);
     const filterFocus = window.KNAdminUX.captureColFilterFocus(root);
     const updatedLabel = (() => {
       const raw = window.KNAdminUX.relativeTime(lastUpdatedIso);
@@ -770,7 +927,8 @@
         <span class="type-caption-sm isf-updated tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span>
       </div>
     </div>
-    ${state.view === "transaction" ? renderTxnTable() : renderShipTable()}`;
+    ${state.view === "transaction" ? renderTxnTable() : renderShipTable()}
+    ${renderStatusModal()}`;
     window.KNAdminUX.restoreColFilterFocus(root, filterFocus);
   }
 
@@ -789,12 +947,54 @@
     return buildSeed().find((row) => row.id === id);
   }
 
+  // Adjacent record in the *currently filtered/sorted* transaction list — lets a
+  // broker step through their working set from the detail page without bouncing
+  // back to the table each time (same pattern as shipment-detail.js's prev/next).
+  function adjacentTxnId(id, direction) {
+    const rows = filteredTxnRows();
+    const index = rows.findIndex((row) => row.id === id);
+    if (index === -1) {
+      return "";
+    }
+    const next = rows[index + direction];
+    return next ? next.id : "";
+  }
+
   function findShipRow(id) {
     return buildShipSeed().find((row) => row.id === id);
   }
 
   function bind(page) {
     page.addEventListener("click", (event) => {
+      const historyId = historyRouteId();
+      if (historyId) {
+        const row = findTxnRow(historyId);
+        if (row) {
+          if (event.target.closest("[data-isf-detail-prev]")) {
+            event.preventDefault();
+            const prevId = adjacentTxnId(historyId, -1);
+            if (prevId) {
+              keepDetailTabOnNextRender = true;
+              goto(`#transaction-us-isf/history/${encodeURIComponent(prevId)}`);
+            }
+            return;
+          }
+          if (event.target.closest("[data-isf-detail-next]")) {
+            event.preventDefault();
+            const nextId = adjacentTxnId(historyId, 1);
+            if (nextId) {
+              keepDetailTabOnNextRender = true;
+              goto(`#transaction-us-isf/history/${encodeURIComponent(nextId)}`);
+            }
+            return;
+          }
+          const handled = window.KNIsfDetail.handleClick(event, row, { rerender: render });
+          if (handled) {
+            return;
+          }
+        }
+        return;
+      }
       const viewBtn = event.target.closest("[data-isf-view]");
       if (viewBtn) {
         event.preventDefault();
@@ -874,9 +1074,16 @@
             render();
             return;
           }
-          if (state.view === "shipment" && key in state.ship.filters) {
-            state.ship.filters[key] = value;
-            state.ship.page = 1;
+          if (key === "isf-status") {
+            state.statusModal.value = value;
+            render();
+            return;
+          }
+          const filters = state.view === "shipment" ? state.ship.filters : state.txn.filters;
+          if (key in filters) {
+            filters[key] = value;
+            if (state.view === "shipment") state.ship.page = 1;
+            else state.txn.page = 1;
             render();
           }
         }
@@ -884,11 +1091,24 @@
       if (selectHandled) {
         return;
       }
-      const open = event.target.closest("[data-isf-open]");
-      if (open) {
+      if (event.target.closest("[data-admin-modal-dismiss]")) {
         event.preventDefault();
-        const row = findTxnRow(open.getAttribute("data-isf-open"));
-        toast(`${row?.transactionId || "Filing"} opened as read-only in this sample.`, "notice");
+        closeStatusModal();
+        render();
+        return;
+      }
+      const statusConfirm = event.target.closest("[data-isf-status-confirm]");
+      if (statusConfirm) {
+        event.preventDefault();
+        const row = findTxnRow(state.statusModal.id);
+        const chosen = TXN_STATUS_OPTIONS.find((opt) => opt.id === state.statusModal.value);
+        if (row && chosen) {
+          row.status = chosen.label;
+          row.statusChip = chosen.chip;
+          closeStatusModal();
+          toast(`${row.transactionId} status updated to ${chosen.label}.`, "positive");
+          render();
+        }
         return;
       }
       const shipOpen = event.target.closest("[data-isf-ship-open]");
@@ -898,44 +1118,57 @@
         toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice");
         return;
       }
-      const copy = event.target.closest("[data-isf-copy], [data-isf-ship-copy]");
-      if (copy) {
-        event.preventDefault();
-        const isShip = copy.hasAttribute("data-isf-ship-copy");
-        const row = isShip ? findShipRow(copy.getAttribute("data-isf-ship-copy")) : findTxnRow(copy.getAttribute("data-isf-copy"));
-        const text = isShip ? row?.shipmentId || "" : row?.transactionId || "";
-        if (text && navigator.clipboard?.writeText) {
-          navigator.clipboard.writeText(text).then(
-            () => toast(`Copied ${text}.`),
-            () => toast(`Copy ${text} from the table.`, "notice")
-          );
-        } else {
-          toast(text ? `ID ${text}` : "Nothing to copy.", "notice");
-        }
-        return;
-      }
       const history = event.target.closest("[data-isf-history], [data-isf-ship-history]");
       if (history) {
         event.preventDefault();
         const isShip = history.hasAttribute("data-isf-ship-history");
-        const row = isShip
-          ? findShipRow(history.getAttribute("data-isf-ship-history"))
-          : findTxnRow(history.getAttribute("data-isf-history"));
-        const label = isShip ? row?.shipmentId : row?.transactionId;
-        toast(`History for ${label || "record"} is not available in this sample.`, "notice");
+        if (!isShip) {
+          const row = findTxnRow(history.getAttribute("data-isf-history"));
+          if (row) {
+            goto(`#transaction-us-isf/history/${encodeURIComponent(row.id)}`);
+          }
+          return;
+        }
+        const row = findShipRow(history.getAttribute("data-isf-ship-history"));
+        toast(`History for ${row?.shipmentId || "record"} is not available in this sample.`, "notice");
         return;
       }
-      const del = event.target.closest("[data-isf-delete], [data-isf-ship-delete]");
-      if (del) {
+      const doc = event.target.closest("[data-isf-document], [data-isf-ship-document]");
+      if (doc) {
         event.preventDefault();
-        const isShip = del.hasAttribute("data-isf-ship-delete");
-        const row = isShip ? findShipRow(del.getAttribute("data-isf-ship-delete")) : findTxnRow(del.getAttribute("data-isf-delete"));
+        const isShip = doc.hasAttribute("data-isf-ship-document");
+        const row = isShip
+          ? findShipRow(doc.getAttribute("data-isf-ship-document"))
+          : findTxnRow(doc.getAttribute("data-isf-document"));
         const label = isShip ? row?.shipmentId : row?.transactionId;
-        toast(`Delete is disabled in this sample (${label || "record"}).`, "notice");
+        toast(`Document view for ${label || "record"} is not available in this sample.`, "notice");
+        return;
+      }
+      const refresh = event.target.closest("[data-isf-refresh], [data-isf-ship-refresh]");
+      if (refresh) {
+        event.preventDefault();
+        const isShip = refresh.hasAttribute("data-isf-ship-refresh");
+        const row = isShip
+          ? findShipRow(refresh.getAttribute("data-isf-ship-refresh"))
+          : findTxnRow(refresh.getAttribute("data-isf-refresh"));
+        if (!isShip && row) {
+          openStatusModal(row);
+          return;
+        }
+        const label = isShip ? row?.shipmentId : row?.transactionId;
+        toast(`Refresh for ${label || "record"} is not available in this sample.`, "notice");
       }
     });
 
     page.addEventListener("input", (event) => {
+      const historyId = historyRouteId();
+      if (historyId) {
+        const row = findTxnRow(historyId);
+        if (row) {
+          window.KNIsfDetail.handleInput(event, row, { rerender: render });
+        }
+        return;
+      }
       const input = event.target.closest("[data-isf-filter], [data-isf-ship-filter]");
       if (!input || input.tagName === "SELECT") {
         return;
@@ -1037,7 +1270,18 @@
       render();
     });
     document.addEventListener("keydown", (event) => {
-      if (page.hidden || event.key !== "Escape") {
+      if (page.hidden) {
+        return;
+      }
+      const historyId = historyRouteId();
+      if (historyId) {
+        const row = findTxnRow(historyId);
+        if (row) {
+          window.KNIsfDetail.handleKeydown(event, row, { rerender: render });
+        }
+        return;
+      }
+      if (event.key !== "Escape") {
         return;
       }
       if (state.selectOpen || state.menuOpen) {
@@ -1058,6 +1302,7 @@
     },
     listShipments() {
       return buildShipSeed();
-    }
+    },
+    transactionLabel
   };
 })();

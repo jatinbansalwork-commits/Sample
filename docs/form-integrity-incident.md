@@ -6,7 +6,7 @@ Editing permissions via a **row / column / category header checkbox** (or AI sug
 
 **Repro A (KN Role Management — Finance Credits Owner):** role had Finance Management **8/8**. Expanding KlearHub and clicking the **KN Visibility Data** row header checkbox dropped Finance to **0/8** (then only the newly toggled KlearHub keys remained after individual cell clicks).
 
-**Repro B (Default Role Management — Customer Administrator):** restored to **16/228**, then zeroed again in-session; **Update Default Role** stayed enabled/savable. Native `window.confirm` for destructive save either did not appear as Blade chrome or was easy to miss.
+**Repro B (Default Role Management — Customer Administrator):** restored to **16/228**, then zeroed again in-session; **Update Default Role** stayed enabled/savable. Native `window.confirm` for destructive save either did not appear as KlearNow chrome or was easy to miss.
 
 Saving after the wipe persisted near-empty catalogs (roles used by people / inherited by workspaces).
 
@@ -61,7 +61,7 @@ Existing tests only exercised merge + single-key toggle. They **passed while the
 1. **Immutable copies** in `applyPermDependency`, `applyPermDependencyToggle`, `ensureWriteImpliesRead` (`new Set(toKeyList(...))`).
 2. **`syncPermissionSet`** in `admin-ux.js`: no-op when `target === next`; otherwise clear + copy keys. Role/Default Role `syncPermSet` delegates here.
 3. **`persistForm`** refuses to assign `permissions: undefined`.
-4. **Destructive save**: Blade `confirmModal` (`perm-reduce`) instead of `window.confirm`; baseline via `permissionBaselineForSave(stored, formSnapshot)` so a mid-session wipe still prompts against the richer open snapshot.
+4. **Destructive save**: KlearNow `confirmModal` (`perm-reduce`) instead of `window.confirm`; baseline via `permissionBaselineForSave(stored, formSnapshot)` so a mid-session wipe still prompts against the richer open snapshot.
 5. Seed **repair-on-load** (`repairNearEmptySeedRoles`) unchanged for already-corrupted localStorage.
 
 ---
@@ -70,7 +70,7 @@ Existing tests only exercised merge + single-key toggle. They **passed while the
 
 ```bash
 node scripts/form-integrity-test.mjs
-node tests/blade-behavior-stress.test.cjs
+node tests/kn-behavior-stress.test.cjs
 ```
 
 Must fail on the old path:
@@ -104,4 +104,4 @@ If those pass while a browser wipe still reproduces, treat as a new handler bypa
 
 1. Open Finance Credits Owner → Finance **8/8** → expand Other categories / KlearHub → click **row header** on a Visibility module → Finance still **8/8**, KlearHub gains that row.
 2. Open Customer Administrator → **16/228** → same row/col toggle in another category → count does not collapse to 0.
-3. Strip many permissions on a role with people/workspaces → Blade **Remove permissions?** modal appears; Cancel leaves dirty form unsaved.
+3. Strip many permissions on a role with people/workspaces → KlearNow **Remove permissions?** modal appears; Cancel leaves dirty form unsaved.

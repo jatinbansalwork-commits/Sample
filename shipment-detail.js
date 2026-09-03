@@ -209,8 +209,12 @@
   };
 
   const badgeClass = (tone) => {
-    const intense = tone === "negative" || tone === "notice" ? " badge--intense" : "";
-    return `badge badge--${tone || "information"}${intense} type-caption-sm type-weight-medium`;
+    const intense = tone === "negative" || tone === "notice";
+    if (typeof window.knBadgeClass === "function") {
+      return window.knBadgeClass(tone || "information", { emphasis: intense ? "intense" : "subtle" });
+    }
+    const color = tone || "information";
+    return `kn-badge kn-badge--${color} kn-badge--${intense ? "intense" : "subtle"} kn-badge--medium badge badge--${color}${intense ? " badge--intense" : ""}`;
   };
 
   const TITLE_CASE_ACRONYMS = new Set(["PGA", "ETA", "ETD", "POL", "POU", "POD", "PO", "ISF", "BOL", "HBOL"]);
@@ -359,10 +363,12 @@
 
   const emptyState = (icon, title, description, action = "") =>
     `<div class="empty-state vis-empty-state kn-empty">
-      <span class="empty-state__asset" aria-hidden="true">${icon}</span>
-      <p class="type-heading-h5 type-weight-semibold">${escapeHtml(title)}</p>
-      <p class="type-body-sm">${escapeHtml(description)}</p>
-      ${action}
+      <span class="empty-state__asset kn-empty__asset" aria-hidden="true">${icon}</span>
+      <div class="kn-empty__copy">
+      <p class="kn-empty__title type-heading-h5 type-weight-semibold">${escapeHtml(title)}</p>
+      <p class="kn-empty__desc type-body-sm">${escapeHtml(description)}</p>
+      </div>
+      ${action ? `<div class="kn-empty__actions">${action}</div>` : ""}
     </div>`;
 
   function applyDocSearch(scope) {
@@ -525,8 +531,8 @@
   }
 
   function toast(content, color = "information", anchor) {
-    if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color, anchor });
+    if (typeof window.showKnToast === "function") {
+      window.showKnToast({ content, color, anchor });
     }
   }
 
@@ -583,7 +589,7 @@
     window.clearTimeout(closeTimer);
     root.classList.remove("is-open");
     root.hidden = true;
-    window.clearBladeToasts?.();
+    window.clearKnToasts?.();
   }
 
   function stopVisibilityLoading() {
@@ -612,43 +618,46 @@
     root.classList.add("is-skeleton");
     root.setAttribute("aria-busy", "true");
     root.innerHTML = `
-      <header class="blade-drawer__header kn-detail-head">
-        <span class="skeleton skeleton--icon" style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-nested)"></span>
-        <div class="blade-drawer__titles kn-detail-head__copy skeleton-stack">
-          <span class="skeleton skeleton--title" style="width: 9.25rem"></span>
-          <span class="skeleton skeleton--caption" style="width: 12rem"></span>
+      <header class="kn-drawer__header kn-header kn-detail-head kn-detailed-view__head kn-header--no-divider">
+        <span class="skeleton skeleton--icon"></span>
+        <div class="kn-drawer__titles kn-detail-head__copy skeleton-stack">
+          <span class="skeleton skeleton--title kn-detailed-view__skel-id"></span>
+          <span class="skeleton skeleton--caption kn-detailed-view__skel-sub"></span>
         </div>
         <div class="kn-detail-head__actions">
-          <span class="skeleton skeleton--btn" style="width: 4.5rem"></span>
+          <span class="skeleton skeleton--btn kn-detailed-view__skel-action"></span>
           <button class="icon-btn" type="button" id="kn-detail-close" data-kn-detail-close aria-label="Close shipment detail">
-            <img src="./assets/quick-actions/close.svg" width="20" height="20" alt="" />
+            <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
           </button>
         </div>
       </header>
-      <div class="kn-detail-tabs kn-detail-skeleton-tabs" aria-hidden="true">
-        <span class="skeleton skeleton--btn" style="width: 3.5rem"></span>
-        <span class="skeleton skeleton--btn" style="width: 5.5rem"></span>
-        <span class="skeleton skeleton--btn" style="width: 4.5rem"></span>
-        <span class="skeleton skeleton--btn" style="width: 5.25rem"></span>
-        <span class="skeleton skeleton--btn" style="width: 6rem"></span>
-        <span class="skeleton skeleton--btn" style="width: 6rem"></span>
+      <div class="kn-detail-tabs kn-detailed-view__tabs kn-detail-skeleton-tabs" aria-hidden="true">
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-tab"></span>
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-tab--md"></span>
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-action"></span>
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-tab--md"></span>
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-tab--lg"></span>
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-tab--lg"></span>
       </div>
-      <div class="blade-drawer__body kn-detail-panel kn-detail-skeleton-body">
+      <div class="kn-drawer__body kn-detail-panel kn-detailed-view__body kn-detail-skeleton-body kn-box kn-box--column">
         <div class="skeleton-stack kn-detail-skeleton-body">
-          <span class="skeleton skeleton--title" style="width: 8rem"></span>
-          <span class="skeleton skeleton--line" style="width: 100%"></span>
-          <span class="skeleton skeleton--line" style="width: 92%"></span>
-          <span class="skeleton skeleton--line" style="width: 64%"></span>
-          <span class="skeleton skeleton--map" style="height: 12rem"></span>
+          <span class="skeleton skeleton--title kn-detailed-view__skel-title"></span>
+          <span class="skeleton skeleton--line"></span>
+          <span class="skeleton skeleton--line kn-detailed-view__skel-line--long"></span>
+          <span class="skeleton skeleton--line kn-detailed-view__skel-line--mid"></span>
+          <span class="skeleton skeleton--map kn-detailed-view__skel-map"></span>
           <span class="skeleton skeleton--row"></span>
           <span class="skeleton skeleton--row"></span>
         </div>
       </div>
-      <footer class="blade-drawer__footer kn-detail-footer" aria-hidden="true">
-        <span class="skeleton skeleton--btn" style="width: 5rem"></span>
-        <span class="skeleton skeleton--btn" style="width: 9rem"></span>
+      <footer class="kn-drawer__footer kn-footer kn-detail-footer kn-detailed-view__footer" aria-hidden="true">
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-foot"></span>
+        <span class="skeleton skeleton--btn kn-detailed-view__skel-foot--wide"></span>
       </footer>
     `;
+    if (typeof window.KNDetailedView?.hydrate === "function") {
+      window.KNDetailedView.hydrate(root);
+    }
   }
 
   function isDetailDrawerOpen() {
@@ -678,8 +687,8 @@
       return;
     }
     root.classList.remove("is-open");
-    window.clearBladeToasts?.();
-    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
+    window.clearKnToasts?.();
+    const delay = window.KNDrawer?.closeMs?.() ?? 0;
     closeTimer = window.setTimeout(() => {
       root.hidden = true;
       if (lastFocus && typeof lastFocus.focus === "function") {
@@ -707,9 +716,9 @@
   }
 
   function renderDl(rows) {
-    return `<dl class="kn-detail-dl">${rows
+    return `<dl class="kn-detail-dl kn-detailed-view__kv">${rows
       .map(
-        ([key, value]) => `<div class="kn-detail-dl__row">
+        ([key, value]) => `<div class="kn-detail-dl__row kn-detailed-view__kv-row">
         <dt class="type-caption-sm">${escapeHtml(key)}</dt>
         <dd class="type-body-sm type-weight-medium">${value == null || value === "" ? "—" : value}</dd>
       </div>`
@@ -722,7 +731,7 @@
     const pct = Math.round((done / max) * 100);
     return `<div class="kn-progress" aria-label="${done} of ${max} complete">
       <span class="kn-progress__track" aria-hidden="true"><span class="kn-progress__fill" style="width: ${pct}%"></span></span>
-      <span class="badge badge--${pct === 100 ? "positive" : pct ? "information" : "neutral"} type-caption-sm type-weight-medium">${pct}%</span>
+      <span class="kn-badge badge badge--${pct === 100 ? "positive" : pct ? "information" : "neutral"} type-caption-sm type-weight-medium">${pct}%</span>
     </div>`;
   }
 
@@ -743,7 +752,7 @@
         <div class="kn-steps__copy">
           <div class="kn-steps__title">
             <p class="type-ui-sm type-weight-semibold">${escapeHtml(titleCase(step.title))}</p>
-            ${current ? `<span class="badge badge--notice type-caption-sm type-weight-medium">In progress</span>` : ""}
+            ${current ? `<span class="badge badge--notice type-caption-sm type-weight-medium kn-badge">In progress</span>` : ""}
           </div>
           <p class="type-caption-sm">${step.stamp ? escapeHtml(step.stamp) : current ? "Waiting on the next milestone" : "Pending"}</p>
         </div>
@@ -769,12 +778,12 @@
     return `<ol class="kn-journey">${ordered
       .map((stop, index) => {
         const events = journeyExpanded || !stop.extra ? stop.events : stop.events.slice(0, 3);
-        const more = stop.extra && !journeyExpanded ? `<button class="blade-link type-caption-sm" type="button" data-kn-detail-more>Show ${stop.extra} more events</button>` : "";
+        const more = stop.extra && !journeyExpanded ? `<button class="kn-link type-caption-sm" type="button" data-kn-detail-more>Show ${stop.extra} more events</button>` : "";
         return `<li class="kn-journey__item${stop.highlight ? " is-highlight" : ""}">
           <span class="kn-journey__marker" aria-hidden="true">${MOT_ICONS[item.mot] || MOT_ICONS.air}</span>
           <div class="kn-journey__body">
             <div class="kn-journey__topline">
-              <span class="badge badge--${journeyKindTone(stop.kind)} type-caption-sm type-weight-medium">${escapeHtml(stop.kind)}</span>
+              <span class="badge badge--${journeyKindTone(stop.kind)} type-caption-sm type-weight-medium kn-badge">${escapeHtml(stop.kind)}</span>
               <span class="type-caption-sm kn-section-meta">Stop ${index + 1} of ${ordered.length}</span>
             </div>
             <p class="type-ui-sm type-weight-semibold">${escapeHtml(stop.place)}</p>
@@ -803,14 +812,14 @@
     const terminal = item.pouLabel || item.dest.city;
     const lastFree = emptyDisplay((item.etaLabel || "").replace(/^ETA\s+/i, ""));
     return `<div class="kn-container">
-      <article class="panel card kn-section-card kn-container__hero">
+      <article class="panel card kn-section-card kn-container__hero kn-card">
         <header class="kn-section-card__head">
           <div class="kn-container__id">
             ${copyableCode(item.container, "Container number")}
           </div>
           <div class="kn-container__tags">
             <span class="${badgeClass(item.statusTone)}">${escapeHtml(item.status)}</span>
-            <span class="badge type-caption-sm type-weight-medium">${escapeHtml(loadType)}</span>
+            <span class="badge type-caption-sm type-weight-medium kn-badge">${escapeHtml(loadType)}</span>
           </div>
         </header>
         <div class="kn-info kn-info--summary kn-info--two">
@@ -827,7 +836,7 @@
         </div>
       </article>
       <div class="kn-detail-grid kn-container__grid">
-        <article class="panel card kn-section-card">
+        <article class="panel card kn-section-card kn-card">
           <header class="kn-section-card__head">
             <h3 class="type-heading-h6 type-weight-semibold">Equipment</h3>
           </header>
@@ -839,7 +848,7 @@
             ["Hazmat", "No"]
           ])}
         </article>
-        <article class="panel card kn-section-card">
+        <article class="panel card kn-section-card kn-card">
           <header class="kn-section-card__head">
             <h3 class="type-heading-h6 type-weight-semibold">Location and dates</h3>
           </header>
@@ -859,9 +868,9 @@
     const docs = buildDocuments(item);
     return `<div class="kn-detail-docs">
       <div class="kn-toolbar">
-        <label class="search-input kn-detail-search">
-          <span class="search-input__icon">${MOT_ICONS.search}</span>
-          <input class="search-input__field type-body-sm" type="search" placeholder="Search files" aria-label="Search documents" data-kn-doc-search />
+        <label class="search-input kn-detail-search kn-autocomplete__field">
+          <span class="search-input__icon kn-autocomplete__prefix">${MOT_ICONS.search}</span>
+          <input class="search-input__field type-body-sm kn-autocomplete__input" type="search" placeholder="Search files" aria-label="Search documents" data-kn-doc-search />
         </label>
         <p class="type-caption-sm kn-section-meta" data-kn-doc-count>${docs.length} file${docs.length === 1 ? "" : "s"}</p>
       </div>
@@ -873,7 +882,7 @@
             <span class="kn-doc__copy">
               <span class="kn-file">
                 <strong class="type-ui-sm type-weight-semibold">${escapeHtml(doc.name)}</strong>
-                <span class="kn-file__chip badge badge--${doc.tone} type-caption-sm type-weight-medium">${escapeHtml(doc.type)}</span>
+                <span class="kn-file__chip badge badge--${doc.tone} type-caption-sm type-weight-medium kn-badge">${escapeHtml(doc.type)}</span>
               </span>
               <span class="type-caption-sm">Ingested ${escapeHtml(doc.date)}, ${escapeHtml(doc.source)}</span>
             </span>
@@ -883,10 +892,14 @@
           .join("")}
       </ul>
       <div class="empty-state vis-empty-state kn-empty" data-kn-doc-empty hidden>
-        <span class="empty-state__asset" aria-hidden="true">${MOT_ICONS.search}</span>
-        <p class="type-heading-h5 type-weight-semibold">No matching files</p>
-        <p class="type-body-sm">Nothing in this shipment matches that search.</p>
-        <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-kn-doc-clear>Clear search</button>
+        <span class="empty-state__asset kn-empty__asset" aria-hidden="true">${MOT_ICONS.search}</span>
+        <div class="kn-empty__copy">
+        <p class="kn-empty__title type-heading-h5 type-weight-semibold">No matching files</p>
+        <p class="kn-empty__desc type-body-sm">Nothing in this shipment matches that search.</p>
+        </div>
+        <div class="kn-empty__actions">
+        <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-kn-doc-clear>Clear search</button>
+        </div>
       </div>
     </div>`;
   }
@@ -1044,11 +1057,11 @@
       field.type === "date" ? "" : field.type === "number" ? "0" : field.key === "phone" ? "Enter phone" : "Enter value";
     const inputMode = field.type === "number" ? ' inputmode="decimal"' : field.key === "phone" ? ' inputmode="tel"' : "";
     const control = field.multiline
-      ? `<textarea class="blade-field__control kn-detail-textarea type-body-sm" id="${id}" rows="4" placeholder="Add a note" autocomplete="off" aria-labelledby="${id}-name" data-kn-ref-value data-kn-ref-key="${escapeHtml(field.key)}" data-kn-ref-record="${escapeHtml(recordId)}">${escapeHtml(field.value)}</textarea>`
-      : `<input class="blade-field__control type-body-sm" id="${id}" type="${type}"${inputMode} placeholder="${placeholder}" value="${escapeHtml(field.value)}" autocomplete="off" spellcheck="false" aria-labelledby="${id}-name" data-kn-ref-value data-kn-ref-key="${escapeHtml(field.key)}" data-kn-ref-record="${escapeHtml(recordId)}" />`;
-    return `<div class="blade-field${field.multiline ? " kn-detail-field--wide" : ""}" data-kn-ref-field data-kn-ref-type="${field.type}" data-kn-ref-vacant="${field.value ? "false" : "true"}" data-kn-ref-search="${escapeHtml(search)}">
-      <div class="blade-field__head">
-        <label class="blade-field__label type-caption-sm type-weight-medium" for="${id}-name">
+      ? `<textarea class="kn-field__control kn-detail-textarea type-body-sm" id="${id}" rows="4" placeholder="Add a note" autocomplete="off" aria-labelledby="${id}-name" data-kn-ref-value data-kn-ref-key="${escapeHtml(field.key)}" data-kn-ref-record="${escapeHtml(recordId)}">${escapeHtml(field.value)}</textarea>`
+      : `<input class="kn-field__control type-body-sm" id="${id}" type="${type}"${inputMode} placeholder="${placeholder}" value="${escapeHtml(field.value)}" autocomplete="off" spellcheck="false" aria-labelledby="${id}-name" data-kn-ref-value data-kn-ref-key="${escapeHtml(field.key)}" data-kn-ref-record="${escapeHtml(recordId)}" />`;
+    return `<div class="kn-field${field.multiline ? " kn-detail-field--wide" : ""}" data-kn-ref-field data-kn-ref-type="${field.type}" data-kn-ref-vacant="${field.value ? "false" : "true"}" data-kn-ref-search="${escapeHtml(search)}">
+      <div class="kn-field__head">
+        <label class="kn-field__label type-caption-sm type-weight-medium kn-form-label" for="${id}-name">
           <input id="${id}-name" class="kn-ref-label__input type-caption-sm type-weight-medium" tabindex="-1" data-kn-ref-rename data-kn-ref-key="${escapeHtml(field.key)}" data-kn-ref-record="${escapeHtml(recordId)}" value="${escapeHtml(field.label)}" aria-label="Field name, ${escapeHtml(field.label)}. Click to rename." />
         </label>
         <button class="icon-btn kn-ref-rename-btn" type="button" data-kn-ref-rename-btn data-tooltip="Rename field" aria-label="Rename ${escapeHtml(field.label)}">${MOT_ICONS.edit}</button>
@@ -1081,9 +1094,9 @@
         ? "Invoice references"
         : "Shipment references";
     const trailing = isMerch
-      ? `<span class="badge badge--information type-caption-sm type-weight-medium">SKU</span>`
+      ? `<span class="badge badge--information type-caption-sm type-weight-medium kn-badge">SKU</span>`
       : `<span class="code type-caption-sm">${escapeHtml(isInvoice ? record.invoice : refsUi.shipmentId)}</span>`;
-    return `<article class="panel card kn-refs__card" data-kn-ref-card>
+    return `<article class="panel card kn-refs__card kn-card" data-kn-ref-card>
             <header class="kn-refs__card-head">
               <div>
                 <p class="type-ui-sm type-weight-semibold">${escapeHtml(title)}</p>
@@ -1652,7 +1665,7 @@
         <div class="kh-tabs kn-refs__scopes" role="tablist" aria-label="Reference set">
           ${REF_SCOPES.map(
             (scope) => `<button
-              class="btn ${scope.id === refsUi.scope ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm"
+              class="kn-btn btn ${scope.id === refsUi.scope ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm"
               type="button"
               role="tab"
               aria-selected="${scope.id === refsUi.scope}"
@@ -1663,7 +1676,7 @@
         <div class="kn-refs__toolbar-end">
           <p class="type-caption-sm kn-refs__meta"><span data-kn-ref-count></span> · ${escapeHtml(scopeMeta)}</p>
           <span data-kn-ref-add-wrap>
-            <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-kn-ref-add-field>${MOT_ICONS.plus} Add field</button>
+            <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-kn-ref-add-field>${MOT_ICONS.plus} Add field</button>
           </span>
         </div>
       </div>
@@ -1673,19 +1686,23 @@
           ${renderRefTypeSelect()}
         </label>
         <span class="kn-ref-search__rule" aria-hidden="true"></span>
-        <label class="search-input kn-ref-search__input">
-          <span class="search-input__icon">${MOT_ICONS.search}</span>
-          <input class="search-input__field type-body-sm" type="search" placeholder="Search references..." aria-label="Search references" value="${escapeHtml(refsUi.query)}" data-kn-ref-query />
+        <label class="search-input kn-ref-search__input kn-autocomplete__field">
+          <span class="search-input__icon kn-autocomplete__prefix">${MOT_ICONS.search}</span>
+          <input class="search-input__field type-body-sm kn-autocomplete__input" type="search" placeholder="Search references..." aria-label="Search references" value="${escapeHtml(refsUi.query)}" data-kn-ref-query />
         </label>
       </div>
       <p class="visually-hidden" id="kn-refs-hint">Tab moves between values. Click a field name or the pencil to rename. Edits save as a draft. ${refsSaveChord()} saves the draft now.</p>
       ${cards}
-      <div class="empty-state vis-empty-state" data-kn-ref-empty-state hidden>
-        <span class="empty-state__asset" aria-hidden="true">${MOT_ICONS.search}</span>
-        <p class="type-heading-h5 type-weight-semibold" data-kn-ref-empty-title>No matching references</p>
-        <p class="type-body-sm" data-kn-ref-empty-copy>Nothing in this set matches that search.</p>
-        <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-kn-ref-clear-filters>Clear search</button>
-        <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-kn-ref-add-field hidden>Add field</button>
+      <div class="empty-state vis-empty-state kn-empty" data-kn-ref-empty-state hidden>
+        <span class="empty-state__asset kn-empty__asset" aria-hidden="true">${MOT_ICONS.search}</span>
+        <div class="kn-empty__copy">
+        <p class="kn-empty__title type-heading-h5 type-weight-semibold" data-kn-ref-empty-title>No matching references</p>
+        <p class="kn-empty__desc type-body-sm" data-kn-ref-empty-copy>Nothing in this set matches that search.</p>
+        </div>
+        <div class="kn-empty__actions">
+        <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-kn-ref-clear-filters>Clear search</button>
+        <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-kn-ref-add-field hidden>Add field</button>
+        </div>
       </div>
     </div>`;
   }
@@ -1696,41 +1713,41 @@
       const vis = isOnVisibility();
       const list = detailList(item.id);
       const canPage = list.length > 1;
-      return `<footer class="blade-drawer__footer kn-detail-footer kn-refs-footer">
+      return `<footer class="kn-drawer__footer kn-footer kn-detail-footer kn-detailed-view__footer kn-refs-footer">
         <p class="type-caption-sm kn-detail-footer__meta" aria-live="polite">${refsDraftLabel()}</p>
-        <div class="blade-drawer__footer-actions">
-          <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-kn-ref-reset ${dirty ? "" : "disabled"}>Discard draft</button>
+        <div class="kn-drawer__footer-actions kn-footer__actions kn-btn-group kn-btn-group--loose">
+          <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-kn-ref-reset ${dirty ? "" : "disabled"}>Discard draft</button>
           ${
             vis
-              ? `<button class="btn btn--secondary btn--md type-ui-md" type="button" data-copy="${escapeHtml(item.id)}" data-copy-label="Shipment ID">Copy ID</button>
-          <button class="btn btn--primary btn--md type-ui-md" type="button" data-kn-detail-next ${canPage ? "" : "disabled"}>Next</button>`
+              ? `<button class="btn btn--secondary btn--md type-ui-md kn-btn" type="button" data-copy="${escapeHtml(item.id)}" data-copy-label="Shipment ID">Copy ID</button>
+          <button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" data-kn-detail-next ${canPage ? "" : "disabled"}>Next</button>`
               : ""
           }
         </div>
       </footer>`;
     }
     if (tab === "documents") {
-      return `<footer class="blade-drawer__footer kn-detail-footer">
-        <div class="blade-drawer__footer-actions kn-detail-footer__split">
-          ${disabledControl(`<button class="btn btn--tertiary btn--md type-ui-md" type="button" disabled>Download</button>`, "Download is not connected yet.")}
-          ${disabledControl(`<button class="btn btn--primary btn--md type-ui-md" type="button" disabled>${MOT_ICONS.plus} Add documents</button>`, "Add documents is not connected yet.")}
+      return `<footer class="kn-drawer__footer kn-footer kn-detail-footer kn-detailed-view__footer">
+        <div class="kn-drawer__footer-actions kn-footer__actions kn-btn-group kn-btn-group--loose kn-detail-footer__split">
+          ${disabledControl(`<button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" disabled>Download</button>`, "Download is not connected yet.")}
+          ${disabledControl(`<button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" disabled>${MOT_ICONS.plus} Add documents</button>`, "Add documents is not connected yet.")}
         </div>
       </footer>`;
     }
     if (isOnVisibility()) {
       const list = detailList(item.id);
       const canPage = list.length > 1;
-      return `<footer class="blade-drawer__footer kn-detail-footer">
+      return `<footer class="kn-drawer__footer kn-footer kn-detail-footer kn-detailed-view__footer">
         <p class="type-caption-sm kn-detail-footer__meta">${escapeHtml(item.id)}</p>
-        <div class="blade-drawer__footer-actions">
-          <button class="btn btn--secondary btn--md type-ui-md" type="button" data-copy="${escapeHtml(item.id)}" data-copy-label="Shipment ID">Copy ID</button>
-          <button class="btn btn--primary btn--md type-ui-md" type="button" data-kn-detail-next ${canPage ? "" : "disabled"}>Next</button>
+        <div class="kn-drawer__footer-actions kn-footer__actions kn-btn-group kn-btn-group--loose">
+          <button class="btn btn--secondary btn--md type-ui-md kn-btn" type="button" data-copy="${escapeHtml(item.id)}" data-copy-label="Shipment ID">Copy ID</button>
+          <button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" data-kn-detail-next ${canPage ? "" : "disabled"}>Next</button>
         </div>
       </footer>`;
     }
-    return `<footer class="blade-drawer__footer kn-detail-footer">
-      <div class="blade-drawer__footer-actions">
-        <a class="btn btn--primary btn--md type-ui-md" href="#klearhub-visibility" data-vis-open='{}' data-kn-detail-keep>Open in Visibility</a>
+    return `<footer class="kn-drawer__footer kn-footer kn-detail-footer kn-detailed-view__footer">
+      <div class="kn-drawer__footer-actions kn-footer__actions kn-btn-group kn-btn-group--loose">
+        <a class="btn btn--primary btn--md type-ui-md kn-btn" href="#klearhub-visibility" data-vis-open='{}' data-kn-detail-keep>Open in Visibility</a>
       </div>
     </footer>`;
   }
@@ -1754,7 +1771,7 @@
             <p class="type-caption-sm">${current ? "In progress" : "All milestones complete"}</p>
           </div>
         </div>
-        <article class="panel card kn-section-card">
+        <article class="panel card kn-section-card kn-card">
           <header class="kn-section-card__head">
             <h3 class="type-heading-h6 type-weight-semibold">Shipment timeline</h3>
           </header>
@@ -1778,7 +1795,7 @@
             <p class="type-caption-sm">${escapeHtml(emptyDisplay((item.etaLabel || item.dest.date || "").replace(/^ETA\s+/i, "")))}</p>
           </div>
         </div>
-        <article class="panel card kn-section-card">
+        <article class="panel card kn-section-card kn-card">
           <header class="kn-section-card__head kn-journey-head">
             <div class="kn-journey-head__lead">
               <div class="kn-journey-title">
@@ -1789,9 +1806,9 @@
             </div>
             <label class="kn-order">
               <span class="type-caption-sm">Newest first</span>
-              <span class="blade-switch">
+              <span class="kn-switch">
                 <input type="checkbox" role="switch" ${journeyDescending ? "checked" : ""} data-kn-journey-order aria-label="Order journeys newest first" />
-                <span class="blade-switch__ui"></span>
+                <span class="kn-switch__ui"></span>
               </span>
             </label>
           </header>
@@ -1838,7 +1855,7 @@
         </div>
       </div>
       <div class="kn-detail-grid">
-        <article class="panel card kn-section-card">
+        <article class="panel card kn-section-card kn-card">
           <header class="kn-section-card__head">
             <h2 class="type-heading-h5 type-weight-semibold">Shipment information</h2>
           </header>
@@ -1854,7 +1871,7 @@
             ].filter(Boolean)
           )}
         </article>
-        <article class="panel card kn-section-card">
+        <article class="panel card kn-section-card kn-card">
           <header class="kn-section-card__head">
             <h2 class="type-heading-h5 type-weight-semibold">Bills of lading</h2>
           </header>
@@ -1867,10 +1884,10 @@
             ].filter(Boolean)
           )}
         </article>
-        <article class="panel card kn-detail-map-card kn-section-card" id="kn-detail-map-panel">
+        <article class="panel card kn-detail-map-card kn-section-card kn-card" id="kn-detail-map-panel">
           <header class="kn-section-card__head">
             <h2 class="type-heading-h5 type-weight-semibold">Route</h2>
-            <button class="blade-link type-ui-sm" type="button" id="kn-detail-map-expand">Expand map</button>
+            <button class="kn-link type-ui-sm" type="button" id="kn-detail-map-expand">Expand map</button>
           </header>
           <div class="kn-detail-map" id="kn-detail-map" role="img" aria-label="Shipment route map"></div>
         </article>
@@ -1972,9 +1989,9 @@
         ? `<span class="${badgeClass(item.delayTone)}">${escapeHtml(item.delay)}</span>`
         : "";
     root.innerHTML = `
-      <header class="blade-drawer__header kn-detail-head">
-        <span class="blade-drawer__header-icon" aria-hidden="true">${MOT_ICONS[item.mot] || MOT_ICONS.ocean}</span>
-        <div class="blade-drawer__titles kn-detail-head__copy">
+      <header class="kn-drawer__header kn-header kn-detail-head kn-detailed-view__head kn-header--no-divider">
+        <span class="kn-drawer__header-icon" aria-hidden="true">${MOT_ICONS[item.mot] || MOT_ICONS.ocean}</span>
+        <div class="kn-drawer__titles kn-detail-head__copy">
           <div class="kn-detail-id-row">
             <h2 class="type-heading-h5 type-weight-semibold" id="kn-detail-id">${escapeHtml(item.id)}</h2>
             ${copyControl(item.id, "Shipment ID")}
@@ -1989,13 +2006,13 @@
             <span class="type-caption-sm kn-pager__caption" aria-live="polite">${escapeHtml(pagerCaption(item.id))}</span>
             <button class="icon-btn" type="button" data-kn-detail-next aria-label="Next shipment"${detailList(item.id).length > 1 ? "" : " disabled"}>${MOT_ICONS.next}</button>
           </div>
-          ${disabledControl(`<button class="blade-link type-ui-sm" type="button" disabled>${MOT_ICONS.external} B/L Query</button>`, "B/L Query is not connected yet.")}
+          ${disabledControl(`<button class="kn-link type-ui-sm" type="button" disabled>${MOT_ICONS.external} B/L Query</button>`, "B/L Query is not connected yet.")}
           <button class="icon-btn" type="button" id="kn-detail-close" data-kn-detail-close aria-label="Close shipment detail">
-            <img src="./assets/quick-actions/close.svg" width="20" height="20" alt="" />
+            <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
           </button>
         </div>
       </header>
-      <div class="kn-detail-tabs" role="tablist" aria-label="Shipment sections">
+      <div class="kn-detail-tabs kn-detailed-view__tabs" role="tablist" aria-label="Shipment sections">
         ${TABS.map(
           (entry) => `<button
             class="kn-tab type-ui-sm ${entry.id === tab ? "is-active type-weight-semibold" : "type-weight-medium"}"
@@ -2004,15 +2021,20 @@
             id="kn-detail-tab-${entry.id}"
             aria-selected="${entry.id === tab}"
             aria-controls="kn-detail-panel"
+            tabindex="${entry.id === tab ? "0" : "-1"}"
             data-kn-detail-tab="${entry.id}"
           >${escapeHtml(entry.label)}</button>`
         ).join("")}
       </div>
-      <div class="blade-drawer__body kn-detail-panel" id="kn-detail-panel" role="tabpanel" aria-labelledby="kn-detail-tab-${tab}">
+      <div class="kn-drawer__body kn-detail-panel kn-detailed-view__body kn-box kn-box--column" id="kn-detail-panel" role="tabpanel" aria-labelledby="kn-detail-tab-${tab}">
         ${renderPanel(item, tab)}
       </div>
       ${renderFooter(item, tab)}
     `;
+    if (typeof window.KNDetailedView?.hydrate === "function") {
+      window.KNDetailedView.hydrate(root);
+    }
+    window.KNEmpty?.hydrate(root);
     if (tab === "information") {
       initDetailMap(item);
     } else {
@@ -2184,7 +2206,7 @@
         }
         return;
       }
-      const overlay = event.target.closest(".blade-drawer__overlay");
+      const overlay = event.target.closest(".kn-drawer__overlay");
       if (overlay) {
         event.preventDefault();
         overlay.style.pointerEvents = "none";

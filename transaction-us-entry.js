@@ -43,7 +43,7 @@
   function escapeHtml(v) { return window.KNAdminUX.escapeHtml(v); }
   function pad(n, w) { return String(n).padStart(w, "0"); }
   function formatDate(date) { return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date); }
-  function toast(content, color = "positive") { if (typeof window.showBladeToast === "function") window.showBladeToast({ content, color }); }
+  function toast(content, color = "positive") { if (typeof window.showKnToast === "function") window.showKnToast({ content, color }); }
   function iconCopy() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`; }
   function iconTrash() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`; }
 
@@ -239,14 +239,14 @@
     const chip = state.txn.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-entry-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-entry-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-entry-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.entryNumber)}</span></td>
           <td class="type-body-sm" title="${escapeHtml(row.entryType)}">${escapeHtml(row.entryType)}</td>
           <td class="type-body-sm">${escapeHtml(ux.emptyDisplay(row.username))}</td>
           <td class="admin-table-nowrap">${statusBadge(row.entrySummary)}</td>
           <td class="admin-table-nowrap">${statusBadge(row.cargoRelease)}</td>
-          <td class="type-body-sm admin-table-nowrap"><span class="badge badge--information type-caption-sm">${escapeHtml(row.pgaStatus)}</span></td>
+          <td class="type-body-sm admin-table-nowrap"><span class="badge badge--information type-caption-sm kn-badge">${escapeHtml(row.pgaStatus)}</span></td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.firmsCode)}</span></td>
           <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(row.eta)}</td>
           <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(ux.emptyDisplay(row.fspdDate))}</td>
@@ -317,7 +317,7 @@
               ${ux.colFilter({ attr: "data-entry-filter", key: "vesselName", value: state.txn.filters.vesselName, label: "vessel" })}
               ${ux.colFilter({ attr: "data-entry-filter", key: "filingDate", value: state.txn.filters.filingDate, label: "filing date" })}
               ${ux.colFilter({ attr: "data-entry-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments" })}
-              ${ux.colBladeSelect({ attr: "data-entry-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "OCEAN", label: "OCEAN" }, { value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }] })}
+              ${ux.colKnSelect({ attr: "data-entry-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "OCEAN", label: "OCEAN" }, { value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }] })}
               ${ux.colFilter({ attr: "data-entry-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-entry-filter", key: "hbl", value: state.txn.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-entry-filter", key: "countryExport", value: state.txn.filters.countryExport, label: "country of export" })}
@@ -348,7 +348,7 @@
     const chip = state.ship.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-entry-ship-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-entry-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-entry-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="admin-table-nowrap">${statusBadge(row.shipmentState, row.stateTone)}</td>
           <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(row.eta)}</td>
@@ -390,10 +390,10 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
-              ${ux.colBladeSelect({ attr: "data-entry-ship-filter", key: "shipmentState", value: state.ship.filters.shipmentState, label: "shipment state", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "New", label: "New" }, { value: "In Progress", label: "In Progress" }, { value: "Completed", label: "Completed" }] })}
+              ${ux.colKnSelect({ attr: "data-entry-ship-filter", key: "shipmentState", value: state.ship.filters.shipmentState, label: "shipment state", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "New", label: "New" }, { value: "In Progress", label: "In Progress" }, { value: "Completed", label: "Completed" }] })}
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "eta", value: state.ship.filters.eta, label: "ETA" })}
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "vesselName", value: state.ship.filters.vesselName, label: "vessel" })}
-              ${ux.colBladeSelect({ attr: "data-entry-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "OCEAN", label: "OCEAN" }, { value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }] })}
+              ${ux.colKnSelect({ attr: "data-entry-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "OCEAN", label: "OCEAN" }, { value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }] })}
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "mbl", value: state.ship.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "hbl", value: state.ship.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-entry-ship-filter", key: "countryExport", value: state.ship.filters.countryExport, label: "country of export" })}
@@ -412,16 +412,28 @@
     const page = document.getElementById("kn-entry-page");
     const root = document.getElementById("kn-entry-root");
     if (!page || !root || page.hidden) return;
+    const filingId = filingRouteId();
+    if (filingId) {
+      const row = findTxnRow(filingId);
+      if (!row) {
+        toast("That entry filing is no longer available.", "notice");
+        goto("#transaction-us-entry");
+        return;
+      }
+      root.innerHTML = window.KNEntryFiling.render(row, {});
+      window.KNEntryFiling.syncOverlay?.();
+      return;
+    }
     const filterFocus = window.KNAdminUX.captureColFilterFocus(root);
     const updatedLabel = (() => { const raw = window.KNAdminUX.relativeTime(lastUpdatedIso); const hours = raw.match(/^(\d+)h ago$/); return hours ? `${hours[1]} hours ago` : raw; })();
     root.innerHTML = `<div class="tm-toolbar vis-toolbar">
       <div class="kh-tabs" role="tablist" aria-label="Entry list view">
-        <button class="btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-entry-view="shipment">Shipment</button>
-        <button class="btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-entry-view="transaction">Transaction</button>
+        <button class="kn-btn btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-entry-view="shipment">Shipment</button>
+        <button class="kn-btn btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-entry-view="transaction">Transaction</button>
       </div>
       <div class="tm-toolbar__meta">
         <span class="type-caption-sm tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span>
-        <button class="btn btn--primary btn--sm type-ui-sm" type="button" data-entry-create>Create Manual Transaction</button>
+        <button class="btn btn--primary btn--sm type-ui-sm kn-btn" type="button" data-entry-create>Create Manual Transaction</button>
       </div>
     </div>
     ${state.view === "transaction" ? renderTxnTable() : renderShipTable()}`;
@@ -437,8 +449,27 @@
   function findTxnRow(id) { return buildSeed().find((r) => r.id === id); }
   function findShipRow(id) { return buildShipSeed().find((r) => r.id === id); }
 
+  function goto(hash) {
+    if (location.hash === hash) { render(); return; }
+    location.hash = hash;
+  }
+
+  function filingRouteId() {
+    const match = String(location.hash || "").match(/^#transaction-us-entry\/filing\/([^/]+)$/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
   function bind(page) {
     page.addEventListener("click", (event) => {
+      const filingId = filingRouteId();
+      if (filingId) {
+        const row = findTxnRow(filingId);
+        if (row) {
+          const handled = window.KNEntryFiling.handleClick(event, row, { rerender: render });
+          if (handled) return;
+        }
+        return;
+      }
       const viewBtn = event.target.closest("[data-entry-view]");
       if (viewBtn) { event.preventDefault(); state.view = viewBtn.getAttribute("data-entry-view") || "transaction"; state.menuOpen = ""; state.selectOpen = ""; render(); return; }
       if (event.target.closest("[data-entry-create]")) { event.preventDefault(); toast("Create Manual Transaction is not available in this sample.", "notice"); return; }
@@ -478,9 +509,9 @@
         }
       })) return;
       const open = event.target.closest("[data-entry-open]");
-      if (open) { event.preventDefault(); const row = findTxnRow(open.getAttribute("data-entry-open")); toast(`${row?.transactionId || "Filing"} opened as read-only in this sample.`, "notice"); return; }
+      if (open) { event.preventDefault(); goto(`#transaction-us-entry/filing/${encodeURIComponent(open.getAttribute("data-entry-open"))}`); return; }
       const shipOpen = event.target.closest("[data-entry-ship-open]");
-      if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-entry-ship-open")); toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice"); return; }
+      if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-entry-ship-open")); if (row) { location.hash = `#transaction-us-entry/history/${encodeURIComponent(row.id)}`; } return; }
       const copy = event.target.closest("[data-entry-copy], [data-entry-ship-copy]");
       if (copy) {
         event.preventDefault();
@@ -508,6 +539,12 @@
       }
     });
     page.addEventListener("input", (event) => {
+      const filingId = filingRouteId();
+      if (filingId) {
+        const row = findTxnRow(filingId);
+        if (row) window.KNEntryFiling.handleInput(event, row, { rerender: render });
+        return;
+      }
       const input = event.target.closest("[data-entry-filter], [data-entry-ship-filter]");
       if (!input || input.tagName === "SELECT") return;
       const isShip = input.hasAttribute("data-entry-ship-filter");
@@ -554,7 +591,17 @@
     if (!page || page.dataset.bound) return;
     page.dataset.bound = "true"; bind(page);
     document.addEventListener("kn-close-selects", () => { if (page.hidden || (!state.selectOpen && !state.menuOpen)) return; state.selectOpen = ""; state.menuOpen = ""; render(); });
-    document.addEventListener("keydown", (event) => { if (page.hidden || event.key !== "Escape") return; if (state.selectOpen || state.menuOpen) { state.selectOpen = ""; state.menuOpen = ""; render(); } });
+    document.addEventListener("keydown", (event) => {
+      if (page.hidden) return;
+      const filingId = filingRouteId();
+      if (filingId) {
+        const row = findTxnRow(filingId);
+        if (row) window.KNEntryFiling.handleKeydown(event, row, { rerender: render });
+        return;
+      }
+      if (event.key !== "Escape") return;
+      if (state.selectOpen || state.menuOpen) { state.selectOpen = ""; state.menuOpen = ""; render(); }
+    });
   }
 
   window.KNUsEntry = { init, sync, suspend, route: ROUTE, list() { return buildSeed(); }, listShipments() { return buildShipSeed(); } };

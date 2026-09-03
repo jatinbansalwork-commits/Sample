@@ -81,7 +81,7 @@
     return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
   }
   function toast(content, color = "positive") {
-    if (typeof window.showBladeToast === "function") window.showBladeToast({ content, color });
+    if (typeof window.showKnToast === "function") window.showKnToast({ content, color });
   }
   function iconCopy() {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`;
@@ -325,7 +325,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-ftz-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-ftz-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-ftz-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.zoneId)}">${escapeHtml(row.zoneId)}</span></td>
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.admissionNumber)}">${escapeHtml(row.admissionNumber)}</span></td>
@@ -381,7 +381,7 @@
               ${ux.colFilter({ attr: "data-ftz-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "zoneId", value: state.txn.filters.zoneId, label: "zone ID" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "admissionNumber", value: state.txn.filters.admissionNumber, label: "admission number" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-ftz-filter",
                 key: "ftzStatus",
                 value: state.txn.filters.ftzStatus,
@@ -398,7 +398,7 @@
               })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "eta", value: state.txn.filters.eta, label: "ETA" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-ftz-filter",
                 key: "mot",
                 value: state.txn.filters.mot,
@@ -462,7 +462,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-ftz-ship-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-ftz-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-ftz-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="admin-table-nowrap">${statusBadge(row.shipmentState, row.stateTone)}</td>
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.zoneId)}">${escapeHtml(row.zoneId)}</span></td>
@@ -507,7 +507,7 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-ftz-ship-filter",
                 key: "shipmentState",
                 value: state.ship.filters.shipmentState,
@@ -522,7 +522,7 @@
                 ]
               })}
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "zoneId", value: state.ship.filters.zoneId, label: "zone ID" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-ftz-ship-filter",
                 key: "mot",
                 value: state.ship.filters.mot,
@@ -696,7 +696,10 @@
         event.preventDefault();
         const isShip = open.hasAttribute("data-ftz-ship-open");
         const row = isShip ? findShipRow(open.getAttribute("data-ftz-ship-open")) : findTxnRow(open.getAttribute("data-ftz-open"));
-        toast(`${(isShip ? row?.shipmentId : row?.transactionId) || "Filing"} opened as read-only in this sample.`, "notice");
+        const recId = row?.id;
+        if (recId) {
+          location.hash = `#transaction-us-ftz/history/${encodeURIComponent(recId)}`;
+        }
         return;
       }
       const copy = event.target.closest("[data-ftz-copy], [data-ftz-ship-copy]");

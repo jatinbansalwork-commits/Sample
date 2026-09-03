@@ -70,7 +70,7 @@ function holdItemHtml(row, index) {
         <strong class="type-heading-h6 type-weight-semibold">${row.id}</strong>
         <span class="meta type-body-sm">${row.reason} • ${row.container} • ${row.location}</span>
       </span>
-      <span class="badge type-caption-sm type-weight-medium">${row.release}</span>
+      <span class="badge type-caption-sm type-weight-medium kn-badge">${row.release}</span>
     </button>
   `;
 }
@@ -143,7 +143,7 @@ function laneSegHtml(tone, mot, value, max, places) {
   const mode = typeof knMotLabel === "function" ? knMotLabel(mot) : mot;
   const where = (places || []).join(", ");
   const tip = where ? `${mode} · ${where}` : `${mode} · ${value}`;
-  return `<span class="dash-bars__seg chart-cat--${tone}" style="width: ${Math.round((value / max) * 100)}%" data-tooltip="${attrTip(tip)}"></span>`;
+  return `<span class="kn-chart__seg dash-bars__seg chart-cat--${tone}" style="width: ${Math.round((value / max) * 100)}%" data-tooltip="${attrTip(tip)}"></span>`;
 }
 
 function syncAlertViewAll(linkId, total) {
@@ -317,7 +317,7 @@ let shipmentMap = null;
 let dashMapFilter = "";
 
 const NAV_CHEVRON =
-  '<svg class="nav-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
+  '<svg class="nav-chevron kn-move" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
 
 function dashShipmentsForFilter(key) {
   const rows = window.KNShipments || [];
@@ -355,8 +355,9 @@ function badgeToneForKpi(trendClass) {
 kpis.forEach((kpi) => {
   const card = document.createElement("button");
   card.type = "button";
-  card.className = "kpi-stat";
+  card.className = "kpi-stat kn-animate-interactions";
   card.setAttribute("data-map-filter", kpi.key);
+  card.setAttribute("data-motion-trigger", "hover");
   card.setAttribute("aria-pressed", "false");
   card.setAttribute("aria-label", `Show ${kpi.label} on the map, ${kpi.value}`);
   if (kpi.hint) {
@@ -366,7 +367,7 @@ kpis.forEach((kpi) => {
     <span class="kpi-stat__label type-caption-sm type-weight-medium">${kpi.label}</span>
     <span class="kpi-stat__metrics">
       <span class="kpi-stat__value type-heading-h4 type-weight-semibold">${kpi.value}</span>
-      <span class="badge badge--${badgeToneForKpi(kpi.trendClass)} type-caption-sm type-weight-medium">${kpi.trend}</span>
+      <span class="badge badge--${badgeToneForKpi(kpi.trendClass)} type-caption-sm type-weight-medium kn-badge">${kpi.trend}</span>
     </span>
     ${NAV_CHEVRON}
   `;
@@ -397,15 +398,21 @@ const backdrop = document.querySelector(".sidebar-backdrop");
 const sideNav = document.querySelector(".side-nav");
 const sideNavL1 = document.querySelector("#side-nav-l1");
 const sideNavL2 = document.querySelector("#side-nav-l2");
-const sideNavL2Title = sideNavL2.querySelector(".side-nav-l2__title");
-const sideNavL2Back = sideNavL2.querySelector(".side-nav-l2__back");
+// Guarded, not just an assumption: on every page that currently loads this
+// script (index.html, home.html), #side-nav-l2 is static markup parsed
+// well before this plain, non-deferred <script> tag, so sideNavL2 is never
+// actually null today. Optional-chained anyway so a future page without
+// that element (or a reordered script tag) degrades to a no-op here
+// instead of throwing and aborting the rest of script.js.
+const sideNavL2Title = sideNavL2?.querySelector(".side-nav-l2__title");
+const sideNavL2Back = sideNavL2?.querySelector(".side-nav-l2__back");
 
 const HOVER_AGAIN_DELAY = 500;
 const L1_EXIT_HOVER_DELAY = 150;
 const TRANSITION_CLEANUP_DELAY = 300;
 
 let activeL2Trigger = null;
-let isL1Collapsed = false;
+let isL1Collapsed = document.documentElement.dataset.knL1 === "collapsed";
 let isL1Hovered = false;
 let isHoverAgainEnabled = true;
 let isTransitioning = false;
@@ -415,7 +422,10 @@ let transitionTimeout;
 
 function isMediumOrHdDesktop() {
   const matched = document.documentElement.dataset.matchedBreakpoint;
-  return matched === "l" || matched === "xl";
+  if (matched) {
+    return matched === "l" || matched === "xl";
+  }
+  return window.matchMedia("(min-width: 1024px)").matches;
 }
 
 function setVisibleLevel(visibleLevel) {
@@ -444,6 +454,21 @@ function syncL1Classes() {
   sideNav.classList.toggle("is-l1-collapsed", desktop && isL1Collapsed);
   sideNav.classList.toggle("is-l1-hovered", desktop && isL1Collapsed && isL1Hovered);
   sideNav.classList.toggle("is-mobile-l2-open", !desktop && isL1Collapsed);
+  window.KNTooltips?.syncSideNavCollapsed?.();
+
+  /* Keep data-kn-l1 for first-paint collapsed chrome, but drop it while L1 is
+     hover-expanded — otherwise html[data-kn-l1=collapsed] .hide-when-collapsed
+     in index.html/styles.css wins over .is-l1-hovered and titles stay blank. */
+  if (
+    desktop &&
+    isL1Collapsed &&
+    !isL1Hovered &&
+    document.documentElement.dataset.knRoute === "agentic-broker"
+  ) {
+    document.documentElement.dataset.knL1 = "collapsed";
+  } else {
+    delete document.documentElement.dataset.knL1;
+  }
 
   if (!desktop) {
     setVisibleLevel(shell.classList.contains("nav-open") ? (isL1Collapsed ? 2 : 1) : 0);
@@ -531,7 +556,7 @@ function setTreeExpanded(trigger, expanded) {
       animator.classList.remove("is-animating");
       return;
     }
-    // Ensure collapsed frame paints before expanding (Blade TreeView mount trick)
+    // Ensure collapsed frame paints before expanding (KlearNow TreeView mount trick)
     animator.classList.remove("is-expanded");
     void animator.offsetHeight;
     requestAnimationFrame(() => {
@@ -645,7 +670,7 @@ function returnL2ToTrigger() {
   activeL2Trigger = null;
 }
 
-function portalL2(trigger, title) {
+function portalL2(trigger, title, { animate = true } = {}) {
   const level = getL2Level(trigger);
   if (!trigger || !level) {
     return;
@@ -670,7 +695,7 @@ function portalL2(trigger, title) {
   sideNavL2.hidden = false;
   trigger.setAttribute("aria-expanded", "true");
   activeL2Trigger = trigger;
-  if (wasHidden && !prefersReducedMotion()) {
+  if (animate && wasHidden && !prefersReducedMotion()) {
     sideNavL2.classList.add("is-entering");
     void sideNavL2.offsetWidth;
     requestAnimationFrame(() => {
@@ -681,10 +706,10 @@ function portalL2(trigger, title) {
   }
 }
 
-function collapseL1(title, trigger = getActiveL2Trigger()) {
+function collapseL1(title, trigger = getActiveL2Trigger(), { animate = true } = {}) {
   if (!isMediumOrHdDesktop()) {
     isL1Collapsed = true;
-    portalL2(trigger, title);
+    portalL2(trigger, title, { animate });
     syncL1Classes();
     return;
   }
@@ -693,7 +718,7 @@ function collapseL1(title, trigger = getActiveL2Trigger()) {
     isL1Collapsed = true;
     setVisibleLevel(2);
   }
-  portalL2(trigger, title);
+  portalL2(trigger, title, { animate });
   syncL1Classes();
 }
 
@@ -721,7 +746,7 @@ function onLinkActiveChange({ level, isActive, isL2Trigger, isFirstRender, title
   }
 
   if (isL2Trigger) {
-    collapseL1(title, trigger || getActiveL2Trigger());
+    collapseL1(title, trigger || getActiveL2Trigger(), { animate: !isFirstRender });
     if (!isFirstRender) {
       startL1Transition();
       isL1Hovered = false;
@@ -749,7 +774,7 @@ function setCurrent(link) {
 }
 
 const HOME_ICON_SVG = `
-  <span class="breadcrumb-icon" aria-hidden="true">
+  <span class="kn-breadcrumb__icon breadcrumb-icon" aria-hidden="true">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" />
     </svg>
@@ -766,8 +791,7 @@ function getBreadcrumbTrail() {
   const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
   const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
   const l1Current = sideNav.querySelector('.side-nav-link[data-level="1"][aria-current="page"]');
-  const isDashboard =
-    !l3Current && !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
+  const isDashboard = getHashPath() === "#dashboard";
 
   const items = [{ href: "#dashboard", label: "Home", iconOnly: true, isCurrentPage: isDashboard }];
 
@@ -814,10 +838,11 @@ function getBreadcrumbTrail() {
 }
 
 function isDashboardRoute() {
-  const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
-  const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
-  const l1Current = sideNav.querySelector('.side-nav-link[data-level="1"][aria-current="page"]');
-  return !l3Current && !l2Current && (!l1Current || l1Current.getAttribute("href") === "#dashboard");
+  return getHashPath() === "#dashboard";
+}
+
+function isAgenticBrokerRoute() {
+  return getHashPath() === "#agentic-broker";
 }
 
 function isRoleManagementRoute() {
@@ -833,34 +858,46 @@ function isDefaultRoleManagementRoute() {
 }
 
 function isUsIsfRoute() {
-  return getHashPath() === "#transaction-us-isf";
+  return getHashPath().startsWith("#transaction-us-isf");
 }
 
 function isUsInBondRoute() {
-  return getHashPath() === "#transaction-us-in-bond";
+  return getHashPath().startsWith("#transaction-us-in-bond");
 }
 
 function isUsEntryRoute() {
-  return getHashPath() === "#transaction-us-entry";
+  return getHashPath().startsWith("#transaction-us-entry");
 }
 
 function isUsFtzRoute() {
-  return getHashPath() === "#transaction-us-ftz";
+  return getHashPath().startsWith("#transaction-us-ftz");
 }
 
 function isUsPscRoute() {
-  return getHashPath() === "#transaction-us-psc";
+  return getHashPath().startsWith("#transaction-us-psc");
 }
 
 function isUsDeliveryOrderRoute() {
-  return getHashPath() === "#transaction-us-delivery-order";
+  return getHashPath().startsWith("#transaction-us-delivery-order");
 }
 
 function isUsShipmentsRoute() {
-  return getHashPath() === "#transaction-us-shipments";
+  return getHashPath().startsWith("#transaction-us-shipments");
+}
+
+function findNavLinkForHash(path = getHashPath()) {
+  const navHash = nestedAdminNavHash(path);
+  const link =
+    sideNav.querySelector(`.side-nav-link[data-level="3"][href="${navHash}"]`) ||
+    sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
+    sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
+  return { path, navHash, link };
 }
 
 function nestedAdminNavHash(path = getHashPath()) {
+  if (window.KNAssistCore?.nestedListHash) {
+    return window.KNAssistCore.nestedListHash(path);
+  }
   if (path.startsWith("#kn-role-management")) {
     return "#kn-role-management";
   }
@@ -869,6 +906,9 @@ function nestedAdminNavHash(path = getHashPath()) {
   }
   if (path.startsWith("#default-role-management")) {
     return "#default-role-management";
+  }
+  if (path.startsWith("#transaction-us-isf")) {
+    return "#transaction-us-isf";
   }
   return path;
 }
@@ -909,6 +949,13 @@ function getCurrentPageTitle() {
   if (defDetail && defDetail[1] !== "add") {
     return adminStoredName("kn-default-roles-v3", decodeURIComponent(defDetail[1]));
   }
+  const isfDetail = path.match(/^#transaction-us-isf\/history\/([^/]+)$/);
+  if (isfDetail) {
+    const label = window.KNUsIsf?.transactionLabel?.(decodeURIComponent(isfDetail[1]));
+    if (label) {
+      return label;
+    }
+  }
   const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
   if (l3Current) {
     return getNavTitle(l3Current);
@@ -940,8 +987,34 @@ function isKlearhubVisibilityRoute() {
   return current?.getAttribute("href") === "#klearhub-visibility";
 }
 
+function isKnownRoute() {
+  return (
+    isDashboardRoute() ||
+    isAgenticBrokerRoute() ||
+    isKlearhubOverviewRoute() ||
+    isKlearhubVisibilityRoute() ||
+    isRoleManagementRoute() ||
+    isUserManagementRoute() ||
+    isDefaultRoleManagementRoute() ||
+    isUsIsfRoute() ||
+    isUsInBondRoute() ||
+    isUsEntryRoute() ||
+    isUsFtzRoute() ||
+    isUsPscRoute() ||
+    isUsDeliveryOrderRoute() ||
+    isUsShipmentsRoute()
+  );
+}
+
 function getHashPath(hash = location.hash) {
-  return (hash || "#dashboard").split("?")[0];
+  return (hash || "#agentic-broker").split("?")[0];
+}
+
+function syncDocumentRoute() {
+  if (!document.getElementById("agentic-broker-page")) {
+    return;
+  }
+  document.documentElement.dataset.knRoute = getHashPath().replace(/^#/, "") || "agentic-broker";
 }
 
 function setRouteHash(href) {
@@ -975,7 +1048,9 @@ function setPageSectionVisibility(el, visible) {
 }
 
 function syncPageView() {
+  syncDocumentRoute();
   const dashboardInner = document.querySelector(".dashboard-inner");
+  const agenticBrokerPage = document.getElementById("agentic-broker-page");
   const overviewPage = document.getElementById("klearhub-overview-page");
   const visibilityPage = document.getElementById("klearhub-visibility-page");
   const rolePage = document.getElementById("kn-role-page");
@@ -993,6 +1068,7 @@ function syncPageView() {
   const emptyDescription = document.getElementById("empty-page-description");
   const emptyCta = document.getElementById("empty-page-cta");
   const isDashboard = isDashboardRoute();
+  const isAgenticBroker = isAgenticBrokerRoute();
   const isOverview = isKlearhubOverviewRoute();
   const isVisibility = isKlearhubVisibilityRoute();
   const isRoles = isRoleManagementRoute();
@@ -1007,8 +1083,11 @@ function syncPageView() {
   const isUsShipments = isUsShipmentsRoute();
   const isAdminModule = isRoles || isUsers || isDefaultRoles;
   const isTmUsPage = isUsIsf || isUsInBond || isUsEntry || isUsFtz || isUsPsc || isUsDeliveryOrder || isUsShipments;
-  const isKnownPage = isDashboard || isOverview || isVisibility || isAdminModule || isTmUsPage;
+  const isKnownPage = isKnownRoute();
 
+  if (!isAgenticBroker) {
+    window.KNAgenticBroker?.suspend?.();
+  }
   if (!isUsers) {
     window.KNUsers?.suspend?.();
   }
@@ -1044,6 +1123,7 @@ function syncPageView() {
   }
 
   setPageSectionVisibility(dashboardInner, isDashboard);
+  setPageSectionVisibility(agenticBrokerPage, isAgenticBroker);
   setPageSectionVisibility(overviewPage, isOverview);
   setPageSectionVisibility(visibilityPage, isVisibility);
   setPageSectionVisibility(rolePage, isRoles);
@@ -1067,6 +1147,10 @@ function syncPageView() {
   }
   if (emptyPage) {
     setPageSectionVisibility(emptyPage, !isKnownPage);
+  }
+  if (isAgenticBroker) {
+    window.KNAgenticBroker?.init?.();
+    window.KNAgenticBroker?.sync?.();
   }
   if (isRoles) {
     window.KNRoles?.init?.();
@@ -1138,18 +1222,18 @@ function syncDocumentTitle() {
   document.title = page === "Dashboard" ? "KlearNow · Dashboard" : `KlearNow · ${page}`;
 }
 
-function isL2Context() {
-  const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
-  const l2Current = sideNav.querySelector('.side-nav-link[data-level="2"][aria-current="page"]');
-  const l2TriggerCurrent = Boolean(sideNav.querySelector('.side-nav-link[data-l2trigger][aria-current="page"]'));
-  const l2PanelOpen = Boolean(sideNavL2 && !sideNavL2.hidden);
-  return Boolean(l3Current || l2Current || l2TriggerCurrent || l2PanelOpen);
-}
-
 function renderBreadcrumb() {
   const items = getBreadcrumbTrail();
   const breadcrumbBar = document.querySelector(".content-breadcrumb");
-  const shouldShow = items.length > 1 && !isL2Context();
+  // #side-nav-l2 (the section sub-panel) and data-l2trigger links stay "open"/"current"
+  // for the entire time a user is anywhere inside a nested section — that's the sidebar's
+  // normal, permanent state in this two-part rail+panel design, not a transient hover
+  // preview. Gating on them (the old isL2Context() check) suppressed the breadcrumb for
+  // every non-Dashboard page; showing it whenever there's a real trail is the fix.
+  // The generic "not available in this workspace yet" fallback (Agentic Broker, Drayage)
+  // is a single flat page — Home / <title> only repeats what the heading and "Back to
+  // Dashboard" button already say, so skip the breadcrumb there.
+  const shouldShow = items.length > 1 && isKnownRoute();
 
   if (breadcrumbBar) {
     breadcrumbBar.hidden = !shouldShow;
@@ -1168,10 +1252,9 @@ function renderBreadcrumb() {
     return;
   }
 
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const li = document.createElement("li");
-    li.className = "breadcrumb-item";
-    const isLast = index === items.length - 1;
+    li.className = "kn-breadcrumb__item breadcrumb-item";
     const isCurrent = Boolean(item.isCurrentPage);
 
     if (isCurrent) {
@@ -1179,7 +1262,7 @@ function renderBreadcrumb() {
     }
 
     const content = document.createElement(isCurrent ? "span" : "a");
-    content.className = isCurrent ? "breadcrumb-link is-current" : "breadcrumb-link";
+    content.className = isCurrent ? "kn-breadcrumb__link breadcrumb-link is-current" : "kn-breadcrumb__link breadcrumb-link";
     if (!isCurrent) {
       content.href = item.href;
     }
@@ -1191,24 +1274,17 @@ function renderBreadcrumb() {
     }
     li.appendChild(content);
 
-    if (!isLast) {
-      const separator = document.createElement("span");
-      separator.className = "breadcrumb-separator";
-      separator.setAttribute("aria-hidden", "true");
-      separator.textContent = "/";
-      li.appendChild(separator);
-    }
+    const separator = document.createElement("span");
+    separator.className = "kn-breadcrumb__separator breadcrumb-separator";
+    separator.setAttribute("aria-hidden", "true");
+    separator.textContent = "/";
+    li.appendChild(separator);
 
     breadcrumbList.appendChild(li);
   });
 }
 
-breadcrumbList.addEventListener("click", (event) => {
-  const link = event.target.closest("a.breadcrumb-link");
-  if (!link || !breadcrumbList.contains(link)) {
-    return;
-  }
-  event.preventDefault();
+function knBreadcrumbNavigate(link) {
   const href = link.getAttribute("href");
   if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
     return;
@@ -1217,9 +1293,2742 @@ breadcrumbList.addEventListener("click", (event) => {
   if (navLink) {
     navLink.click();
   }
+}
+
+function hydrateKnBreadcrumb(nav) {
+  if (!nav) {
+    return;
+  }
+  if (!nav.getAttribute("aria-label")) {
+    nav.setAttribute("aria-label", "Breadcrumb");
+  }
+  if (nav.dataset.knCrumbReady === "1") {
+    return;
+  }
+  nav.dataset.knCrumbReady = "1";
+  nav.addEventListener("click", (event) => {
+    const link = event.target.closest("a.kn-breadcrumb__link, a.breadcrumb-link");
+    if (!link || !nav.contains(link) || link.classList.contains("is-current")) {
+      return;
+    }
+    event.preventDefault();
+    knBreadcrumbNavigate(link);
+  });
+}
+
+function hydrateKnBreadcrumbs(scope = document) {
+  scope.querySelectorAll("nav.kn-breadcrumb, nav.breadcrumb").forEach((nav) => hydrateKnBreadcrumb(nav));
+}
+
+window.KNBreadcrumb = Object.assign(window.KNBreadcrumb || {}, {
+  hydrate: hydrateKnBreadcrumbs
 });
 
-function activateL2Trigger(trigger) {
+function hydrateKnButton(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  const isAnchor = el.tagName === "A";
+  if (!isAnchor && !el.getAttribute("type")) {
+    el.setAttribute("type", "button");
+  }
+  if (isAnchor && el.getAttribute("target") === "_blank" && !el.getAttribute("rel")) {
+    el.setAttribute("rel", "noopener noreferrer");
+  }
+  const iconOnly = el.classList.contains("kn-btn--icon") || el.classList.contains("btn--icon-only");
+  if (iconOnly && !el.getAttribute("aria-label")) {
+    const tip = el.getAttribute("data-tooltip") || el.getAttribute("title");
+    if (tip) {
+      el.setAttribute("aria-label", tip);
+    }
+  }
+  if (el.classList.contains("is-loading")) {
+    el.setAttribute("aria-busy", "true");
+    el.setAttribute("aria-disabled", "true");
+  }
+}
+
+function hydrateKnIconButton(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  if (!el.getAttribute("type")) {
+    el.setAttribute("type", "button");
+  }
+  if (!el.getAttribute("aria-label")) {
+    const tip = el.getAttribute("data-tooltip") || el.getAttribute("title");
+    if (tip) {
+      el.setAttribute("aria-label", tip);
+    }
+  }
+}
+
+const KN_BTN_GROUP_SIZE = {
+  xsmall: ["kn-btn--xsmall"],
+  small: ["kn-btn--small", "btn--sm"],
+  medium: ["kn-btn--medium", "btn--md"],
+  large: ["kn-btn--large"]
+};
+
+const KN_BTN_GROUP_VARIANT = {
+  primary: ["kn-btn--primary", "btn--primary"],
+  secondary: ["kn-btn--secondary", "btn--secondary"],
+  tertiary: ["kn-btn--tertiary", "btn--tertiary"]
+};
+
+const KN_BTN_GROUP_COLOR = {
+  white: ["kn-btn--white"],
+  positive: ["kn-btn--positive"],
+  negative: ["kn-btn--negative", "btn--color-negative"]
+};
+
+function knButtonHasSize(el) {
+  return (
+    el.classList.contains("kn-btn--xsmall") ||
+    el.classList.contains("kn-btn--small") ||
+    el.classList.contains("kn-btn--medium") ||
+    el.classList.contains("kn-btn--large") ||
+    el.classList.contains("btn--sm") ||
+    el.classList.contains("btn--md")
+  );
+}
+
+function knButtonHasVariant(el) {
+  return (
+    el.classList.contains("kn-btn--primary") ||
+    el.classList.contains("kn-btn--secondary") ||
+    el.classList.contains("kn-btn--tertiary") ||
+    el.classList.contains("btn--primary") ||
+    el.classList.contains("btn--secondary") ||
+    el.classList.contains("btn--tertiary")
+  );
+}
+
+function knButtonHasColor(el) {
+  return (
+    el.classList.contains("kn-btn--white") ||
+    el.classList.contains("kn-btn--positive") ||
+    el.classList.contains("kn-btn--negative") ||
+    el.classList.contains("btn--color-negative") ||
+    el.classList.contains("btn--color-positive")
+  );
+}
+
+function knButtonGroupChildButtons(group) {
+  const out = [];
+  group.querySelectorAll(":scope > .kn-btn, :scope > .btn").forEach((el) => {
+    out.push(el);
+  });
+  group.querySelectorAll(":scope > .kn-dropdown").forEach((dropdown) => {
+    dropdown.querySelectorAll(":scope > .kn-btn, :scope > .btn").forEach((el) => {
+      out.push(el);
+    });
+  });
+  return out;
+}
+
+function knButtonGroupSize(group) {
+  if (group.classList.contains("kn-btn-group--xsmall")) {
+    return "xsmall";
+  }
+  if (group.classList.contains("kn-btn-group--small")) {
+    return "small";
+  }
+  if (group.classList.contains("kn-btn-group--medium")) {
+    return "medium";
+  }
+  if (group.classList.contains("kn-btn-group--large")) {
+    return "large";
+  }
+  return null;
+}
+
+function knButtonGroupVariant(group) {
+  if (group.classList.contains("kn-btn-group--secondary")) {
+    return "secondary";
+  }
+  if (group.classList.contains("kn-btn-group--tertiary")) {
+    return "tertiary";
+  }
+  if (group.classList.contains("kn-btn-group--primary")) {
+    return "primary";
+  }
+  return null;
+}
+
+function knButtonGroupColor(group) {
+  if (group.classList.contains("kn-btn-group--white")) {
+    return "white";
+  }
+  if (group.classList.contains("kn-btn-group--positive")) {
+    return "positive";
+  }
+  if (group.classList.contains("kn-btn-group--negative")) {
+    return "negative";
+  }
+  return null;
+}
+
+function hydrateKnButtonGroup(group) {
+  if (!group || group.nodeType !== 1) {
+    return;
+  }
+  if (!group.getAttribute("role")) {
+    group.setAttribute("role", "group");
+  }
+  const disabled =
+    group.classList.contains("kn-btn-group--disabled") ||
+    group.getAttribute("aria-disabled") === "true";
+  if (disabled) {
+    group.setAttribute("aria-disabled", "true");
+  }
+  const size = knButtonGroupSize(group);
+  const variant = knButtonGroupVariant(group);
+  const color = knButtonGroupColor(group);
+  knButtonGroupChildButtons(group).forEach((el) => {
+    if (size && !knButtonHasSize(el)) {
+      KN_BTN_GROUP_SIZE[size].forEach((cls) => el.classList.add(cls));
+    }
+    if (variant && !knButtonHasVariant(el)) {
+      KN_BTN_GROUP_VARIANT[variant].forEach((cls) => el.classList.add(cls));
+    }
+    if (color && !knButtonHasColor(el)) {
+      KN_BTN_GROUP_COLOR[color].forEach((cls) => el.classList.add(cls));
+    }
+    if (disabled) {
+      if (el.tagName === "BUTTON") {
+        el.disabled = true;
+      }
+      el.setAttribute("aria-disabled", "true");
+    }
+  });
+}
+
+function hydrateKnButtonGroups(scope = document) {
+  scope.querySelectorAll(".kn-btn-group").forEach((group) => hydrateKnButtonGroup(group));
+}
+
+function hydrateKnButtons(scope = document) {
+  hydrateKnButtonGroups(scope);
+  scope.querySelectorAll(".kn-btn, button.btn, a.btn").forEach((el) => hydrateKnButton(el));
+  scope.querySelectorAll("button.icon-btn").forEach((el) => hydrateKnIconButton(el));
+}
+
+window.KNButtonGroup = Object.assign(window.KNButtonGroup || {}, {
+  hydrate: hydrateKnButtonGroups
+});
+
+window.KNButton = Object.assign(window.KNButton || {}, {
+  hydrate: hydrateKnButtons
+});
+
+function hydrateKnChart(chart) {
+  if (!chart || chart.nodeType !== 1) {
+    return;
+  }
+  const plot = chart.querySelector(":scope > .kn-chart__plot, :scope > .dash-bars, :scope > .dash-donut");
+  if (plot && !plot.getAttribute("role")) {
+    plot.setAttribute("role", "img");
+  }
+  chart.querySelectorAll(".kn-chart__legend, .dash-legend, .dash-donut__legend").forEach((legend) => {
+    if (legend.tagName === "UL" && !legend.getAttribute("aria-label")) {
+      legend.setAttribute("aria-label", "Chart legend");
+    }
+  });
+}
+
+function hydrateKnCharts(scope = document) {
+  scope.querySelectorAll(".kn-chart").forEach((el) => hydrateKnChart(el));
+}
+
+window.KNChart = Object.assign(window.KNChart || {}, {
+  hydrate: hydrateKnCharts
+});
+
+function hydrateKnCheckbox(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "checkbox");
+  const input = root.querySelector('input[type="checkbox"]');
+  if (!input) {
+    return;
+  }
+  const groupDisabled = Boolean(root.closest(".kn-checkbox-group.is-disabled"));
+  if (root.classList.contains("is-disabled") || groupDisabled || input.disabled) {
+    input.disabled = true;
+    root.classList.add("is-disabled");
+  }
+  const groupInvalid = Boolean(root.closest(".kn-checkbox-group.is-invalid"));
+  if (root.classList.contains("is-invalid") || groupInvalid || input.getAttribute("aria-invalid") === "true") {
+    input.setAttribute("aria-invalid", "true");
+    root.classList.add("is-invalid");
+  }
+  input.indeterminate = input.hasAttribute("data-indeterminate");
+}
+
+function hydrateKnCheckboxes(scope = document) {
+  scope.querySelectorAll(".kn-checkbox, .kn-check").forEach((el) => hydrateKnCheckbox(el));
+}
+
+window.KNCheckbox = Object.assign(window.KNCheckbox || {}, {
+  hydrate: hydrateKnCheckboxes
+});
+
+function hydrateKnRadio(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "radio");
+  const input = root.querySelector('input[type="radio"]');
+  if (!input) {
+    return;
+  }
+  const groupDisabled = Boolean(root.closest(".kn-radio-group.is-disabled"));
+  if (root.classList.contains("is-disabled") || groupDisabled || input.disabled) {
+    input.disabled = true;
+    root.classList.add("is-disabled");
+  }
+  const groupInvalid = Boolean(root.closest(".kn-radio-group.is-invalid"));
+  if (root.classList.contains("is-invalid") || groupInvalid || input.getAttribute("aria-invalid") === "true") {
+    input.setAttribute("aria-invalid", "true");
+    root.classList.add("is-invalid");
+  }
+}
+
+function hydrateKnRadios(scope = document) {
+  scope.querySelectorAll(".kn-radio").forEach((el) => hydrateKnRadio(el));
+}
+
+window.KNRadio = Object.assign(window.KNRadio || {}, {
+  hydrate: hydrateKnRadios
+});
+
+function hydrateKnSwitch(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "switch");
+  const input = root.querySelector('input[type="checkbox"]');
+  if (!input) {
+    return;
+  }
+  if (!input.getAttribute("role")) {
+    input.setAttribute("role", "switch");
+  }
+  if (root.classList.contains("is-disabled") || input.disabled) {
+    input.disabled = true;
+    root.classList.add("is-disabled");
+  }
+}
+
+function hydrateKnSwitches(scope = document) {
+  scope.querySelectorAll(".kn-switch").forEach((el) => hydrateKnSwitch(el));
+}
+
+window.KNSwitch = Object.assign(window.KNSwitch || {}, {
+  hydrate: hydrateKnSwitches
+});
+
+function hydrateKnChip(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  el.setAttribute("data-kn-component", "chip");
+  if (!el.classList.contains("kn-chip")) {
+    el.classList.add("kn-chip");
+  }
+  const group = el.closest(".kn-chip-group, .vis-chips, .vis-quickfilters, .admin-chips");
+  const groupRole = group?.getAttribute("role");
+  if (groupRole === "radiogroup" && !el.getAttribute("role")) {
+    el.setAttribute("role", "radio");
+  }
+  if (group?.getAttribute("data-selection") === "multiple" && !el.getAttribute("role")) {
+    el.setAttribute("role", "checkbox");
+  }
+  if (el.classList.contains("is-selected") && el.getAttribute("aria-checked") == null && (el.getAttribute("role") === "radio" || el.getAttribute("role") === "checkbox")) {
+    el.setAttribute("aria-checked", "true");
+  }
+  if (el.getAttribute("aria-checked") === "true") {
+    el.classList.add("is-selected");
+  }
+  if (el.classList.contains("is-disabled") && el.tagName === "BUTTON") {
+    el.disabled = true;
+  }
+  el.querySelectorAll(".kn-counter, .counter").forEach((node) => hydrateKnCounter(node));
+}
+
+function hydrateKnChips(scope = document) {
+  scope.querySelectorAll(".kn-chip, .vis-chip").forEach((el) => hydrateKnChip(el));
+}
+
+window.KNChip = Object.assign(window.KNChip || {}, {
+  hydrate: hydrateKnChips
+});
+
+const KN_FILTER_CHIP_CLOSE_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+
+function knFilterChipIsChip(el) {
+  return el.classList.contains("vis-chip") && !el.classList.contains("kn-filter-chip");
+}
+
+function hydrateKnFilterChip(root) {
+  if (!root || root.nodeType !== 1 || knFilterChipIsChip(root)) {
+    return;
+  }
+  const host = root.classList.contains("kn-filter-chip")
+    ? root
+    : root.classList.contains("admin-applied__chip")
+      ? root
+      : root.closest?.(".kn-filter-chip, .admin-applied__chip");
+  if (!host) {
+    return;
+  }
+  host.classList.add("kn-filter-chip");
+  host.setAttribute("data-kn-component", "filter-chip");
+  if (host.tagName === "BUTTON" && !host.getAttribute("type")) {
+    host.setAttribute("type", "button");
+  }
+  if (host.classList.contains("kn-filter-chip--selected") || host.getAttribute("data-selected") === "true") {
+    host.classList.add("is-selected");
+  }
+  if (host.querySelector(":scope > .kn-filter-chip__clear, :scope .kn-filter-chip__clear")) {
+    host.classList.add("has-clear");
+  }
+  if (!host.getAttribute("data-selection")) {
+    const groupType = host.closest(".kn-filter-chip-group, .admin-applied")?.getAttribute("data-selection");
+    host.setAttribute("data-selection", groupType === "multiple" ? "multiple" : "single");
+  }
+  const trigger = host.querySelector(":scope > .kn-filter-chip__trigger");
+  if (trigger && trigger.tagName === "BUTTON" && !trigger.getAttribute("type")) {
+    trigger.setAttribute("type", "button");
+  }
+  const clear = host.querySelector(":scope > .kn-filter-chip__clear");
+  if (clear) {
+    if (clear.tagName === "BUTTON" && !clear.getAttribute("type")) {
+      clear.setAttribute("type", "button");
+    }
+    if (!clear.querySelector("svg") && clear.textContent.trim() === "×") {
+      clear.textContent = "";
+      clear.insertAdjacentHTML("afterbegin", KN_FILTER_CHIP_CLOSE_SVG);
+    }
+  }
+  if (typeof hydrateKnDivider === "function") {
+    host.querySelectorAll(".kn-filter-chip__divider").forEach((node) => hydrateKnDivider(node));
+  }
+  if (typeof hydrateKnCounter === "function") {
+    host.querySelectorAll(".kn-counter, .counter").forEach((node) => hydrateKnCounter(node));
+  }
+}
+
+function hydrateKnFilterChipGroup(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.classList.add("kn-filter-chip-group");
+  root.setAttribute("data-kn-component", "filter-chip-group");
+  root.querySelectorAll(":scope > .kn-filter-chip-group__clear, :scope > .kn-filter-chip-group__reset").forEach((el) => {
+    el.classList.add("kn-link");
+  });
+}
+
+function hydrateKnFilterChips(scope = document) {
+  const root = scope || document;
+  const groupSelector = ".kn-filter-chip-group, .admin-applied";
+  const groups =
+    root.nodeType === 1 && root.matches?.(groupSelector)
+      ? [root]
+      : Array.from(root.querySelectorAll(groupSelector));
+  groups.forEach((el) => hydrateKnFilterChipGroup(el));
+  const chipSelector = ".kn-filter-chip, .admin-applied__chip";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(chipSelector)
+      ? [root]
+      : Array.from(root.querySelectorAll(chipSelector));
+  const seen = new Set();
+  nodes.forEach((el) => {
+    if (knFilterChipIsChip(el)) {
+      return;
+    }
+    if (seen.has(el)) {
+      return;
+    }
+    seen.add(el);
+    hydrateKnFilterChip(el);
+  });
+}
+
+window.KNFilterChip = Object.assign(window.KNFilterChip || {}, {
+  hydrate: hydrateKnFilterChips
+});
+
+const KN_TAG_CLOSE_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+const KN_TAG_SIZES = ["xsmall", "small", "medium", "large"];
+const KN_TAG_BADGE_CLASSES = [
+  "kn-badge",
+  "badge",
+  "pill",
+  "kn-badge--subtle",
+  "kn-badge--intense",
+  "kn-badge--xsmall",
+  "kn-badge--small",
+  "kn-badge--medium",
+  "kn-badge--large",
+  "kn-badge--positive",
+  "kn-badge--negative",
+  "kn-badge--notice",
+  "kn-badge--information",
+  "kn-badge--neutral",
+  "kn-badge--primary",
+  "badge--subtle",
+  "badge--intense",
+  "badge--xsmall",
+  "badge--small",
+  "badge--medium",
+  "badge--large",
+  "badge--positive",
+  "badge--negative",
+  "badge--notice",
+  "badge--information",
+  "badge--neutral",
+  "badge--primary",
+  "badge--ai"
+];
+
+function knTagHasSize(el) {
+  return KN_TAG_SIZES.some((size) => el.classList.contains(`kn-tag--${size}`));
+}
+
+function knTagLabelText(el) {
+  const label = el.querySelector(".kn-tag__label, .kn-select__chip-label");
+  return (label?.textContent || el.textContent || "").trim();
+}
+
+function hydrateKnTag(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  el.classList.add("kn-tag");
+  el.setAttribute("data-kn-component", "tag");
+  KN_TAG_BADGE_CLASSES.forEach((cls) => el.classList.remove(cls));
+  if (!knTagHasSize(el)) {
+    el.classList.add("kn-tag--medium");
+  }
+  if (el.classList.contains("is-disabled") || el.getAttribute("aria-disabled") === "true") {
+    el.classList.add("is-disabled");
+    el.setAttribute("aria-disabled", "true");
+  }
+  let label = el.querySelector(":scope > .kn-tag__label, :scope > .kn-select__chip-label");
+  if (!label) {
+    label = document.createElement("span");
+    label.className = "kn-tag__label";
+    const keep = [];
+    [...el.childNodes].forEach((node) => {
+      if (node.nodeType === 1) {
+        const cls = node.classList;
+        if (
+          cls.contains("kn-tag__icon") ||
+          cls.contains("kn-tag__dismiss") ||
+          cls.contains("kn-select__chip-remove") ||
+          cls.contains("ai-suggest-mark") ||
+          node.tagName === "BUTTON" ||
+          node.tagName === "SVG"
+        ) {
+          keep.push(node);
+          return;
+        }
+      }
+      if (node.nodeType === 3 && !node.textContent.trim()) {
+        return;
+      }
+      label.appendChild(node);
+    });
+    const dismiss = keep.find((node) => node.matches?.(".kn-tag__dismiss, .kn-select__chip-remove, button"));
+    if (dismiss) {
+      el.insertBefore(label, dismiss);
+    } else {
+      el.appendChild(label);
+    }
+  } else {
+    label.classList.add("kn-tag__label");
+  }
+  let dismiss = el.querySelector(":scope > .kn-tag__dismiss, :scope > .kn-select__chip-remove");
+  if (dismiss) {
+    dismiss.classList.add("kn-tag__dismiss");
+    if (dismiss.tagName === "BUTTON" && !dismiss.getAttribute("type")) {
+      dismiss.setAttribute("type", "button");
+    }
+    const name = knTagLabelText(el);
+    if (name && !dismiss.getAttribute("aria-label")) {
+      dismiss.setAttribute("aria-label", `Close ${name} tag`);
+    }
+    if (!dismiss.querySelector("svg") && dismiss.textContent.trim() === "×") {
+      dismiss.textContent = "";
+      dismiss.insertAdjacentHTML("afterbegin", KN_TAG_CLOSE_SVG);
+    }
+    if (el.classList.contains("is-disabled")) {
+      dismiss.disabled = true;
+    }
+  }
+}
+
+function hydrateKnTags(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-tag, .kn-select__chip";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  const seen = new Set();
+  nodes.forEach((el) => {
+    if (seen.has(el)) {
+      return;
+    }
+    seen.add(el);
+    hydrateKnTag(el);
+  });
+}
+
+window.KNTag = Object.assign(window.KNTag || {}, {
+  hydrate: hydrateKnTags
+});
+
+function knFabIsProductChrome(el) {
+  if (!el || el.nodeType !== 1) {
+    return false;
+  }
+  return (
+    el.id === "ai-assistant-trigger" ||
+    el.id === "ai-assistant-trigger-mobile" ||
+    el.classList.contains("ai-assistant-trigger")
+  );
+}
+
+function knFabHasPlacement(host) {
+  return (
+    host.classList.contains("kn-fab--bottom-end") ||
+    host.classList.contains("kn-fab--bottom-start") ||
+    host.classList.contains("kn-fab--bottom")
+  );
+}
+
+function knFabHasColor(host) {
+  return (
+    host.classList.contains("kn-fab--primary") ||
+    host.classList.contains("kn-fab--white") ||
+    host.classList.contains("kn-fab--neutral")
+  );
+}
+
+function knFabHasLabel(button) {
+  const slot = button.querySelector(".kn-fab__label, .kn-btn__label");
+  if (slot) {
+    return slot.textContent.trim().length > 0;
+  }
+  const clone = button.cloneNode(true);
+  clone.querySelectorAll("svg, .kn-spinner, .kn-fab__icon, .kn-btn__icon").forEach((node) => node.remove());
+  return clone.textContent.trim().length > 0;
+}
+
+function knFabEnsureIconSlot(button) {
+  const existing = button.querySelector(".kn-fab__icon, .kn-btn__icon");
+  if (existing) {
+    existing.classList.add("kn-fab__icon", "kn-btn__icon");
+    if (!existing.getAttribute("aria-hidden")) {
+      existing.setAttribute("aria-hidden", "true");
+    }
+    return;
+  }
+  const svg = button.querySelector(":scope > svg");
+  if (!svg || svg.closest(".kn-spinner")) {
+    return;
+  }
+  const wrap = document.createElement("span");
+  wrap.className = "kn-fab__icon kn-btn__icon";
+  wrap.setAttribute("aria-hidden", "true");
+  svg.replaceWith(wrap);
+  wrap.appendChild(svg);
+}
+
+function hydrateKnFab(host) {
+  if (!host || host.nodeType !== 1 || knFabIsProductChrome(host)) {
+    return;
+  }
+  host.classList.add("kn-fab");
+  host.setAttribute("data-kn-component", "fab");
+  if (!knFabHasPlacement(host)) {
+    host.classList.add("kn-fab--bottom-end");
+  }
+  if (!knFabHasColor(host)) {
+    host.classList.add("kn-fab--primary");
+  }
+  const button =
+    host.querySelector(":scope > .kn-fab__button") ||
+    host.querySelector(":scope > button") ||
+    host.querySelector(":scope > a");
+  if (!button || knFabIsProductChrome(button)) {
+    return;
+  }
+  button.classList.add("kn-fab__button", "kn-btn", "kn-btn--large", "kn-btn--primary");
+  if (host.classList.contains("kn-fab--white")) {
+    button.classList.add("kn-btn--white");
+  }
+  knFabEnsureIconSlot(button);
+  host.querySelectorAll(".kn-fab__label").forEach((el) => el.classList.add("kn-btn__label"));
+  if (!knFabHasLabel(button)) {
+    host.classList.add("kn-fab--icon");
+    button.classList.add("kn-btn--icon");
+    if (!button.getAttribute("aria-label")) {
+      const tip =
+        button.getAttribute("data-tooltip") ||
+        button.getAttribute("title") ||
+        host.getAttribute("aria-label");
+      if (tip) {
+        button.setAttribute("aria-label", tip);
+      }
+    }
+  }
+  const loading = host.classList.contains("is-loading") || button.classList.contains("is-loading");
+  if (loading) {
+    host.classList.add("is-loading");
+    button.classList.add("is-loading");
+  }
+  const disabled =
+    host.classList.contains("is-disabled") ||
+    button.disabled ||
+    button.getAttribute("aria-disabled") === "true";
+  if (disabled) {
+    host.classList.add("is-disabled");
+    if (button.tagName === "BUTTON") {
+      button.disabled = true;
+    }
+    button.setAttribute("aria-disabled", "true");
+  }
+  if (typeof hydrateKnButton === "function") {
+    hydrateKnButton(button);
+  }
+}
+
+function hydrateKnFabs(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-fab";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  nodes.forEach((el) => hydrateKnFab(el));
+}
+
+window.KNFab = Object.assign(window.KNFab || {}, {
+  hydrate: hydrateKnFabs
+});
+window.KNFloatingActionButton = window.KNFab;
+
+const KN_COUNTER_COLORS = ["positive", "negative", "notice", "information", "neutral", "primary"];
+const KN_COUNTER_SIZES = ["small", "medium", "large"];
+
+function knCounterClass(color, extra = {}) {
+  const tone = color || extra.color || "neutral";
+  const emphasis = extra.emphasis || (extra.intense ? "intense" : "subtle");
+  const size = extra.size || "small";
+  const classes = ["kn-counter", "counter", `kn-counter--${tone}`, `counter--${tone}`];
+  if (size !== "small") {
+    classes.push(`kn-counter--${size}`, `counter--${size}`);
+  }
+  if (emphasis === "intense") {
+    classes.push("kn-counter--intense", "counter--intense");
+  }
+  if (extra.wide) {
+    classes.push("kn-counter--wide", "counter--wide");
+  }
+  return classes.join(" ");
+}
+
+function formatKnCounter(value, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return String(value ?? "").trim();
+  }
+  const cap = Number(max);
+  if (max != null && max !== "" && Number.isFinite(cap) && cap !== 0 && n > cap) {
+    return `${cap}+`;
+  }
+  return String(n);
+}
+
+function knCounterRawNumber(el) {
+  if (el.hasAttribute("data-value")) {
+    const n = Number(el.getAttribute("data-value"));
+    if (Number.isFinite(n)) {
+      return n;
+    }
+  }
+  const n = parseFloat(String(el.textContent || "").trim());
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function hydrateKnCounter(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  if (el.classList.contains("kn-badge") || el.classList.contains("badge") || el.classList.contains("pill")) {
+    return;
+  }
+  el.setAttribute("data-kn-component", "counter");
+  el.classList.add("kn-counter");
+  KN_COUNTER_COLORS.forEach((color) => {
+    if (el.classList.contains(`counter--${color}`)) {
+      el.classList.add(`kn-counter--${color}`);
+    }
+  });
+  KN_COUNTER_SIZES.forEach((size) => {
+    if (el.classList.contains(`counter--${size}`)) {
+      el.classList.add(`kn-counter--${size}`);
+    }
+  });
+  if (el.classList.contains("counter--intense")) {
+    el.classList.add("kn-counter--intense");
+  }
+  if (el.classList.contains("counter--wide")) {
+    el.classList.add("kn-counter--wide");
+  }
+  const hasColor = KN_COUNTER_COLORS.some(
+    (color) => el.classList.contains(`kn-counter--${color}`) || el.classList.contains(`counter--${color}`)
+  );
+  if (!hasColor) {
+    el.classList.add("kn-counter--neutral");
+  }
+  const maxAttr = el.getAttribute("data-max");
+  if (el.hasAttribute("data-value") || (maxAttr != null && maxAttr !== "")) {
+    const raw = el.hasAttribute("data-value") ? el.getAttribute("data-value") : el.textContent.trim().replace(/\+$/, "");
+    el.textContent = formatKnCounter(raw, maxAttr);
+  }
+  const n = knCounterRawNumber(el);
+  const wide = Number.isFinite(n) ? n > 9 : el.textContent.trim().replace(/\+$/, "").length > 1;
+  el.classList.toggle("kn-counter--wide", wide);
+  el.classList.toggle("counter--wide", wide);
+}
+
+function hydrateKnCounters(scope = document) {
+  const root = scope || document;
+  const nodes =
+    root.nodeType === 1 && root.matches?.(".kn-counter, .counter")
+      ? [root]
+      : Array.from(root.querySelectorAll?.(".kn-counter, .counter") || []);
+  nodes.forEach((el) => hydrateKnCounter(el));
+}
+
+window.KNCounter = Object.assign(window.KNCounter || {}, {
+  className: knCounterClass,
+  format: formatKnCounter,
+  hydrate: hydrateKnCounters
+});
+
+const KN_COUNTER_INPUT_SIZES = ["xsmall", "medium", "large"];
+let knCounterInputSeq = 0;
+const KN_COUNTER_INPUT_MINUS =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>';
+const KN_COUNTER_INPUT_PLUS =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+function parseKnCounterInputMin(root) {
+  const n = Number(root.getAttribute("data-min"));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseKnCounterInputMax(root) {
+  if (!root.hasAttribute("data-max") || root.getAttribute("data-max") === "") {
+    return null;
+  }
+  const n = Number(root.getAttribute("data-max"));
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseKnCounterInputValue(raw, min) {
+  if (raw === "" || raw == null) {
+    return min;
+  }
+  const n = parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : min;
+}
+
+function clampKnCounterInput(value, min, max) {
+  let next = value;
+  if (next < min) {
+    next = min;
+  }
+  if (max != null && next > max) {
+    next = max;
+  }
+  return next;
+}
+
+function knCounterInputDigitCount(value) {
+  const n = Number.isFinite(value) ? value : 0;
+  return Math.max(2, String(Math.abs(n)).length) + (n < 0 ? 1 : 0);
+}
+
+function knCounterInputEnsureIcon(button, svg) {
+  if (!button || button.querySelector("svg")) {
+    return;
+  }
+  button.insertAdjacentHTML("afterbegin", svg);
+}
+
+function knCounterInputEnsureProgress(control) {
+  let progress = control.querySelector(":scope > .kn-counter-input__progress");
+  if (!progress) {
+    progress = document.createElement("span");
+    progress.className = "kn-counter-input__progress";
+    progress.setAttribute("aria-hidden", "true");
+    progress.innerHTML = '<span class="kn-counter-input__progress-fill"></span>';
+    control.appendChild(progress);
+  }
+  return progress;
+}
+
+function knCounterInputEnsureWrap(field) {
+  const parent = field.parentElement;
+  if (parent?.classList.contains("kn-counter-input__field-wrap")) {
+    return parent;
+  }
+  const wrap = document.createElement("span");
+  wrap.className = "kn-counter-input__field-wrap";
+  field.parentNode.insertBefore(wrap, field);
+  wrap.appendChild(field);
+  return wrap;
+}
+
+function syncKnCounterInput(root) {
+  const field = root.querySelector(".kn-counter-input__field");
+  const dec = root.querySelector(".kn-counter-input__dec");
+  const inc = root.querySelector(".kn-counter-input__inc");
+  if (!field) {
+    return;
+  }
+  const min = parseKnCounterInputMin(root);
+  const max = parseKnCounterInputMax(root);
+  const loading = root.classList.contains("is-loading");
+  const disabled = root.classList.contains("is-disabled") || field.disabled;
+  const locked = disabled || loading;
+  if (disabled) {
+    root.classList.add("is-disabled");
+  }
+  const value = clampKnCounterInput(parseKnCounterInputValue(field.value, min), min, max);
+  if (String(field.value) !== String(value)) {
+    field.value = String(value);
+  }
+  field.setAttribute("aria-valuemin", String(min));
+  if (max != null) {
+    field.setAttribute("aria-valuemax", String(max));
+  } else {
+    field.removeAttribute("aria-valuemax");
+  }
+  field.setAttribute("aria-valuenow", String(value));
+  root.style.setProperty("--kn-counter-input-digits", String(knCounterInputDigitCount(value)));
+  if (dec) {
+    dec.disabled = locked || value <= min;
+  }
+  if (inc) {
+    inc.disabled = locked || (max != null && value >= max);
+  }
+  field.readOnly = loading;
+  if (disabled) {
+    field.disabled = true;
+  }
+  root.setAttribute("aria-busy", loading ? "true" : "false");
+}
+
+function hydrateKnCounterInput(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "counter-input");
+  root.classList.add("kn-counter-input");
+  const hasSize = KN_COUNTER_INPUT_SIZES.some((size) => root.classList.contains(`kn-counter-input--${size}`));
+  if (!hasSize) {
+    root.classList.add("kn-counter-input--medium");
+  }
+  if (!root.classList.contains("kn-counter-input--intense") && !root.classList.contains("kn-counter-input--subtle")) {
+    root.classList.add("kn-counter-input--subtle");
+  }
+  const label = root.querySelector(".kn-counter-input__label, .kn-form-label");
+  if (label && !label.classList.contains("kn-counter-input__label")) {
+    label.classList.add("kn-counter-input__label");
+  }
+  if (label && !label.classList.contains("kn-form-label")) {
+    label.classList.add("kn-form-label");
+  }
+  let control = root.querySelector(".kn-counter-input__control");
+  if (!control) {
+    control = document.createElement("div");
+    control.className = "kn-counter-input__control";
+    root.appendChild(control);
+  }
+  control.setAttribute("role", "group");
+  let dec = root.querySelector(".kn-counter-input__dec");
+  let field = root.querySelector(".kn-counter-input__field");
+  let inc = root.querySelector(".kn-counter-input__inc");
+  if (!dec) {
+    dec = document.createElement("button");
+    dec.type = "button";
+    dec.className = "kn-counter-input__dec";
+    control.insertBefore(dec, control.firstChild);
+  }
+  if (!field) {
+    field = document.createElement("input");
+    field.className = "kn-counter-input__field";
+    control.appendChild(field);
+  }
+  if (!inc) {
+    inc = document.createElement("button");
+    inc.type = "button";
+    inc.className = "kn-counter-input__inc";
+    control.appendChild(inc);
+  }
+  if (dec.parentElement !== control) {
+    control.insertBefore(dec, control.firstChild);
+  }
+  const wrap = knCounterInputEnsureWrap(field);
+  if (wrap.parentElement !== control) {
+    if (inc.parentElement === control) {
+      control.insertBefore(wrap, inc);
+    } else {
+      control.appendChild(wrap);
+    }
+  }
+  if (inc.parentElement !== control) {
+    control.appendChild(inc);
+  }
+  knCounterInputEnsureIcon(dec, KN_COUNTER_INPUT_MINUS);
+  knCounterInputEnsureIcon(inc, KN_COUNTER_INPUT_PLUS);
+  knCounterInputEnsureProgress(control);
+  if (!dec.getAttribute("aria-label")) {
+    dec.setAttribute("aria-label", "Decrement value");
+  }
+  if (!inc.getAttribute("aria-label")) {
+    inc.setAttribute("aria-label", "Increment value");
+  }
+  field.setAttribute("type", "number");
+  field.setAttribute("role", "spinbutton");
+  field.setAttribute("inputmode", "numeric");
+  if (!field.id) {
+    knCounterInputSeq += 1;
+    field.id = `kn-counter-input-${knCounterInputSeq}`;
+  }
+  if (label && !label.getAttribute("for")) {
+    label.setAttribute("for", field.id);
+  }
+  if (label?.id && !control.getAttribute("aria-labelledby")) {
+    control.setAttribute("aria-labelledby", label.id);
+  }
+  const min = parseKnCounterInputMin(root);
+  if (!field.hasAttribute("min")) {
+    field.min = String(min);
+  }
+  const max = parseKnCounterInputMax(root);
+  if (max != null && !field.hasAttribute("max")) {
+    field.max = String(max);
+  }
+  if (root.dataset.knHydrated === "1") {
+    syncKnCounterInput(root);
+    return;
+  }
+  root.dataset.knHydrated = "1";
+
+  const commit = (next, action) => {
+    const minVal = parseKnCounterInputMin(root);
+    const maxVal = parseKnCounterInputMax(root);
+    const prev = parseKnCounterInputValue(field.value, minVal);
+    const clamped = clampKnCounterInput(next, minVal, maxVal);
+    field.value = String(clamped);
+    if (action && clamped !== prev && !root.classList.contains("is-loading")) {
+      wrap.classList.remove("is-up", "is-down");
+      void wrap.offsetWidth;
+      wrap.classList.add(action === "increment" ? "is-up" : "is-down");
+      window.setTimeout(() => {
+        wrap.classList.remove("is-up", "is-down");
+      }, knMotionDurationMs("--theme-motion-duration-quick", 200));
+    }
+    syncKnCounterInput(root);
+    if (clamped !== prev) {
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  dec.addEventListener("click", () => {
+    if (dec.disabled) {
+      return;
+    }
+    commit(parseKnCounterInputValue(field.value, parseKnCounterInputMin(root)) - 1, "decrement");
+  });
+  inc.addEventListener("click", () => {
+    if (inc.disabled) {
+      return;
+    }
+    commit(parseKnCounterInputValue(field.value, parseKnCounterInputMin(root)) + 1, "increment");
+  });
+  field.addEventListener("input", () => {
+    const minVal = parseKnCounterInputMin(root);
+    const next = parseKnCounterInputValue(field.value, minVal);
+    const clamped = clampKnCounterInput(next, minVal, parseKnCounterInputMax(root));
+    if (String(field.value) !== String(clamped) && field.value !== "") {
+      field.value = String(clamped);
+    }
+    syncKnCounterInput(root);
+  });
+  field.addEventListener("blur", () => {
+    commit(parseKnCounterInputValue(field.value, parseKnCounterInputMin(root)));
+  });
+  field.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!inc.disabled) {
+        commit(parseKnCounterInputValue(field.value, parseKnCounterInputMin(root)) + 1, "increment");
+      }
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!dec.disabled) {
+        commit(parseKnCounterInputValue(field.value, parseKnCounterInputMin(root)) - 1, "decrement");
+      }
+    }
+  });
+  syncKnCounterInput(root);
+}
+
+function hydrateKnCounterInputs(scope = document) {
+  const root = scope || document;
+  const nodes =
+    root.nodeType === 1 && root.matches?.(".kn-counter-input")
+      ? [root]
+      : Array.from(root.querySelectorAll?.(".kn-counter-input") || []);
+  nodes.forEach((el) => hydrateKnCounterInput(el));
+}
+
+window.KNCounterInput = Object.assign(window.KNCounterInput || {}, {
+  hydrate: hydrateKnCounterInputs,
+  clamp: clampKnCounterInput
+});
+
+function knCollapsibleBody(root, trigger) {
+  const id = trigger?.getAttribute("aria-controls");
+  if (id) {
+    const byId = document.getElementById(id);
+    if (byId) {
+      return byId;
+    }
+  }
+  return root?.querySelector(":scope > .kn-collapsible__body, .kn-collapsible__body") || null;
+}
+
+function knCollapsibleIsExternallyManaged(trigger) {
+  if (!(trigger instanceof HTMLElement)) {
+    return true;
+  }
+  if (trigger.closest(".kn-accordion, .kn-accordion__item, details.kn-accordion")) {
+    return true;
+  }
+  return trigger.matches("[data-admin-details-toggle], [data-admin-unused-toggle]");
+}
+
+function syncKnCollapsibleThinkingLabel(trigger) {
+  if (!trigger?.classList.contains("ai-msg__thinking-toggle")) {
+    return;
+  }
+  const panelEl = trigger.closest(".ai-msg__thinking-panel, .kn-collapsible");
+  const label = trigger.querySelector(".ai-msg__thinking-toggle-label");
+  if (!label) {
+    return;
+  }
+  const loading = panelEl?.getAttribute("data-reasoning-status") === "loading";
+  const expanded = trigger.getAttribute("aria-expanded") === "true";
+  label.textContent = loading ? "Exploring…" : expanded ? "Hide thinking" : "Show thinking";
+}
+
+function setKnCollapsibleExpanded(trigger, expanded) {
+  if (!(trigger instanceof HTMLElement)) {
+    return false;
+  }
+  const root = trigger.closest(".kn-collapsible");
+  const body = knCollapsibleBody(root, trigger);
+  trigger.setAttribute("aria-expanded", String(expanded));
+  if (body) {
+    body.hidden = !expanded;
+    if (!body.getAttribute("role")) {
+      body.setAttribute("role", "region");
+    }
+  }
+  syncKnCollapsibleThinkingLabel(trigger);
+  return expanded;
+}
+
+function toggleKnCollapsible(trigger) {
+  if (!(trigger instanceof HTMLElement) || trigger.disabled) {
+    return false;
+  }
+  const root = trigger.closest(".kn-collapsible");
+  if (root?.classList.contains("is-disabled") || trigger.getAttribute("aria-disabled") === "true") {
+    return trigger.getAttribute("aria-expanded") === "true";
+  }
+  const next = trigger.getAttribute("aria-expanded") !== "true";
+  return setKnCollapsibleExpanded(trigger, next);
+}
+
+function hydrateKnCollapsible(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "collapsible");
+  const trigger = root.querySelector(".kn-collapsible__trigger");
+  if (!trigger) {
+    return;
+  }
+  if (trigger.tagName === "BUTTON" && !trigger.getAttribute("type")) {
+    trigger.setAttribute("type", "button");
+  }
+  const body = knCollapsibleBody(root, trigger);
+  if (body) {
+    if (!trigger.getAttribute("aria-controls") && body.id) {
+      trigger.setAttribute("aria-controls", body.id);
+    }
+    if (!body.getAttribute("role")) {
+      body.setAttribute("role", "region");
+    }
+    if (trigger.getAttribute("aria-expanded") == null) {
+      trigger.setAttribute("aria-expanded", body.hidden ? "false" : "true");
+    }
+    const expanded = trigger.getAttribute("aria-expanded") === "true";
+    body.hidden = !expanded;
+  }
+  if (root.classList.contains("is-disabled") && trigger.tagName === "BUTTON") {
+    trigger.disabled = true;
+  }
+}
+
+function hydrateKnCollapsibles(scope = document) {
+  const roots =
+    scope.nodeType === 1 && scope.matches?.(".kn-collapsible")
+      ? [scope]
+      : Array.from((scope || document).querySelectorAll(".kn-collapsible"));
+  roots.forEach((el) => hydrateKnCollapsible(el));
+  bindKnCollapsibleClicks();
+}
+
+let knCollapsibleClicksBound = false;
+
+function bindKnCollapsibleClicks() {
+  if (knCollapsibleClicksBound) {
+    return;
+  }
+  knCollapsibleClicksBound = true;
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest(".kn-collapsible__trigger");
+    if (!trigger) {
+      return;
+    }
+    if (knCollapsibleIsExternallyManaged(trigger)) {
+      return;
+    }
+    event.preventDefault();
+    toggleKnCollapsible(trigger);
+  });
+}
+
+window.KNCollapsible = Object.assign(window.KNCollapsible || {}, {
+  hydrate: hydrateKnCollapsibles,
+  toggle: toggleKnCollapsible
+});
+
+function hydrateKnConfirmation(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  const confirm = root.classList.contains("kn-confirm")
+    ? root
+    : root.querySelector(".kn-confirm");
+  if (!confirm) {
+    return;
+  }
+  confirm.setAttribute("data-kn-component", "confirmation");
+  const dialog = confirm.closest(".kn-modal--confirm, .kn-sheet, [role='alertdialog']") || confirm;
+  if (dialog.getAttribute("role") !== "dialog" && dialog.getAttribute("role") !== "alertdialog") {
+    dialog.setAttribute("role", "alertdialog");
+  }
+  if (!dialog.hasAttribute("aria-modal") && (dialog.classList.contains("kn-modal--confirm") || dialog.classList.contains("kn-sheet"))) {
+    dialog.setAttribute("aria-modal", "true");
+  }
+  const title = confirm.querySelector(".kn-confirm__title, .kn-confirm__copy > :first-child");
+  const description = confirm.querySelector(".kn-confirm__description, .kn-confirm__copy .type-body-md");
+  if (title && !title.classList.contains("kn-confirm__title")) {
+    title.classList.add("kn-confirm__title");
+  }
+  if (description && !description.classList.contains("kn-confirm__description")) {
+    description.classList.add("kn-confirm__description");
+  }
+  if (title?.id && !dialog.getAttribute("aria-labelledby")) {
+    dialog.setAttribute("aria-labelledby", title.id);
+  }
+  if (description?.id && !dialog.getAttribute("aria-describedby")) {
+    dialog.setAttribute("aria-describedby", description.id);
+  }
+  const actions = confirm.querySelector(".kn-confirm__actions");
+  if (actions) {
+    if (!actions.classList.contains("kn-btn-group")) {
+      actions.classList.add("kn-btn-group", "kn-btn-group--loose");
+    }
+    hydrateKnButtonGroup(actions);
+    actions.querySelectorAll(".kn-btn, button.btn").forEach((el) => hydrateKnButton(el));
+  }
+  const close = dialog.querySelector(".kn-modal__header .icon-btn, .kn-header__close");
+  if (close) {
+    hydrateKnIconButton(close);
+  }
+  if (confirm.classList.contains("is-loading")) {
+    const primary = actions?.querySelector(".btn--primary, .kn-btn--primary");
+    if (primary) {
+      primary.classList.add("is-loading");
+      hydrateKnButton(primary);
+    }
+  }
+}
+
+function hydrateKnConfirmations(scope = document) {
+  const nodes =
+    scope.nodeType === 1 && scope.matches?.(".kn-confirm, .kn-modal--confirm")
+      ? [scope]
+      : Array.from((scope || document).querySelectorAll(".kn-confirm, .kn-modal--confirm"));
+  const seen = new Set();
+  nodes.forEach((el) => {
+    const confirm = el.classList.contains("kn-confirm") ? el : el.querySelector(".kn-confirm") || el;
+    if (seen.has(confirm)) {
+      return;
+    }
+    seen.add(confirm);
+    hydrateKnConfirmation(confirm);
+  });
+}
+
+window.KNConfirmation = Object.assign(window.KNConfirmation || {}, {
+  hydrate: hydrateKnConfirmations
+});
+
+function hydrateKnCreation(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  const creation = root.classList.contains("kn-creation")
+    ? root
+    : root.querySelector(".kn-creation");
+  if (!creation) {
+    return;
+  }
+  creation.setAttribute("data-kn-component", "creation");
+  const form = creation.querySelector(".kn-creation__form");
+  const preview = creation.querySelector(".kn-creation__preview");
+  if (form && preview) {
+    creation.classList.add("kn-creation--split");
+  }
+  const modal = creation.closest(".kn-modal");
+  if (
+    modal &&
+    creation.classList.contains("kn-creation--split") &&
+    !modal.classList.contains("kn-modal--large") &&
+    !modal.classList.contains("kn-modal--full") &&
+    !modal.classList.contains("kn-modal--confirm")
+  ) {
+    modal.classList.add("kn-modal--large");
+  }
+  const overlay = creation.closest(".kn-modal, .kn-sheet") || creation;
+  if (typeof hydrateKnHeaders === "function") {
+    hydrateKnHeaders(overlay);
+  }
+  const footer =
+    overlay.querySelector(":scope > .kn-footer, :scope > .kn-modal__footer, :scope > .kn-drawer__footer") ||
+    overlay.querySelector(".kn-footer, .kn-modal__footer") ||
+    creation.querySelector(".kn-footer");
+  if (footer) {
+    footer.classList.add("kn-footer");
+    let actions = footer.querySelector(".kn-footer__actions, .kn-btn-group");
+    if (!actions) {
+      actions = footer;
+    }
+    if (!actions.classList.contains("kn-btn-group")) {
+      actions.classList.add("kn-btn-group", "kn-btn-group--loose");
+    }
+    actions.classList.add("kn-footer__actions");
+    hydrateKnButtonGroup(actions);
+    actions.querySelectorAll(".kn-btn, button.btn").forEach((el) => hydrateKnButton(el));
+  }
+  creation.querySelectorAll(".kn-btn, button.btn").forEach((el) => {
+    if (!el.closest(".kn-footer, .kn-modal__footer, .kn-footer__actions")) {
+      hydrateKnButton(el);
+    }
+  });
+  const previewOpen = creation.querySelector("[data-kn-creation-preview-open]");
+  if (previewOpen) {
+    hydrateKnButton(previewOpen);
+    const previewTarget = previewOpen.getAttribute("data-kn-creation-preview-open");
+    if (previewTarget?.startsWith("#") && !previewOpen.hasAttribute("data-kn-sheet-open")) {
+      previewOpen.setAttribute("data-kn-sheet-open", previewTarget);
+    }
+  }
+  if (creation.classList.contains("is-loading") && footer) {
+    const primary = footer.querySelector(".btn--primary, .kn-btn--primary");
+    if (primary) {
+      primary.classList.add("is-loading");
+      hydrateKnButton(primary);
+    }
+  }
+}
+
+function hydrateKnCreations(scope = document) {
+  const nodes =
+    scope.nodeType === 1 && scope.matches?.(".kn-creation")
+      ? [scope]
+      : Array.from((scope || document).querySelectorAll(".kn-creation"));
+  nodes.forEach((el) => hydrateKnCreation(el));
+}
+
+window.KNCreation = Object.assign(window.KNCreation || {}, {
+  hydrate: hydrateKnCreations
+});
+
+function knThemeSizePx(step, fallback) {
+  const value = window.knTheme?.size?.[step];
+  return typeof value === "number" ? value : fallback;
+}
+
+function knDateToIso(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function knDateFromIso(value) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+  return new Date(year, month - 1, day);
+}
+
+function knDateStartOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function knDateSameDay(left, right) {
+  return knDateToIso(left) === knDateToIso(right);
+}
+
+function knDateFormatRange(start, end) {
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startText = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    ...(sameYear ? {} : { year: "numeric" })
+  });
+  const endText = end.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+  return `${startText} – ${endText}`;
+}
+
+function knDateFormatSingle(date) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
+
+function knDatePresetResolvers(today) {
+  return {
+    7: () => {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 7);
+      return [start, today];
+    },
+    30: () => {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 30);
+      return [start, today];
+    },
+    month: () => [new Date(today.getFullYear(), today.getMonth(), 1), today],
+    "last-month": () => {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      return [start, end];
+    },
+    today: () => [today, today]
+  };
+}
+
+function hydrateKnDatePicker(root) {
+  if (!root || root.nodeType !== 1) {
+    return null;
+  }
+  const picker = root.classList.contains("kn-date-picker")
+    ? root
+    : root.querySelector(".kn-date-picker");
+  if (!picker) {
+    return null;
+  }
+  if (picker._knDatePicker) {
+    return picker._knDatePicker;
+  }
+  picker.setAttribute("data-kn-component", "datepicker");
+  picker.classList.add("kn-dropdown");
+  if (typeof hydrateKnDropdown === "function") {
+    hydrateKnDropdown(picker);
+  }
+  const isRange = picker.classList.contains("kn-date-picker--range");
+  const trigger =
+    picker.querySelector(".kn-date-picker__trigger, [aria-haspopup='dialog']") ||
+    picker.querySelector("button");
+  const panel = picker.querySelector(".kn-date-picker__panel");
+  const inputs = Array.from(picker.querySelectorAll(".kn-date-picker__input"));
+  const startInput = inputs[0];
+  const endInput = isRange ? inputs[1] : null;
+  const error = picker.querySelector(".kn-date-picker__error");
+  const title = picker.querySelector(".kn-date-picker__title, #dash-date-title");
+  const caption = picker.querySelector(".kn-date-picker__caption");
+  const label = picker.querySelector(".kn-date-picker__value, #dash-date-label");
+  const footer = picker.querySelector(".kn-date-picker__footer");
+  const cancel = picker.querySelector("[data-kn-date-cancel], #dash-date-cancel");
+  const apply = picker.querySelector("[data-kn-date-apply], #dash-date-apply");
+  if (!trigger || !panel || !startInput) {
+    return null;
+  }
+  trigger.classList.add("kn-date-picker__trigger");
+  const icon = trigger.querySelector("svg");
+  if (icon) {
+    icon.classList.add("kn-date-picker__icon");
+  }
+  if (title && !title.classList.contains("kn-date-picker__title")) {
+    title.classList.add("kn-date-picker__title");
+  }
+  if (caption && !caption.classList.contains("kn-date-picker__caption")) {
+    caption.classList.add("kn-date-picker__caption");
+  }
+  picker.querySelectorAll(".kn-date-picker__field, .kn-detail-field").forEach((field) => {
+    field.classList.add("kn-field", "kn-date-picker__field");
+  });
+  inputs.forEach((input) => {
+    input.classList.add("kn-field__control", "kn-date-picker__input");
+    input.classList.remove("vis-th-filter");
+  });
+  picker.querySelectorAll(".kn-date-picker__field > span, .kn-date-picker__field .kn-form-label").forEach((el) => {
+    el.classList.add("kn-form-label");
+  });
+  if (error) {
+    error.classList.add("kn-form-hint", "kn-form-hint--error");
+  }
+  if (footer) {
+    footer.classList.add("kn-btn-group", "kn-btn-group--loose");
+    hydrateKnButtonGroup(footer);
+    footer.querySelectorAll(".kn-btn, button.btn").forEach((el) => hydrateKnButton(el));
+  }
+  picker.querySelectorAll("[data-dash-preset]").forEach((el) => {
+    if (!el.hasAttribute("data-kn-date-preset")) {
+      el.setAttribute("data-kn-date-preset", el.getAttribute("data-dash-preset"));
+    }
+  });
+  if (panel.parentElement !== document.body) {
+    document.body.appendChild(panel);
+  }
+  if (!panel.getAttribute("role")) {
+    panel.setAttribute("role", "dialog");
+  }
+  panel.setAttribute("aria-modal", "true");
+  if (title?.id && !panel.getAttribute("aria-labelledby")) {
+    panel.setAttribute("aria-labelledby", title.id);
+  }
+
+  let applied = isRange
+    ? [knDateStartOfDay(new Date()), knDateStartOfDay(new Date())]
+    : knDateStartOfDay(new Date());
+
+  const presetButtons = () => panel.querySelectorAll("[data-kn-date-preset], [data-dash-preset]");
+
+  const setPresetSelection = (id) => {
+    presetButtons().forEach((button) => {
+      const key = button.getAttribute("data-kn-date-preset") || button.getAttribute("data-dash-preset");
+      const selected = Boolean(id) && key === id;
+      button.setAttribute("aria-selected", String(selected));
+      button.classList.toggle("is-selected", selected);
+      button.classList.toggle("is-active", selected);
+    });
+  };
+
+  const matchPreset = (start, end) => {
+    const today = knDateStartOfDay(new Date());
+    const resolvers = knDatePresetResolvers(today);
+    return (
+      Object.entries(resolvers).find(([, resolve]) => {
+        const [from, to] = resolve().map(knDateStartOfDay);
+        if (isRange) {
+          return knDateSameDay(from, start) && knDateSameDay(to, end);
+        }
+        return knDateSameDay(from, start);
+      })?.[0] || ""
+    );
+  };
+
+  const clearDateError = () => {
+    if (error) {
+      error.hidden = true;
+    }
+    startInput.removeAttribute("aria-invalid");
+    startInput.closest(".kn-date-picker__field")?.classList.remove("is-invalid");
+    if (endInput) {
+      endInput.removeAttribute("aria-invalid");
+      endInput.closest(".kn-date-picker__field")?.classList.remove("is-invalid");
+    }
+  };
+
+  const showDateError = (message, { startInvalid = false, endInvalid = true } = {}) => {
+    if (error) {
+      error.hidden = false;
+      error.textContent = message;
+      error.setAttribute("role", "alert");
+      error.setAttribute("aria-live", "assertive");
+    }
+    startInput.setAttribute("aria-invalid", startInvalid ? "true" : "false");
+    startInput.closest(".kn-date-picker__field")?.classList.toggle("is-invalid", startInvalid);
+    if (endInput) {
+      endInput.setAttribute("aria-invalid", endInvalid ? "true" : "false");
+      endInput.closest(".kn-date-picker__field")?.classList.toggle("is-invalid", endInvalid);
+    }
+    positionPanel();
+  };
+
+  const fillInputs = (start, end) => {
+    startInput.value = knDateToIso(start);
+    if (endInput) {
+      endInput.value = knDateToIso(end);
+      endInput.min = startInput.value;
+    }
+    clearDateError();
+    setPresetSelection(matchPreset(start, end || start));
+  };
+
+  const positionPanel = () => {
+    const gutter = knThemeSpacePx(5) || knThemeSizePx(16, 16);
+    const offset = knThemeSizePx(8, 8);
+    const width = panel.offsetWidth || knThemeSizePx(300, 320);
+    const triggerRect = trigger.getBoundingClientRect();
+    let left = triggerRect.right - width;
+    if (left < gutter) {
+      left = gutter;
+    }
+    if (left + width > window.innerWidth - gutter) {
+      left = window.innerWidth - width - gutter;
+    }
+    let top = triggerRect.bottom + offset;
+    const panelHeight = panel.offsetHeight;
+    if (panelHeight && top + panelHeight > window.innerHeight - gutter) {
+      const above = triggerRect.top - panelHeight - offset;
+      if (above >= gutter) {
+        top = above;
+      }
+    }
+    panel.style.left = `${Math.round(left)}px`;
+    panel.style.top = `${Math.round(top)}px`;
+    panel.style.right = "auto";
+  };
+
+  const onReposition = () => {
+    if (!panel.hidden) {
+      positionPanel();
+    }
+  };
+
+  const setOpen = (open) => {
+    panel.hidden = !open;
+    trigger.setAttribute("aria-expanded", String(open));
+    window.removeEventListener("resize", onReposition);
+    document.removeEventListener("scroll", onReposition, true);
+    if (!open) {
+      return;
+    }
+    if (typeof setProfileMenuOpen === "function") {
+      setProfileMenuOpen(false);
+    }
+    if (typeof setQuickActionsOpen === "function") {
+      setQuickActionsOpen(false);
+    }
+    if (isRange && Array.isArray(applied)) {
+      fillInputs(applied[0], applied[1]);
+    } else {
+      fillInputs(applied, applied);
+    }
+    positionPanel();
+    window.addEventListener("resize", onReposition);
+    document.addEventListener("scroll", onReposition, true);
+    window.requestAnimationFrame(() => {
+      startInput.focus();
+      positionPanel();
+    });
+  };
+
+  const commitRange = (start, end, { persist = true } = {}) => {
+    const nextStart = knDateStartOfDay(start);
+    const nextEnd = knDateStartOfDay(end || start);
+    applied = isRange ? [nextStart, nextEnd] : nextStart;
+    const text = isRange ? knDateFormatRange(nextStart, nextEnd) : knDateFormatSingle(nextStart);
+    if (label) {
+      label.textContent = text;
+    }
+    trigger.setAttribute("aria-label", isRange ? `Date range, ${text}` : `Date, ${text}`);
+    if (picker.classList.contains("kn-date-picker--chip")) {
+      picker.classList.add("is-selected");
+      picker.querySelector(".kn-filter-chip")?.classList.add("is-selected");
+    }
+    setOpen(false);
+    picker.dispatchEvent(
+      new CustomEvent("kn-date-apply", {
+        bubbles: true,
+        detail: { start: nextStart, end: nextEnd, label: text, persist, range: isRange }
+      })
+    );
+  };
+
+  const tryApply = ({ persist = true } = {}) => {
+    const start = knDateFromIso(startInput.value);
+    const end = endInput ? knDateFromIso(endInput.value) : start;
+    if (!start || (isRange && !end)) {
+      showDateError(
+        isRange ? "Choose both a start date and an end date." : "Choose a date.",
+        { startInvalid: !start, endInvalid: isRange && !end }
+      );
+      (!start ? startInput : endInput || startInput).focus();
+      return false;
+    }
+    if (isRange && end < start) {
+      showDateError("End date must be after start date", { startInvalid: false, endInvalid: true });
+      endInput.focus();
+      return false;
+    }
+    clearDateError();
+    commitRange(start, end, { persist });
+    return true;
+  };
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setOpen(panel.hidden);
+  });
+  cancel?.addEventListener("click", () => {
+    setOpen(false);
+    trigger.focus();
+  });
+  apply?.addEventListener("click", () => {
+    tryApply({ persist: true });
+  });
+  panel.addEventListener("click", (event) => {
+    const preset = event.target.closest("[data-kn-date-preset], [data-dash-preset]");
+    if (!preset) {
+      return;
+    }
+    const id = preset.getAttribute("data-kn-date-preset") || preset.getAttribute("data-dash-preset");
+    const resolvers = knDatePresetResolvers(knDateStartOfDay(new Date()));
+    const resolve = resolvers[id];
+    if (!resolve) {
+      return;
+    }
+    const [start, end] = resolve();
+    fillInputs(start, end);
+    setPresetSelection(id);
+    if (picker.classList.contains("kn-date-picker--no-footer")) {
+      commitRange(start, end, { persist: true });
+    }
+  });
+  const onDraftChange = () => {
+    if (endInput) {
+      endInput.min = startInput.value || "";
+    }
+    clearDateError();
+    const start = knDateFromIso(startInput.value);
+    const end = endInput ? knDateFromIso(endInput.value) : start;
+    setPresetSelection(start && (!isRange || end) ? matchPreset(start, end) : "");
+    if (picker.classList.contains("kn-date-picker--no-footer") && start && (!isRange || (end && end >= start))) {
+      commitRange(start, end, { persist: true });
+    }
+  };
+  startInput.addEventListener("input", onDraftChange);
+  endInput?.addEventListener("input", onDraftChange);
+  document.addEventListener("click", (event) => {
+    if (panel.hidden) {
+      return;
+    }
+    if (event.target.closest(".kn-date-picker") === picker || event.target.closest(".kn-date-picker__panel") === panel) {
+      return;
+    }
+    setOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !panel.hidden) {
+      event.preventDefault();
+      setOpen(false);
+      trigger.focus();
+    }
+  });
+
+  const api = {
+    setOpen,
+    applyRange: commitRange,
+    getRange: () => (isRange ? applied : [applied, applied])
+  };
+  picker._knDatePicker = api;
+  return api;
+}
+
+function hydrateKnDatePickers(scope = document) {
+  const nodes =
+    scope.nodeType === 1 && scope.matches?.(".kn-date-picker")
+      ? [scope]
+      : Array.from((scope || document).querySelectorAll(".kn-date-picker"));
+  nodes.forEach((el) => hydrateKnDatePicker(el));
+}
+
+window.KNDatePicker = Object.assign(window.KNDatePicker || {}, {
+  hydrate: hydrateKnDatePickers
+});
+
+function knDetailTabSelected(tab) {
+  return tab.getAttribute("aria-selected") === "true" || tab.classList.contains("is-active");
+}
+
+function knDetailTabsInList(list) {
+  return Array.from(list.querySelectorAll('[role="tab"], .kn-tab')).filter((tab) => {
+    return !tab.disabled && tab.getAttribute("aria-disabled") !== "true";
+  });
+}
+
+function hydrateKnDetailTablist(list) {
+  if (!list || list.nodeType !== 1) {
+    return;
+  }
+  if (!list.getAttribute("role")) {
+    list.setAttribute("role", "tablist");
+  }
+  const tabs = knDetailTabsInList(list);
+  tabs.forEach((tab) => {
+    tab.classList.add("kn-tab");
+    tab.setAttribute("role", "tab");
+    if (tab.tagName === "BUTTON" && !tab.getAttribute("type")) {
+      tab.setAttribute("type", "button");
+    }
+    const selected = knDetailTabSelected(tab);
+    tab.setAttribute("aria-selected", selected ? "true" : "false");
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  if (list.dataset.knTabsBound === "true") {
+    return;
+  }
+  list.dataset.knTabsBound = "true";
+  list.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      return;
+    }
+    const items = knDetailTabsInList(list);
+    if (!items.length) {
+      return;
+    }
+    const current = items.indexOf(event.target.closest('[role="tab"], .kn-tab'));
+    if (current < 0) {
+      return;
+    }
+    event.preventDefault();
+    let next = current;
+    if (event.key === "ArrowLeft") {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === "ArrowRight") {
+      next = (current + 1) % items.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = items.length - 1;
+    }
+    items[next].focus();
+    items[next].click();
+  });
+}
+
+function hydrateKnDetailedView(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  const view = root.classList.contains("kn-detailed-view") || root.classList.contains("kn-detail")
+    ? root
+    : root.querySelector(".kn-detailed-view, .kn-detail");
+  if (!view) {
+    return;
+  }
+  view.classList.add("kn-detailed-view", "kn-detail");
+  view.setAttribute("data-kn-component", "detailed-view");
+  const head =
+    view.querySelector(":scope > .kn-header, :scope > .kn-drawer__header, :scope > .kn-detail-head") ||
+    view.querySelector(".kn-detail-head, .kn-drawer__header");
+  const tabs =
+    view.querySelector(":scope > .kn-detailed-view__tabs, :scope > .kn-detail-tabs") ||
+    view.querySelector(".kn-detailed-view__tabs, .kn-detail-tabs");
+  if (head) {
+    head.classList.add("kn-header", "kn-detailed-view__head", "kn-detail-head");
+    if (tabs) {
+      head.classList.add("kn-header--no-divider", "kn-drawer__header--no-divider");
+    }
+  }
+  if (tabs) {
+    tabs.classList.add("kn-detailed-view__tabs", "kn-detail-tabs");
+    hydrateKnDetailTablist(tabs);
+  }
+  const body =
+    view.querySelector(":scope > .kn-drawer__body, :scope > .kn-detailed-view__body, :scope > .kn-detail-panel") ||
+    view.querySelector(".kn-detail-panel");
+  if (body) {
+    body.classList.add("kn-detailed-view__body", "kn-detail-panel", "kn-box", "kn-box--column");
+  }
+  const footer =
+    view.querySelector(":scope > .kn-footer, :scope > .kn-drawer__footer, :scope > .kn-detail-footer") ||
+    view.querySelector(".kn-detail-footer, .kn-drawer__footer");
+  if (footer) {
+    footer.classList.add("kn-footer", "kn-detailed-view__footer", "kn-detail-footer");
+    let actions = footer.querySelector(".kn-footer__actions, .kn-drawer__footer-actions, .kn-btn-group");
+    if (!actions) {
+      const buttons = footer.querySelectorAll(".kn-btn, button.btn, a.btn");
+      if (buttons.length) {
+        actions = footer;
+      }
+    }
+    if (actions) {
+      if (!actions.classList.contains("kn-btn-group")) {
+        actions.classList.add("kn-btn-group", "kn-btn-group--loose");
+      }
+      actions.classList.add("kn-footer__actions");
+      hydrateKnButtonGroup(actions);
+      actions.querySelectorAll(".kn-btn, button.btn, a.btn").forEach((el) => hydrateKnButton(el));
+    }
+  }
+  if (typeof hydrateKnHeaders === "function") {
+    hydrateKnHeaders(view);
+  }
+  if (typeof hydrateKnBadges === "function") {
+    hydrateKnBadges(view);
+  }
+  if (typeof hydrateKnTags === "function") {
+    hydrateKnTags(view);
+  }
+  if (typeof hydrateKnSearchInputs === "function") {
+    hydrateKnSearchInputs(view);
+  }
+  if (typeof hydrateKnPhones === "function") {
+    hydrateKnPhones(view);
+  }
+  if (typeof hydrateKnForms === "function") {
+    hydrateKnForms(view);
+  }
+  if (typeof hydrateKnDividers === "function") {
+    hydrateKnDividers(view);
+  }
+  if (typeof hydrateKnCollapsibles === "function") {
+    hydrateKnCollapsibles(view);
+  }
+  if (typeof hydrateKnDatePickers === "function") {
+    hydrateKnDatePickers(view);
+  }
+  if (typeof hydrateKnSwitches === "function") {
+    hydrateKnSwitches(view);
+  }
+  if (typeof hydrateKnButtons === "function") {
+    view.querySelectorAll("button.icon-btn").forEach((el) => hydrateKnIconButton(el));
+  }
+  const drawerRoot = view.closest(".kn-drawer-root");
+  if (drawerRoot && typeof hydrateKnDrawer === "function") {
+    hydrateKnDrawer(drawerRoot);
+  }
+  if (view.classList.contains("is-loading") && footer) {
+    const primary = footer.querySelector(".btn--primary, .kn-btn--primary");
+    if (primary) {
+      primary.classList.add("is-loading");
+      hydrateKnButton(primary);
+    }
+  }
+}
+
+function hydrateKnDetailedViews(scope = document) {
+  const nodes =
+    scope.nodeType === 1 && scope.matches?.(".kn-detailed-view, .kn-detail")
+      ? [scope]
+      : Array.from((scope || document).querySelectorAll(".kn-detailed-view, .kn-detail"));
+  nodes.forEach((el) => hydrateKnDetailedView(el));
+}
+
+window.KNDetailedView = Object.assign(window.KNDetailedView || {}, {
+  hydrate: hydrateKnDetailedViews
+});
+
+function knDividerSkip(el) {
+  return (
+    el.classList.contains("ai-assistant-panel__resize") ||
+    el.classList.contains("kn-accordion__item") ||
+    Boolean(el.closest(".ai-assistant-panel__resize"))
+  );
+}
+
+function hydrateKnDivider(el) {
+  if (!el || el.nodeType !== 1 || knDividerSkip(el)) {
+    return;
+  }
+  el.classList.add("kn-divider");
+  if (el.classList.contains("menu-divider") || el.classList.contains("kn-menu__divider")) {
+    el.classList.add("menu-divider");
+  }
+  if (el.classList.contains("kn-filter-chip__divider")) {
+    el.classList.add("kn-divider--vertical", "kn-divider--subtle");
+  }
+  el.setAttribute("data-kn-component", "divider");
+  if (!el.getAttribute("role")) {
+    el.setAttribute("role", "separator");
+  }
+  if (el.classList.contains("kn-divider--vertical")) {
+    el.setAttribute("aria-orientation", "vertical");
+  } else if (!el.getAttribute("aria-orientation")) {
+    el.setAttribute("aria-orientation", "horizontal");
+  }
+}
+
+function hydrateKnDividers(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-divider, .menu-divider, .kn-menu__divider, .kn-filter-chip__divider";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  nodes.forEach((el) => hydrateKnDivider(el));
+}
+
+window.KNDivider = Object.assign(window.KNDivider || {}, {
+  hydrate: hydrateKnDividers
+});
+
+function knDrawerCloseMs() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return 0;
+  }
+  return knThemeDurationMs("xmoderate");
+}
+
+function hydrateKnDrawer(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  const host = root.classList.contains("kn-drawer-root")
+    ? root
+    : root.closest?.(".kn-drawer-root");
+  if (!host) {
+    return;
+  }
+  host.setAttribute("data-kn-component", "drawer");
+  const overlay = host.querySelector(":scope > .kn-drawer__overlay");
+  if (overlay && !overlay.hasAttribute("tabindex")) {
+    overlay.setAttribute("tabindex", "-1");
+  }
+  const panel = host.querySelector(":scope > .kn-drawer");
+  if (panel) {
+    if (!panel.getAttribute("role")) {
+      panel.setAttribute("role", "dialog");
+    }
+    panel.setAttribute("aria-modal", "true");
+  }
+  if (typeof hydrateKnHeaders === "function") {
+    hydrateKnHeaders(host);
+  }
+  if (typeof hydrateKnBoxes === "function") {
+    hydrateKnBoxes(host);
+  }
+  if (typeof hydrateKnButtons === "function") {
+    hydrateKnButtons(host);
+  }
+  if (typeof hydrateKnDividers === "function") {
+    hydrateKnDividers(host);
+  }
+  if (typeof hydrateKnForms === "function") {
+    hydrateKnForms(host);
+  }
+  if (typeof hydrateKnTags === "function") {
+    hydrateKnTags(host);
+  }
+  if (typeof hydrateKnSearchInputs === "function") {
+    hydrateKnSearchInputs(host);
+  }
+  if (typeof hydrateKnPhones === "function") {
+    hydrateKnPhones(host);
+  }
+}
+
+function hydrateKnDrawers(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-drawer-root";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  nodes.forEach((el) => hydrateKnDrawer(el));
+}
+
+window.KNDrawer = Object.assign(window.KNDrawer || {}, {
+  hydrate: hydrateKnDrawers,
+  closeMs: knDrawerCloseMs
+});
+
+function hydrateKnEmpty(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "empty");
+  root.classList.add("kn-empty", "empty-state");
+  const loose = Array.from(root.children).filter(
+    (el) => el.matches("button, a.btn, .kn-btn") && !el.closest(".kn-empty__actions, .empty-state__actions")
+  );
+  if (loose.length) {
+    let slot = root.querySelector(":scope > .kn-empty__actions, :scope > .empty-state__actions");
+    if (!slot) {
+      slot = document.createElement("div");
+      slot.className = "kn-empty__actions empty-state__actions";
+      root.appendChild(slot);
+    }
+    loose.forEach((el) => slot.appendChild(el));
+  }
+  if (typeof hydrateKnButtons === "function") {
+    hydrateKnButtons(root);
+  }
+}
+
+function hydrateKnEmpties(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-empty, .empty-state";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  nodes.forEach((el) => hydrateKnEmpty(el));
+}
+
+window.KNEmpty = Object.assign(window.KNEmpty || {}, {
+  hydrate: hydrateKnEmpties
+});
+
+function knFileUploadIsActionOnly(el) {
+  return el.classList.contains("kn-file-upload__action") && !el.classList.contains("kn-file-upload");
+}
+
+function knFileUploadEnsureDropzone(host) {
+  let zone = host.querySelector(":scope > .kn-file-upload__dropzone");
+  if (zone) {
+    return zone;
+  }
+  const items = host.querySelector(":scope > .kn-file-upload__items");
+  const hint = host.querySelector(":scope > .kn-form-hint");
+  const label = host.querySelector(":scope > .kn-form-label");
+  zone = document.createElement("div");
+  zone.className = "kn-file-upload__dropzone";
+  if (host.classList.contains("isf-add-doc__dropzone")) {
+    zone.classList.add("isf-add-doc__dropzone");
+    host.classList.remove("isf-add-doc__dropzone");
+  }
+  const keep = new Set([items, hint, label].filter(Boolean));
+  Array.from(host.childNodes)
+    .filter((node) => !(node.nodeType === 1 && keep.has(node)))
+    .forEach((node) => zone.appendChild(node));
+  if (items) {
+    host.insertBefore(zone, items);
+  } else if (hint) {
+    host.insertBefore(zone, hint);
+  } else {
+    host.appendChild(zone);
+  }
+  return zone;
+}
+
+function hydrateKnFileUpload(root) {
+  if (!root || root.nodeType !== 1 || knFileUploadIsActionOnly(root)) {
+    return;
+  }
+  const host = root.classList.contains("kn-file-upload")
+    ? root
+    : root.closest?.(".kn-file-upload") || (root.classList.contains("isf-add-doc__dropzone") ? root : null);
+  if (!host) {
+    return;
+  }
+  if (!host.classList.contains("kn-file-upload")) {
+    host.classList.add("kn-file-upload", "kn-file-upload--variable");
+  }
+  host.setAttribute("data-kn-component", "file-upload");
+  if (!host.getAttribute("data-upload-type")) {
+    host.setAttribute("data-upload-type", "single");
+  }
+
+  const zone = knFileUploadEnsureDropzone(host);
+  const looseSvg = zone.querySelector(":scope > svg");
+  if (looseSvg && !looseSvg.closest(".kn-file-upload__icon")) {
+    const icon = document.createElement("span");
+    icon.className = "kn-file-upload__icon";
+    icon.setAttribute("aria-hidden", "true");
+    zone.insertBefore(icon, looseSvg);
+    icon.appendChild(looseSvg);
+  }
+
+  zone.querySelectorAll(".kn-file-upload__link").forEach((link) => {
+    link.classList.add("kn-link");
+  });
+
+  const inert = host.hasAttribute("data-isf-detail-inert") || zone.hasAttribute("data-isf-detail-inert");
+  const disabled =
+    host.classList.contains("is-disabled") || zone.getAttribute("aria-disabled") === "true";
+  let input = zone.querySelector(":scope input[type='file']");
+  if (!inert && !disabled && !input) {
+    input = document.createElement("input");
+    input.type = "file";
+    input.className = "kn-file-upload__input visually-hidden";
+    input.id = `kn-file-upload-input-${++hydrateKnFileUpload.seq}`;
+    if (host.getAttribute("data-upload-type") === "multiple") {
+      input.multiple = true;
+    }
+    zone.appendChild(input);
+  }
+  if (input) {
+    input.classList.add("kn-file-upload__input", "visually-hidden");
+    input.setAttribute("tabindex", "-1");
+  }
+
+  const items = host.querySelectorAll(".kn-file-upload__item");
+  if (host.getAttribute("data-upload-type") !== "multiple" && items.length >= 1) {
+    zone.hidden = true;
+  } else {
+    zone.hidden = false;
+  }
+
+  if (inert && !input) {
+    if (!zone.hasAttribute("tabindex")) {
+      zone.setAttribute("tabindex", "0");
+    }
+    if (!zone.getAttribute("role")) {
+      zone.setAttribute("role", "button");
+    }
+  }
+
+  if (host.dataset.knFileUploadBound === "true") {
+    if (typeof hydrateKnButtons === "function") {
+      hydrateKnButtons(host);
+    }
+    return;
+  }
+  host.dataset.knFileUploadBound = "true";
+
+  const setActive = (on) => {
+    if (disabled) {
+      return;
+    }
+    zone.classList.toggle("is-active", on);
+    host.classList.toggle("is-active", on);
+  };
+
+  zone.addEventListener("dragenter", (event) => {
+    event.preventDefault();
+    setActive(true);
+  });
+  zone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    setActive(true);
+  });
+  zone.addEventListener("dragleave", (event) => {
+    if (zone.contains(event.relatedTarget)) {
+      return;
+    }
+    setActive(false);
+  });
+  zone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    setActive(false);
+  });
+  zone.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    if (input || event.target !== zone) {
+      return;
+    }
+    event.preventDefault();
+    zone.click();
+  });
+
+  if (typeof hydrateKnButtons === "function") {
+    hydrateKnButtons(host);
+  }
+}
+hydrateKnFileUpload.seq = 0;
+
+function hydrateKnFileUploads(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-file-upload, .isf-add-doc__dropzone";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  const seen = new Set();
+  nodes.forEach((el) => {
+    if (knFileUploadIsActionOnly(el)) {
+      return;
+    }
+    const host = el.classList.contains("kn-file-upload")
+      ? el
+      : el.closest(".kn-file-upload") || el;
+    if (seen.has(host)) {
+      return;
+    }
+    seen.add(host);
+    hydrateKnFileUpload(host);
+  });
+}
+
+window.KNFileUpload = Object.assign(window.KNFileUpload || {}, {
+  hydrate: hydrateKnFileUploads
+});
+
+const KN_FORM_HINT_ERROR_SVG =
+  '<svg class="kn-form-hint__glyph" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.4" stroke="currentColor" stroke-width="1.25"/><path d="M6 3.75v2.7" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/><circle cx="6" cy="8.35" r="0.7" fill="currentColor"/></svg>';
+const KN_FORM_HINT_SUCCESS_SVG =
+  '<svg class="kn-form-hint__glyph" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.6 6.2 5 8.6 9.4 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+let knFormIdSeq = 0;
+
+function knFormNextId(slot) {
+  knFormIdSeq += 1;
+  return `kn-form-${slot}-${knFormIdSeq}`;
+}
+
+function knFormIsSkipped(el) {
+  return Boolean(
+    el.closest?.(
+      ".kn-chat-input, .agentic-home__composer, .side-nav-chat-search, .kn-phone, .top-nav"
+    )
+  );
+}
+
+function knFormDescribedBy(el) {
+  return (el.getAttribute("aria-describedby") || "")
+    .split(/\s+/)
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+function knFormSetDescribedBy(el, hintId) {
+  const ids = knFormDescribedBy(el);
+  if (!ids.includes(hintId)) {
+    ids.push(hintId);
+    el.setAttribute("aria-describedby", ids.join(" "));
+  }
+}
+
+function knFormEnsureHintIcon(hint) {
+  const isError = hint.classList.contains("kn-form-hint--error") || hint.classList.contains("role-form__error");
+  const isSuccess = hint.classList.contains("kn-form-hint--success");
+  if (!isError && !isSuccess) {
+    return;
+  }
+  if (hint.querySelector(".kn-form-hint__icon")) {
+    return;
+  }
+  const icon = document.createElement("span");
+  icon.className = "kn-form-hint__icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = isError ? KN_FORM_HINT_ERROR_SVG : KN_FORM_HINT_SUCCESS_SVG;
+  hint.insertBefore(icon, hint.firstChild);
+}
+
+function knFormUpdateCounter(counter, control) {
+  if (!counter || !control) {
+    return;
+  }
+  const maxRaw = control.getAttribute("maxlength") || counter.getAttribute("data-max");
+  const max = Number.parseInt(maxRaw, 10);
+  if (!Number.isFinite(max) || max <= 0) {
+    return;
+  }
+  counter.setAttribute("data-max", String(max));
+  counter.textContent = `${control.value.length}/${max}`;
+}
+
+function knFormBindCounter(field, control) {
+  const counter = field.querySelector(".kn-form-counter");
+  if (!counter || !control || control.dataset.knFormCounterBound === "true") {
+    return;
+  }
+  knFormUpdateCounter(counter, control);
+  control.dataset.knFormCounterBound = "true";
+  control.addEventListener("input", () => knFormUpdateCounter(counter, control));
+}
+
+function knFormLabelNodes(field) {
+  const nodes = [];
+  field.querySelectorAll(":scope > .kn-form-label, :scope > .kn-field__label, :scope > label").forEach((el) => {
+    nodes.push(el);
+  });
+  const labelled = field.querySelector(":scope > span[id$='-label']");
+  if (labelled && !nodes.includes(labelled)) {
+    nodes.push(labelled);
+  }
+  return nodes;
+}
+
+function knFormControl(field) {
+  return (
+    field.querySelector(":scope > .kn-field__control") ||
+    field.querySelector(":scope > input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='file'])") ||
+    field.querySelector(":scope > textarea") ||
+    field.querySelector(":scope > select")
+  );
+}
+
+function hydrateKnField(field) {
+  if (!field || field.nodeType !== 1 || knFormIsSkipped(field)) {
+    return;
+  }
+  if (field.classList.contains("kn-file-upload") || field.classList.contains("kn-counter-input")) {
+    field.querySelectorAll(".kn-form-label, .kn-field__label, .kn-form-hint, .kn-field__hint").forEach((el) => {
+      if (el.matches(".kn-form-label, .kn-field__label")) {
+        el.classList.add("kn-form-label");
+      }
+      if (el.matches(".kn-form-hint, .kn-field__hint, .role-form__error")) {
+        el.classList.add("kn-form-hint");
+        knFormEnsureHintIcon(el);
+      }
+    });
+    return;
+  }
+  field.classList.add("kn-field");
+  field.setAttribute("data-kn-component", "field");
+  knFormLabelNodes(field).forEach((label) => {
+    label.classList.add("kn-form-label");
+    label.querySelectorAll(".role-req, .kn-form-necessity").forEach((mark) => {
+      mark.classList.add("kn-form-necessity");
+      if (/\(\s*optional\s*\)/i.test(mark.textContent) || mark.classList.contains("kn-form-necessity--optional")) {
+        mark.classList.add("kn-form-necessity--optional");
+      }
+    });
+  });
+  const control = knFormControl(field);
+  const label = knFormLabelNodes(field)[0];
+  if (control) {
+    control.classList.add("kn-field__control");
+    if (!control.id) {
+      control.id = knFormNextId("input");
+    }
+    if (label && label.tagName === "LABEL" && !label.getAttribute("for")) {
+      label.setAttribute("for", control.id);
+    }
+    const invalid =
+      field.classList.contains("is-invalid") ||
+      field.classList.contains("kn-field--invalid") ||
+      control.getAttribute("aria-invalid") === "true";
+    if (invalid) {
+      field.classList.add("is-invalid");
+      control.setAttribute("aria-invalid", "true");
+    }
+    if (control.disabled) {
+      field.classList.add("is-disabled");
+    }
+    if (control.required) {
+      field.setAttribute("data-required", "true");
+    }
+    knFormBindCounter(field, control);
+  }
+  field.querySelectorAll(":scope > .kn-form-hint, :scope > .kn-field__hint, :scope > .role-form__error").forEach((hint) => {
+    hint.classList.add("kn-form-hint");
+    if (hint.classList.contains("role-form__error") || hint.getAttribute("role") === "alert") {
+      hint.classList.add("kn-form-hint--error");
+    }
+    if (!hint.id) {
+      const slot = hint.classList.contains("kn-form-hint--error")
+        ? "error"
+        : hint.classList.contains("kn-form-hint--success")
+          ? "success"
+          : "help";
+      hint.id = knFormNextId(slot);
+    }
+    knFormEnsureHintIcon(hint);
+    if (control) {
+      knFormSetDescribedBy(control, hint.id);
+    }
+  });
+}
+
+function hydrateKnFormGroup(root) {
+  if (!root || root.nodeType !== 1 || knFormIsSkipped(root)) {
+    return;
+  }
+  root.classList.add("kn-form-group");
+  root.setAttribute("data-kn-component", "form-group");
+  root.querySelectorAll(".kn-field, .kn-detail-field").forEach((field) => hydrateKnField(field));
+}
+
+function hydrateKnForms(scope = document) {
+  const root = scope || document;
+  const groupSelector = ".kn-form-group, form.user-form, form.role-form";
+  const groups =
+    root.nodeType === 1 && root.matches?.(groupSelector)
+      ? [root]
+      : Array.from(root.querySelectorAll(groupSelector));
+  groups.forEach((el) => hydrateKnFormGroup(el));
+  const fieldSelector = ".kn-field, .kn-detail-field";
+  const fields =
+    root.nodeType === 1 && root.matches?.(fieldSelector)
+      ? [root]
+      : Array.from(root.querySelectorAll(fieldSelector));
+  const seen = new Set();
+  fields.forEach((el) => {
+    if (seen.has(el) || knFormIsSkipped(el)) {
+      return;
+    }
+    seen.add(el);
+    hydrateKnField(el);
+  });
+}
+
+window.KNForm = Object.assign(window.KNForm || {}, {
+  hydrate: hydrateKnForms
+});
+window.KNFormGroup = Object.assign(window.KNFormGroup || {}, {
+  hydrate: hydrateKnForms
+});
+
+function knSearchInputIsWrapper(el) {
+  return (
+    el.classList.contains("kn-autocomplete") &&
+    !el.classList.contains("search-input") &&
+    !el.classList.contains("kn-autocomplete__field")
+  );
+}
+
+function knSearchInputField(el) {
+  if (knSearchInputIsWrapper(el)) {
+    return el.querySelector(".kn-autocomplete__field, .search-input");
+  }
+  return el;
+}
+
+function knSearchInputEl(host) {
+  const field = knSearchInputField(host);
+  return (field || host).querySelector(".kn-autocomplete__input, .search-input__field, input[type='search'], input");
+}
+
+function hydrateKnSearchInput(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  el.setAttribute("data-kn-component", "search-input");
+  const isWrapper = knSearchInputIsWrapper(el);
+  const field = knSearchInputField(el);
+  const input = knSearchInputEl(el);
+  const inside = el.classList.contains("kn-autocomplete--inside") || el.classList.contains("search-input--inside");
+  const insideInput =
+    el.classList.contains("kn-autocomplete--inside-input") || el.classList.contains("search-input--inside-input");
+  const label = isWrapper ? el.querySelector(":scope > .kn-autocomplete__label") : null;
+  if ((inside || insideInput) && input && !input.getAttribute("aria-label") && !input.getAttribute("aria-labelledby")) {
+    const text = (label?.textContent || el.getAttribute("aria-label") || "").trim();
+    if (text) {
+      input.setAttribute("aria-label", text);
+    }
+  }
+  if (insideInput && label && field && label.parentElement === el) {
+    label.classList.add("kn-autocomplete__label-prefix");
+    const prefix = field.querySelector(".kn-autocomplete__prefix, .search-input__icon");
+    if (prefix?.nextSibling) {
+      field.insertBefore(label, prefix.nextSibling);
+    } else {
+      field.insertBefore(label, field.firstChild);
+    }
+  }
+  const loadingHost = isWrapper ? el : el.classList.contains("is-loading") ? el : el.closest(".kn-autocomplete");
+  if (loadingHost?.classList.contains("is-loading") && field) {
+    let spinner = field.querySelector(".kn-autocomplete__spinner, .search-input__spinner");
+    if (!spinner) {
+      spinner = document.createElement("span");
+      spinner.className = "kn-autocomplete__spinner search-input__spinner";
+      spinner.innerHTML = typeof knSpinnerHtml === "function" ? knSpinnerHtml() : "";
+      const clear = field.querySelector(".kn-autocomplete__clear, .search-input__clear");
+      if (clear) {
+        field.insertBefore(spinner, clear);
+      } else {
+        field.appendChild(spinner);
+      }
+    }
+  }
+}
+
+function hydrateKnSearchInputs(scope = document) {
+  const root = scope || document;
+  const wrapperSelector = ".kn-autocomplete:not(.search-input):not(.kn-autocomplete__field)";
+  const wrappers =
+    root.nodeType === 1 && root.matches?.(wrapperSelector)
+      ? [root]
+      : Array.from(root.querySelectorAll(wrapperSelector));
+  wrappers.forEach((el) => hydrateKnSearchInput(el));
+  const fieldSelector = ".search-input, .kn-autocomplete__field";
+  const fields =
+    root.nodeType === 1 && root.matches?.(fieldSelector)
+      ? [root]
+      : Array.from(root.querySelectorAll(fieldSelector));
+  fields.forEach((el) => {
+    if (el.closest(".kn-autocomplete:not(.search-input):not(.kn-autocomplete__field)")) {
+      return;
+    }
+    hydrateKnSearchInput(el);
+  });
+}
+
+window.KNSearchInput = Object.assign(window.KNSearchInput || {}, {
+  hydrate: hydrateKnSearchInputs
+});
+
+function hydrateKnPhone(el) {
+  if (!el || el.nodeType !== 1) {
+    return;
+  }
+  el.classList.add("kn-phone");
+  el.setAttribute("data-kn-component", "phone");
+  const select = el.querySelector(":scope > .kn-select");
+  if (select) {
+    select.classList.add("kn-phone__country");
+  }
+  const input = el.querySelector("input[type='tel'], .kn-phone__input, #kn-user-phone");
+  if (input) {
+    input.classList.add("kn-phone__input");
+    const field = el.closest(".kn-field");
+    if (!input.getAttribute("aria-label") && !input.getAttribute("aria-labelledby")) {
+      const lab = field?.querySelector("label[id], .kn-form-label[id], [id$='-label']");
+      if (lab?.id) {
+        input.setAttribute("aria-labelledby", lab.id);
+      } else {
+        input.setAttribute("aria-label", "Enter phone number");
+      }
+    }
+    if (input.disabled || field?.classList.contains("is-disabled")) {
+      el.classList.add("is-disabled");
+      input.disabled = true;
+    }
+    if (field?.classList.contains("is-invalid") || input.getAttribute("aria-invalid") === "true") {
+      el.classList.add("is-invalid");
+    }
+  }
+  let clear = el.querySelector(":scope > .kn-phone__clear");
+  if (!clear) {
+    clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "kn-phone__clear";
+    clear.setAttribute("aria-label", "Clear Input Content");
+    clear.innerHTML = KN_TAG_CLOSE_SVG;
+    el.appendChild(clear);
+  }
+  if (clear.tagName === "BUTTON" && !clear.getAttribute("type")) {
+    clear.setAttribute("type", "button");
+  }
+  const syncClear = () => {
+    clear.hidden = !input || !String(input.value || "").length || el.classList.contains("is-disabled");
+  };
+  syncClear();
+  if (clear.dataset.knPhoneClearBound !== "true") {
+    clear.dataset.knPhoneClearBound = "true";
+    clear.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!input || el.classList.contains("is-disabled")) {
+        return;
+      }
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.focus();
+      syncClear();
+    });
+    input?.addEventListener("input", syncClear);
+  }
+}
+
+function hydrateKnPhones(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-phone";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  nodes.forEach((el) => hydrateKnPhone(el));
+}
+
+window.KNPhone = Object.assign(window.KNPhone || {}, {
+  hydrate: hydrateKnPhones
+});
+
+function knMotionDurationMs(tokenName, fallbackMs) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(tokenName).trim();
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n) || !raw) {
+    return fallbackMs;
+  }
+  if (raw.endsWith("s") && !raw.endsWith("ms")) {
+    return n * 1000;
+  }
+  return n;
+}
+
+function hydrateKnChatInput(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  const field = root.querySelector("textarea");
+  if (field) {
+    field.setAttribute("aria-multiline", "true");
+  }
+}
+
+function hydrateKnChatInputs(scope = document) {
+  scope.querySelectorAll('[data-kn-component="chat-input"]').forEach((el) => hydrateKnChatInput(el));
+}
+
+window.KNChatInput = Object.assign(window.KNChatInput || {}, {
+  hydrate: hydrateKnChatInputs
+});
+
+function hydrateKnChatMessage(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  root.setAttribute("data-kn-component", "chat-message");
+  const isSelf = root.classList.contains("ai-msg--user") || root.classList.contains("kn-chat-msg--self");
+  root.classList.add("kn-chat-msg", isSelf ? "kn-chat-msg--self" : "kn-chat-msg--other");
+  if (isSelf) {
+    root.classList.add("ai-msg--user");
+  } else if (root.classList.contains("ai-msg") || root.classList.contains("ai-msg--assistant") || root.classList.contains("ai-msg--status")) {
+    root.classList.add("ai-msg--assistant");
+  }
+  root.querySelectorAll(".ai-msg__related-chip").forEach((chip) => {
+    chip.classList.add("kn-chip", "kn-chip--small");
+    hydrateKnChip(chip);
+  });
+  root.querySelectorAll(".kn-collapsible").forEach((el) => hydrateKnCollapsible(el));
+  root.querySelectorAll(".ai-msg__action, .agentic-msg-action").forEach((btn) => {
+    btn.classList.add("icon-btn");
+  });
+}
+
+function hydrateKnChatMessages(scope = document) {
+  const roots =
+    scope.nodeType === 1 && (scope.matches?.(".kn-chat-msg, article.ai-msg") || scope.classList?.contains("kn-chat-msg"))
+      ? [scope]
+      : Array.from((scope || document).querySelectorAll(".kn-chat-msg, article.ai-msg"));
+  roots.forEach((el) => hydrateKnChatMessage(el));
+}
+
+window.KNChatMessage = Object.assign(window.KNChatMessage || {}, {
+  hydrate: hydrateKnChatMessages
+});
+
+function activateL2Trigger(trigger, { firstRender = false } = {}) {
   const activeTrigger = trigger || getActiveL2Trigger();
   if (!activeTrigger) {
     return;
@@ -1238,7 +4047,7 @@ function activateL2Trigger(trigger) {
       expandTreeAncestors(firstChild);
     }
     const href = firstChild.getAttribute("href");
-    if (href?.startsWith("#")) {
+    if (href?.startsWith("#") && !firstRender) {
       setRouteHash(href);
     }
   }
@@ -1246,7 +4055,7 @@ function activateL2Trigger(trigger) {
     level: 1,
     isActive: true,
     isL2Trigger: true,
-    isFirstRender: false,
+    isFirstRender: firstRender,
     title,
     trigger: activeTrigger
   });
@@ -1289,8 +4098,14 @@ document.addEventListener("keydown", (event) => {
   setNavOpen(false);
 });
 
+let lastNavDesktop = isMediumOrHdDesktop();
 const breakpointObserver = new MutationObserver(() => {
-  if (isMediumOrHdDesktop()) {
+  const desktop = isMediumOrHdDesktop();
+  if (desktop === lastNavDesktop) {
+    return;
+  }
+  lastNavDesktop = desktop;
+  if (desktop) {
     setNavOpen(false);
     const openTrigger = getActiveL2Trigger();
     if (openTrigger?.getAttribute("aria-current") === "page") {
@@ -1331,6 +4146,46 @@ function activateWithinL2Panel(link) {
 }
 
 sideNav.addEventListener("click", (event) => {
+  const chatNew = event.target.closest("[data-agentic-chat-new]");
+  if (chatNew && sideNav.contains(chatNew)) {
+    event.preventDefault();
+    sideNav.querySelectorAll(".side-nav-chat-item.is-active").forEach((el) => {
+      el.classList.remove("is-active");
+      el.removeAttribute("aria-current");
+    });
+    if (getHashPath() !== "#agentic-broker") {
+      setRouteHash("#agentic-broker");
+    }
+    window.KNAgenticBroker?.newChat?.();
+    return;
+  }
+  const chatClear = event.target.closest("[data-agentic-chat-clear]");
+  if (chatClear && sideNav.contains(chatClear)) {
+    event.preventDefault();
+    const input = sideNav.querySelector("[data-agentic-chat-search]");
+    if (input) {
+      input.value = "";
+      filterChatList("");
+      input.focus();
+    }
+    return;
+  }
+  const chatItem = event.target.closest("[data-agentic-chat-item]");
+  if (chatItem && sideNav.contains(chatItem)) {
+    event.preventDefault();
+    sideNav.querySelectorAll(".side-nav-chat-item.is-active").forEach((el) => {
+      el.classList.remove("is-active");
+      el.removeAttribute("aria-current");
+    });
+    chatItem.classList.add("is-active");
+    chatItem.setAttribute("aria-current", "true");
+    const chatId = chatItem.closest("[data-chat-id]")?.getAttribute("data-chat-id") || "";
+    if (getHashPath() !== "#agentic-broker") {
+      setRouteHash("#agentic-broker");
+    }
+    window.KNAgenticBroker?.openHistoryChat?.(chatId);
+    return;
+  }
   const treeTrigger = event.target.closest("[data-tree-trigger]");
   if (treeTrigger && sideNav.contains(treeTrigger)) {
     event.preventDefault();
@@ -1423,6 +4278,41 @@ sideNav.addEventListener("click", (event) => {
   renderBreadcrumb();
 });
 
+function filterChatList(rawQuery) {
+  const query = rawQuery.trim().toLowerCase();
+  const groups = sideNav.querySelectorAll("[data-chat-group]");
+  let visibleTotal = 0;
+  groups.forEach((group) => {
+    let visibleInGroup = 0;
+    group.querySelectorAll(".side-nav-chat-row").forEach((row) => {
+      const label = row.querySelector(".side-nav-chat-item")?.textContent || "";
+      const matches = !query || label.toLowerCase().includes(query);
+      row.hidden = !matches;
+      if (matches) {
+        visibleInGroup += 1;
+      }
+    });
+    group.hidden = visibleInGroup === 0;
+    visibleTotal += visibleInGroup;
+  });
+  const empty = sideNav.querySelector("[data-chat-empty]");
+  if (empty) {
+    empty.hidden = visibleTotal !== 0;
+  }
+  const clearBtn = sideNav.querySelector("[data-agentic-chat-clear]");
+  if (clearBtn) {
+    clearBtn.hidden = query.length === 0;
+  }
+}
+
+sideNav.addEventListener("input", (event) => {
+  const search = event.target.closest("[data-agentic-chat-search]");
+  if (!search) {
+    return;
+  }
+  filterChatList(search.value);
+});
+
 sideNav.addEventListener("keydown", (event) => {
   const treeTrigger = event.target.closest("[data-tree-trigger]");
   if (!treeTrigger || !sideNav.contains(treeTrigger)) {
@@ -1504,34 +4394,57 @@ sideNavL2.addEventListener("mouseout", (event) => {
   event.stopPropagation();
 });
 
+function hydrateCollapsedSideNavTooltips() {
+  if (!sideNav) {
+    return;
+  }
+  sideNav.querySelectorAll('.side-nav-l1 .side-nav-link[data-level="1"]').forEach((link) => {
+    if (link.hasAttribute("data-tooltip")) {
+      return;
+    }
+    const title = getNavTitle(link);
+    if (!title) {
+      return;
+    }
+    link.setAttribute("data-tooltip", title);
+    link.setAttribute("data-tooltip-placement", "right");
+    link.setAttribute("data-tooltip-when", "sidenav-collapsed");
+  });
+}
+
 syncL1Classes();
 enhanceTreeGroups();
-renderBreadcrumb();
+hydrateCollapsedSideNavTooltips();
 
-if (getHashPath() && getHashPath() !== "#dashboard") {
-  const hashPath = getHashPath();
-  const navHash = nestedAdminNavHash(hashPath);
-  const deepLink =
-    sideNav.querySelector(`.side-nav-link[data-level="3"][href="${navHash}"]`) ||
-    sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
-    sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
-  if (deepLink) {
-    if (deepLink.dataset.level === "3") {
-      expandTreeAncestors(deepLink);
+// HTML default aria-current is Agentic Broker (the landing page). Every hash —
+// including #dashboard — must mark the matching nav item before renderBreadcrumb()
+// runs. Skipping #dashboard left Agentic Broker selected while the dashboard
+// page was showing (first-paint CSS unhides .dashboard-inner from data-kn-route).
+{
+  const { path, navHash, link } = findNavLinkForHash();
+  if (link) {
+    if (link.dataset.level === "3") {
+      expandTreeAncestors(link);
     }
-    deepLink.click();
+    if (link.dataset.l2trigger === "true") {
+      activateL2Trigger(link, { firstRender: true });
+    } else {
+      link.click();
+    }
+  } else {
+    renderBreadcrumb();
   }
-  if (navHash !== hashPath) {
-    history.replaceState(null, "", hashPath);
+  if (navHash !== path) {
+    history.replaceState(null, "", path);
     adminModuleApi(navHash)?.sync?.();
   }
 }
 
 window.addEventListener("hashchange", (event) => {
-  window.clearBladeToasts?.();
+  window.clearKnToasts?.();
   if (!window.KNAdminUX?.consumeNavigation()) {
-    const oldHash = event.oldURL ? new URL(event.oldURL).hash || "#dashboard" : "#dashboard";
-    const newHash = event.newURL ? new URL(event.newURL).hash || "#dashboard" : getHashPath();
+    const oldHash = event.oldURL ? getHashPath(new URL(event.oldURL).hash) : getHashPath();
+    const newHash = event.newURL ? getHashPath(new URL(event.newURL).hash) : getHashPath();
     const oldApi = window.KNAdminUX.adminApiForHash(oldHash);
     if (oldApi?.isDirty?.()) {
       history.replaceState(null, "", oldHash);
@@ -1540,61 +4453,56 @@ window.addEventListener("hashchange", (event) => {
       return;
     }
   }
-  const path = getHashPath();
-  const navHash = nestedAdminNavHash(path);
+  const { path, navHash, link } = findNavLinkForHash();
   const api = adminModuleApi(navHash);
   if (api) {
-    const link = sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`);
-    if (link && link.getAttribute("aria-current") !== "page") {
-      const nested = path;
+    const adminLink = sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) || link;
+    if (adminLink && adminLink.getAttribute("aria-current") !== "page") {
       window.KNAdminUX?.beginNavigation();
-      link.click();
-      if (nested !== navHash) {
-        history.replaceState(null, "", nested);
+      adminLink.click();
+      if (path !== navHash) {
+        history.replaceState(null, "", path);
       }
     } else {
       api.sync?.();
     }
-  } else {
-    const link =
-      sideNav.querySelector(`.side-nav-link[data-level="3"][href="${navHash}"]`) ||
-      sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) ||
-      sideNav.querySelector(`.side-nav-link[data-level="1"][href="${navHash}"]`);
-    if (link && link.getAttribute("aria-current") !== "page") {
-      window.KNAdminUX?.beginNavigation();
-      if (link.dataset.level === "3") {
-        expandTreeAncestors(link);
-      }
-      link.click();
+  } else if (link && link.getAttribute("aria-current") !== "page") {
+    window.KNAdminUX?.beginNavigation();
+    if (link.dataset.level === "3") {
+      expandTreeAncestors(link);
     }
+    link.click();
   }
   renderBreadcrumb();
-});
-
-document.querySelector(".breadcrumb").addEventListener("click", (event) => {
-  const link = event.target.closest("a.breadcrumb-link");
-  if (!link) {
-    return;
-  }
-  event.preventDefault();
-  const href = link.getAttribute("href");
-  if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
-    return;
-  }
-  const navLink = sideNav.querySelector(`.side-nav-link[href="${href}"]`);
-  if (navLink) {
-    navLink.click();
-  }
 });
 
 const profileMenu = document.getElementById("profile-menu");
 const profileTriggers = document.querySelectorAll(".avatar-trigger");
 
 function setProfileMenuOpen(isOpen) {
+  if (!profileMenu) {
+    return;
+  }
   profileMenu.hidden = !isOpen;
   profileTriggers.forEach((trigger) => {
     trigger.setAttribute("aria-expanded", String(isOpen));
   });
+  if (isOpen) {
+    const items = knMenuEnabledItems(profileMenu);
+    items.forEach((item, index) => {
+      item.tabIndex = index === 0 ? 0 : -1;
+      item.classList.toggle("is-active", index === 0);
+    });
+    window.requestAnimationFrame(() => items[0]?.focus());
+    return;
+  }
+  profileMenu.querySelectorAll(".is-active").forEach((el) => {
+    el.classList.remove("is-active");
+  });
+  const trigger = document.querySelector(".avatar-trigger");
+  if (trigger && profileMenu.contains(document.activeElement)) {
+    trigger.focus();
+  }
 }
 
 profileTriggers.forEach((trigger) => {
@@ -1647,7 +4555,7 @@ function syncQuickActionsActive() {
   visible.forEach((item, index) => {
     const isActive = index === quickActionsIndex;
     item.classList.toggle("is-active", isActive);
-    item.setAttribute("aria-selected", String(isActive));
+    item.removeAttribute("aria-selected");
     if (isActive) {
       item.scrollIntoView({ block: "nearest" });
       quickActionsSearch.setAttribute("aria-activedescendant", item.id);
@@ -1676,15 +4584,32 @@ function filterQuickActions(query) {
   syncQuickActionsActive();
 }
 
+function knTokenPx(name, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!raw) {
+    return fallback;
+  }
+  if (raw.endsWith("rem")) {
+    return parseFloat(raw) * 16;
+  }
+  if (raw.endsWith("px")) {
+    return parseFloat(raw);
+  }
+  const asNumber = Number.parseFloat(raw);
+  return Number.isFinite(asNumber) ? asNumber : fallback;
+}
+
 function positionQuickActionsMenu() {
-  const gutter = 16;
-  const width = Math.min(300, window.innerWidth - gutter * 2);
+  const gutter = knTokenPx("--theme-size-16", 16);
+  const width = Math.min(knTokenPx("--theme-size-300", 300), window.innerWidth - gutter * 2);
+  const centeredWidth = Math.min(knTokenPx("--theme-size-360", 360), window.innerWidth - gutter * 2);
+  const offset = knTokenPx("--theme-size-8", 8);
   const triggerRect = quickActionsTrigger?.getBoundingClientRect();
   const triggerVisible = Boolean(triggerRect && triggerRect.width && triggerRect.height);
   if (!triggerVisible) {
     quickActionsMenu.classList.add("is-centered");
-    quickActionsMenu.style.width = `${Math.min(360, window.innerWidth - gutter * 2)}px`;
-    quickActionsMenu.style.left = `${Math.round((window.innerWidth - Math.min(360, window.innerWidth - gutter * 2)) / 2)}px`;
+    quickActionsMenu.style.width = `${centeredWidth}px`;
+    quickActionsMenu.style.left = `${Math.round((window.innerWidth - centeredWidth) / 2)}px`;
     quickActionsMenu.style.top = "20vh";
     return;
   }
@@ -1696,10 +4621,10 @@ function positionQuickActionsMenu() {
   if (left + width > window.innerWidth - gutter) {
     left = window.innerWidth - width - gutter;
   }
-  let top = triggerRect.bottom + 8;
+  let top = triggerRect.bottom + offset;
   const menuHeight = quickActionsMenu.offsetHeight;
   if (menuHeight && top + menuHeight > window.innerHeight - gutter) {
-    const above = triggerRect.top - menuHeight - 8;
+    const above = triggerRect.top - menuHeight - offset;
     if (above >= gutter) {
       top = above;
     }
@@ -1734,7 +4659,7 @@ function setQuickActionsOpen(isOpen) {
 }
 
 function selectQuickAction(item) {
-  if (!item) {
+  if (!item || item.getAttribute("aria-disabled") === "true") {
     return;
   }
   const href = item.getAttribute("data-href");
@@ -1846,6 +4771,7 @@ document.addEventListener("keydown", (event) => {
     }
     if (!profileMenu.hidden) {
       setProfileMenuOpen(false);
+      document.querySelector(".avatar-trigger")?.focus();
     }
     return;
   }
@@ -2034,7 +4960,7 @@ function renderModeMeta(items) {
     .filter((item) => item.value)
     .map(
       (item) =>
-        `<span class="badge type-caption-sm type-weight-medium">${item.label} ${item.value}</span>`
+        `<span class="badge type-caption-sm type-weight-medium kn-badge">${item.label} ${item.value}</span>`
     )
     .join("");
 }
@@ -2048,7 +4974,7 @@ function renderKlearhubModes() {
   stack.replaceChildren();
   klearhubModes.forEach((mode) => {
     const details = document.createElement("details");
-    details.className = "kh-accordion panel card";
+    details.className = "kn-accordion kn-accordion--filled kn-accordion--large kn-accordion__item kh-accordion panel card";
     details.open = true;
     const meta = renderModeMeta(mode.meta);
     const stages = mode.stages.length
@@ -2074,17 +5000,19 @@ function renderKlearhubModes() {
       : "";
 
     details.innerHTML = `
-      <summary class="kh-accordion__header">
-        <span class="kh-accordion__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${KH_ICONS[mode.icon]}</svg>
+      <summary class="kn-accordion__header kh-accordion__header">
+        <span class="kn-accordion__lead">
+          <span class="kn-accordion__leading kh-accordion__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${KH_ICONS[mode.icon]}</svg>
+          </span>
+          <span class="kn-accordion__title kh-accordion__title type-heading-h5 type-weight-semibold">${mode.title}</span>
         </span>
-        <span class="kh-accordion__title type-heading-h5 type-weight-semibold">${mode.title}</span>
-        <span class="kh-accordion__meta">${meta}</span>
-        <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <span class="kn-accordion__trailing kh-accordion__meta">${meta}</span>
+        <svg class="kn-accordion__chevron kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
           <path d="M4 6l4 4 4-4" />
         </svg>
       </summary>
-      <div class="kh-accordion__body">
+      <div class="kn-accordion__body kh-accordion__body">
         ${stages}
         <div class="split-grid">
           <article class="subpanel">
@@ -2130,6 +5058,83 @@ document.getElementById("kh-collapse-all")?.addEventListener("click", () => {
 
 document.getElementById("klearhub-overview-page")?.addEventListener("toggle", syncKhCollapseLabel, true);
 
+function isGroupedAccordionItem(item) {
+  if (!(item instanceof HTMLElement)) {
+    return false;
+  }
+  if (!item.classList.contains("kn-accordion__item")) {
+    return false;
+  }
+  if (item.classList.contains("kn-accordion")) {
+    return false;
+  }
+  const parent = item.parentElement;
+  return Boolean(parent && parent.classList.contains("kn-accordion"));
+}
+
+function bindKnAccordion(root) {
+  const scope = root || document;
+  scope.addEventListener(
+    "toggle",
+    (event) => {
+      const item = event.target;
+      if (!(item instanceof HTMLDetailsElement) || !item.open) {
+        return;
+      }
+      if (!isGroupedAccordionItem(item)) {
+        return;
+      }
+      const group = item.parentElement;
+      if (!group) {
+        return;
+      }
+      group.querySelectorAll(":scope > .kn-accordion__item[open]").forEach((other) => {
+        if (other !== item && other instanceof HTMLDetailsElement) {
+          other.open = false;
+        }
+      });
+    },
+    true
+  );
+
+  scope.addEventListener(
+    "click",
+    (event) => {
+      const header = event.target.closest(".kn-accordion__header");
+      const item = header && header.closest(".kn-accordion__item, details.kn-accordion");
+      if (item && item.getAttribute("aria-disabled") === "true") {
+        event.preventDefault();
+        return;
+      }
+      if (header && header.hasAttribute("disabled")) {
+        event.preventDefault();
+        return;
+      }
+      const trailingControl = event.target.closest(
+        ".kn-accordion__trailing a, .kn-accordion__trailing button, .kn-accordion__trailing input, .kn-accordion__trailing select"
+      );
+      if (trailingControl && trailingControl.closest(".kn-accordion__header")) {
+        event.stopPropagation();
+      }
+    },
+    true
+  );
+}
+
+bindKnAccordion(document);
+
+document.addEventListener(
+  "click",
+  (event) => {
+    const item = event.target.closest(".kn-action-list__item, .action-list-item");
+    if (item && item.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  },
+  true
+);
+
 document.querySelectorAll("[data-kh-tab]").forEach((tab) => {
   tab.addEventListener("click", () => {
     const selected = tab.getAttribute("data-kh-tab");
@@ -2145,13 +5150,39 @@ document.querySelectorAll("[data-kh-tab]").forEach((tab) => {
   });
 });
 
-document.querySelectorAll(".kh-alert-dismiss").forEach((button) => {
-  button.addEventListener("click", () => {
-    button.closest(".blade-alert")?.remove();
-  });
-});
+function dismissKnAlert(alert) {
+  if (!alert || alert.hidden || alert.classList.contains("is-dismissing")) {
+    return;
+  }
+  const finish = () => {
+    alert.hidden = true;
+    alert.classList.remove("is-dismissing");
+  };
+  const raw = getComputedStyle(alert).getPropertyValue("--kn-motion-duration-2xquick").trim();
+  const ms = raw.endsWith("s") && !raw.endsWith("ms") ? parseFloat(raw) * 1000 : parseFloat(raw);
+  if (!ms) {
+    finish();
+    return;
+  }
+  alert.classList.add("is-dismissing");
+  const onEnd = (event) => {
+    if (event.target !== alert || event.propertyName !== "opacity") {
+      return;
+    }
+    alert.removeEventListener("transitionend", onEnd);
+    finish();
+  };
+  alert.addEventListener("transitionend", onEnd);
+  window.setTimeout(finish, ms);
+}
 
 document.addEventListener("click", (event) => {
+  const alertDismiss = event.target.closest(".kn-alert__dismiss");
+  if (alertDismiss) {
+    event.preventDefault();
+    dismissKnAlert(alertDismiss.closest(".kn-alert"));
+    return;
+  }
   const copyEl = event.target.closest("[data-copy]");
   if (copyEl) {
     event.preventDefault();
@@ -2226,15 +5257,20 @@ function ensureDashMapFilterUi() {
   if (stage && !document.getElementById("map-empty")) {
     const empty = document.createElement("div");
     empty.id = "map-empty";
-    empty.className = "empty-state map-empty";
+    empty.className = "empty-state map-empty kn-empty";
     empty.hidden = true;
     empty.innerHTML = `
-      <div class="empty-state__asset" aria-hidden="true">${SHIP_ICON}</div>
-      <h3 class="type-heading-h5 type-weight-semibold">No shipments in this view</h3>
-      <p class="type-body-sm">Nothing matches this snapshot. Show all shipments on the map, or pick another KPI.</p>
-      <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-map-filter-clear>Show all shipments</button>
+      <div class="empty-state__asset kn-empty__asset" aria-hidden="true">${SHIP_ICON}</div>
+      <div class="kn-empty__copy">
+      <h3 class="kn-empty__title type-heading-h5 type-weight-semibold">No shipments in this view</h3>
+      <p class="kn-empty__desc type-body-sm">Nothing matches this snapshot. Show all shipments on the map, or pick another KPI.</p>
+      </div>
+      <div class="kn-empty__actions">
+      <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-map-filter-clear>Show all shipments</button>
+      </div>
     `;
     stage.appendChild(empty);
+    window.KNEmpty?.hydrate(empty);
   }
 }
 
@@ -2469,16 +5505,33 @@ function initDashboardLoader() {
   }
 
   window.setTimeout(revealDashboard, 1400);
+  // Failsafe: never leave the dashboard shimmer on screen if the first timer is skipped.
+  window.setTimeout(revealDashboard, 4000);
 }
 
-function initBladeTooltips() {
-  if (document.getElementById("blade-tooltip")) {
+function knThemeDelayMs(step) {
+  const value = window.knTheme?.motion?.delay?.[step];
+  return typeof value === "number" ? value : 0;
+}
+
+function knThemeDurationMs(step) {
+  const value = window.knTheme?.motion?.duration?.[step];
+  return typeof value === "number" ? value : 0;
+}
+
+function knThemeSpacePx(step) {
+  const value = window.knTheme?.spacing?.[step];
+  return typeof value === "number" ? value : 0;
+}
+
+function initKnTooltips() {
+  if (document.getElementById("kn-tooltip")) {
     return;
   }
 
   const tip = document.createElement("div");
-  tip.className = "blade-tooltip type-caption-sm";
-  tip.id = "blade-tooltip";
+  tip.className = "kn-tooltip type-caption-sm";
+  tip.id = "kn-tooltip";
   tip.setAttribute("role", "tooltip");
   tip.hidden = true;
   document.body.appendChild(tip);
@@ -2487,6 +5540,9 @@ function initBladeTooltips() {
   let pending = null;
   let showTimer = 0;
   let hideTimer = 0;
+  const showDelay = knThemeDelayMs("xquick");
+  const hideDelay = knThemeDelayMs("2xquick");
+  const edge = knThemeSpacePx(3);
 
   const hide = () => {
     window.clearTimeout(showTimer);
@@ -2498,22 +5554,59 @@ function initBladeTooltips() {
     tip.removeAttribute("data-placement");
   };
 
+  const isSideNavCollapsedTooltipAllowed = (el) => {
+    if (el?.getAttribute("data-tooltip-when") !== "sidenav-collapsed") {
+      return true;
+    }
+    return Boolean(
+      sideNav?.classList.contains("is-l1-collapsed") &&
+        !sideNav.classList.contains("is-l1-hovered") &&
+        isMediumOrHdDesktop()
+    );
+  };
+
   const place = (el) => {
     const rect = el.getBoundingClientRect();
-    const gap = 8;
+    const gap = edge;
     const tipRect = tip.getBoundingClientRect();
     const placement = el.getAttribute("data-tooltip-placement") || "top";
     let top = rect.top - tipRect.height - gap;
     let left = rect.left + rect.width / 2 - tipRect.width / 2;
 
-    if (placement === "bottom" || top < 8) {
+    if (placement === "right" || placement === "left") {
+      top = rect.top + (rect.height - tipRect.height) / 2;
+      if (placement === "right") {
+        left = rect.right + gap;
+        if (left + tipRect.width > window.innerWidth - edge) {
+          left = rect.left - tipRect.width - gap;
+          tip.setAttribute("data-placement", "left");
+        } else {
+          tip.setAttribute("data-placement", "right");
+        }
+      } else {
+        left = rect.left - tipRect.width - gap;
+        if (left < edge) {
+          left = rect.right + gap;
+          tip.setAttribute("data-placement", "right");
+        } else {
+          tip.setAttribute("data-placement", "left");
+        }
+      }
+      top = Math.min(Math.max(edge, top), window.innerHeight - tipRect.height - edge);
+      left = Math.min(Math.max(edge, left), window.innerWidth - tipRect.width - edge);
+      tip.style.top = `${Math.round(top)}px`;
+      tip.style.left = `${Math.round(left)}px`;
+      return;
+    }
+
+    if (placement === "bottom" || top < edge) {
       top = rect.bottom + gap;
       tip.setAttribute("data-placement", "bottom");
     } else {
       tip.setAttribute("data-placement", "top");
     }
 
-    left = Math.min(Math.max(8, left), window.innerWidth - tipRect.width - 8);
+    left = Math.min(Math.max(edge, left), window.innerWidth - tipRect.width - edge);
     tip.style.top = `${Math.round(top)}px`;
     tip.style.left = `${Math.round(left)}px`;
   };
@@ -2524,34 +5617,54 @@ function initBladeTooltips() {
     if (!content || el.closest(".dash-skeleton") || el === pending) {
       return;
     }
+    if (!isSideNavCollapsedTooltipAllowed(el)) {
+      return;
+    }
     pending = el;
     window.clearTimeout(hideTimer);
     showTimer = window.setTimeout(() => {
+      if (!isSideNavCollapsedTooltipAllowed(el)) {
+        pending = null;
+        return;
+      }
       active = el;
       tip.innerHTML = title
-        ? `<strong class="blade-tooltip__title">${title}</strong><span>${content}</span>`
+        ? `<strong class="kn-tooltip__title">${title}</strong><span>${content}</span>`
         : content;
       tip.hidden = false;
       requestAnimationFrame(() => place(el));
-    }, 160);
+    }, showDelay);
   };
 
-  document.addEventListener("mouseover", (event) => {
-    const el = event.target.closest("[data-tooltip]");
-    if (!el || el === active) {
-      return;
-    }
-    show(el);
-  });
+  // Capture phase: #side-nav-l2 has its own mouseover/mouseout listeners
+  // that call stopPropagation() (to isolate the L1/L2 hover-expand logic),
+  // which would otherwise silently swallow these events for every
+  // data-tooltip element inside it — e.g. the Agentic Broker chat rows —
+  // before they ever reach a bubble-phase listener on document.
+  document.addEventListener(
+    "mouseover",
+    (event) => {
+      const el = event.target.closest("[data-tooltip]");
+      if (!el || el === active) {
+        return;
+      }
+      show(el);
+    },
+    true
+  );
 
-  document.addEventListener("mouseout", (event) => {
-    const el = event.target.closest("[data-tooltip]");
-    if (!el || (event.relatedTarget && el.contains(event.relatedTarget))) {
-      return;
-    }
-    window.clearTimeout(showTimer);
-    hideTimer = window.setTimeout(hide, 80);
-  });
+  document.addEventListener(
+    "mouseout",
+    (event) => {
+      const el = event.target.closest("[data-tooltip]");
+      if (!el || (event.relatedTarget && el.contains(event.relatedTarget))) {
+        return;
+      }
+      window.clearTimeout(showTimer);
+      hideTimer = window.setTimeout(hide, hideDelay);
+    },
+    true
+  );
 
   document.addEventListener("focusin", (event) => {
     const el = event.target.closest("[data-tooltip]");
@@ -2575,6 +5688,15 @@ function initBladeTooltips() {
   });
 
   window.addEventListener("scroll", hide, true);
+
+  window.KNTooltips = {
+    syncSideNavCollapsed() {
+      const trigger = active || pending;
+      if (trigger && !isSideNavCollapsedTooltipAllowed(trigger)) {
+        hide();
+      }
+    }
+  };
 }
 
 const DASH_LAYOUT_KEY = "kn-dashboard-layout";
@@ -2677,7 +5799,7 @@ function copyKnValue(value, label = "value", sourceEl) {
     return;
   }
   const announce = () => {
-    showBladeToast({
+    showKnToast({
       content: `Copied ${label} ${text}`,
       color: "positive",
       anchor: sourceEl instanceof HTMLElement ? sourceEl : null
@@ -2718,17 +5840,17 @@ function markKnCopied(sourceEl) {
   }, 1000);
 }
 
-let bladeToastTimer = 0;
-const BLADE_TOAST_DURATION_MS = 2800;
+let knToastTimer = 0;
+const KN_TOAST_DURATION_MS = 2800;
 
-function clearBladeToasts({ animate = false } = {}) {
-  window.clearTimeout(bladeToastTimer);
-  bladeToastTimer = 0;
-  const container = document.getElementById("blade-toast-container");
+function clearKnToasts({ animate = false } = {}) {
+  window.clearTimeout(knToastTimer);
+  knToastTimer = 0;
+  const container = document.getElementById("kn-toast-container");
   if (!container) {
     return;
   }
-  container.querySelectorAll(".blade-toast").forEach((el) => {
+  container.querySelectorAll(".kn-toast").forEach((el) => {
     if (!animate) {
       el.remove();
       return;
@@ -2740,19 +5862,19 @@ function clearBladeToasts({ animate = false } = {}) {
     window.setTimeout(() => el.remove(), 220);
   });
   if (!animate) {
-    resetBladeToastContainer(container);
+    resetKnToastContainer(container);
   }
 }
 
-function resetBladeToastContainer(container) {
-  container.classList.remove("blade-toast-container--anchored");
+function resetKnToastContainer(container) {
+  container.classList.remove("kn-toast-container--anchored");
   container.style.left = "";
   container.style.top = "";
   container.style.right = "";
   container.style.bottom = "";
 }
 
-function positionAnchoredBladeToast(container, toast, anchor) {
+function positionAnchoredKnToast(container, toast, anchor) {
   const gutter = 16;
   const gap = 8;
   const rect = anchor.getBoundingClientRect();
@@ -2774,37 +5896,60 @@ function positionAnchoredBladeToast(container, toast, anchor) {
       top = Math.max(gutter, window.innerHeight - height - gutter);
     }
   }
-  container.classList.add("blade-toast-container--anchored");
+  container.classList.add("kn-toast-container--anchored");
   container.style.left = `${Math.round(left)}px`;
   container.style.top = `${Math.round(top)}px`;
   container.style.right = "auto";
   container.style.bottom = "auto";
 }
 
-function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DURATION_MS, anchor = null } = {}) {
-  const container = document.getElementById("blade-toast-container") || (() => {
+function showKnToast({
+  content,
+  color = "positive",
+  type = "informational",
+  duration,
+  action = null,
+  anchor = null
+} = {}) {
+  const container = document.getElementById("kn-toast-container") || (() => {
     const el = document.createElement("div");
-    el.className = "blade-toast-container";
-    el.id = "blade-toast-container";
+    el.className = "kn-toast-container";
+    el.id = "kn-toast-container";
     el.setAttribute("aria-live", "polite");
     document.body.appendChild(el);
     return el;
   })();
 
-  clearBladeToasts();
-  resetBladeToastContainer(container);
+  clearKnToasts();
+  resetKnToastContainer(container);
+
+  const toastType = type === "promotional" ? "promotional" : "informational";
+  const toastColor = ["positive", "information", "notice", "negative", "neutral"].includes(color)
+    ? color
+    : "positive";
+  const resolvedDuration =
+    duration == null
+      ? toastType === "promotional"
+        ? 8000
+        : KN_TOAST_DURATION_MS
+      : duration;
 
   const toast = document.createElement("div");
-  toast.className = `blade-toast blade-toast--${color}`;
+  toast.className = `kn-toast kn-toast--${toastColor} kn-toast--${toastType}`;
   toast.setAttribute("role", "status");
+  const actionHtml =
+    action && action.text
+      ? `<button class="kn-toast__action" type="button">${action.text}</button>`
+      : "";
   toast.innerHTML = `
-    <span class="blade-toast__icon" aria-hidden="true">
+    <span class="kn-toast__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="9" />
         <path d="M8 12.5 10.5 15 16 9.5" />
       </svg>
     </span>
-    <p class="blade-toast__content type-ui-sm">${content}</p>
+    <p class="kn-toast__content type-ui-sm">${content}</p>
+    ${actionHtml}
     <button class="icon-btn" type="button" aria-label="Dismiss">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
         <path d="M6 6l12 12M18 6L6 18" />
@@ -2813,282 +5958,64 @@ function showBladeToast({ content, color = "positive", duration = BLADE_TOAST_DU
   `;
 
   const remove = () => {
-    window.clearTimeout(bladeToastTimer);
-    bladeToastTimer = 0;
+    window.clearTimeout(knToastTimer);
+    knToastTimer = 0;
     if (toast.classList.contains("is-leaving")) {
       return;
     }
     toast.classList.add("is-leaving");
     window.setTimeout(() => {
       toast.remove();
-      if (!container.querySelector(".blade-toast")) {
-        resetBladeToastContainer(container);
+      if (!container.querySelector(".kn-toast")) {
+        resetKnToastContainer(container);
       }
     }, 220);
   };
 
-  toast.querySelector("button")?.addEventListener("click", remove);
+  toast.querySelector(".kn-toast__action")?.addEventListener("click", (event) => {
+    if (typeof action?.onClick === "function") {
+      action.onClick({ event, toast });
+    }
+    remove();
+  });
+  toast.querySelector('[aria-label="Dismiss"]')?.addEventListener("click", remove);
   container.appendChild(toast);
   if (anchor instanceof HTMLElement) {
-    positionAnchoredBladeToast(container, toast, anchor);
+    positionAnchoredKnToast(container, toast, anchor);
   }
-  bladeToastTimer = window.setTimeout(remove, Math.max(1200, Number(duration) || BLADE_TOAST_DURATION_MS));
+  knToastTimer = window.setTimeout(remove, Math.max(1200, Number(resolvedDuration) || KN_TOAST_DURATION_MS));
 }
 
-window.clearBladeToasts = clearBladeToasts;
-window.showBladeToast = showBladeToast;
+window.clearKnToasts = clearKnToasts;
+window.showKnToast = showKnToast;
 
 let setDashDatePickerOpen = () => {};
 
 function initDashDatePicker() {
   const trigger = document.getElementById("dash-date-trigger");
-  const menu = document.getElementById("dash-date-menu");
-  const label = document.getElementById("dash-date-label");
-  const startInput = document.getElementById("dash-date-start");
-  const endInput = document.getElementById("dash-date-end");
-  const error = document.getElementById("dash-date-error");
-  const cancel = document.getElementById("dash-date-cancel");
-  const apply = document.getElementById("dash-date-apply");
-  if (!trigger || !menu || !label || !startInput || !endInput) {
+  const root = trigger?.closest(".kn-date-picker");
+  if (!root) {
     return;
   }
-
-  if (menu.parentElement !== document.body) {
-    document.body.appendChild(menu);
+  const api = hydrateKnDatePicker(root);
+  if (!api) {
+    return;
   }
-
-  const toISODate = (date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
-  const fromISODate = (value) => {
-    const [year, month, day] = String(value || "").split("-").map(Number);
-    if (!year || !month || !day) {
-      return null;
-    }
-    return new Date(year, month - 1, day);
-  };
-
-  const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-  const formatRange = (start, end) => {
-    const sameYear = start.getFullYear() === end.getFullYear();
-    const startText = start.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      ...(sameYear ? {} : { year: "numeric" })
-    });
-    const endText = end.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-    return `${startText} – ${endText}`;
-  };
-
-  const presets = {
-    7: (today) => {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 7);
-      return [start, today];
-    },
-    30: (today) => {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 30);
-      return [start, today];
-    },
-    month: (today) => [new Date(today.getFullYear(), today.getMonth(), 1), today],
-    "last-month": (today) => {
-      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const end = new Date(today.getFullYear(), today.getMonth(), 0);
-      return [start, end];
-    }
-  };
-
-  const now = startOfDay(new Date());
-  let applied = [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0)];
-  let draftPreset = "";
-
-  const sameDay = (left, right) => toISODate(left) === toISODate(right);
-
-  const matchPreset = (start, end) => {
-    const today = startOfDay(new Date());
-    return (
-      Object.entries(presets).find(([, resolve]) => {
-        const [from, to] = resolve(today).map(startOfDay);
-        return sameDay(from, start) && sameDay(to, end);
-      })?.[0] || ""
-    );
-  };
-
-  const setPresetSelection = (id) => {
-    draftPreset = id;
-    menu.querySelectorAll("[data-dash-preset]").forEach((button) => {
-      const selected = button.getAttribute("data-dash-preset") === id;
-      button.setAttribute("aria-selected", String(selected));
-      button.classList.toggle("is-active", selected);
-    });
-  };
-
-  const clearDateError = () => {
-    if (error) {
-      error.hidden = true;
-    }
-    startInput.removeAttribute("aria-invalid");
-    endInput.removeAttribute("aria-invalid");
-  };
-
-  const showDateError = (message, { startInvalid = false, endInvalid = true } = {}) => {
-    if (error) {
-      error.hidden = false;
-      error.textContent = message;
-      error.setAttribute("role", "alert");
-      error.setAttribute("aria-live", "assertive");
-    }
-    startInput.setAttribute("aria-invalid", startInvalid ? "true" : "false");
-    endInput.setAttribute("aria-invalid", endInvalid ? "true" : "false");
-    positionMenu();
-  };
-
-  const fillInputs = (start, end) => {
-    startInput.value = toISODate(start);
-    endInput.value = toISODate(end);
-    endInput.min = startInput.value;
-    clearDateError();
-    setPresetSelection(matchPreset(start, end));
-  };
-
-  const positionMenu = () => {
-    const gutter = 16;
-    const width = Math.min(320, window.innerWidth - gutter * 2);
-    const triggerRect = trigger.getBoundingClientRect();
-    menu.style.width = `${width}px`;
-    menu.style.minWidth = `${width}px`;
-    let left = triggerRect.right - width;
-    if (left < gutter) {
-      left = gutter;
-    }
-    if (left + width > window.innerWidth - gutter) {
-      left = window.innerWidth - width - gutter;
-    }
-    let top = triggerRect.bottom + 8;
-    const menuHeight = menu.offsetHeight;
-    if (menuHeight && top + menuHeight > window.innerHeight - gutter) {
-      const above = triggerRect.top - menuHeight - 8;
-      if (above >= gutter) {
-        top = above;
-      }
-    }
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
-    menu.style.right = "auto";
-  };
-
-  const onReposition = () => {
-    if (!menu.hidden) {
-      positionMenu();
-    }
-  };
-
-  const setOpen = (open) => {
-    menu.hidden = !open;
-    trigger.setAttribute("aria-expanded", String(open));
-    window.removeEventListener("resize", onReposition);
-    document.removeEventListener("scroll", onReposition, true);
-    if (!open) {
-      return;
-    }
-    setProfileMenuOpen(false);
-    if (typeof setQuickActionsOpen === "function") {
-      setQuickActionsOpen(false);
-    }
-    fillInputs(applied[0], applied[1]);
-    positionMenu();
-    window.addEventListener("resize", onReposition);
-    document.addEventListener("scroll", onReposition, true);
-    window.requestAnimationFrame(() => {
-      startInput.focus();
-      positionMenu();
-    });
-  };
-
-  setDashDatePickerOpen = setOpen;
-
-  const applyRange = (start, end, { persist = true } = {}) => {
-    applied = [startOfDay(start), startOfDay(end)];
-    const text = formatRange(applied[0], applied[1]);
-    label.textContent = text;
-    trigger.setAttribute("aria-label", `Date range, ${text}`);
-    setOpen(false);
-    applyDashSummary((window.KNShipments || []).filter((item) => knShipmentInRange(item, applied[0], applied[1])));
-    if (persist) {
-      showBladeToast({ content: `Showing ${text}`, color: "information", anchor: trigger });
-    }
-  };
-
-  trigger.addEventListener("click", (event) => {
-    event.stopPropagation();
-    setOpen(menu.hidden);
-  });
-  cancel.addEventListener("click", () => {
-    setOpen(false);
-    trigger.focus();
-  });
-  apply.addEventListener("click", () => {
-    const start = fromISODate(startInput.value);
-    const end = fromISODate(endInput.value);
+  setDashDatePickerOpen = api.setOpen;
+  root.addEventListener("kn-date-apply", (event) => {
+    const { start, end, label, persist } = event.detail || {};
     if (!start || !end) {
-      showDateError("Choose both a start date and an end date.", {
-        startInvalid: !start,
-        endInvalid: !end
-      });
-      (!start ? startInput : endInput).focus();
       return;
     }
-    if (end < start) {
-      showDateError("End date must be after start date", {
-        startInvalid: false,
-        endInvalid: true
-      });
-      endInput.focus();
-      return;
-    }
-    clearDateError();
-    applyRange(start, end);
-  });
-  menu.addEventListener("click", (event) => {
-    const preset = event.target.closest("[data-dash-preset]");
-    if (!preset) {
-      return;
-    }
-    const id = preset.getAttribute("data-dash-preset");
-    const [start, end] = presets[id](startOfDay(new Date()));
-    fillInputs(start, end);
-    setPresetSelection(id);
-  });
-  const onDraftChange = () => {
-    endInput.min = startInput.value || "";
-    clearDateError();
-    const start = fromISODate(startInput.value);
-    const end = fromISODate(endInput.value);
-    setPresetSelection(start && end ? matchPreset(start, end) : "");
-  };
-  startInput.addEventListener("input", onDraftChange);
-  endInput.addEventListener("input", onDraftChange);
-  document.addEventListener("click", (event) => {
-    if (menu.hidden) {
-      return;
-    }
-    if (event.target.closest(".kn-date-picker") || event.target.closest("#dash-date-menu")) {
-      return;
-    }
-    setOpen(false);
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !menu.hidden) {
-      event.preventDefault();
-      setOpen(false);
-      trigger.focus();
+    applyDashSummary((window.KNShipments || []).filter((item) => knShipmentInRange(item, start, end)));
+    if (persist) {
+      showKnToast({ content: `Showing ${label}`, color: "information", anchor: trigger });
     }
   });
-
-  fillInputs(applied[0], applied[1]);
-  applyRange(applied[0], applied[1], { persist: false });
+  const now = knDateStartOfDay(new Date());
+  api.applyRange(new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0), {
+    persist: false
+  });
 }
 
 function initHoldDrawer() {
@@ -3102,8 +6029,8 @@ function initHoldDrawer() {
 
   const closeDrawer = () => {
     root.classList.remove("is-open");
-    window.clearBladeToasts?.();
-    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
+    window.clearKnToasts?.();
+    const delay = knDrawerCloseMs();
     closeTimer = window.setTimeout(() => {
       root.hidden = true;
       if (lastFocus && typeof lastFocus.focus === "function") {
@@ -3173,7 +6100,7 @@ function initDashboardLayout() {
   let sortSession = null;
 
   const widgetMeta = (id) => DASH_WIDGETS.find((item) => item.id === id);
-  const scroller = root.querySelector(".blade-drawer__body");
+  const scroller = root.querySelector(".kn-drawer__body");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const sortItems = () => [...list.querySelectorAll(".widget-sort-item")];
@@ -3279,9 +6206,9 @@ function initDashboardLayout() {
                 </svg>
               </button>
             </div>
-            <label class="blade-switch">
+            <label class="kn-switch">
               <input type="checkbox" role="switch" ${visible ? "checked" : ""} aria-label="Show ${meta.title}" />
-              <span class="blade-switch__ui"></span>
+              <span class="kn-switch__ui"></span>
             </label>
           </li>
         `;
@@ -3527,8 +6454,8 @@ function initDashboardLayout() {
     }
     root.classList.remove("is-open");
     trigger.setAttribute("aria-expanded", "false");
-    window.clearBladeToasts?.();
-    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
+    window.clearKnToasts?.();
+    const delay = knDrawerCloseMs();
     closeTimer = window.setTimeout(() => {
       root.hidden = true;
       if (lastFocus && typeof lastFocus.focus === "function") {
@@ -3548,7 +6475,7 @@ function initDashboardLayout() {
     persistOnClose = true;
     closeDrawer();
     window.setTimeout(() => {
-      showBladeToast({
+      showKnToast({
         content: "Dashboard layout saved",
         color: "positive",
         anchor: trigger instanceof HTMLElement ? trigger : null
@@ -3628,7 +6555,7 @@ function initDashboardLayout() {
   });
 
   list.addEventListener("pointerdown", (event) => {
-    if (event.button || event.target.closest("[data-move], .blade-switch, a, input")) {
+    if (event.button || event.target.closest("[data-move], .kn-switch, a, input")) {
       return;
     }
     const row = event.target.closest(".widget-sort-item");
@@ -3677,13 +6604,194 @@ function knMotLabel(mot) {
   return (window.KN_MOT_LABELS || { ocean: "Ocean", air: "Air", truck: "Truck", rail: "Rail" })[mot] || mot;
 }
 
-function knBadgeClass(tone) {
-  return `badge badge--${tone || "neutral"} type-caption-sm type-weight-medium`;
+function knBadgeClass(tone, extra = {}) {
+  const color = extra.color || tone || "neutral";
+  const emphasis = extra.emphasis || (extra.intense ? "intense" : "subtle");
+  const size = extra.size || "medium";
+  const classes = [
+    "kn-badge",
+    `kn-badge--${color}`,
+    `kn-badge--${emphasis}`,
+    `kn-badge--${size}`,
+    "badge",
+    `badge--${color}`
+  ];
+  if (emphasis === "intense") {
+    classes.push("badge--intense");
+  }
+  return classes.join(" ");
 }
+
+const KN_BADGE_COLORS = ["positive", "negative", "notice", "information", "neutral", "primary"];
+const KN_BADGE_SIZES = ["xsmall", "small", "medium", "large"];
+
+function knBadgeSkipHydrate(el) {
+  return (
+    el.classList.contains("kn-tag") ||
+    el.classList.contains("kn-select__chip") ||
+    el.classList.contains("vis-chip") ||
+    el.classList.contains("skeleton") ||
+    el.classList.contains("skeleton--badge") ||
+    el.classList.contains("map-pill")
+  );
+}
+
+function knBadgeHasColor(el) {
+  return KN_BADGE_COLORS.some(
+    (color) => el.classList.contains(`kn-badge--${color}`) || el.classList.contains(`badge--${color}`)
+  );
+}
+
+function knBadgeHasSize(el) {
+  return KN_BADGE_SIZES.some(
+    (size) => el.classList.contains(`kn-badge--${size}`) || el.classList.contains(`badge--${size}`)
+  );
+}
+
+function knBadgeWrapLabel(el) {
+  if (el.querySelector(":scope > .kn-badge__label")) {
+    return;
+  }
+  const keep = [];
+  const move = [];
+  [...el.childNodes].forEach((node) => {
+    if (node.nodeType === 1) {
+      const cls = node.classList;
+      if (
+        cls.contains("kn-badge__icon") ||
+        cls.contains("kn-badge__label") ||
+        cls.contains("kn-select__chip-remove") ||
+        cls.contains("kn-select__chip-label") ||
+        node.tagName === "BUTTON"
+      ) {
+        keep.push(node);
+        return;
+      }
+      if (node.tagName === "SVG") {
+        keep.push(node);
+        return;
+      }
+    }
+    if (node.nodeType === 3 && !node.textContent.trim()) {
+      return;
+    }
+    move.push(node);
+  });
+  if (!move.length) {
+    return;
+  }
+  const label = document.createElement("span");
+  label.className = "kn-badge__label";
+  move.forEach((node) => label.appendChild(node));
+  const text = label.textContent.trim();
+  if (!text) {
+    return;
+  }
+  el.appendChild(label);
+}
+
+function hydrateKnBadges(root = document) {
+  root.querySelectorAll(".kn-badge, .badge, .pill").forEach((el) => {
+    if (knBadgeSkipHydrate(el)) {
+      return;
+    }
+    el.classList.add("kn-badge");
+    KN_BADGE_COLORS.forEach((color) => {
+      if (el.classList.contains(`badge--${color}`)) {
+        el.classList.add(`kn-badge--${color}`);
+      }
+    });
+    if (el.classList.contains("badge--intense")) {
+      el.classList.add("kn-badge--intense");
+    }
+    if (el.classList.contains("badge--subtle")) {
+      el.classList.add("kn-badge--subtle");
+    }
+    if (!knBadgeHasSize(el)) {
+      el.classList.add("kn-badge--medium");
+    }
+    if (!el.classList.contains("kn-badge--intense") && !el.classList.contains("kn-badge--subtle")) {
+      el.classList.add("kn-badge--subtle");
+    }
+    if (!knBadgeHasColor(el) && !el.classList.contains("badge--ai")) {
+      el.classList.add("kn-badge--neutral");
+    }
+    knBadgeWrapLabel(el);
+    const label = el.querySelector(".kn-badge__label") || el;
+    const text = label.textContent.trim();
+    if (text && !el.getAttribute("title") && label.scrollWidth > label.clientWidth) {
+      el.setAttribute("title", text);
+    }
+  });
+}
+
+window.KNBadge = Object.assign(window.KNBadge || {}, {
+  className: knBadgeClass,
+  hydrate: hydrateKnBadges
+});
 
 function setKnText(key, value) {
   document.querySelectorAll(`[data-kn="${key}"]`).forEach((node) => {
     node.textContent = value;
+    if (node.classList.contains("kn-counter") || node.classList.contains("counter")) {
+      hydrateKnCounter(node);
+    }
+  });
+}
+
+function parseKnAmountText(formatted) {
+  const text = String(formatted ?? "");
+  const match = text.match(/^([^0-9]*)(-?)([\d,]+)(\.\d+)?(.*)$/);
+  if (!match) {
+    return { sign: "", currency: "", integer: text, decimal: "", compact: "", prefix: true, label: text, code: "USD" };
+  }
+  const leading = match[1];
+  const trailing = match[5] || "";
+  const prefix = Boolean(leading.trim());
+  return {
+    sign: match[2] || (leading.includes("−") || leading.includes("-") ? "−" : ""),
+    currency: prefix ? leading.replace(/[-−]/g, "").trim() : trailing.trim(),
+    integer: match[3],
+    decimal: match[4] || "",
+    compact: prefix ? trailing.trim() : "",
+    prefix,
+    label: text,
+    code: "USD"
+  };
+}
+
+function setKnAmount(key, formatted) {
+  const parts =
+    formatted && typeof formatted === "object" && "integer" in formatted
+      ? formatted
+      : parseKnAmountText(formatted);
+  document.querySelectorAll(`[data-kn="${key}"]`).forEach((node) => {
+    const integer = node.querySelector(".kn-amount__integer");
+    if (!integer) {
+      node.textContent = parts.label;
+      return;
+    }
+    const sign = node.querySelector(".kn-amount__sign");
+    const currency = node.querySelector(".kn-amount__currency");
+    const decimal = node.querySelector(".kn-amount__decimal");
+    const compact = node.querySelector(".kn-amount__compact");
+    if (sign) {
+      sign.textContent = parts.sign || "";
+    }
+    if (currency) {
+      currency.textContent = parts.currency || "";
+    }
+    integer.textContent = parts.integer;
+    if (decimal) {
+      decimal.textContent = parts.decimal || "";
+    }
+    if (compact) {
+      compact.textContent = parts.compact || "";
+    }
+    node.classList.toggle("kn-amount--currency-end", parts.prefix === false);
+    if (parts.label && parts.code) {
+      node.setAttribute("aria-label", `Total value in ${parts.code}: ${parts.label}`);
+    }
   });
 }
 
@@ -3703,6 +6811,687 @@ function setKnCount(key, value) {
     node.classList.add("kn-count-tick");
   });
 }
+
+function knClosestScrollPort(el) {
+  let node = el.parentElement;
+  while (node && node !== document.documentElement) {
+    const overflowY = window.getComputedStyle(node).overflowY;
+    if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return window;
+}
+
+function knAvatarInitials(name) {
+  const names = String(name || "")
+    .trim()
+    .toUpperCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!names.length) {
+    return "";
+  }
+  if (names.length === 1) {
+    return names[0].slice(0, 2);
+  }
+  return (names[0][0] || "") + (names[names.length - 1][0] || "");
+}
+
+function knAvatarSizeToken(el) {
+  return ["xsmall", "small", "medium", "large", "xlarge"].find(
+    (size) =>
+      el.classList.contains(`kn-avatar--${size}`) ||
+      el.classList.contains(`avatar--${size}`) ||
+      el.classList.contains(`kn-avatar-group--${size}`)
+  );
+}
+
+function hydrateKnAvatars(root = document) {
+  root.querySelectorAll(".kn-avatar img, .avatar img").forEach((img) => {
+    if (img.hasAttribute("alt")) {
+      return;
+    }
+    const name = img.closest("[data-kn-name]")?.getAttribute("data-kn-name");
+    if (name) {
+      img.setAttribute("alt", name);
+    }
+  });
+
+  root.querySelectorAll(".kn-avatar[data-kn-name], .avatar[data-kn-name]").forEach((el) => {
+    if (el.querySelector("img") || el.querySelector(".kn-avatar__icon")) {
+      return;
+    }
+    if (el.textContent.trim()) {
+      return;
+    }
+    const letters = knAvatarInitials(el.getAttribute("data-kn-name"));
+    if (letters) {
+      el.textContent = letters;
+    }
+  });
+
+  root.querySelectorAll(".kn-avatar-group[data-kn-max-count]").forEach((group) => {
+    if (group.dataset.knHydrated === "1") {
+      return;
+    }
+    const max = Number.parseInt(group.getAttribute("data-kn-max-count"), 10);
+    if (!Number.isFinite(max) || max < 0) {
+      return;
+    }
+    const items = [...group.querySelectorAll(":scope > .kn-avatar, :scope > .avatar")];
+    const extra = items.length - max;
+    if (extra <= 0) {
+      return;
+    }
+    items.forEach((item, index) => {
+      if (index >= max) {
+        item.hidden = true;
+      }
+    });
+    const overflow = document.createElement("span");
+    overflow.className = "kn-avatar avatar kn-avatar--overflow";
+    overflow.setAttribute("aria-label", `${extra} more`);
+    overflow.textContent = `+${extra}`;
+    const size = knAvatarSizeToken(group) || knAvatarSizeToken(items[0] || group);
+    if (size) {
+      overflow.classList.add(`kn-avatar--${size}`, `avatar--${size}`);
+    }
+    group.appendChild(overflow);
+    group.dataset.knHydrated = "1";
+  });
+
+  root.querySelectorAll(".kn-avatar-group").forEach((group) => {
+    if (!group.getAttribute("role")) {
+      group.setAttribute("role", "group");
+    }
+  });
+}
+
+window.KNAvatar = Object.assign(window.KNAvatar || {}, {
+  initials: window.KNAvatar?.initials || knAvatarInitials,
+  hydrate: hydrateKnAvatars
+});
+
+function hydrateKnAppBars() {
+  document.querySelectorAll(".kn-appbar").forEach((bar) => {
+    if (bar.dataset.knAppbarReady === "1") {
+      return;
+    }
+    bar.dataset.knAppbarReady = "1";
+    if (bar.classList.contains("kn-appbar--static")) {
+      return;
+    }
+    const port = knClosestScrollPort(bar);
+    const sync = () => {
+      const top = port === window ? window.scrollY : port.scrollTop;
+      bar.classList.toggle("is-scrolled", top > 0);
+    };
+    sync();
+    port.addEventListener("scroll", sync, { passive: true });
+  });
+}
+
+const KN_HEADER_SIZES = ["xlarge", "large", "medium"];
+
+function knHeaderSkip(el) {
+  return (
+    el.classList.contains("kn-appbar") ||
+    el.classList.contains("kn-dropdown__header") ||
+    el.classList.contains("dropdown-header") ||
+    el.classList.contains("kn-menu__header") ||
+    el.classList.contains("menu-header") ||
+    el.classList.contains("kn-accordion__header") ||
+    el.closest(".kn-modal--confirm")
+  );
+}
+
+function knHeaderHasSize(el) {
+  return KN_HEADER_SIZES.some((size) => el.classList.contains(`kn-header--${size}`));
+}
+
+function hydrateKnHeaders(root = document) {
+  root.querySelectorAll(".kn-header, .kn-drawer__header, .kn-modal__header").forEach((el) => {
+    if (knHeaderSkip(el)) {
+      return;
+    }
+    el.classList.add("kn-header");
+    if (!knHeaderHasSize(el)) {
+      el.classList.add("kn-header--large");
+    }
+    const leading = el.querySelector(":scope > .kn-drawer__header-icon, :scope > .kn-header__leading");
+    if (leading) {
+      leading.classList.add("kn-header__leading");
+    }
+    const copy = el.querySelector(":scope > .kn-drawer__titles, :scope > .kn-header__copy");
+    if (copy) {
+      copy.classList.add("kn-header__copy");
+      const title = copy.querySelector("h1, h2, h3, .kn-header__title");
+      if (title) {
+        title.classList.add("kn-header__title");
+      }
+      const subtitle = copy.querySelector("p, .kn-header__subtitle");
+      if (subtitle) {
+        subtitle.classList.add("kn-header__subtitle");
+      }
+    }
+    const trailing =
+      el.querySelector(":scope > .kn-header__trailing") ||
+      el.querySelector(":scope > .admin-drawer-status") ||
+      el.querySelector(":scope > .kn-detail-head__actions");
+    if (trailing) {
+      trailing.classList.add("kn-header__trailing");
+    }
+    const close =
+      el.querySelector(":scope > .kn-header__close") ||
+      el.querySelector("[data-drawer-dismiss], [data-hold-drawer-dismiss], [data-kn-detail-close], [data-admin-review-close], [data-user-profile-close], [data-user-form-close], [data-drole-form-close], [data-drole-profile-close], [data-role-form-close], [data-role-profile-close]") ||
+      el.querySelector(".icon-btn[aria-label^='Close']");
+    if (close) {
+      close.classList.add("kn-header__close");
+      if (!close.getAttribute("aria-label")) {
+        close.setAttribute("aria-label", "Close");
+      }
+    }
+  });
+
+  root.querySelectorAll(".kn-footer, .kn-drawer__footer, .kn-modal__footer").forEach((el) => {
+    if (el.closest(".kn-modal--confirm")) {
+      return;
+    }
+    el.classList.add("kn-footer");
+    el.querySelectorAll(".kn-drawer__footer-actions").forEach((actions) => {
+      actions.classList.add("kn-footer__actions");
+    });
+  });
+  root.querySelectorAll(".kn-header__title-suffix .kn-counter, .kn-header__title-suffix .counter").forEach((node) => {
+    hydrateKnCounter(node);
+  });
+}
+
+window.KNHeader = Object.assign(window.KNHeader || {}, {
+  hydrate: hydrateKnHeaders
+});
+
+function knMenuEnabledItems(menu) {
+  return Array.from(menu.querySelectorAll('[role="menuitem"]')).filter((item) => {
+    return !item.disabled && item.getAttribute("aria-disabled") !== "true" && !item.hidden;
+  });
+}
+
+function knMenuFocusItem(menu, index) {
+  const items = knMenuEnabledItems(menu);
+  if (!items.length) {
+    return;
+  }
+  const next = (index + items.length) % items.length;
+  items.forEach((item, idx) => {
+    item.tabIndex = idx === next ? 0 : -1;
+    item.classList.toggle("is-active", idx === next);
+  });
+  items[next].focus();
+}
+
+function bindKnMenuKeyboard(menu) {
+  if (menu.dataset.knMenuReady === "1") {
+    return;
+  }
+  if (menu.getAttribute("role") !== "menu") {
+    return;
+  }
+  menu.dataset.knMenuReady = "1";
+  knMenuEnabledItems(menu).forEach((item, index) => {
+    item.tabIndex = index === 0 ? 0 : -1;
+  });
+  menu.addEventListener("keydown", (event) => {
+    const items = knMenuEnabledItems(menu);
+    if (!items.length) {
+      return;
+    }
+    const current = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      knMenuFocusItem(menu, current < 0 ? 0 : current + 1);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      knMenuFocusItem(menu, current < 0 ? items.length - 1 : current - 1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      knMenuFocusItem(menu, 0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      knMenuFocusItem(menu, items.length - 1);
+    }
+  });
+}
+
+function hydrateKnMenus(root = document) {
+  root.querySelectorAll(".menu-item").forEach((el) => {
+    el.classList.add("kn-menu__item");
+    if (el.classList.contains("menu-item--negative")) {
+      el.classList.add("is-negative");
+    }
+    if (el.disabled) {
+      el.setAttribute("aria-disabled", "true");
+    }
+  });
+  root.querySelectorAll(".menu-header").forEach((el) => {
+    el.classList.add("kn-menu__header");
+  });
+  root.querySelectorAll(".kn-menu, .menu-overlay").forEach((menu) => {
+    const isDropdown =
+      menu.classList.contains("kn-dropdown__overlay") ||
+      menu.classList.contains("vis-menu__list") ||
+      menu.classList.contains("dropdown-overlay");
+    if (!isDropdown) {
+      menu.classList.add("kn-menu");
+    }
+    menu.classList.add("menu-overlay");
+    bindKnMenuKeyboard(menu);
+    if (typeof hydrateKnDividers === "function") {
+      hydrateKnDividers(menu);
+    }
+  });
+}
+
+window.KNMenu = Object.assign(window.KNMenu || {}, {
+  hydrate: hydrateKnMenus
+});
+
+function hydrateKnDropdown(root) {
+  if (!root || root.nodeType !== 1) {
+    return;
+  }
+  const host =
+    root.classList.contains("kn-dropdown") ||
+    root.classList.contains("vis-menu") ||
+    root.classList.contains("quick-actions")
+      ? root
+      : root.closest?.(".kn-dropdown, .vis-menu, .quick-actions");
+  if (!host) {
+    return;
+  }
+  if (host.classList.contains("kn-menu") && !host.classList.contains("kn-dropdown")) {
+    return;
+  }
+  host.classList.add("kn-dropdown");
+  if (!host.getAttribute("data-kn-component")) {
+    host.setAttribute("data-kn-component", "dropdown");
+  }
+  const isMultiple =
+    host.classList.contains("kn-dropdown--multiple") ||
+    host.classList.contains("kn-select--multi") ||
+    host.querySelector(":scope > .kn-dropdown__overlay[aria-multiselectable='true'], :scope > .vis-menu__list[aria-multiselectable='true']");
+  if (isMultiple) {
+    host.classList.add("kn-dropdown--multiple");
+  } else if (!host.classList.contains("kn-dropdown--single")) {
+    host.classList.add("kn-dropdown--single");
+  }
+  const overlay =
+    host.querySelector(":scope > .kn-dropdown__overlay") ||
+    host.querySelector(":scope > .vis-menu__list") ||
+    host.querySelector(":scope > .dropdown-overlay") ||
+    host.querySelector(":scope > .kn-date-picker__panel");
+  if (overlay) {
+    overlay.classList.add("kn-dropdown__overlay");
+  }
+  const trigger =
+    host.querySelector(":scope > [aria-haspopup]") ||
+    host.querySelector(":scope > .kn-select__trigger") ||
+    host.querySelector(":scope > .kn-date-picker__trigger") ||
+    host.querySelector("[aria-haspopup], [data-vis-size-trigger], .kn-select__trigger");
+  if (trigger && !trigger.hasAttribute("aria-expanded")) {
+    trigger.setAttribute("aria-expanded", overlay && !overlay.hidden ? "true" : "false");
+  }
+  const header = host.querySelector(".kn-dropdown__header, .dropdown-header");
+  if (header) {
+    header.classList.add("kn-dropdown__header");
+  }
+  const footer = overlay?.querySelector(".kn-dropdown__footer, .dropdown-footer") || host.querySelector(".kn-dropdown__footer, .dropdown-footer");
+  if (footer) {
+    footer.classList.add("kn-dropdown__footer");
+  }
+  if (typeof hydrateKnMenus === "function") {
+    hydrateKnMenus(host);
+  }
+  if (typeof hydrateKnButtons === "function") {
+    hydrateKnButtons(host);
+  }
+  if (typeof hydrateKnDividers === "function") {
+    hydrateKnDividers(host);
+  }
+}
+
+function hydrateKnDropdowns(scope = document) {
+  const root = scope || document;
+  const selector = ".kn-dropdown, .vis-menu, .quick-actions";
+  const nodes =
+    root.nodeType === 1 && root.matches?.(selector)
+      ? [root]
+      : Array.from(root.querySelectorAll(selector));
+  nodes.forEach((el) => hydrateKnDropdown(el));
+}
+
+window.KNDropdown = Object.assign(window.KNDropdown || {}, {
+  hydrate: hydrateKnDropdowns
+});
+
+function hydrateKnMotion(root = document) {
+  const nodes = root.querySelectorAll('[data-motion-trigger="in-view"]');
+  if (!nodes.length || typeof IntersectionObserver !== "function") {
+    nodes.forEach((el) => el.classList.add("is-in-view"));
+    return;
+  }
+  const observer = new IntersectionObserver(
+    (entries, obs) => {
+      entries.forEach((entry) => {
+        if (entry.intersectionRatio < 0.8) {
+          return;
+        }
+        entry.target.classList.add("is-in-view");
+        obs.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.8 }
+  );
+  nodes.forEach((el) => observer.observe(el));
+}
+
+window.KNMotion = Object.assign(window.KNMotion || {}, {
+  hydrate: hydrateKnMotion
+});
+
+function knBottomNavItems(nav) {
+  return Array.from(nav.querySelectorAll(":scope > .kn-bottom-nav__item"));
+}
+
+function syncKnBottomNavCurrent(nav) {
+  const hash = (location.hash || "#").split("?")[0] || "#";
+  knBottomNavItems(nav).forEach((item) => {
+    const href = item.getAttribute("href") || "";
+    if (!href.startsWith("#")) {
+      return;
+    }
+    const itemHash = href.split("?")[0];
+    if (itemHash === hash) {
+      item.setAttribute("aria-current", "page");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  });
+}
+
+function hydrateKnBottomNav(nav) {
+  nav.setAttribute("role", "navigation");
+  knBottomNavItems(nav).forEach((item) => {
+    if (item.tagName === "BUTTON" && !item.getAttribute("type")) {
+      item.setAttribute("type", "button");
+    }
+    if (item.tagName === "A" && item.getAttribute("target") === "_blank" && !item.getAttribute("rel")) {
+      item.setAttribute("rel", "noreferrer noopener");
+    }
+    item.querySelector(".kn-bottom-nav__title")?.classList.add("type-weight-semibold");
+  });
+  syncKnBottomNavCurrent(nav);
+}
+
+let knBottomNavHashBound = false;
+
+function hydrateKnBottomNavs(root = document) {
+  root.querySelectorAll(".kn-bottom-nav").forEach((nav) => hydrateKnBottomNav(nav));
+  if (!knBottomNavHashBound) {
+    knBottomNavHashBound = true;
+    window.addEventListener("hashchange", () => {
+      document.querySelectorAll(".kn-bottom-nav").forEach((nav) => syncKnBottomNavCurrent(nav));
+    });
+  }
+}
+
+window.KNBottomNav = Object.assign(window.KNBottomNav || {}, {
+  hydrate: hydrateKnBottomNavs
+});
+
+let knSheetOpenCount = 0;
+const knSheetLastFocus = new WeakMap();
+
+function knSheetMotionMs() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return 0;
+  }
+  return knThemeDurationMs("moderate");
+}
+
+function knSheetLockBody(lock) {
+  if (lock) {
+    knSheetOpenCount += 1;
+    if (knSheetOpenCount === 1) {
+      document.body.style.overflow = "hidden";
+    }
+    return;
+  }
+  knSheetOpenCount = Math.max(0, knSheetOpenCount - 1);
+  if (knSheetOpenCount === 0) {
+    document.body.style.overflow = "";
+  }
+}
+
+function knSheetIsDismissible(root) {
+  return !root.classList.contains("kn-sheet-root--no-dismiss");
+}
+
+function knSheetFocusInitial(root) {
+  const sheet = root.querySelector(".kn-sheet");
+  const closeBtn = sheet?.querySelector(
+    '.kn-header .icon-btn, .kn-drawer__header .icon-btn, [data-kn-sheet-dismiss]'
+  );
+  const target = closeBtn || sheet?.querySelector("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+  if (target && typeof target.focus === "function") {
+    target.focus();
+  }
+}
+
+function closeKnBottomSheet(root) {
+  if (!root || root.hidden || !root.classList.contains("is-open")) {
+    return;
+  }
+  root.classList.remove("is-open");
+  const sheet = root.querySelector(".kn-sheet");
+  sheet?.classList.remove("is-dragging");
+  if (sheet) {
+    sheet.style.transform = "";
+  }
+  knSheetLockBody(false);
+  window.clearTimeout(root._knSheetCloseTimer);
+  root._knSheetCloseTimer = window.setTimeout(() => {
+    root.hidden = true;
+    const last = knSheetLastFocus.get(root);
+    if (last && typeof last.focus === "function") {
+      last.focus();
+    }
+    knSheetLastFocus.delete(root);
+  }, knSheetMotionMs());
+}
+
+function openKnBottomSheet(root) {
+  if (!root) {
+    return;
+  }
+  if (root.classList.contains("is-open") && !root.hidden) {
+    return;
+  }
+  window.clearTimeout(root._knSheetCloseTimer);
+  knSheetLastFocus.set(root, document.activeElement);
+  root.hidden = false;
+  knSheetLockBody(true);
+  window.requestAnimationFrame(() => {
+    root.classList.add("is-open");
+    knSheetFocusInitial(root);
+  });
+}
+
+function bindKnSheetHandle(root) {
+  const handle = root.querySelector(".kn-sheet__handle");
+  const sheet = root.querySelector(".kn-sheet");
+  if (!handle || !sheet || handle.dataset.knSheetHandle === "1") {
+    return;
+  }
+  handle.dataset.knSheetHandle = "1";
+  let startY = 0;
+  let dragging = false;
+  const threshold = window.knTheme?.size?.[56] ?? 0;
+
+  const onMove = (event) => {
+    if (!dragging) {
+      return;
+    }
+    const dy = Math.max(0, event.clientY - startY);
+    sheet.style.transform = `translateY(${dy}px)`;
+  };
+
+  const onUp = (event) => {
+    if (!dragging) {
+      return;
+    }
+    dragging = false;
+    sheet.classList.remove("is-dragging");
+    handle.releasePointerCapture?.(event.pointerId);
+    handle.removeEventListener("pointermove", onMove);
+    handle.removeEventListener("pointerup", onUp);
+    handle.removeEventListener("pointercancel", onUp);
+    const dy = Math.max(0, event.clientY - startY);
+    sheet.style.transform = "";
+    if (knSheetIsDismissible(root) && dy >= threshold) {
+      closeKnBottomSheet(root);
+    }
+  };
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (!root.classList.contains("is-open") || !knSheetIsDismissible(root)) {
+      return;
+    }
+    dragging = true;
+    startY = event.clientY;
+    sheet.classList.add("is-dragging");
+    handle.setPointerCapture?.(event.pointerId);
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
+  });
+}
+
+function hydrateKnBottomSheet(root) {
+  const sheet = root.querySelector(".kn-sheet");
+  if (!sheet) {
+    return;
+  }
+  if (!sheet.getAttribute("role")) {
+    sheet.setAttribute("role", "dialog");
+  }
+  sheet.setAttribute("aria-modal", "true");
+  const title = sheet.querySelector(".kn-header__title, .kn-header h2, .kn-drawer__titles h2");
+  if (title && title.id) {
+    sheet.setAttribute("aria-labelledby", title.id);
+  }
+  bindKnSheetHandle(root);
+  hydrateKnBoxes(root);
+  if (root.dataset.knSheetReady === "1") {
+    return;
+  }
+  root.dataset.knSheetReady = "1";
+  root.querySelector(".kn-sheet__overlay")?.addEventListener("click", () => {
+    if (knSheetIsDismissible(root)) {
+      closeKnBottomSheet(root);
+    }
+  });
+  sheet.querySelectorAll("[data-kn-sheet-dismiss], .kn-header__close").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeKnBottomSheet(root);
+    });
+  });
+}
+
+let knSheetDocBound = false;
+
+function hydrateKnBottomSheets(scope = document) {
+  scope.querySelectorAll(".kn-sheet-root").forEach((root) => hydrateKnBottomSheet(root));
+  if (knSheetDocBound) {
+    return;
+  }
+  knSheetDocBound = true;
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    const open = [...document.querySelectorAll(".kn-sheet-root.is-open")].at(-1);
+    if (!open || !knSheetIsDismissible(open)) {
+      return;
+    }
+    event.preventDefault();
+    closeKnBottomSheet(open);
+  });
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-kn-sheet-open]");
+    if (!trigger) {
+      return;
+    }
+    const sel = trigger.getAttribute("data-kn-sheet-open");
+    const root = sel ? document.querySelector(sel) : null;
+    if (!root) {
+      return;
+    }
+    event.preventDefault();
+    openKnBottomSheet(root);
+  });
+}
+
+window.KNBottomSheet = Object.assign(window.KNBottomSheet || {}, {
+  hydrate: hydrateKnBottomSheets,
+  open: openKnBottomSheet,
+  close: closeKnBottomSheet
+});
+
+const KN_BOX_DISPLAY = new Set([
+  "kn-box--flex",
+  "kn-box--row",
+  "kn-box--column",
+  "kn-box--row-reverse",
+  "kn-box--column-reverse",
+  "kn-box--center",
+  "kn-box--grid"
+]);
+
+function knBoxHasDisplay(el) {
+  return [...el.classList].some((name) => KN_BOX_DISPLAY.has(name));
+}
+
+function decorateKnBox(el, { columnIfBare = false } = {}) {
+  if (!el || el.nodeType !== 1) {
+    return el;
+  }
+  el.classList.add("kn-box");
+  if (columnIfBare && !knBoxHasDisplay(el)) {
+    el.classList.add("kn-box--column");
+  }
+  return el;
+}
+
+function hydrateKnBoxes(scope = document) {
+  scope.querySelectorAll(".kn-box").forEach((el) => decorateKnBox(el));
+  scope.querySelectorAll(".kh-panel, .kn-drawer__body, .kn-sheet__body").forEach((el) => {
+    decorateKnBox(el, { columnIfBare: true });
+  });
+}
+
+window.KNBox = Object.assign(window.KNBox || {}, {
+  hydrate: hydrateKnBoxes
+});
 
 function hydrateDashWelcome() {
   const el = document.getElementById("dash-welcome");
@@ -3771,7 +7560,7 @@ function hydrateDashGreeting(summary) {
   const title = document.getElementById("dash-greeting");
   const risk = document.getElementById("dash-risk-line");
   if (title) {
-    title.textContent = `${greeting}, Brooke`;
+    title.textContent = `${greeting}, Jane`;
   }
   hydrateDashWelcome();
   if (!risk) {
@@ -3839,12 +7628,12 @@ function hydrateDashFromVisibility() {
     "delay-desc",
     `${knPlural(summary.delayed, "shipment delayed", "shipments delayed")}${summary.earliestDelayEta ? `. Earliest ETA ${summary.earliestDelayEta}.` : "."}`
   );
-  setKnText("duty", usd(duty));
-  setKnText("demurrage-usd", usd(demurrageUsd));
+  setKnAmount("duty", formatKnAmountParts(duty, { suffix: "none" }));
+  setKnAmount("demurrage-usd", formatKnAmountParts(demurrageUsd, { suffix: "none" }));
   setKnText("demurrage-trend", knPlural(summary.demurrageExceeded, "container exceeded", "containers exceeded"));
-  setKnText("collected", usd(collected));
+  setKnAmount("collected", formatKnAmountParts(collected, { suffix: "none" }));
   setKnText("collected-trend", `${summary.ontime} on-track shipments · estimate`);
-  setKnText("service", usd(service));
+  setKnAmount("service", formatKnAmountParts(service, { suffix: "none" }));
   setKnText("health-copy", `${health}% of active shipments are on track this month.`);
   setKnText("kh-active", String(summary.total));
   setKnText("kh-waiting", String(summary.waiting));
@@ -3888,9 +7677,9 @@ function hydrateDashFromVisibility() {
   if (donut) {
     donut.style.background = `conic-gradient(
       var(--kn-color-background-interactive-primary-default) ${oceanStart}% ${airStart}%,
-      var(--kn-color-icon-feedback-positive-intense) ${airStart}% ${truckStart}%,
-      var(--kn-color-icon-feedback-notice-intense) ${truckStart}% ${railStart}%,
-      var(--kn-color-icon-feedback-information-intense) ${railStart}% 100%
+      var(--kn-color-background-feedback-positive-intense) ${airStart}% ${truckStart}%,
+      var(--kn-color-background-feedback-notice-intense) ${truckStart}% ${railStart}%,
+      var(--kn-primitive-purple-500) ${railStart}% 100%
     )`;
     donut.setAttribute(
       "aria-label",
@@ -3900,10 +7689,10 @@ function hydrateDashFromVisibility() {
   const motLegend = document.getElementById("dash-mot-legend");
   if (motLegend) {
     motLegend.innerHTML = `
-      <li><span class="dash-legend__swatch chart-cat--blue"></span> Ocean ${summary.motPct.ocean}%</li>
-      <li><span class="dash-legend__swatch chart-cat--green"></span> Air ${summary.motPct.air}%</li>
-      <li><span class="dash-legend__swatch chart-cat--gold"></span> Truck ${summary.motPct.truck}%</li>
-      <li><span class="dash-legend__swatch chart-cat--sky"></span> Rail ${summary.motPct.rail}%</li>
+      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--blue"></span> Ocean ${summary.motPct.ocean}%</li>
+      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--green"></span> Air ${summary.motPct.air}%</li>
+      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--gold"></span> Truck ${summary.motPct.truck}%</li>
+      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--purple"></span> Rail ${summary.motPct.rail}%</li>
     `;
   }
 
@@ -3913,7 +7702,7 @@ function hydrateDashFromVisibility() {
       .map((item) => {
         const tone = item.status === "On Hold" ? "negative" : item.statusTone;
         return `
-          <li class="blade-list__item" data-map-id="${item.id}">
+          <li class="kn-list__item" data-map-id="${item.id}">
             <div>
               <p class="type-ui-md type-weight-semibold">${item.id}</p>
               <p class="type-caption-sm">${item.origin.city} → ${item.dest.city} • ${knMotLabel(item.mot)}</p>
@@ -3935,7 +7724,7 @@ function hydrateDashFromVisibility() {
     const items = [];
     if (waitingIsf) {
       items.push(`
-        <li class="blade-list__item" data-map-id="${waitingIsf.id}">
+        <li class="kn-list__item" data-map-id="${waitingIsf.id}">
           <div>
             <p class="type-ui-md type-weight-semibold">ISF · ${waitingIsf.container} ${isfTip}</p>
             <p class="type-caption-sm">${waitingIsf.company} · ${waitingIsf.origin.city}</p>
@@ -3946,7 +7735,7 @@ function hydrateDashFromVisibility() {
     }
     if (arrivalNotice) {
       items.push(`
-        <li class="blade-list__item" data-map-id="${arrivalNotice.id}">
+        <li class="kn-list__item" data-map-id="${arrivalNotice.id}">
           <div>
             <p class="type-ui-md type-weight-semibold">Arrival notice · ${arrivalNotice.container}</p>
             <p class="type-caption-sm">${arrivalNotice.dest.city} · ${arrivalNotice.id}</p>
@@ -3957,7 +7746,7 @@ function hydrateDashFromVisibility() {
     }
     if (invoiceItem) {
       items.push(`
-        <li class="blade-list__item" data-map-id="${invoiceItem.id}">
+        <li class="kn-list__item" data-map-id="${invoiceItem.id}">
           <div>
             <p class="type-ui-md type-weight-semibold">Charge · ${invoiceItem.po}</p>
             <p class="type-caption-sm">${invoiceItem.company} · ${usd(summary.amounts[invoiceItem.id])} est.</p>
@@ -3978,15 +7767,15 @@ function hydrateDashFromVisibility() {
       .map((row) => {
         const rowTip = row.label === "Other" ? ` data-tooltip="${attrTip(row.hint)}" tabindex="0"` : "";
         return `
-          <div class="dash-bars__row"${rowTip}>
-            <span class="dash-bars__label type-caption-sm">${row.label}</span>
-            <div class="dash-bars__track">
+          <div class="kn-chart__row dash-bars__row"${rowTip}>
+            <span class="kn-chart__tick dash-bars__label type-caption-sm">${row.label}</span>
+            <div class="kn-chart__track dash-bars__track">
               ${laneSegHtml("blue", "ocean", row.counts.ocean, max, row.namesByMot?.ocean)}
               ${laneSegHtml("green", "air", row.counts.air, max, row.namesByMot?.air)}
               ${laneSegHtml("gold", "truck", row.counts.truck, max, row.namesByMot?.truck)}
-              ${laneSegHtml("sky", "rail", row.counts.rail, max, row.namesByMot?.rail)}
+              ${laneSegHtml("purple", "rail", row.counts.rail, max, row.namesByMot?.rail)}
             </div>
-            <strong class="dash-bars__value type-caption-sm">${row.counts.total}</strong>
+            <strong class="kn-chart__value dash-bars__value type-caption-sm">${row.counts.total}</strong>
           </div>
         `;
       })
@@ -4005,7 +7794,7 @@ function hydrateDashFromVisibility() {
             <td>${item.origin.code} → ${item.dest.code}</td>
             <td>${item.company}</td>
             <td><span class="${knBadgeClass(tone)}">${item.status}</span></td>
-            <td class="vis-table__num"><span class="amount">${usd(summary.amounts[item.id])}</span></td>
+            <td class="vis-table__num">${typeof knAmountHtml === "function" ? knAmountHtml(summary.amounts[item.id], "kn-amount kn-amount--body kn-amount--small kn-amount--subtle-affix kn-amount--weight-semibold", { suffix: "none" }) : `<span class="amount">${usd(summary.amounts[item.id])}</span>`}</td>
           </tr>
         `;
       })
@@ -4016,18 +7805,19 @@ function hydrateDashFromVisibility() {
   if (notifCount) {
     notifCount.textContent = String(summary.action);
     notifCount.setAttribute("aria-label", `${summary.action} shipments need action`);
+    hydrateKnCounter(notifCount);
   }
 
   const invoices = document.getElementById("dash-invoices");
   if (invoices) {
     invoices.innerHTML = invoiceRows
       .map((item) => `
-        <li class="blade-list__item" data-map-id="${item.id}">
+        <li class="kn-list__item" data-map-id="${item.id}">
           <div>
             <p class="type-ui-md type-weight-semibold">${item.po}</p>
             <p class="type-caption-sm">${item.id} · estimate</p>
           </div>
-          <span class="amount type-ui-sm type-weight-semibold">${usd(summary.amounts[item.id])}</span>
+          ${typeof knAmountHtml === "function" ? knAmountHtml(summary.amounts[item.id], "kn-amount kn-amount--body kn-amount--small kn-amount--subtle-affix kn-amount--weight-semibold", { suffix: "none" }) : `<span class="amount type-ui-sm type-weight-semibold">${usd(summary.amounts[item.id])}</span>`}
         </li>
       `)
       .join("");
@@ -4042,6 +7832,11 @@ function hydrateDashFromVisibility() {
     visWhy.textContent = summary.action
       ? knPlural(summary.action, "shipment needs action", "shipments need action")
       : "Search live shipments";
+  }
+
+  const dashLive = document.getElementById("dash-live");
+  if (dashLive) {
+    hydrateKnCharts(dashLive);
   }
 }
 
@@ -4069,8 +7864,8 @@ function initAiAssistant() {
   const inputErrorEl = document.getElementById("ai-assistant-input-error");
   const inputErrorText = document.getElementById("ai-assistant-input-error-text");
   const inputErrorDismiss = document.getElementById("ai-assistant-input-error-dismiss");
-  const sendIcon = sendBtn?.querySelector(".blade-chat-input__icon--send");
-  const stopIcon = sendBtn?.querySelector(".blade-chat-input__icon--stop");
+  const sendIcon = sendBtn?.querySelector(".kn-chat-input__icon--send");
+  const stopIcon = sendBtn?.querySelector(".kn-chat-input__icon--stop");
   const DEFAULT_INPUT_PLACEHOLDER =
     input?.getAttribute("placeholder") || "Ask about a hold, role, or shipment on this page";
   if (!shell || !panel || !form || !input || !history || !resizeHandle || !triggers.length) {
@@ -4083,9 +7878,10 @@ function initAiAssistant() {
   const WIDTH_STEP = 20;
   const WIDTH_STORAGE_KEY = "kn-ai-assistant-width";
   const ACTION_INTENT = /\b(add|create|edit|update|delete|remove|assign|deactivate|activate|save|submit|change)\b/i;
-  const COACHMARK_SEEN_KEY = "kn-ai-assistant-coachmark-seen";
+  const COACHMARK_SEEN_KEY = "kn-klear-assist-rename-seen";
   const INTRO_SEEN_KEY = "kn-ai-assistant-intro-seen";
-  const COACHMARK_COPY = "New: Klear Assistant flags holds and coverage on this page. Suggests only.";
+  const COACHMARK_COPY =
+    "Agentic Broker is now Klear Assist — and you can now get contextual help anywhere, not just here";
   const ELEVATED_ROLE = /administrator|access manager|user access/i;
   const MSG_ACTION_COPY =
     '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M4.5 13V4.5A1.5 1.5 0 0 1 6 3h7"/></svg>';
@@ -4104,7 +7900,11 @@ function initAiAssistant() {
   let refChipDismissed = false;
   let generationId = 0;
   let isResponding = false;
+  let isRestoringTranscript = false;
+  let panelScopeKey = "";
+  let panelContext = null;
   let streamTimer = null;
+  let genuiAbort = null;
 
   function readStoredWidth() {
     try {
@@ -4159,10 +7959,15 @@ function initAiAssistant() {
   }
 
   function setExpandedState(expanded) {
+    const label = window.KNAssistCore?.triggerLabel?.(expanded) || (expanded ? "Close Klear Assist" : "Klear Assist");
     triggers.forEach((trigger) => {
       trigger.setAttribute("aria-expanded", String(expanded));
       trigger.setAttribute("aria-pressed", String(expanded));
-      trigger.setAttribute("aria-label", expanded ? "Close Klear Assistant" : "Open Klear Assistant");
+      trigger.setAttribute("aria-label", label);
+      const text = trigger.querySelector(".ai-assistant-trigger__label");
+      if (text && !trigger.classList.contains("ai-assistant-trigger--mobile")) {
+        text.textContent = label;
+      }
     });
     panel.setAttribute("aria-hidden", String(!expanded));
     panel.inert = !expanded;
@@ -4200,16 +8005,19 @@ function initAiAssistant() {
   }
 
   function getVisibleTrigger() {
-    return (
-      triggers.find((trigger) => {
-        const style = window.getComputedStyle(trigger);
-        if (style.display === "none" || style.visibility === "hidden") {
-          return false;
-        }
-        const rect = trigger.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      }) || triggers[0]
-    );
+    const assistTriggers = triggers.filter((trigger) => !trigger.hidden);
+    const found = assistTriggers.find((trigger) => {
+      const style = window.getComputedStyle(trigger);
+      if (style.display === "none" || style.visibility === "hidden") {
+        return false;
+      }
+      const rect = trigger.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    if (found) {
+      return found;
+    }
+    return document.querySelector(".side-nav-link--agentic-broker");
   }
 
   function setCoachmarkBadges(visible) {
@@ -4227,12 +8035,12 @@ function initAiAssistant() {
       return;
     }
     const rect = trigger.getBoundingClientRect();
-    const gap = 8;
+    const gap = knThemeSpacePx(3);
     const tipRect = coachmarkEl.getBoundingClientRect();
     let left = rect.left + rect.width / 2 - tipRect.width / 2;
-    left = Math.min(Math.max(8, left), window.innerWidth - tipRect.width - 8);
-    const top = Math.min(rect.bottom + gap, window.innerHeight - tipRect.height - 8);
-    coachmarkEl.style.top = `${Math.round(Math.max(8, top))}px`;
+    left = Math.min(Math.max(gap, left), window.innerWidth - tipRect.width - gap);
+    const top = Math.min(rect.bottom + gap, window.innerHeight - tipRect.height - gap);
+    coachmarkEl.style.top = `${Math.round(Math.max(gap, top))}px`;
     coachmarkEl.style.left = `${Math.round(left)}px`;
     coachmarkEl.setAttribute("data-placement", "bottom");
     coachmarkEl.style.setProperty("--coach-arrow-left", `${Math.round(rect.left + rect.width / 2 - left)}px`);
@@ -4262,14 +8070,19 @@ function initAiAssistant() {
   }
 
   function showCoachmark() {
-    if (hasSeenFlag(COACHMARK_SEEN_KEY)) {
+    const canShow = window.KNAssistCore?.isFullPageAssist?.();
+    if (!canShow || hasSeenFlag(COACHMARK_SEEN_KEY)) {
+      coachmarkVisible = false;
       setCoachmarkBadges(false);
+      if (coachmarkEl) {
+        coachmarkEl.hidden = true;
+      }
       return;
     }
     setCoachmarkBadges(true);
     if (!coachmarkEl) {
       coachmarkEl = document.createElement("div");
-      coachmarkEl.className = "blade-tooltip blade-tooltip--coachmark type-caption-sm";
+      coachmarkEl.className = "kn-tooltip kn-tooltip--coachmark type-caption-sm";
       coachmarkEl.id = "ai-assistant-coachmark";
       coachmarkEl.innerHTML = `
         <p id="ai-assistant-coachmark-copy">${COACHMARK_COPY}</p>
@@ -4320,13 +8133,16 @@ function initAiAssistant() {
     if (context?.headline) {
       return String(context.headline);
     }
+    if (window.KNAssistCore?.lookingAtLine && context) {
+      return window.KNAssistCore.lookingAtLine(context);
+    }
     if (context?.kind === "role-detail" || context?.kind === "user-detail" || context?.kind === "default-detail" || context?.kind === "visibility-detail") {
-      return `Ask me anything about ${context.title}`;
+      return `Looking at ${context.title}`;
     }
-    if (context?.area && context.area !== "this page") {
-      return `Ask me anything on ${context.area}`;
+    if (context?.title) {
+      return `Looking at ${context.title}`;
     }
-    return "Ask about holds, coverage, or this record";
+    return "Looking at this record";
   }
 
   const PROMPT_ICON_SVG = {
@@ -4406,8 +8222,9 @@ function initAiAssistant() {
   }
 
   function fillIntro(context) {
-    setGreetingAndHeadline(introGreeting, introHeading, context);
-    fillPromptChips(introPrompts, context);
+    const resolved = context || panelContextForUi();
+    setGreetingAndHeadline(introGreeting, introHeading, resolved);
+    fillPromptChips(introPrompts, resolved);
   }
 
   function showIntro() {
@@ -4417,12 +8234,12 @@ function initAiAssistant() {
       window.requestAnimationFrame(() => input.focus());
       return;
     }
-    fillIntro(getContext());
+    fillIntro(panelContextForUi());
     introEl.hidden = false;
     history.hidden = true;
     form.hidden = false;
     helpBtn?.setAttribute("aria-expanded", "true");
-    announceFtue("Klear Assistant. Answers use records on this page. Suggests only — it cannot change records.");
+    announceFtue("Klear Assist. Answers use the record on this page. Suggests only — it cannot change records.");
     window.requestAnimationFrame(() => input.focus());
   }
 
@@ -4438,7 +8255,7 @@ function initAiAssistant() {
   function finishIntro() {
     markSeenFlag(INTRO_SEEN_KEY);
     hideIntro();
-    if (!history.querySelector(".ai-msg--user")) {
+    if (!history.querySelector(".ai-msg")) {
       renderEmptyState();
     }
     window.requestAnimationFrame(() => input.focus());
@@ -4512,16 +8329,16 @@ function initAiAssistant() {
   };
 
   const THINKING_CHEVRON =
-    '<svg class="ai-msg__thinking-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
+    '<svg class="kn-collapsible__chevron ai-msg__thinking-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
 
-  const BLADE_SPINNER_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-    <path class="blade-spinner__track" d="M24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12ZM3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12Z" fill="currentColor"/>
+  const KN_SPINNER_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+    <path class="kn-spinner__track" d="M24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12ZM3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12Z" fill="currentColor"/>
     <path d="M24 12C24 13.8937 23.5518 15.7606 22.6921 17.4479C21.8324 19.1352 20.5855 20.5951 19.0534 21.7082C17.5214 22.8213 15.7476 23.556 13.8772 23.8523C12.0068 24.1485 10.0928 23.9979 8.29181 23.4127L9.21886 20.5595C10.5696 20.9984 12.0051 21.1114 13.4079 20.8892C14.8107 20.667 16.141 20.116 17.2901 19.2812C18.4391 18.4463 19.3743 17.3514 20.0191 16.0859C20.6639 14.8204 21 13.4203 21 12H24Z" fill="currentColor"/>
     <path d="M-1.33514e-05 12C-1.33514e-05 10.1063 0.448176 8.23944 1.30791 6.55211C2.16764 4.86479 3.41451 3.4049 4.94656 2.2918C6.47862 1.17869 8.25236 0.443983 10.1228 0.147739C11.9932 -0.148504 13.9072 0.00212896 15.7082 0.587322L14.7811 3.44049C13.4304 3.0016 11.9949 2.88862 10.5921 3.11081C9.18927 3.33299 7.85896 3.88402 6.70992 4.71885C5.56088 5.55367 4.62573 6.64859 3.98093 7.91409C3.33613 9.17958 2.99999 10.5797 2.99999 12H-1.33514e-05Z" fill="currentColor"/>
   </svg>`;
 
-  function bladeSpinnerHtml(extraClass = "") {
-    return `<span class="blade-spinner${extraClass ? ` ${extraClass}` : ""}" role="progressbar" aria-label="Loading">${BLADE_SPINNER_SVG}</span>`;
+  function knSpinnerHtml(extraClass = "") {
+    return `<span class="kn-spinner${extraClass ? ` ${extraClass}` : ""}" role="progressbar" aria-label="Loading">${KN_SPINNER_SVG}</span>`;
   }
 
   const LOADING_TEXTS = [
@@ -4533,6 +8350,7 @@ function initAiAssistant() {
 
   let rollingTimer = null;
   let ghostTimer = null;
+  let ghostFadeTimer = null;
   let ghostSuggestions = [];
   let ghostIndex = 0;
 
@@ -4609,6 +8427,18 @@ function initAiAssistant() {
       evidence: Array.isArray(evidence) ? evidence.filter(Boolean) : [],
       sources: Array.isArray(sources) ? sources.filter(Boolean) : [],
       text: text || "",
+      followUps: Array.isArray(followUps) ? followUps.filter(Boolean) : []
+    };
+  }
+
+  function schemaAnswer({ title, thinking, leadIn, schema, followUps, text }) {
+    return {
+      mode: "schema",
+      title: title || "",
+      thinking: Array.isArray(thinking) ? thinking.filter(Boolean) : [],
+      leadIn: leadIn || "",
+      text: text || leadIn || "",
+      schema: schema || { components: [] },
       followUps: Array.isArray(followUps) ? followUps.filter(Boolean) : []
     };
   }
@@ -5332,7 +9162,30 @@ function initAiAssistant() {
     });
   }
 
+  function agenticBrokerContext() {
+    return contextOf({
+      kind: "agentic-broker",
+      area: "Klear Assist",
+      title: "Klear Assist",
+      summary: "You're on Klear Assist. Ask about entries, shipments, or compliance and I'll pull up the right screen — or open a past conversation from the sidebar.",
+      hint: "Try “Recent entries in my queue” or ask about a specific BOL or entry number.",
+      details: ["Ask for recent entries, a specific BOL, or compliance guidance.", "Past conversations are in the sidebar, grouped by Today, This week, This month, and so on."],
+      prompts: [
+        { label: "Recent entries in my queue", prompt: "Recent entries in my queue" },
+        { label: "Today's Statements", prompt: "Today's Statements" },
+        { label: "ISF Dashboard", prompt: "ISF Dashboard" },
+        { label: "Personal dashboard", prompt: "Show my personal dashboard" }
+      ],
+      manualPath: "Klear Assist",
+      facts: {}
+    });
+  }
+
   function getContext() {
+    const record = window.KNAssistCore?.getContext?.();
+    if (record) {
+      return record;
+    }
     const hash = getHashPath();
     if (hash.startsWith("#kn-role-management")) {
       return rolesContext(hash);
@@ -5345,6 +9198,9 @@ function initAiAssistant() {
     }
     if (isDashboardRoute()) {
       return operationsContext("dashboard");
+    }
+    if (isAgenticBrokerRoute()) {
+      return agenticBrokerContext();
     }
     if (isKlearhubOverviewRoute() || hash.startsWith("#klearhub-overview")) {
       return operationsContext("overview");
@@ -5395,6 +9251,9 @@ function initAiAssistant() {
     if (kind === "visibility-detail" && (facts.detailId || context.title)) {
       return `Referencing: shipment ${facts.detailId || context.title}`;
     }
+    if ((kind === "isf" || kind === "entry" || kind === "in-bond" || kind === "ftz" || kind === "psc" || kind === "delivery-order" || kind === "tm-shipment" || kind === "statement-detail") && (facts.label || context.title)) {
+      return `Referencing: ${facts.label || context.title}`;
+    }
     if (kind === "roles" || kind === "role-add") {
       const count = Array.isArray(facts.roles) ? facts.roles.length : 0;
       return count
@@ -5428,7 +9287,10 @@ function initAiAssistant() {
       return `Checking ${context.title}…`;
     }
     if (kind === "visibility-detail" && context?.title) {
-      return `Looking at ${context.title}…`;
+      return `Looking at Shipment ${context.title}…`;
+    }
+    if ((kind === "isf" || kind === "entry" || kind === "in-bond" || kind === "ftz" || kind === "psc" || kind === "delivery-order" || kind === "tm-shipment" || kind === "statement-detail") && context?.headline) {
+      return `${context.headline}…`;
     }
     if (kind === "defaults" || kind === "default-add") {
       return "Looking at Role Management…";
@@ -5745,9 +9607,9 @@ function initAiAssistant() {
 
   function messageActionsHtml() {
     return `<div class="ai-msg__actions" role="group" aria-label="Response actions">
-      <button type="button" class="ai-msg__action" data-ai-msg-copy aria-label="Copy response">${MSG_ACTION_COPY}</button>
-      <button type="button" class="ai-msg__action" data-ai-msg-feedback="up" aria-pressed="false" aria-label="Helpful response">${MSG_ACTION_UP}</button>
-      <button type="button" class="ai-msg__action" data-ai-msg-feedback="down" aria-pressed="false" aria-label="Unhelpful response">${MSG_ACTION_DOWN}</button>
+      <button type="button" class="ai-msg__action icon-btn" data-ai-msg-copy aria-label="Copy response">${MSG_ACTION_COPY}</button>
+      <button type="button" class="ai-msg__action icon-btn" data-ai-msg-feedback="up" aria-pressed="false" aria-label="Helpful response">${MSG_ACTION_UP}</button>
+      <button type="button" class="ai-msg__action icon-btn" data-ai-msg-feedback="down" aria-pressed="false" aria-label="Unhelpful response">${MSG_ACTION_DOWN}</button>
     </div>`;
   }
 
@@ -5760,7 +9622,7 @@ function initAiAssistant() {
       sendBtn.type = "button";
       sendBtn.classList.add("is-stop");
       sendBtn.classList.remove("is-muted");
-      sendBtn.setAttribute("aria-label", "Stop generating");
+      sendBtn.setAttribute("aria-label", "Stop generation");
       sendIcon?.setAttribute("hidden", "");
       stopIcon?.removeAttribute("hidden");
       form.classList.add("is-responding");
@@ -5773,7 +9635,7 @@ function initAiAssistant() {
     }
     sendBtn.type = "submit";
     sendBtn.classList.remove("is-stop");
-    sendBtn.setAttribute("aria-label", "Send message");
+      sendBtn.setAttribute("aria-label", "Submit");
     sendIcon?.removeAttribute("hidden");
     stopIcon?.setAttribute("hidden", "");
     const hasText = Boolean(input.value.trim());
@@ -5782,7 +9644,7 @@ function initAiAssistant() {
     form.classList.remove("is-responding");
     input.removeAttribute("aria-disabled");
     if (statusEl) {
-      statusEl.textContent = "Ask about this page";
+      statusEl.textContent = "Ask about this record";
       statusEl.classList.remove("is-typing");
     }
     syncGhostSuggestion();
@@ -5795,10 +9657,20 @@ function initAiAssistant() {
 
   function clearInputError() {
     if (inputErrorEl) {
-      inputErrorEl.hidden = true;
+      inputErrorEl.classList.remove("is-visible");
+      const hideMs = prefersReducedMotion() ? 0 : knMotionDurationMs("--theme-motion-duration-xmoderate", 360);
+      window.setTimeout(() => {
+        if (!inputErrorEl.classList.contains("is-visible")) {
+          inputErrorEl.hidden = true;
+        }
+      }, hideMs);
     }
     if (inputErrorText) {
       inputErrorText.textContent = "";
+    }
+    if (input) {
+      input.removeAttribute("aria-invalid");
+      input.removeAttribute("aria-describedby");
     }
   }
 
@@ -5807,7 +9679,18 @@ function initAiAssistant() {
       return;
     }
     inputErrorText.textContent = String(message || "").trim();
-    inputErrorEl.hidden = !inputErrorText.textContent;
+    if (!inputErrorText.textContent) {
+      clearInputError();
+      return;
+    }
+    inputErrorEl.hidden = false;
+    window.requestAnimationFrame(() => {
+      inputErrorEl.classList.add("is-visible");
+    });
+    input.setAttribute("aria-invalid", "true");
+    if (inputErrorText.id) {
+      input.setAttribute("aria-describedby", inputErrorText.id);
+    }
   }
 
   function stopRollingText() {
@@ -5834,6 +9717,9 @@ function initAiAssistant() {
       void labelEl.offsetWidth;
       labelEl.textContent = list[index];
       labelEl.classList.add("is-swap");
+      // FLAG: 1600ms sidebar rolling-text swap interval — no delay token.
+      // Independent of the agentic thread CSS cycle (1500ms, timed to thinking delay).
+      // Enter animation is xmoderate (360ms); 1600ms is the hold between swaps.
     }, 1600);
   }
 
@@ -5842,21 +9728,93 @@ function initAiAssistant() {
     return [look, ...LOADING_TEXTS.filter((t) => t !== look)].slice(0, 5);
   }
 
+  function clearGhostCrossfade() {
+    if (ghostFadeTimer) {
+      window.clearTimeout(ghostFadeTimer);
+      ghostFadeTimer = null;
+    }
+    if (!ghostEl) {
+      return;
+    }
+    ghostEl.classList.remove("is-fading", "is-crossfading");
+    const ghostOut = ghostEl.querySelector("[data-chat-ghost-out]");
+    if (ghostOut) {
+      ghostOut.textContent = "";
+    }
+  }
+
+  function stopGhostCycle() {
+    if (ghostTimer) {
+      window.clearInterval(ghostTimer);
+      ghostTimer = null;
+    }
+    clearGhostCrossfade();
+  }
+
+  function beginGhostCrossfade(nextText) {
+    const ghostText = ghostEl?.querySelector("[data-chat-ghost-text]");
+    const ghostOut = ghostEl?.querySelector("[data-chat-ghost-out]");
+    if (!ghostEl || !ghostText) {
+      return;
+    }
+    const reduce = prefersReducedMotion();
+    const fadeMs = knMotionDurationMs("--theme-motion-duration-xmoderate", 360);
+    const from = ghostText.textContent || "";
+    if (!reduce && ghostOut && from && from !== nextText) {
+      ghostOut.textContent = from;
+      ghostText.textContent = nextText;
+      ghostEl.classList.remove("is-crossfading");
+      void ghostEl.offsetWidth;
+      ghostEl.classList.add("is-crossfading");
+    } else {
+      ghostText.textContent = nextText;
+      ghostEl.classList.remove("is-crossfading");
+      if (ghostOut) {
+        ghostOut.textContent = "";
+      }
+    }
+    if (ghostFadeTimer) {
+      window.clearTimeout(ghostFadeTimer);
+    }
+    ghostFadeTimer = window.setTimeout(() => {
+      ghostFadeTimer = null;
+      ghostEl.classList.remove("is-crossfading");
+      if (ghostOut) {
+        ghostOut.textContent = "";
+      }
+    }, reduce ? 0 : fadeMs);
+  }
+
   function syncGhostSuggestion() {
     if (!ghostEl || !input) {
       return;
     }
+    const ghostText = ghostEl.querySelector("[data-chat-ghost-text]");
+    const ghostOut = ghostEl.querySelector("[data-chat-ghost-out]");
     if (isResponding || input.value.trim()) {
-      ghostEl.textContent = "";
+      if (ghostText) {
+        ghostText.textContent = "";
+      }
+      if (ghostOut) {
+        ghostOut.textContent = "";
+      }
+      ghostEl.classList.remove("is-visible", "is-fading", "is-crossfading");
       ghostEl.hidden = true;
-      input.placeholder = DEFAULT_INPUT_PLACEHOLDER;
+      input.placeholder = input.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER;
       return;
     }
     const suggestion = ghostSuggestions[ghostIndex] || "";
-    ghostEl.textContent = suggestion;
+    if (ghostText) {
+      ghostText.textContent = suggestion;
+    }
+    if (ghostOut) {
+      ghostOut.textContent = "";
+    }
     ghostEl.hidden = !suggestion;
-    // Ghost replaces placeholder — never stack both (Blade ChatInput pattern).
-    input.placeholder = suggestion ? "" : DEFAULT_INPUT_PLACEHOLDER;
+    ghostEl.classList.toggle("is-visible", Boolean(suggestion));
+    ghostEl.classList.remove("is-fading", "is-crossfading");
+    // Ghost replaces placeholder — never stack both.
+    input.placeholder = suggestion ? "" : (input.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER);
   }
 
   function refreshGhostSuggestions(context = getContext()) {
@@ -5865,19 +9823,16 @@ function initAiAssistant() {
       .filter(Boolean)
       .slice(0, 5);
     ghostIndex = 0;
-    if (ghostTimer) {
-      window.clearInterval(ghostTimer);
-      ghostTimer = null;
-    }
+    stopGhostCycle();
     syncGhostSuggestion();
     if (ghostSuggestions.length > 1 && !prefersReducedMotion()) {
       ghostTimer = window.setInterval(() => {
-        if (input.value.trim() || isResponding) {
+        if (ghostFadeTimer || input.value.trim() || isResponding) {
           return;
         }
         ghostIndex = (ghostIndex + 1) % ghostSuggestions.length;
-        syncGhostSuggestion();
-      }, 4200);
+        beginGhostCrossfade(ghostSuggestions[ghostIndex] || "");
+      }, 4000);
     }
   }
 
@@ -5894,6 +9849,8 @@ function initAiAssistant() {
 
   function stopGeneration() {
     generationId += 1;
+    genuiAbort?.abort();
+    genuiAbort = null;
     if (streamTimer) {
       window.clearTimeout(streamTimer);
       streamTimer = null;
@@ -5911,6 +9868,11 @@ function initAiAssistant() {
       if (!streaming.querySelector(".ai-msg__actions")) {
         appendToAssistantStack(streaming, messageActionsHtml());
       }
+      persistDrawerAssistant(
+        { text: plainTextFromHtml(streaming.querySelector(".ai-msg__body")?.innerHTML || "") || "Generation stopped." },
+        { id: streaming.getAttribute("data-message-id") || undefined, title: "", thinking: [] },
+        "stopped"
+      );
     }
     setResponding(false);
     announceAssistant("Generation stopped.");
@@ -6040,7 +10002,7 @@ function initAiAssistant() {
           : "complete";
         const railInner =
           stepStatus === "active"
-            ? `<span class="ai-msg__trace-active-icon">${bladeSpinnerHtml("blade-spinner--accent")}</span>`
+            ? `<span class="ai-msg__trace-active-icon">${knSpinnerHtml("kn-spinner--accent")}</span>`
             : `<span class="ai-msg__trace-dot" aria-hidden="true"></span>`;
         return `<li class="is-${stepStatus}">
           <span class="ai-msg__trace-rail" aria-hidden="true">
@@ -6052,17 +10014,17 @@ function initAiAssistant() {
       })
       .join("");
     return `
-      <div class="ai-msg__thinking-panel" data-reasoning-status="${status}">
+      <div class="ai-msg__thinking-panel kn-collapsible kn-chat-msg__traces" data-reasoning-status="${status}">
         <button
           type="button"
-          class="ai-msg__thinking-toggle type-caption-sm"
+          class="ai-msg__thinking-toggle kn-collapsible__trigger type-caption-sm"
           aria-expanded="${expanded || isLoading ? "true" : "false"}"
           aria-controls="${traceId}"
         >
-          ${isLoading ? bladeSpinnerHtml("blade-spinner--accent") : THINKING_CHEVRON}
+          ${isLoading ? knSpinnerHtml("kn-spinner--accent") : THINKING_CHEVRON}
           <span class="ai-msg__thinking-toggle-label">${isLoading ? title : expanded ? "Hide thinking" : "Show thinking"}</span>
         </button>
-        <div class="ai-msg__thinking-trace" id="${traceId}" ${expanded || isLoading ? "" : "hidden"}>
+        <div class="ai-msg__thinking-trace kn-collapsible__body" id="${traceId}" ${expanded || isLoading ? "" : "hidden"}>
           <ol class="ai-msg__thinking-list type-caption-sm">${rows}</ol>
         </div>
       </div>
@@ -6080,19 +10042,23 @@ function initAiAssistant() {
         ${prompts
           .map(
             (item) =>
-              `<button type="button" class="ai-msg__related-chip type-caption-sm" data-ai-prompt="${escapeHtml(item.prompt)}" aria-label="Ask: ${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>`
+              `<button type="button" class="ai-msg__related-chip kn-chip kn-chip--small type-caption-sm" data-ai-prompt="${escapeHtml(item.prompt)}" aria-label="Ask: ${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>`
           )
           .join("")}
       </div>
     </div>`;
   }
 
-  function addMessage(kind, text, { html = "", actions = false, streaming = false, title = "", thinking = [], followUps = [], sources = [] } = {}) {
+  function addMessage(kind, text, { html = "", actions = false, streaming = false, title = "", thinking = [], followUps = [], sources = [], id = "" } = {}) {
     history.querySelector(".ai-assistant-welcome")?.remove();
     const node = document.createElement("article");
-    node.className = `ai-msg ai-msg--${kind}${streaming ? " ai-msg--streaming" : ""}`;
+    node.className = `ai-msg ai-msg--${kind} kn-chat-msg kn-chat-msg--${kind === "user" ? "self" : "other"}${streaming ? " ai-msg--streaming" : ""}`;
+    node.setAttribute("data-kn-component", "chat-message");
+    if (id) {
+      node.setAttribute("data-message-id", id);
+    }
     if (kind === "user") {
-      node.innerHTML = `<div class="ai-msg__body type-body-sm">${html || `<p>${escapeHtml(text)}</p>`}</div>`;
+      node.innerHTML = `<div class="ai-msg__body type-body-sm kn-chat-msg__bubble">${html || `<p>${escapeHtml(text)}</p>`}</div>`;
     } else {
       const titleHtml = title
         ? `<h3 class="ai-msg__response-title type-ui-md type-weight-semibold">${escapeHtml(title)}</h3>`
@@ -6100,27 +10066,149 @@ function initAiAssistant() {
       node.innerHTML = `<div class="ai-msg__stack">
         ${thinkingPanelHtml(thinking)}
         ${titleHtml}
-        <div class="ai-msg__body type-body-sm">${html || `<p>${escapeHtml(text)}</p>`}</div>
+        <div class="ai-msg__body type-body-sm kn-chat-msg__bubble">${html || `<p>${escapeHtml(text)}</p>`}</div>
         ${sourcesHtml(sources)}
         ${followUpsHtml(followUps)}
-        ${actions ? messageActionsHtml() : ""}
+        ${actions ? `<div class="ai-msg__footer kn-chat-msg__actions">${messageActionsHtml()}</div>` : ""}
       </div>`;
     }
     history.appendChild(node);
+    hydrateKnChatMessage(node);
     history.scrollTop = history.scrollHeight;
     return node;
+  }
+
+  function drawerSchemaFromResult(result) {
+    if (result?.schema) {
+      return result.schema;
+    }
+    if (!result?.mode || !window.KNGenUI?.schemaFromResult) {
+      return null;
+    }
+    if (!["schema", "draft", "review", "shipments", "findings"].includes(result.mode)) {
+      return null;
+    }
+    return window.KNGenUI.schemaFromResult(result);
+  }
+
+  function persistDrawerMessage(message) {
+    if (isRestoringTranscript || !window.KNThreadStore?.appendMessage) {
+      return null;
+    }
+    try {
+      if (panelScopeKey && window.KNThreadStore.ensureScopedThread) {
+        window.KNThreadStore.ensureScopedThread({
+          title: panelContext?.headline || panelContext?.title || "Conversation",
+          scopeKey: panelScopeKey,
+          surface: "panel"
+        });
+      }
+      return window.KNThreadStore.appendMessage(message);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function persistDrawerUser(id, text) {
+    persistDrawerMessage({
+      id,
+      senderType: "self",
+      text,
+      timestamp: Date.now(),
+      status: "sent"
+    });
+  }
+
+  function persistDrawerAssistant(result, meta = {}, status = "sent") {
+    persistDrawerMessage({
+      id: meta.id || `msg-assistant-${Date.now()}`,
+      senderType: "other",
+      text: result?.leadIn || result?.text || meta.text || "",
+      schema: drawerSchemaFromResult(result),
+      thinking: meta.thinking || result?.thinking || [],
+      followUps: result?.followUps || meta.followUps || [],
+      sources: result?.sources || meta.sources || [],
+      title: meta.title || "",
+      timestamp: Date.now(),
+      status
+    });
+  }
+
+  function restoreDrawerMessage(msg) {
+    if (!msg) {
+      return;
+    }
+    if (msg.senderType === "self") {
+      addMessage("user", msg.text || "", { id: msg.id || "" });
+      return;
+    }
+    const schema = msg.schema || null;
+    const html = schema
+      ? `${msg.text ? renderAssistantMarkdown(msg.text, getContext()) : ""}<div class="kn-genui" data-kn-genui></div>`
+      : "";
+    const node = addMessage("assistant", msg.text || "", {
+      html,
+      actions: true,
+      title: msg.title || "",
+      thinking: msg.thinking || [],
+      followUps: msg.followUps || [],
+      sources: msg.sources || [],
+      id: msg.id || ""
+    });
+    if (schema) {
+      window.KNGenUI?.mount(node.querySelector("[data-kn-genui]"), schema, { animate: false });
+    }
+  }
+
+  function restoreDrawerTranscript() {
+    const scope = window.KNAssistCore?.sessionKey?.(panelContext) || panelScopeKey;
+    const thread =
+      (scope && window.KNThreadStore?.findByScopeKey?.(scope)) ||
+      window.KNThreadStore?.getActiveLiveThread?.();
+    if (!thread?.messages?.length || !scope || thread.scopeKey !== scope) {
+      return false;
+    }
+    isRestoringTranscript = true;
+    hideIntro();
+    markSeenFlag(INTRO_SEEN_KEY);
+    history.innerHTML = "";
+    history.hidden = false;
+    thread.messages.forEach(restoreDrawerMessage);
+    isRestoringTranscript = false;
+    history.scrollTop = history.scrollHeight;
+    return true;
   }
 
   function appendToAssistantStack(node, html) {
     if (!html || !node) {
       return;
     }
-    const stack = node.querySelector(".ai-msg__stack");
-    if (stack) {
-      stack.insertAdjacentHTML("beforeend", html);
+    const stack = node.querySelector(".ai-msg__stack") || node;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = String(html).trim();
+    const actions = tmp.querySelector(".ai-msg__actions");
+    if (actions) {
+      let footer = stack.querySelector(":scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
+      if (!footer) {
+        footer = document.createElement("div");
+        footer.className = "ai-msg__footer kn-chat-msg__actions";
+        stack.appendChild(footer);
+      }
+      footer.replaceChildren(actions);
+      hydrateKnChatMessage(node);
       return;
     }
-    node.insertAdjacentHTML("beforeend", html);
+    const footer = stack.querySelector(":scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
+    const fragment = document.createDocumentFragment();
+    while (tmp.firstChild) {
+      fragment.appendChild(tmp.firstChild);
+    }
+    if (footer) {
+      stack.insertBefore(fragment, footer);
+    } else {
+      stack.appendChild(fragment);
+    }
+    hydrateKnChatMessage(node);
   }
 
   function addDraftMessage(draft, leadIn, context, meta = {}) {
@@ -6148,6 +10236,30 @@ function initAiAssistant() {
     });
   }
 
+  function addShipmentsMessage(items, leadIn, context, meta = {}) {
+    const leadHtml = renderAssistantMarkdown(leadIn, context);
+    const body = `${leadHtml}${window.KNAiSuggest.shipmentCardsHtml(items)}`;
+    return addMessage("assistant", leadIn, {
+      html: body,
+      actions: true,
+      title: meta.title || "Recently added to my queue",
+      thinking: meta.thinking || ["Searched entries in your queue"],
+      followUps: meta.followUps || []
+    });
+  }
+
+  function addFindingsMessage(findings, leadIn, context, meta = {}) {
+    const leadHtml = renderAssistantMarkdown(leadIn, context);
+    const body = `${leadHtml}${window.KNAiSuggest.findingsListHtml(findings)}`;
+    return addMessage("assistant", leadIn, {
+      html: body,
+      actions: true,
+      title: meta.title || "Validation findings",
+      thinking: meta.thinking || ["Inspected required fields and agent-drafted values on the loaded entry"],
+      followUps: meta.followUps || []
+    });
+  }
+
   function setThinking(isThinking, context) {
     const existing = history.querySelector(".ai-msg--status");
     if (!isThinking) {
@@ -6157,7 +10269,7 @@ function initAiAssistant() {
         if (prefersReducedMotion()) {
           existing.remove();
         } else {
-          window.setTimeout(() => existing.remove(), 160);
+          window.setTimeout(() => existing.remove(), knMotionDurationMs("--theme-motion-duration-xquick", 80));
         }
       }
       return;
@@ -6173,22 +10285,23 @@ function initAiAssistant() {
       return;
     }
     const status = document.createElement("article");
-    status.className = "ai-msg ai-msg--assistant ai-msg--status ai-msg--loading";
+    status.className = "ai-msg ai-msg--assistant ai-msg--status ai-msg--loading kn-chat-msg kn-chat-msg--other";
     status.setAttribute("aria-live", "polite");
     status.innerHTML = `
       <div class="ai-msg__row">
         <span class="ai-msg__leading is-rotating" aria-hidden="true">
-          <img class="klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="20" height="20" />
+          <img class="klear-assistant-mark klear-assistant-mark--spin" src="./assets/klear-assistant-mark.png" alt="" width="20" height="20" />
         </span>
         <div class="ai-msg__loading-col">
           <div class="ai-msg__loading-line">
-            ${bladeSpinnerHtml("blade-spinner--accent")}
+            ${knSpinnerHtml("kn-spinner--accent")}
             <p class="ai-msg__rolling type-body-sm" data-ai-rolling>${escapeHtml(labelText)}</p>
           </div>
         </div>
       </div>
     `;
     history.appendChild(status);
+    hydrateKnChatMessage(status);
     history.scrollTop = history.scrollHeight;
     startRollingText(status.querySelector("[data-ai-rolling]"), texts);
     announceAssistant(labelText);
@@ -6275,6 +10388,46 @@ function initAiAssistant() {
     return node;
   }
 
+  async function streamStructuredResult(result, context, genId, meta = {}) {
+    const schema = window.KNGenUI?.schemaFromResult
+      ? window.KNGenUI.schemaFromResult(result)
+      : result?.schema || { components: [] };
+    if (result?.mode === "draft" && result.draft && window.KNAiSuggest?.stageDraft) {
+      pendingDraftPayload = window.KNAiSuggest.stageDraft(result.draft);
+    }
+    const node = addMessage("assistant", result?.leadIn || "", {
+      html: `<div class="kn-genui" data-kn-genui></div>`,
+      streaming: true,
+      actions: true,
+      title: meta.title || "",
+      thinking: meta.thinking || [],
+      followUps: result?.followUps || []
+    });
+    const host = node.querySelector("[data-kn-genui]");
+    genuiAbort?.abort();
+    genuiAbort = new AbortController();
+    try {
+      if (window.KNGenUI?.stream && !prefersReducedMotion()) {
+        await window.KNGenUI.stream(host, schema, { animate: true, signal: genuiAbort.signal });
+      } else {
+        window.KNGenUI?.mount(host, schema, { animate: !prefersReducedMotion() });
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return node;
+      }
+      window.KNGenUI?.mount(host, schema, { animate: false });
+    }
+    if (genId !== generationId) {
+      return node;
+    }
+    genuiAbort = null;
+    node.classList.remove("ai-msg--streaming");
+    node.classList.add("ai-msg--settled");
+    announceAssistant([meta.title, result?.leadIn || result?.text].filter(Boolean).join(". "));
+    return node;
+  }
+
   async function presentResult(result, context, genId, question = "") {
     const thinking = buildThinkingSteps(question, context, result);
     const title = buildResponseTitle(question, context, result);
@@ -6283,24 +10436,11 @@ function initAiAssistant() {
     if (genId !== generationId) {
       return;
     }
-    if (result?.mode === "draft") {
-      const node = addDraftMessage(result.draft, result.leadIn, context, {
-        title: title || "Draft ready for review",
-        thinking,
-        followUps: result.followUps || []
-      });
-      node.classList.add("ai-msg--settled");
-      announceAssistant([title, result.leadIn].filter(Boolean).join(". "));
-      return;
-    }
-    if (result?.mode === "review") {
-      const node = addReviewMessage(result.items, result.leadIn, context, {
-        title: title || "Roles to review",
-        thinking,
-        followUps: result.followUps || []
-      });
-      node.classList.add("ai-msg--settled");
-      announceAssistant([title, result.leadIn].filter(Boolean).join(". "));
+    if (["schema", "draft", "review", "shipments", "findings"].includes(result?.mode)) {
+      await streamStructuredResult(result, context, genId, { title, thinking });
+      if (genId === generationId) {
+        persistDrawerAssistant(result, { title, thinking });
+      }
       return;
     }
     await streamAssistantText(result?.text || "I could not process that request right now. Please try again.", context, genId, {
@@ -6309,6 +10449,16 @@ function initAiAssistant() {
       followUps: result?.followUps || followUpsFromContext(context, question),
       sources: result?.sources || []
     });
+    if (genId === generationId) {
+      persistDrawerAssistant(
+        {
+          text: result?.text || "I could not process that request right now. Please try again.",
+          followUps: result?.followUps || followUpsFromContext(context, question),
+          sources: result?.sources || []
+        },
+        { title, thinking }
+      );
+    }
   }
 
   function starterPrompts(context) {
@@ -6331,8 +10481,12 @@ function initAiAssistant() {
       .filter((item) => item.label && item.prompt);
   }
 
+  function panelContextForUi() {
+    return isOpen && panelContext ? panelContext : getContext();
+  }
+
   function renderEmptyState() {
-    const context = getContext();
+    const context = panelContextForUi();
     history.innerHTML = "";
     const welcome = document.createElement("div");
     welcome.className = "ai-assistant-welcome";
@@ -6353,6 +10507,791 @@ function initAiAssistant() {
 
   function noWriteResponse(question, context) {
     return `I cannot make that change from here. Use ${context.manualPath}. I can explain impact only.`;
+  }
+
+  function brokerTodayLong() {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    }).format(new Date());
+  }
+
+  function brokerHomeFollowUps(exclude) {
+    const skip = String(exclude || "").toLowerCase();
+    return [
+      { label: "Personal dashboard", prompt: "Show my personal dashboard" },
+      { label: "Recent entries in my queue", prompt: "Recent entries in my queue" },
+      { label: "Today's Statements", prompt: "Today's Statements" },
+      { label: "Recent shipments", prompt: "Recent shipments in operations" },
+      { label: "Due today", prompt: "All items due today" },
+      { label: "Post Summary Corrections", prompt: "Post Summary Corrections" },
+      { label: "ISF Dashboard", prompt: "ISF Dashboard" }
+    ]
+      .filter((item) => item.prompt.toLowerCase() !== skip)
+      .slice(0, 3);
+  }
+
+  function genuiNav(text, href) {
+    return { component: "BUTTON", text, action: { type: "navigate", data: { href } } };
+  }
+
+  function genuiPrompt(text, prompt) {
+    return { component: "BUTTON", text, action: { type: "prompt", data: { prompt } } };
+  }
+
+  function genuiLink(text, href) {
+    return { component: "LINK", text, action: { type: "navigate", data: { href } } };
+  }
+
+  function janeQueue() {
+    const isf = window.KNUsIsf?.list?.() || [];
+    const entries = window.KNUsEntry?.list?.() || [];
+    const pendingIsf = isf.filter((row) => row.statusChip === "pending");
+    const acceptedIsf = isf.filter((row) => row.statusChip === "submitted");
+    const entry = entries[0];
+    const hold = (visSummary.holdRows || [])[0];
+    const psc = (window.KNUsPsc?.list?.() || [])[0];
+    return {
+      pendingIsf,
+      acceptedIsf,
+      entry,
+      hold,
+      psc,
+      isf: isf[0],
+      shipment: (window.KNUsShipments?.list?.() || [])[0]
+    };
+  }
+
+  const PERSONAL_DASHBOARD_INTENT = /\b(show\s+my\s+(personal\s+)?dashboard|personal\s+dashboard)\b/i;
+  const WORKING_QUEUE_INTENT =
+    /\b(recent(ly)?\s*(added\s*)?entries?(\s+in|\s+to)?\s+my\s+queue|recently\s+added\s+to\s+my\s+queue|my\s+(working\s*)?queue|working\s*list|find\s*entry|entry\s*number|bol\s*number|entries?\s+for\b|cbp\s*reject|entries?\s+on\s+hold|completed\s+entries)\b/i;
+  const TODAYS_STATEMENTS_INTENT = /today.?s?\s*statements?/i;
+  const OPS_SHIPMENTS_INTENT = /recent\s+shipments\s+in\s+operations|shipments\s+in\s+operations/i;
+  const DUE_TODAY_INTENT = /\ball\s*items?\s*due\s*today|items?\s*due\s*today\b/i;
+  const POST_SUMMARY_CORRECTIONS_INTENT = /post\s*summary\s*correction/i;
+  const ISF_DASHBOARD_INTENT = /\bisf\s+dashboard\b|\bopen\s+(the\s+)?isf\b/i;
+
+  function queueFilterFromQuestion(question) {
+    const q = String(question || "");
+    if (/cbp\s*reject/i.test(q)) return "rejected";
+    if (/entries?\s+on\s+hold/i.test(q)) {
+      return "hold";
+    }
+    if (/completed\s+entries/i.test(q)) return "completed";
+    if (/working\s*list/i.test(q)) return "working";
+    if (/recently\s+added/i.test(q)) return "recent";
+    if (WORKING_QUEUE_INTENT.test(q)) return "all";
+    return null;
+  }
+
+  function answerPersonalDashboard(question) {
+    if (!PERSONAL_DASHBOARD_INTENT.test(question)) {
+      return null;
+    }
+    const stats = visSummary || {};
+    const hold = (stats.holdRows || [])[0];
+    const newest = (stats.newest || stats.rows || []).slice(0, 3);
+    const jane = janeQueue();
+    const duty = Number(stats.amounts?.[newest[0]?.id]) || 44337;
+    return schemaAnswer({
+      title: "Personal dashboard",
+      thinking: [
+        "Loaded Jane Cooper's live Visibility snapshot",
+        "Ranked holds, delays, and filings due today",
+        "Matched statement ACH status against today's debit cycle"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# Your dashboard" },
+          {
+            component: "TEXT",
+            content: `Good morning briefing for **${brokerTodayLong()}**. **${stats.shipments || 0}** active shipments, **${stats.hold || 0}** on hold, **${stats.delayed || 0}** delayed vs original ETA.`
+          },
+          {
+            component: "GRID",
+            columns: 3,
+            gap: "small",
+            children: [
+              {
+                component: "CARD",
+                title: "Needs attention",
+                description: hold ? `${hold.id} · ${hold.reason}` : "No holds",
+                children: [
+                  { component: "BADGE", text: hold ? "Exam hold" : "Clear", color: hold ? "notice" : "positive" },
+                  { component: "TEXT", content: hold ? `${hold.container} at ${hold.location}. Release window ${hold.release}.` : "No containers on hold." }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Duty & fees this month",
+                description: "From live shipment values",
+                children: [
+                  { component: "AMOUNT", value: duty, currency: "USD" },
+                  { component: "BADGE", text: "Estimate", color: "information" }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Due today",
+                description: "ISF + statement + PSC",
+                children: [
+                  { component: "BADGE", text: "4 items", color: "notice" },
+                  { component: "TEXT", content: jane.pendingIsf[0] ? `File **${jane.pendingIsf[0].transactionId}** (${jane.pendingIsf[0].companyName}) before vessel cutoff.` : "No ISF filings due." }
+                ]
+              }
+            ]
+          },
+          { component: "TEXT", content: "### Latest movements" },
+          {
+            component: "TABLE",
+            headers: ["Shipment", "Importer", "Lane", "Status"],
+            rows: newest.map((row) => [
+              genuiLink(row.id, "#klearhub-visibility"),
+              { component: "TEXT", value: row.company },
+              { component: "TEXT", value: `${row.origin?.city || "—"} → ${row.dest?.city || "—"}` },
+              { component: "BADGE", text: row.status, color: row.statusTone === "negative" ? "negative" : row.statusTone === "notice" ? "notice" : "positive" }
+            ])
+          },
+          {
+            component: "ALERT",
+            color: "notice",
+            title: hold ? `${hold.id} is still on hold` : "Queue is current",
+            description: hold
+              ? `Start with the ${hold.reason.toLowerCase()} on ${hold.container}, then file today's ISF and the ILLUMINATE USA ACH authorization.`
+              : "No holds. File today's pending ISF and clear the ILLUMINATE USA statement ACH."
+          },
+          genuiNav("Open Dashboard", "#dashboard"),
+          genuiPrompt("All items due today", "All items due today")
+        ]
+      },
+      followUps: brokerHomeFollowUps("Show my personal dashboard")
+    });
+  }
+
+  function answerWorkingQueue(question) {
+    const filter = queueFilterFromQuestion(question);
+    if (!filter) {
+      return null;
+    }
+    const jane = janeQueue();
+    const hold = jane.hold;
+    const rows = [
+      jane.entry && {
+        bucket: "working",
+        added: "Today 07:14",
+        type: "Entry",
+        id: jane.entry.transactionId,
+        company: jane.entry.companyName,
+        detail: jane.entry.entryNumber,
+        status: jane.entry.entrySummary || "IN PROGRESS",
+        color: "notice",
+        href: `#transaction-us-entry/filing/${encodeURIComponent(jane.entry.id)}`
+      },
+      jane.pendingIsf[0] && {
+        bucket: "working",
+        added: "Today 08:02",
+        type: "ISF",
+        id: jane.pendingIsf[0].transactionId,
+        company: jane.pendingIsf[0].companyName,
+        detail: jane.pendingIsf[0].mbl,
+        status: "PENDING SUBMISSION",
+        color: "notice",
+        href: `#transaction-us-isf/history/${jane.pendingIsf[0].id}`
+      },
+      jane.pendingIsf[1] && {
+        bucket: "recent",
+        added: "Today 08:41",
+        type: "ISF",
+        id: jane.pendingIsf[1].transactionId,
+        company: jane.pendingIsf[1].companyName,
+        detail: jane.pendingIsf[1].mbl,
+        status: "PENDING SUBMISSION",
+        color: "notice",
+        href: `#transaction-us-isf/history/${jane.pendingIsf[1].id}`
+      },
+      hold && {
+        bucket: "hold",
+        added: "Yesterday",
+        type: "Visibility",
+        id: hold.id,
+        company: (visSummary.rows || []).find((row) => row.id === hold.id)?.company || "Importer",
+        detail: hold.container,
+        status: hold.reason,
+        color: "negative",
+        href: "#klearhub-visibility"
+      },
+      jane.acceptedIsf[1] && {
+        bucket: "rejected",
+        added: "Yesterday 16:20",
+        type: "ISF",
+        id: jane.acceptedIsf[1].transactionId,
+        company: jane.acceptedIsf[1].companyName,
+        detail: jane.acceptedIsf[1].cbpNumber.split("\n")[0],
+        status: "CBP rejected — stuffing location",
+        color: "negative",
+        href: `#transaction-us-isf/history/${jane.acceptedIsf[1].id}`
+      },
+      jane.isf && {
+        bucket: "completed",
+        added: "Wed 14:11",
+        type: "ISF",
+        id: jane.isf.transactionId,
+        company: jane.isf.companyName,
+        detail: jane.isf.mbl,
+        status: jane.isf.status,
+        color: "positive",
+        href: `#transaction-us-isf/history/${jane.isf.id}`
+      }
+    ].filter(Boolean);
+    const filtered =
+      filter === "all" || filter === "recent"
+        ? filter === "recent"
+          ? rows.filter((row) => row.bucket === "recent" || row.bucket === "working")
+          : rows
+        : rows.filter((row) => row.bucket === filter);
+    const titles = {
+      all: "Recent entries in your queue",
+      recent: "Added to your queue today",
+      working: "Working list",
+      rejected: "CBP rejected",
+      hold: "Entries on hold",
+      completed: "Completed entries"
+    };
+    window.KNAiSuggest?.logAudit?.({
+      action: "working-queue-search",
+      context: "assistant",
+      field: "queue",
+      origin: "ai",
+      value: `${filter}:${question}`
+    });
+    return schemaAnswer({
+      title: titles[filter] || "Queue",
+      thinking: [
+        "Opened Jane Cooper's working queue",
+        "Mixed US Entry, ISF, and Visibility holds",
+        filter === "all" ? "Showing the full active set" : `Filtered to ${titles[filter]}`
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: `# ${titles[filter]}` },
+          {
+            component: "TEXT",
+            content:
+              filter === "all"
+                ? `**${filtered.length}** records are in play this morning — consumption entry **${jane.entry?.transactionId || "KN-3809-2"}**, pending ISF filings, and ${hold ? `**${hold.id}** on hold` : "no Visibility holds"}.`
+                : `**${filtered.length}** matching record${filtered.length === 1 ? "" : "s"} in this slice of your queue.`
+          },
+          {
+            component: "TABLE",
+            headers: ["Record", "Importer", "Reference", "Status"],
+            rows: filtered.map((row) => [
+              genuiLink(row.id, row.href),
+              { component: "TEXT", value: row.company },
+              { component: "TEXT", value: row.detail },
+              { component: "BADGE", text: row.status, color: row.color }
+            ])
+          },
+          {
+            component: "ALERT",
+            color: filter === "rejected" || filter === "hold" ? "notice" : "information",
+            title: filter === "rejected" ? "ACE reject is still open" : filter === "hold" ? "Hold is with CBP, not the broker desk" : "Open a row to continue the filing",
+            description:
+              filter === "rejected"
+                ? "CBP bounced the ISF for a missing container stuffing location. Replace-file before the vessel’s 24-hour cutoff."
+                : "Links open the live Transaction Manager or Visibility record. Nothing is filed from this chat."
+          },
+          genuiNav("Open US Entry", "#transaction-us-entry"),
+          genuiPrompt("All items due today", "All items due today")
+        ]
+      },
+      followUps: [
+        { label: "Recently added to my queue", prompt: "Recently added to my queue" },
+        { label: "My Working List", prompt: "My Working List" },
+        { label: "CBP Rejected", prompt: "CBP Rejected entries" },
+        { label: "On hold", prompt: "Entries on hold" },
+        { label: "Completed", prompt: "Completed entries" }
+      ]
+    });
+  }
+
+  function answerTodaysStatements(question) {
+    if (!TODAYS_STATEMENTS_INTENT.test(question)) {
+      return null;
+    }
+    const day = brokerTodayLong();
+    return schemaAnswer({
+      title: "Today's Statements",
+      thinking: [
+        `Pulled the ${day} periodic daily statement cycle`,
+        "Matched each importer against ACH authorization on file",
+        "Flagged ILLUMINATE USA — no ACH debit authorization"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# Today's statements" },
+          {
+            component: "TEXT",
+            content: `You have **3 periodic daily statements** posted for **${day}**. ACH debit hits tomorrow morning unless a statement is unpaid.`
+          },
+          {
+            component: "GRID",
+            columns: 3,
+            gap: "small",
+            children: [
+              {
+                component: "CARD",
+                title: "Statement 26-0903-A",
+                description: "GLOBAL-PAK",
+                children: [
+                  { component: "AMOUNT", value: 18240, currency: "USD" },
+                  { component: "BADGE", text: "ACH scheduled", color: "positive" },
+                  { component: "TEXT", content: "Filer 0AF · 4 entry summaries. Debit 4 Sep 2026." }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Statement 26-0903-B",
+                description: "CAMERON INTERNATIONAL CORPORATION (SUB QC)",
+                children: [
+                  { component: "AMOUNT", value: 6120, currency: "USD" },
+                  { component: "BADGE", text: "ACH scheduled", color: "positive" },
+                  { component: "TEXT", content: "Includes entry 0AF-3000693 still in progress." }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Statement 26-0903-C",
+                description: "ILLUMINATE USA LLC",
+                children: [
+                  { component: "AMOUNT", value: 42900, currency: "USD" },
+                  { component: "BADGE", text: "No ACH on file", color: "negative" },
+                  { component: "TEXT", content: "CBP will still debit. A failed pull becomes a bond claim." }
+                ]
+              }
+            ]
+          },
+          { component: "TEXT", content: "### ACH recap" },
+          {
+            component: "TABLE",
+            headers: ["Statement", "Importer", "Amount", "ACH"],
+            rows: [
+              [
+                { component: "TEXT", value: "26-0903-A" },
+                { component: "TEXT", value: "GLOBAL-PAK" },
+                { component: "AMOUNT", value: 18240, currency: "USD" },
+                { component: "BADGE", text: "Scheduled", color: "positive" }
+              ],
+              [
+                { component: "TEXT", value: "26-0903-B" },
+                { component: "TEXT", value: "CAMERON INTERNATIONAL" },
+                { component: "AMOUNT", value: 6120, currency: "USD" },
+                { component: "BADGE", text: "Scheduled", color: "positive" }
+              ],
+              [
+                { component: "TEXT", value: "26-0903-C" },
+                { component: "TEXT", value: "ILLUMINATE USA LLC" },
+                { component: "AMOUNT", value: 42900, currency: "USD" },
+                { component: "BADGE", text: "Missing", color: "negative" }
+              ]
+            ]
+          },
+          {
+            component: "ALERT",
+            color: "notice",
+            title: "ILLUMINATE USA ACH missing",
+            description:
+              "Get the ACH authorization from ILLUMINATE USA before close of business. CBP debits the statement whether or not the importer authorized the pull."
+          },
+          genuiNav("Open US Statements", "#payment-us-statements"),
+          genuiPrompt("All items due today", "All items due today")
+        ]
+      },
+      followUps: brokerHomeFollowUps("Today's Statements")
+    });
+  }
+
+  function answerRecentOpsShipments(question) {
+    if (!OPS_SHIPMENTS_INTENT.test(question)) {
+      return null;
+    }
+    const tm = (window.KNUsShipments?.list?.() || []).slice(0, 5);
+    const vis = (visSummary.newest || visSummary.rows || []).slice(0, 4);
+    if (!tm.length && !vis.length) {
+      return null;
+    }
+    return schemaAnswer({
+      title: "Recent shipments in operations",
+      thinking: [
+        "Pulled Transaction Manager US Shipments",
+        "Cross-checked live Visibility positions",
+        "Flagged anything on hold or still NEW"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# Operations shipments" },
+          {
+            component: "TEXT",
+            content: `**${tm.length || vis.length}** recent TM shipments plus **${vis.length}** live Visibility moves. Ocean is still the bulk of Jane's board.`
+          },
+          {
+            component: "TABLE",
+            headers: ["Shipment", "Importer", "MOT", "Status"],
+            rows: (tm.length ? tm : vis).map((row) => [
+              genuiLink(row.shipmentId || row.id, row.shipmentId ? "#transaction-us-shipments" : "#klearhub-visibility"),
+              { component: "TEXT", value: row.companyName || row.company },
+              { component: "TEXT", value: row.mot === "ocean" || row.mot === "OCEAN" ? "Ocean" : row.mot === "air" || row.mot === "AIR" ? "Air" : String(row.mot || "—") },
+              { component: "BADGE", text: row.status || row.statusChip || "NEW", color: /hold|reject/i.test(row.status || "") ? "negative" : /progress|new|ready/i.test(row.status || row.statusChip || "") ? "notice" : "positive" }
+            ])
+          },
+          vis.length
+            ? {
+                component: "TEXT",
+                content: "### Visibility positions"
+              }
+            : { component: "SPACER" },
+          vis.length
+            ? {
+                component: "TABLE",
+                headers: ["ID", "Lane", "Container", "Status"],
+                rows: vis.map((row) => [
+                  genuiLink(row.id, "#klearhub-visibility"),
+                  { component: "TEXT", value: `${row.origin?.city || "—"} → ${row.dest?.city || "—"}` },
+                  { component: "TEXT", value: row.container || "—" },
+                  { component: "BADGE", text: row.status, color: row.status === "On Hold" ? "negative" : "information" }
+                ])
+              }
+            : { component: "SPACER" },
+          {
+            component: "ALERT",
+            color: "information",
+            title: "TM list vs Visibility board",
+            description:
+              "Transaction Manager is the filing queue. Visibility is the live milestone board. Open either record — this chat will not update a shipment."
+          },
+          genuiNav("Open US Shipments", "#transaction-us-shipments"),
+          genuiNav("Open Visibility", "#klearhub-visibility")
+        ]
+      },
+      followUps: brokerHomeFollowUps("Recent shipments in operations")
+    });
+  }
+
+  function answerDueToday(question) {
+    if (!DUE_TODAY_INTENT.test(question)) {
+      return null;
+    }
+    const jane = janeQueue();
+    const isfA = jane.pendingIsf[0];
+    const isfB = jane.pendingIsf[1];
+    const psc = jane.psc;
+    return schemaAnswer({
+      title: "All items due today",
+      thinking: [
+        "Scanned ISF filing deadlines closing today",
+        "Cross-referenced today's statement payments",
+        "Checked PSC windows closing today"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# Due today" },
+          {
+            component: "TEXT",
+            content: `Here's what's due **${brokerTodayLong()}**: **2 ISF filings**, **1 statement payment**, and **1 PSC deadline**.`
+          },
+          {
+            component: "GRID",
+            columns: 2,
+            gap: "small",
+            children: [
+              {
+                component: "CARD",
+                title: isfA ? isfA.transactionId : "ISF filing",
+                description: isfA ? isfA.companyName : "Pending ISF",
+                children: [
+                  { component: "BADGE", text: "Due today", color: "notice" },
+                  { component: "TEXT", content: isfA ? `Vessel **${isfA.vesselName}**. File before the 24-hour ISF cutoff.` : "No pending ISF." }
+                ]
+              },
+              {
+                component: "CARD",
+                title: isfB ? isfB.transactionId : "ISF filing",
+                description: isfB ? isfB.companyName : "Pending ISF",
+                children: [
+                  { component: "BADGE", text: "Due today", color: "notice" },
+                  { component: "TEXT", content: isfB ? `MBL **${isfB.mbl}**. Still PENDING SUBMISSION.` : "Second ISF already filed." }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Statement 26-0903-C",
+                description: "ILLUMINATE USA LLC",
+                children: [
+                  { component: "AMOUNT", value: 42900, currency: "USD" },
+                  { component: "BADGE", text: "ACH not authorized", color: "negative" },
+                  { component: "TEXT", content: "Periodic daily statement posts today. Debit hits tomorrow." }
+                ]
+              },
+              {
+                component: "CARD",
+                title: psc ? psc.transactionId : "PSC",
+                description: psc ? `Entry ${psc.entryNumber}` : "PSC window",
+                children: [
+                  { component: "BADGE", text: "Window closes today", color: "negative" },
+                  { component: "TEXT", content: psc ? `**${psc.companyName}** · ${psc.pscType}. 314-day window cannot be extended.` : "No PSC due." }
+                ]
+              }
+            ]
+          },
+          { component: "TEXT", content: "### Queue" },
+          {
+            component: "TABLE",
+            headers: ["Item", "Party", "Detail", "Status"],
+            rows: [
+              [
+                isfA ? genuiLink("ISF filing", `#transaction-us-isf/history/${isfA.id}`) : { component: "TEXT", value: "ISF filing" },
+                { component: "TEXT", value: isfA?.companyName || "—" },
+                { component: "TEXT", value: isfA?.vesselName || "—" },
+                { component: "BADGE", text: "Due today", color: "notice" }
+              ],
+              [
+                isfB ? genuiLink("ISF filing", `#transaction-us-isf/history/${isfB.id}`) : { component: "TEXT", value: "ISF filing" },
+                { component: "TEXT", value: isfB?.companyName || "—" },
+                { component: "TEXT", value: isfB?.mbl || "—" },
+                { component: "BADGE", text: "Due today", color: "notice" }
+              ],
+              [
+                { component: "TEXT", value: "Statement" },
+                { component: "TEXT", value: "ILLUMINATE USA LLC" },
+                { component: "AMOUNT", value: 42900, currency: "USD" },
+                { component: "BADGE", text: "No ACH", color: "negative" }
+              ],
+              [
+                psc ? genuiLink("PSC", "#transaction-us-psc") : { component: "TEXT", value: "PSC" },
+                { component: "TEXT", value: psc?.companyName || "—" },
+                { component: "TEXT", value: psc?.entryNumber || "—" },
+                { component: "BADGE", text: "Closes today", color: "negative" }
+              ]
+            ]
+          },
+          {
+            component: "ALERT",
+            color: "notice",
+            title: "Start with the PSC",
+            description: psc
+              ? `${psc.transactionId} (${psc.entryNumber}) cannot be extended. After today the correction has to go through formal protest.`
+              : "File the pending ISF records before vessel cutoff."
+          },
+          genuiPrompt("Post Summary Corrections", "Post Summary Corrections"),
+          genuiNav("Open ISF", "#transaction-us-isf")
+        ]
+      },
+      followUps: brokerHomeFollowUps("All items due today")
+    });
+  }
+
+  function answerPostSummaryCorrections(question) {
+    if (!POST_SUMMARY_CORRECTIONS_INTENT.test(question)) {
+      return null;
+    }
+    const pscs = (window.KNUsPsc?.list?.() || []).slice(0, 8);
+    const due = pscs[0];
+    const valueAdj = pscs.find((row) => /in process/i.test(row.pscStatus || "")) || pscs[1];
+    const usmca = pscs.find((row) => /ready/i.test(row.pscStatus || "")) || pscs[2];
+    const origin = pscs.find((row) => /none/i.test(row.pscStatus || "") && row !== due) || pscs[3];
+    const cards = [
+      due && {
+        component: "CARD",
+        title: due.transactionId,
+        description: `${due.companyName} · ${due.entryNumber}`,
+        children: [
+          { component: "BADGE", text: "Closes today", color: "negative" },
+          { component: "TEXT", content: "HTS reclassification. 314-day window ends today — protest after that." }
+        ]
+      },
+      valueAdj && {
+        component: "CARD",
+        title: valueAdj.transactionId,
+        description: `${valueAdj.companyName} · ${valueAdj.entryNumber}`,
+        children: [
+          { component: "BADGE", text: valueAdj.pscStatus, color: "notice" },
+          { component: "TEXT", content: "Value adjustment (transfer-pricing true-up). 12 days left." }
+        ]
+      },
+      usmca && {
+        component: "CARD",
+        title: usmca.transactionId,
+        description: `${usmca.companyName} · ${usmca.entryNumber}`,
+        children: [
+          { component: "BADGE", text: usmca.pscStatus, color: "information" },
+          { component: "TEXT", content: "USMCA preference now qualifies. 45 days left." }
+        ]
+      },
+      origin && {
+        component: "CARD",
+        title: origin.transactionId,
+        description: `${origin.companyName} · ${origin.entryNumber}`,
+        children: [
+          { component: "BADGE", text: origin.pscStatus || "OPEN", color: "neutral" },
+          { component: "TEXT", content: "Country of origin correction. 61 days left." }
+        ]
+      }
+    ].filter(Boolean);
+    return schemaAnswer({
+      title: "Post Summary Corrections",
+      thinking: [
+        "Checked US PSC transactions still inside the 314-day window",
+        "Sorted by how soon each window closes",
+        "Mapped each row to a live Transaction Manager record"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# Post Summary Corrections" },
+          {
+            component: "TEXT",
+            content: `**${cards.length} entries** are inside their PSC window with a pending reason. **${due?.transactionId || "The first row"}** has to file today.`
+          },
+          { component: "GRID", columns: 2, gap: "small", children: cards },
+          {
+            component: "TABLE",
+            headers: ["Transaction", "Entry", "Importer", "Window"],
+            rows: [
+              due && [
+                genuiLink(due.transactionId, "#transaction-us-psc"),
+                { component: "TEXT", value: due.entryNumber },
+                { component: "TEXT", value: due.companyName },
+                { component: "BADGE", text: "Today", color: "negative" }
+              ],
+              valueAdj && [
+                genuiLink(valueAdj.transactionId, "#transaction-us-psc"),
+                { component: "TEXT", value: valueAdj.entryNumber },
+                { component: "TEXT", value: valueAdj.companyName },
+                { component: "BADGE", text: "12 days", color: "notice" }
+              ],
+              usmca && [
+                genuiLink(usmca.transactionId, "#transaction-us-psc"),
+                { component: "TEXT", value: usmca.entryNumber },
+                { component: "TEXT", value: usmca.companyName },
+                { component: "BADGE", text: "45 days", color: "information" }
+              ],
+              origin && [
+                genuiLink(origin.transactionId, "#transaction-us-psc"),
+                { component: "TEXT", value: origin.entryNumber },
+                { component: "TEXT", value: origin.companyName },
+                { component: "BADGE", text: "61 days", color: "neutral" }
+              ]
+            ].filter(Boolean)
+          },
+          {
+            component: "ALERT",
+            color: "notice",
+            title: "File the HTS reclass first",
+            description: due
+              ? `${due.entryNumber} on ${due.companyName} cannot be extended. After today this becomes a 19 USC 1514 protest.`
+              : "Open US PSC to continue the filing."
+          },
+          genuiNav("Open US PSC", "#transaction-us-psc"),
+          genuiPrompt("All items due today", "All items due today")
+        ]
+      },
+      followUps: brokerHomeFollowUps("Post Summary Corrections")
+    });
+  }
+
+  function answerIsfDashboard(question) {
+    if (!ISF_DASHBOARD_INTENT.test(question)) {
+      return null;
+    }
+    const isf = window.KNUsIsf?.list?.() || [];
+    const pending = isf.filter((row) => row.statusChip === "pending");
+    const accepted = isf.filter((row) => row.statusChip === "submitted");
+    const fin = isf.filter((row) => row.statusChip === "finBill");
+    const sample = pending.slice(0, 4);
+    return schemaAnswer({
+      title: "ISF Dashboard",
+      thinking: [
+        `Counted ${isf.length.toLocaleString()} ISF transactions on file`,
+        "Separated pending submission, accepted, and Fin Bill Match",
+        "Listed the filings still short of the 24-hour vessel rule"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# ISF Dashboard" },
+          {
+            component: "TEXT",
+            content: `**${isf.length.toLocaleString()}** ISF-10 records. **${pending.length.toLocaleString()}** pending submission, **${accepted.length.toLocaleString()}** accepted / replace-accepted, **${fin.length.toLocaleString()}** Fin Bill Match.`
+          },
+          {
+            component: "GRID",
+            columns: 3,
+            gap: "small",
+            children: [
+              {
+                component: "CARD",
+                title: "Pending submission",
+                description: "Still on Jane's desk",
+                children: [
+                  { component: "TEXT", content: `**${pending.length.toLocaleString()}**` },
+                  { component: "BADGE", text: "Action", color: "notice" }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Accepted",
+                description: "ACE accepted / replaced",
+                children: [
+                  { component: "TEXT", content: `**${accepted.length.toLocaleString()}**` },
+                  { component: "BADGE", text: "Clear", color: "positive" }
+                ]
+              },
+              {
+                component: "CARD",
+                title: "Fin Bill Match",
+                description: "Waiting on bill match",
+                children: [
+                  { component: "TEXT", content: `**${fin.length.toLocaleString()}**` },
+                  { component: "BADGE", text: "Watch", color: "information" }
+                ]
+              }
+            ]
+          },
+          { component: "TEXT", content: "### File these first" },
+          {
+            component: "TABLE",
+            headers: ["ISF", "Importer", "Vessel / ETD", "Status"],
+            rows: sample.map((row) => [
+              genuiLink(row.transactionId, `#transaction-us-isf/history/${row.id}`),
+              { component: "TEXT", value: row.companyName },
+              { component: "TEXT", value: `${row.vesselName} · ${row.etd}` },
+              { component: "BADGE", text: row.status, color: "notice" }
+            ])
+          },
+          {
+            component: "ALERT",
+            color: "notice",
+            title: "24-hour rule",
+            description:
+              "ISF-10 must be on file 24 hours before vessel departure. Pending submission rows are the only ones Jane can still complete from Transaction Manager today."
+          },
+          genuiNav("Open ISF Transaction Manager", "#transaction-us-isf"),
+          genuiPrompt("Recent entries in my queue", "Recent entries in my queue")
+        ]
+      },
+      followUps: brokerHomeFollowUps("ISF Dashboard")
+    });
+  }
+
+  function answerBrokerHome(question) {
+    return (
+      answerPersonalDashboard(question) ||
+      answerTodaysStatements(question) ||
+      answerRecentOpsShipments(question) ||
+      answerDueToday(question) ||
+      answerPostSummaryCorrections(question) ||
+      answerIsfDashboard(question) ||
+      answerWorkingQueue(question)
+    );
   }
 
   function answerDraftOrReview(question) {
@@ -6418,13 +11357,92 @@ function initAiAssistant() {
     return null;
   }
 
+  function answerBrokerExpertise(question) {
+    const q = String(question || "").trim();
+    if (/\b(hts|hs code|harmonized|classif(?:y|ication))\b/i.test(q)) {
+      return {
+        mode: "classification",
+        title: "Classification result",
+        thinking: [
+          "Read the product description against GRI 1–3",
+          "Checked heading 8708 versus 7326",
+          "Cross-referenced ACE entry practice for this heading"
+        ],
+        leadIn:
+          "Stamped steel auto body brackets from Mexico classify as motor-vehicle body parts, not generic articles of steel.",
+        hts: "8708.29.5060",
+        description: "Parts and accessories of bodies (including cabs): Other: Other",
+        dutyRate: "2.5%",
+        origin: "MX",
+        preference: "USMCA if regional value content is documented",
+        confidence: "high",
+        action: { type: "apply-hts", label: "Apply this HS code", data: { hts: "8708.29.5060" } },
+        followUps: [
+          { label: "Duty estimate", prompt: "Estimate duty for this classification" },
+          { label: "ACE status", prompt: "What is the ACE status for today's entries?" }
+        ]
+      };
+    }
+    if (/\b(duty|duties|landed cost)\b/i.test(q)) {
+      return {
+        mode: "duty",
+        title: "Duty estimate",
+        thinking: [
+          "Applied the classified heading and rate",
+          "Checked MPF and HMF on the entered value",
+          "Left preference unverified until RVC support is on file"
+        ],
+        leadIn: "Estimate only — not an ACE liquidation. Confirm entered value and any USMCA claim before you file.",
+        currency: "USD",
+        total: 1840,
+        lines: [
+          { label: "Merchandise duty (2.5%)", amount: 1250 },
+          { label: "MPF", amount: 485 },
+          { label: "HMF", amount: 105 }
+        ],
+        followUps: [
+          { label: "Classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" },
+          { label: "ACE status", prompt: "What is the ACE status for today's entries?" }
+        ]
+      };
+    }
+    if (/\b(ace|entry status|clear to file|entry filing)\b/i.test(q) && !PERSONAL_DASHBOARD_INTENT.test(q)) {
+      return {
+        mode: "entry-status",
+        title: "ACE entry status",
+        thinking: [
+          "Pulled today's broker queue against ACE status",
+          "Flagged holds that still block filing",
+          "Listed entries that are clear to file"
+        ],
+        leadIn: "ACE snapshot for this workspace — file only after you confirm documents on the entry.",
+        headers: ["Entry", "Importer", "ACE status", "Action"],
+        rows: [
+          ["KX-M3Q8-21", "Acme Corp", { component: "BADGE", text: "Clear to file", color: "positive" }, "Ready"],
+          ["74-8823019", "ILLUMINATE USA", { component: "BADGE", text: "PGA hold", color: "notice" }, "FDA referral"],
+          ["ISF-4412", "Northline", { component: "BADGE", text: "ISF late", color: "negative" }, "Document delay"]
+        ],
+        followUps: [
+          { label: "Personal dashboard", prompt: "Show my personal dashboard" },
+          { label: "Classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" }
+        ]
+      };
+    }
+    return null;
+  }
+
   function answer(question, pageContext) {
-    // Always re-read live hash grounding. Ignore stale captures from when the panel
-    // was opened (sidenav replaceState does not fire hashchange by itself).
-    const context = getContext();
-    void pageContext;
+    const context = isOpen && panelContext ? panelContext : pageContext || getContext();
     const q = String(question || "").trim();
     syncContextChip(context);
+    const brokerHome = answerBrokerHome(q);
+    if (brokerHome) {
+      return brokerHome;
+    }
+    const brokerExpertise = answerBrokerExpertise(q);
+    if (brokerExpertise) {
+      return brokerExpertise;
+    }
     const draftOrReview = answerDraftOrReview(q);
     if (draftOrReview?.mode === "draft" || draftOrReview?.mode === "review") {
       return draftOrReview;
@@ -6447,7 +11465,9 @@ function initAiAssistant() {
     const adminKind = /^(roles|role-detail|role-add|users|user-detail|user-add|defaults|default-detail|default-add)$/.test(
       context.kind || ""
     );
-    const opsKind = /^(dashboard|visibility|visibility-detail|overview)$/.test(context.kind || "");
+    const opsKind = /^(dashboard|visibility|visibility-detail|overview|isf|entry|in-bond|ftz|psc|delivery-order|tm-shipment|statement-detail)$/.test(
+      context.kind || ""
+    );
     // Refuse ops/shipment answers on admin pages before any other branch can leak Dashboard data.
     if (opsQuestion && (adminKind || (!opsKind && context.kind === "unavailable"))) {
       return textAnswer({
@@ -6476,7 +11496,7 @@ function initAiAssistant() {
       return textAnswer({
         title: "Stay on a KlearNow page",
         thinking: ["Checked that this question needs product context, not a general definition"],
-        text: "Klear Assistant is not a general knowledge tool. Open **Default Role Management** or **KN Role Management**, select a record, and ask about that template or role.",
+        text: "Klear Assist is not a general knowledge tool. Open a record — a shipment, ISF, or entry — and ask about that filing.",
         followUps: []
       });
     }
@@ -6953,22 +11973,47 @@ function initAiAssistant() {
     }
   }
 
+  function beginPanelSession() {
+    const context = window.KNAssistCore?.getContext?.() || getContext();
+    panelContext = context;
+    panelScopeKey = window.KNAssistCore?.sessionKey?.(context) || context?.scopeKey || "";
+    if (panelScopeKey && window.KNThreadStore?.activateScope) {
+      window.KNThreadStore.activateScope(panelScopeKey);
+    } else if (panelScopeKey && window.KNThreadStore?.ensureScopedThread) {
+      window.KNThreadStore.ensureScopedThread({
+        title: context?.headline || context?.title || "Conversation",
+        scopeKey: panelScopeKey,
+        surface: "panel"
+      });
+    }
+    return context;
+  }
+
+  function resetPanelSession() {
+    panelScopeKey = "";
+    panelContext = null;
+    if (history) {
+      history.innerHTML = "";
+    }
+  }
+
   function openPanel(trigger) {
+    if (!window.KNAssistCore?.isTriggerRoute?.()) {
+      return;
+    }
     lastTrigger = trigger || lastTrigger;
     dismissCoachmark();
+    const context = beginPanelSession();
     isOpen = true;
     shell.classList.add("ai-assistant-open");
     setExpandedState(true);
     updateWidth(preferredWidth);
-    syncContextChip();
+    syncContextChip(context);
     syncOpsFlags();
-    refreshGhostSuggestions();
-    if (!hasSeenFlag(INTRO_SEEN_KEY)) {
-      showIntro();
-      return;
-    }
-    hideIntro();
-    if (!history.querySelector(".ai-msg--user")) {
+    refreshGhostSuggestions(context);
+    const restored = restoreDrawerTranscript();
+    if (!restored) {
+      hideIntro();
       renderEmptyState();
     }
     window.requestAnimationFrame(() => input.focus());
@@ -6984,8 +12029,41 @@ function initAiAssistant() {
     lastTrigger?.focus();
   }
 
+  function expandPanelToFullPage() {
+    if (!isOpen) {
+      return;
+    }
+    closePanel();
+    const link = document.querySelector('.side-nav-link[href="#agentic-broker"]');
+    if (link) {
+      link.click();
+      return;
+    }
+    location.hash = "#agentic-broker";
+  }
+
+  function focusFullPageComposer() {
+    const thread = document.getElementById("agentic-thread-input");
+    const home = document.getElementById("agentic-home-input");
+    const visible = [thread, home].find((el) => {
+      if (!el) {
+        return false;
+      }
+      const style = window.getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") {
+        return false;
+      }
+      return el.getClientRects().length > 0;
+    });
+    (visible || thread || home)?.focus();
+  }
+
   triggers.forEach((trigger) => {
     trigger.addEventListener("click", () => {
+      if (window.KNAssistCore?.isFullPageAssist?.()) {
+        focusFullPageComposer();
+        return;
+      }
       if (isOpen) {
         closePanel();
         return;
@@ -6995,6 +12073,14 @@ function initAiAssistant() {
   });
 
   closeBtn?.addEventListener("click", closePanel);
+  const expandBtn = document.getElementById("ai-assistant-expand");
+  if (expandBtn && !document.querySelector('.side-nav-link[href="#agentic-broker"]')) {
+    expandBtn.hidden = true;
+  }
+  expandBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    expandPanelToFullPage();
+  });
 
   helpBtn?.addEventListener("click", () => {
     if (!isOpen) {
@@ -7062,6 +12148,24 @@ function initAiAssistant() {
       });
       return;
     }
+    const shipmentOpen = event.target.closest("[data-ai-shipment-open]");
+    if (shipmentOpen && panel.contains(shipmentOpen)) {
+      window.KNAiSuggest?.logAudit?.({
+        action: "open-shipment-from-queue",
+        context: "assistant",
+        field: "isf",
+        origin: "manual",
+        value: shipmentOpen.getAttribute("data-ai-shipment-open") || ""
+      });
+      return;
+    }
+    const findingOpen = event.target.closest("[data-ai-finding-open]");
+    if (findingOpen && panel.contains(findingOpen)) {
+      event.preventDefault();
+      const fieldKey = findingOpen.getAttribute("data-ai-finding-open") || "";
+      window.KNIsfDetail?.focusField?.(fieldKey);
+      return;
+    }
     const entityLink = event.target.closest("[data-ai-entity]");
     if (entityLink && panel.contains(entityLink)) {
       event.preventDefault();
@@ -7070,24 +12174,6 @@ function initAiAssistant() {
         entityLink.getAttribute("data-ai-entity-id"),
         entityLink.getAttribute("href")
       );
-      return;
-    }
-    const thinkingToggle = event.target.closest(".ai-msg__thinking-toggle");
-    if (thinkingToggle && panel.contains(thinkingToggle)) {
-      event.preventDefault();
-      const panelEl = thinkingToggle.closest(".ai-msg__thinking-panel");
-      const trace = panelEl?.querySelector(".ai-msg__thinking-trace");
-      const label = thinkingToggle.querySelector(".ai-msg__thinking-toggle-label");
-      const expanded = thinkingToggle.getAttribute("aria-expanded") === "true";
-      const next = !expanded;
-      thinkingToggle.setAttribute("aria-expanded", String(next));
-      if (trace) {
-        trace.hidden = !next;
-      }
-      if (label) {
-        const loading = panelEl?.getAttribute("data-reasoning-status") === "loading";
-        label.textContent = loading ? "Exploring…" : next ? "Hide thinking" : "Show thinking";
-      }
       return;
     }
     const copyBtn = event.target.closest("[data-ai-msg-copy]");
@@ -7104,6 +12190,7 @@ function initAiAssistant() {
         window.setTimeout(() => {
           copyBtn.classList.remove("is-copied");
           copyBtn.setAttribute("aria-label", "Copy response");
+          // FLAG: 1600ms copied hold — no delay token.
         }, 1600);
       };
       if (navigator.clipboard?.writeText) {
@@ -7143,11 +12230,34 @@ function initAiAssistant() {
   });
 
   input.addEventListener("input", () => {
+    input.style.height = "auto";
+    const maxHeight = parseFloat(getComputedStyle(input).maxHeight) || Infinity;
+    const next = Math.min(input.scrollHeight, maxHeight);
+    input.style.height = `${next}px`;
+    input.style.overflowY = input.scrollHeight > maxHeight ? "auto" : "hidden";
     clearInputError();
     updateSendControl();
   });
   input.addEventListener("keydown", (event) => {
     if (event.key === "Tab" && !event.shiftKey && acceptGhostSuggestion()) {
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "Escape" && ghostEl && ghostEl.classList.contains("is-visible")) {
+      const ghostText = ghostEl.querySelector("[data-chat-ghost-text]");
+      const ghostOut = ghostEl.querySelector("[data-chat-ghost-out]");
+      if (ghostText) {
+        ghostText.textContent = "";
+      }
+      if (ghostOut) {
+        ghostOut.textContent = "";
+      }
+      if (ghostOut) {
+        ghostOut.textContent = "";
+      }
+      ghostEl.classList.remove("is-visible", "is-crossfading", "is-fading");
+      ghostEl.hidden = true;
+      input.placeholder = input.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER;
       event.preventDefault();
       return;
     }
@@ -7184,13 +12294,15 @@ function initAiAssistant() {
     }
     const question = input.value.trim();
     if (!question) {
-      showInputError("Enter a question to ask Klear Assistant.");
+      showInputError("Enter a question to ask Klear Assist.");
       return;
     }
     clearInputError();
     const genId = ++generationId;
     fadeOutEmptySurfaces();
-    addMessage("user", question);
+    const userId = `msg-user-${Date.now()}`;
+    addMessage("user", question, { id: userId });
+    persistDrawerUser(userId, question);
     input.value = "";
     syncGhostSuggestion();
     updateSendControl();
@@ -7209,6 +12321,11 @@ function initAiAssistant() {
       if (genId === generationId) {
         setThinking(false);
         addMessage("assistant", "I could not process that request right now. Please try again.", { actions: true });
+        persistDrawerAssistant(
+          { text: "I could not process that request right now. Please try again." },
+          {},
+          "error"
+        );
         announceAssistant("I could not process that request right now.");
       }
     } finally {
@@ -7251,11 +12368,20 @@ function initAiAssistant() {
   });
 
   function onAssistantRouteChange() {
+    const triggerOn = window.KNAssistCore?.syncTriggerVisibility?.(shell) ?? false;
+    const nextKey = window.KNAssistCore?.sessionKey?.() || "";
+    const leftRecord = Boolean(isOpen && panelScopeKey && nextKey !== panelScopeKey);
+    const onFullPage = Boolean(window.KNAssistCore?.isFullPageAssist?.());
+    if (leftRecord || (isOpen && !triggerOn) || (isOpen && onFullPage)) {
+      closePanel();
+      resetPanelSession();
+    }
     refChipDismissed = false;
-    const context = getContext();
+    const context = isOpen && panelContext ? panelContext : getContext();
     syncContextChip(context);
     syncOpsFlags();
     refreshGhostSuggestions(context);
+    showCoachmark();
     if (!isOpen) {
       return;
     }
@@ -7263,8 +12389,7 @@ function initAiAssistant() {
       fillIntro(context);
       return;
     }
-    // Refresh empty-state / welcome prompts so Dashboard chips don't linger on admin pages.
-    if (!history.querySelector(".ai-msg--user")) {
+    if (!history.querySelector(".ai-msg")) {
       renderEmptyState();
     }
   }
@@ -7274,6 +12399,14 @@ function initAiAssistant() {
   window.addEventListener("kn-route-change", onAssistantRouteChange);
 
   document.addEventListener("keydown", (event) => {
+    if (window.KNAssistCore?.isAssistShortcut?.(event)) {
+      if (window.KNAssistCore?.isFullPageAssist?.()) {
+        event.preventDefault();
+        event.stopPropagation();
+        focusFullPageComposer();
+        return;
+      }
+    }
     if (event.key !== "Escape") {
       return;
     }
@@ -7310,16 +12443,81 @@ function initAiAssistant() {
   window.KNAiOpsSurface = { sync: syncOpsFlags };
   window.addEventListener("kn-ai-ops-flag-change", () => syncOpsFlags());
 
+  window.KNAssistant = {
+    isOpen: () => isOpen,
+    open: (trigger) => openPanel(trigger || lastTrigger || triggers[0]),
+    ask: (text, opts = {}) => {
+      openPanel(opts.trigger || lastTrigger || triggers[0]);
+      window.requestAnimationFrame(() => sendQuestion(text));
+    },
+    answer: (text) => answer(text, getContext()),
+    renderText: (text, context) => renderAssistantMarkdown(text, context || getContext()),
+    thinkingPanel: (steps, expanded, opts) => thinkingPanelHtml(steps, expanded, opts)
+  };
+
+  document.addEventListener("kn-genui-action", (event) => {
+    const hts = event.detail?.data?.hts;
+    if ((event.detail?.type === "apply-hts" || hts) && event.target?.closest?.("#ai-assistant-panel")) {
+      showKnToast?.({
+        content: hts ? `HS ${hts} is noted. Filing still happens on the entry form.` : "Classification noted. Filing still happens on the entry form.",
+        color: "positive"
+      });
+      return;
+    }
+    const prompt = event.detail?.data?.prompt;
+    if (!prompt || !event.target?.closest?.("#ai-assistant-panel")) {
+      return;
+    }
+    window.KNAssistant.ask(prompt);
+  });
+
   updateWidth(preferredWidth);
   setExpandedState(false);
   updateSendControl();
+  window.KNAssistCore?.syncTriggerVisibility?.(shell);
   syncContextChip();
   syncOpsFlags();
   window.requestAnimationFrame(() => showCoachmark());
 }
 
+hydrateKnAvatars();
+hydrateKnAppBars();
+hydrateKnBadges();
+hydrateKnHeaders();
+hydrateKnMenus();
+hydrateKnMotion();
+hydrateKnBottomNavs();
+hydrateKnBottomSheets();
+hydrateKnBoxes();
+hydrateKnBreadcrumbs();
+hydrateKnButtons();
+hydrateKnFabs();
+hydrateKnCharts();
+hydrateKnCheckboxes();
+hydrateKnRadios();
+hydrateKnSwitches();
+hydrateKnChips();
+hydrateKnFilterChips();
+hydrateKnTags();
+hydrateKnCounters();
+hydrateKnCounterInputs();
+hydrateKnCollapsibles();
+hydrateKnConfirmations();
+hydrateKnCreations();
+hydrateKnDatePickers();
+hydrateKnDropdowns();
+hydrateKnDetailedViews();
+hydrateKnDividers();
+hydrateKnDrawers();
+hydrateKnEmpties();
+hydrateKnFileUploads();
+hydrateKnForms();
+hydrateKnSearchInputs();
+hydrateKnPhones();
+hydrateKnChatInputs();
+hydrateKnChatMessages();
 hydrateDashFromVisibility();
-initBladeTooltips();
+initKnTooltips();
 initDashboardLoader();
 initDashboardLayout();
 initHoldDrawer();

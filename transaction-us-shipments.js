@@ -21,7 +21,7 @@
   let seedCache = null;
 
   function escapeHtml(v) { return window.KNAdminUX.escapeHtml(v); }
-  function toast(content, color = "positive") { if (typeof window.showBladeToast === "function") window.showBladeToast({ content, color }); }
+  function toast(content, color = "positive") { if (typeof window.showKnToast === "function") window.showKnToast({ content, color }); }
   function iconCopy() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`; }
   function iconTrash() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`; }
   function iconRefresh() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>`; }
@@ -109,10 +109,10 @@
   function renderGroupView() {
     return `<div class="tm-shipments-group">
       <div class="tm-shipments-group__toolbar">
-        <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-tmship-clear-filters>Clear Filters</button>
-        <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-tmship-more-filters>More Filters</button>
-        <span class="badge badge--neutral type-caption-sm">Total Groups : 1</span>
-        <span class="badge badge--neutral type-caption-sm">Total Transactions : 0</span>
+        <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-tmship-clear-filters>Clear Filters</button>
+        <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-tmship-more-filters>More Filters</button>
+        <span class="badge badge--neutral type-caption-sm kn-badge">Total Groups : 1</span>
+        <span class="badge badge--neutral type-caption-sm kn-badge">Total Transactions : 0</span>
       </div>
       <div class="tm-shipments-group__meta type-caption-sm">
         <span>Grouping Criteria:</span>
@@ -124,8 +124,8 @@
           <button class="icon-btn" type="button" data-tmship-group-refresh aria-label="Refresh group" data-tooltip="Refresh">${iconRefresh()}</button>
         </div>
         <div class="tm-shipments-group__card-actions">
-          <button class="blade-link type-ui-sm" type="button" data-tmship-more-detail>More Detail</button>
-          <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-tmship-modify>${iconPencil()} Modify</button>
+          <button class="kn-link type-ui-sm" type="button" data-tmship-more-detail>More Detail</button>
+          <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-tmship-modify>${iconPencil()} Modify</button>
         </div>
       </article>
     </div>`;
@@ -153,7 +153,7 @@
     const chip = state.txn.filters.chip;
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-tmship-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap"><a class="blade-link admin-name-link" href="${ROUTE}" data-tmship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
+          <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-tmship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.shipmentId)}">${escapeHtml(row.shipmentId)}</span></td>
           <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
@@ -189,7 +189,7 @@
               ${ux.colFilter({ attr: "data-tmship-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
               ${ux.colFilter({ attr: "data-tmship-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-tmship-filter", key: "shipmentId", value: state.txn.filters.shipmentId, label: "shipment ID" })}
-              ${ux.colBladeSelect({ attr: "data-tmship-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
+              ${ux.colKnSelect({ attr: "data-tmship-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
               ${ux.colFilter({ attr: "data-tmship-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-tmship-filter", key: "status", value: state.txn.filters.status, label: "status" })}
               ${ux.emptyColFilter()}
@@ -210,8 +210,8 @@
     const updatedLabel = (() => { const raw = window.KNAdminUX.relativeTime(lastUpdatedIso); const hours = raw.match(/^(\d+)h ago$/); return hours ? `${hours[1]} hours ago` : raw; })();
     root.innerHTML = `<div class="tm-toolbar vis-toolbar">
       <div class="kh-tabs" role="tablist" aria-label="Shipments list view">
-        <button class="btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-tmship-view="transaction">Transaction View</button>
-        <button class="btn ${state.view === "group" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "group"}" data-tmship-view="group">Group View</button>
+        <button class="kn-btn btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-tmship-view="transaction">Transaction View</button>
+        <button class="kn-btn btn ${state.view === "group" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "group"}" data-tmship-view="group">Group View</button>
       </div>
       <div class="tm-toolbar__meta"><span class="type-caption-sm tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span></div>
     </div>
@@ -257,7 +257,7 @@
         }
       })) return;
       const open = event.target.closest("[data-tmship-open]");
-      if (open) { event.preventDefault(); const row = findRow(open.getAttribute("data-tmship-open")); toast(`${row?.transactionId || "Filing"} opened as read-only in this sample.`, "notice"); return; }
+      if (open) { event.preventDefault(); const row = findRow(open.getAttribute("data-tmship-open")); if (row) { location.hash = `#transaction-us-shipments/history/${encodeURIComponent(row.id)}`; } return; }
       const copy = event.target.closest("[data-tmship-copy]");
       if (copy) {
         event.preventDefault();

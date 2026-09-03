@@ -16,15 +16,23 @@
     return text || "—";
   }
 
-  function initials(name) {
-    const parts = String(name || "")
+  function knAvatarInitials(name) {
+    const names = String(name || "")
       .trim()
+      .toUpperCase()
       .split(/\s+/)
       .filter(Boolean);
-    if (!parts.length) {
-      return "KN";
+    if (!names.length) {
+      return "";
     }
-    return ((parts[0][0] || "") + (parts[1]?.[0] || parts[0][1] || "")).toUpperCase();
+    if (names.length === 1) {
+      return names[0].slice(0, 2);
+    }
+    return (names[0][0] || "") + (names[names.length - 1][0] || "");
+  }
+
+  function initials(name) {
+    return knAvatarInitials(name) || "KN";
   }
 
   function relativeTime(iso) {
@@ -64,16 +72,16 @@
     return `<div class="admin-coverage" aria-label="${count} of ${max} permissions">
       <span class="type-caption-sm type-weight-medium">${count}/${max}</span>
       <span class="admin-coverage__track" aria-hidden="true"><span class="admin-coverage__fill" style="width: ${pct}%"></span></span>
-      <span class="badge badge--${tone} type-caption-sm type-weight-medium">${pct}%</span>
+      <span class="badge badge--${tone} type-caption-sm type-weight-medium kn-badge">${pct}%</span>
     </div>`;
   }
 
   function search({ value, placeholder, label }) {
-    return `<div class="search-input vis-search admin-search">
-      <span class="search-input__icon" aria-hidden="true">
+    return `<div class="search-input vis-search admin-search kn-autocomplete__field">
+      <span class="search-input__icon kn-autocomplete__prefix" aria-hidden="true">
         <img src="./assets/quick-actions/search.svg" width="16" height="16" alt="" />
       </span>
-      <input class="search-input__field type-body-sm" data-admin-q type="search" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value || "")}" aria-label="${escapeHtml(label)}" autocomplete="off" />
+      <input class="search-input__field type-body-sm kn-autocomplete__input" data-admin-q type="search" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value || "")}" aria-label="${escapeHtml(label)}" autocomplete="off" />
       <button class="search-input__clear icon-btn" type="button" data-admin-q-clear ${value ? "" : "hidden"} aria-label="Clear search">
         <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
       </button>
@@ -81,14 +89,16 @@
   }
 
   function chips(items) {
-    return `<div class="vis-chips vis-quickfilters admin-chips" role="radiogroup" aria-label="Quick filters">
+    return `<div class="vis-chips vis-quickfilters admin-chips kn-chip-group kn-chip-group--small" role="radiogroup" aria-label="Quick filters">
       ${items
         .map((item) => {
+          const countNum = Number(item.count);
+          const wide = Number.isFinite(countNum) ? countNum > 9 : String(item.count).replace(/\+$/, "").length > 1;
           const count =
             item.count == null || item.count === ""
               ? ""
-              : `<span class="counter type-caption-sm">${escapeHtml(String(item.count))}</span>`;
-          return `<button class="vis-chip type-ui-sm ${item.selected ? "is-selected" : ""}" type="button" role="radio" data-admin-chip="${escapeHtml(item.id)}" aria-checked="${item.selected}"><span>${escapeHtml(item.label)}</span>${count}</button>`;
+              : `<span class="counter kn-counter${wide ? " kn-counter--wide counter--wide" : ""}">${escapeHtml(String(item.count))}</span>`;
+          return `<button class="vis-chip kn-chip kn-chip--small type-ui-sm ${item.selected ? "is-selected" : ""}" type="button" role="radio" data-admin-chip="${escapeHtml(item.id)}" aria-checked="${item.selected}"><span>${escapeHtml(item.label)}</span>${count}</button>`;
         })
         .join("")}
     </div>`;
@@ -99,15 +109,21 @@
       return "";
     }
     const review = extras.review;
+    const tones = new Set(["information", "negative", "notice", "positive", "neutral", "primary"]);
+    const tone = tones.has(extras.tone) ? extras.tone : "information";
+    const role = tone === "negative" || tone === "notice" ? "alert" : "status";
+    const live = tone === "notice" ? ' aria-live="polite"' : "";
     const action = actionLabel
-      ? `<button class="blade-link type-ui-sm" type="button" ${review ? `data-admin-review="${escapeHtml(chip || "inactive")}"` : `data-admin-chip="${escapeHtml(chip || "")}"`}>${escapeHtml(actionLabel)}</button>`
+      ? `<button class="kn-link type-ui-sm" type="button" ${review ? `data-admin-review="${escapeHtml(chip || "inactive")}"` : `data-admin-chip="${escapeHtml(chip || "")}"`}>${escapeHtml(actionLabel)}</button>`
       : "";
-    return `<aside class="blade-alert blade-alert--${extras.tone || "information"} admin-insight" role="status">
-      <span class="blade-alert__icon" aria-hidden="true">
+    return `<aside class="kn-alert kn-alert--${tone} kn-alert--full kn-alert--subtle admin-insight" role="${role}"${live}>
+      <span class="kn-alert__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg>
       </span>
-      <p class="type-body-sm blade-alert__desc">${copy}</p>
-      ${action}
+      <div class="kn-alert__content">
+        <p class="kn-alert__desc">${copy}</p>
+        ${action ? `<div class="kn-alert__actions">${action}</div>` : ""}
+      </div>
     </aside>`;
   }
 
@@ -145,10 +161,10 @@
     </th>`;
   }
 
-  function colBladeSelect({ attr, key, value, label, options, open, placeholder = "All", emptyLabel = "All" }) {
+  function colKnSelect({ attr, key, value, label, options, open, placeholder = "All", emptyLabel = "All" }) {
     const uid = `${attr.replace(/^data-/, "")}-${key}`;
     const labelId = `${uid}-label`;
-    return `<th scope="col" class="vis-th-filter-cell--blade-select">
+    return `<th scope="col" class="vis-th-filter-cell--kn-select">
       <span class="visually-hidden" id="${escapeHtml(labelId)}">Filter ${escapeHtml(label)}</span>
       ${select({
         id: uid,
@@ -207,6 +223,11 @@
   }
 
   function restoreColFilterFocus(scope, saved) {
+    window.KNEmpty?.hydrate(scope);
+    window.KNFileUpload?.hydrate(scope);
+    window.KNFilterChip?.hydrate(scope);
+    window.KNTag?.hydrate(scope);
+    window.KNSearchInput?.hydrate(scope);
     if (!saved || !scope) {
       return;
     }
@@ -227,12 +248,17 @@
     if (!list.length) {
       return "";
     }
-    return `<div class="admin-applied" role="list" aria-label="Applied filters">
+    return `<div class="admin-applied kn-filter-chip-group" role="list" aria-label="Applied filters">
       ${list
         .map(
-          (item) => `<button class="admin-applied__chip type-caption-sm" type="button" role="listitem" data-admin-filter-dismiss="${escapeHtml(item.id)}">
-            ${escapeHtml(item.label)}
-            <span aria-hidden="true">×</span>
+          (item) => `<button class="admin-applied__chip kn-filter-chip is-selected has-clear type-caption-sm" type="button" role="listitem" data-admin-filter-dismiss="${escapeHtml(item.id)}" aria-label="Clear ${escapeHtml(item.label)}">
+            <span class="kn-filter-chip__trigger">
+              <span class="kn-filter-chip__value">${escapeHtml(item.label)}</span>
+            </span>
+            <span class="kn-filter-chip__divider"></span>
+            <span class="kn-filter-chip__clear" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            </span>
           </button>`
         )
         .join("")}
@@ -240,11 +266,11 @@
   }
 
   function statusBadge(active) {
-    return `<span class="badge badge--${active ? "positive" : "negative"} type-caption-sm type-weight-medium">${active ? "Active" : "Inactive"}</span>`;
+    return `<span class="kn-badge badge badge--${active ? "positive" : "negative"} type-caption-sm type-weight-medium">${active ? "Active" : "Inactive"}</span>`;
   }
 
   /**
-   * Blade status pill for Transaction Manager lists.
+   * KlearNow status pill for Transaction Manager lists.
    * green=accepted/complete; amber=pending/in-progress; information=new/ready; negative=error/hold/reject; neutral=N/A.
    */
   function tmStatusBadge(label, tone) {
@@ -263,7 +289,7 @@
         resolved = "information";
       }
     }
-    return `<span class="badge badge--${resolved} type-caption-sm type-weight-medium">${escapeHtml(text)}</span>`;
+    return `<span class="badge badge--${resolved} type-caption-sm type-weight-medium kn-badge">${escapeHtml(text)}</span>`;
   }
 
   /** Single-line cell with ellipsis + native tooltip. */
@@ -287,9 +313,9 @@
   function statusSwitch({ active, toggleAttr, labelId }) {
     return `<div class="admin-drawer-status role-status">
       <span class="type-caption-sm type-weight-medium ${active ? "user-status-label" : "user-status-label--negative"}" id="${escapeHtml(labelId)}">${active ? "Active" : "Inactive"}</span>
-      <label class="blade-switch">
+      <label class="kn-switch">
         <input type="checkbox" role="switch" ${toggleAttr} ${active ? "checked" : ""} aria-labelledby="${escapeHtml(labelId)}" />
-        <span class="blade-switch__ui"></span>
+        <span class="kn-switch__ui"></span>
       </label>
     </div>`;
   }
@@ -333,16 +359,16 @@
           return `<span class="vis-pagination__ellipsis type-caption-sm" aria-hidden="true">…</span>`;
         }
         const on = item === current;
-        return `<button class="btn btn--tertiary btn--sm type-ui-sm vis-pagination__page${on ? " is-current" : ""}" type="button" ${pageAttr}="${item}" ${on ? 'aria-current="page"' : ""} aria-label="Page ${item}">${item}</button>`;
+        return `<button class="kn-btn btn btn--tertiary btn--sm type-ui-sm vis-pagination__page${on ? " is-current" : ""}" type="button" ${pageAttr}="${item}" ${on ? 'aria-current="page"' : ""} aria-label="Page ${item}">${item}</button>`;
       })
       .join("");
     const fmt = (n) => Number(n).toLocaleString();
     return `<nav class="admin-table__footer vis-pagination" aria-label="${escapeHtml(label || "Pagination")}">
       <p class="type-caption-sm vis-pagination__label" aria-live="polite">Showing ${fmt(from)}–${fmt(to)} of ${fmt(total)}</p>
       <div class="vis-pagination__pages">
-        <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" ${pageAttr}="${current - 1}" ${current <= 1 ? "disabled" : ""} aria-label="Previous page">Previous</button>
+        <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" ${pageAttr}="${current - 1}" ${current <= 1 ? "disabled" : ""} aria-label="Previous page">Previous</button>
         ${numbers}
-        <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" ${pageAttr}="${current + 1}" ${current >= safePages ? "disabled" : ""} aria-label="Next page">Next</button>
+        <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" ${pageAttr}="${current + 1}" ${current >= safePages ? "disabled" : ""} aria-label="Next page">Next</button>
       </div>
       <label class="vis-pagination__size type-caption-sm">Rows per page ${sizeSelect || ""}</label>
     </nav>`;
@@ -363,8 +389,8 @@
 
   function titleCell({ title, subtitle, href, navAttr, initials: letters, tone = "information" }) {
     return `<div class="admin-person">
-      <span class="avatar avatar--${escapeHtml(tone)} type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(letters || initials(title))}</span>
-      <a class="blade-link admin-name-link" href="${href}" ${navAttr || ""}>
+      <span class="avatar avatar--${escapeHtml(tone)} avatar--xsmall type-weight-semibold kn-avatar" aria-hidden="true">${escapeHtml(letters || initials(title))}</span>
+      <a class="kn-link admin-name-link" href="${href}" ${navAttr || ""}>
         <span class="type-body-sm type-weight-medium">${escapeHtml(title)}</span>
         <span class="type-caption-sm">${subtitle}</span>
       </a>
@@ -374,12 +400,12 @@
   function moreMenu({ id, open, items }) {
     const dots =
       '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="8" cy="13" r="1.25"/></svg>';
-    return `<div class="vis-menu vis-menu--end admin-more">
+    return `<div class="vis-menu vis-menu--end kn-dropdown admin-more">
       <button class="icon-btn" type="button" data-admin-more-toggle="${escapeHtml(id)}" aria-haspopup="menu" aria-expanded="${open}" aria-label="More actions">${dots}</button>
-      <div class="menu-overlay vis-menu__list" ${open ? "" : "hidden"} role="menu">
+      <div class="menu-overlay vis-menu__list kn-dropdown__overlay" ${open ? "" : "hidden"} role="menu">
         ${(items || [])
           .map(
-            (item) => `<button class="action-list-item type-ui-sm${item.tone === "negative" ? " is-negative" : ""}" type="button" role="menuitem" ${item.attr}>
+            (item) => `<button class="kn-action-list__item action-list-item type-ui-sm${item.tone === "negative" ? " is-negative" : ""}" type="button" role="menuitem" ${item.attr}>
               <span>${escapeHtml(item.label)}</span>
             </button>`
           )
@@ -588,7 +614,7 @@
     }
     const observe = tone === "observe";
     const link = href
-      ? `<a class="ai-ops-flag__link blade-link type-caption-sm" href="${escapeHtml(href)}">${escapeHtml(hrefLabel || "Open")}</a>`
+      ? `<a class="ai-ops-flag__link kn-link type-caption-sm" href="${escapeHtml(href)}">${escapeHtml(hrefLabel || "Open")}</a>`
       : "";
     const icon = observe
       ? `<span class="ai-ops-flag__icon" aria-hidden="true">✦</span>`
@@ -700,7 +726,7 @@
     const panelId = detailsId || "role-meta-details";
     return `<div class="role-meta">
       <div class="role-meta__bar">
-        <button class="blade-link type-caption-sm role-meta__details-btn" type="button" ${toggleAttr || "data-admin-details-toggle"} aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}">${open ? "Hide details" : "Details"}</button>
+        <button class="kn-link type-caption-sm role-meta__details-btn" type="button" ${toggleAttr || "data-admin-details-toggle"} aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}">${open ? "Hide details" : "Details"}</button>
       </div>
       <div class="role-meta__panel" id="${escapeHtml(panelId)}" ${open ? "" : "hidden"}>
         ${detailsHtml || ""}
@@ -710,7 +736,7 @@
 
   function roleViewEditToggle({ expanded, controlsId, attr }) {
     const open = Boolean(expanded);
-    return `<button class="btn btn--secondary btn--sm type-ui-sm" type="button" ${attr || "data-admin-drawer-mode"} aria-expanded="${open}" aria-controls="${escapeHtml(controlsId || "")}">
+    return `<button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" ${attr || "data-admin-drawer-mode"} aria-expanded="${open}" aria-controls="${escapeHtml(controlsId || "")}">
       ${open ? "Collapse editor" : "Edit"}
     </button>`;
   }
@@ -859,7 +885,7 @@
   }
 
   function permFilters({ query, selectedOnly, aiDescribe, aiLoading, aiNoMatch, aiAttr, totalCount, selectedCount, placeholder, prompts, inputMode = "describe" }) {
-    const assistantMark = `<img class="ai-describe-icon" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" />`;
+    const assistantMark = `<img class="ai-describe-icon klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" aria-hidden="true" />`;
     const searchIcon = `<svg class="search-input__svg-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15"><circle cx="6.5" cy="6.5" r="4"/><path d="M10.5 10.5 L14 14"/></svg>`;
     const attr = escapeHtml(aiAttr || "role");
     const searchOpen = inputMode === "search";
@@ -945,7 +971,7 @@
             <span class="perm-selected-toggle__pip"></span>
             Selected only
           </button>
-          ${selectedCount > 0 ? `<button class="perm-clear-all type-caption-sm blade-link" type="button" data-admin-perm-clear-all>Clear all</button>` : ""}
+          ${selectedCount > 0 ? `<button class="perm-clear-all type-caption-sm kn-link" type="button" data-admin-perm-clear-all>Clear all</button>` : ""}
         </div>
       </div>
     </div>`;
@@ -954,8 +980,8 @@
   function personCell(user, href) {
     const sub = [user.title, relativeTime(user.lastActive)].filter(Boolean).join(" · ");
     return `<div class="admin-person">
-      <span class="avatar avatar--information type-caption-sm type-weight-semibold" aria-hidden="true">${escapeHtml(initials(user.name))}</span>
-      <a class="blade-link admin-name-link" href="${href}" data-user-nav="detail" data-user-id="${escapeHtml(user.id)}">
+      <span class="avatar avatar--information avatar--xsmall type-weight-semibold kn-avatar" aria-hidden="true">${escapeHtml(initials(user.name))}</span>
+      <a class="kn-link admin-name-link" href="${href}" data-user-nav="detail" data-user-id="${escapeHtml(user.id)}">
         <span class="type-body-sm type-weight-medium">${escapeHtml(user.name)}</span>
         <span class="type-caption-sm">${escapeHtml(sub)}</span>
       </a>
@@ -978,29 +1004,29 @@
     const selected = options.find((item) => item.id === value);
     const isOpen = open === openKey;
     const check =
-      '<svg class="action-list-item__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>';
+      '<svg class="action-list-item__icon kn-action-list__leading" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>';
     const chevron =
       '<svg class="btn-icon-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
     const empty = includeEmpty
-      ? `<button class="action-list-item type-ui-sm" type="button" role="option" data-admin-select="${escapeHtml(openKey)}" data-admin-select-value="" aria-selected="${!value}">
-          ${!value ? check : '<span class="action-list-item__icon" aria-hidden="true"></span>'}
+      ? `<button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-admin-select="${escapeHtml(openKey)}" data-admin-select-value="" aria-selected="${!value}">
+          ${!value ? check : '<span class="action-list-item__icon kn-action-list__leading" aria-hidden="true"></span>'}
           <span>${escapeHtml(emptyLabel)}</span>
         </button>`
       : "";
-    return `<div class="vis-menu blade-select${compact ? " blade-select--compact" : ""}">
+    return `<div class="vis-menu kn-dropdown kn-select${compact ? " kn-select--compact" : ""}">
       <input type="hidden" id="${escapeHtml(id)}" name="${escapeHtml(name || id)}" value="${escapeHtml(value)}" />
-      <button class="${compact ? "vis-th-filter" : "blade-field__control"} blade-select__trigger ${compact ? "type-caption-sm" : "type-body-sm"}" type="button" data-admin-select-toggle="${escapeHtml(openKey)}" aria-haspopup="listbox" aria-expanded="${isOpen}" aria-controls="${escapeHtml(id)}-menu"${labelledBy ? ` aria-labelledby="${escapeHtml(labelledBy)}"` : ""}>
-        <span class="${selected ? "" : "blade-select__placeholder"}">${escapeHtml(selected?.label || placeholder)}</span>
+      <button class="${compact ? "vis-th-filter" : "kn-field__control"} kn-select__trigger ${compact ? "type-caption-sm" : "type-body-sm"}" type="button" data-admin-select-toggle="${escapeHtml(openKey)}" aria-haspopup="listbox" aria-expanded="${isOpen}" aria-controls="${escapeHtml(id)}-menu"${labelledBy ? ` aria-labelledby="${escapeHtml(labelledBy)}"` : ""}>
+        <span class="${selected ? "" : "kn-select__placeholder"}">${escapeHtml(selected?.label || placeholder)}</span>
         ${chevron}
       </button>
-      <div class="menu-overlay vis-menu__list blade-select__menu" id="${escapeHtml(id)}-menu" ${isOpen ? "" : "hidden"} role="listbox">
+      <div class="menu-overlay vis-menu__list kn-dropdown__overlay kn-select__menu" id="${escapeHtml(id)}-menu" ${isOpen ? "" : "hidden"} role="listbox">
         ${empty}
         ${options
           .map((item) => {
             const on = item.id === value;
-            return `<button class="action-list-item type-ui-sm" type="button" role="option" data-admin-select="${escapeHtml(openKey)}" data-admin-select-value="${escapeHtml(item.id)}" aria-selected="${on}">
-              ${on ? check : '<span class="action-list-item__icon" aria-hidden="true"></span>'}
-              <span class="action-list-item__copy">
+            return `<button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-admin-select="${escapeHtml(openKey)}" data-admin-select-value="${escapeHtml(item.id)}" aria-selected="${on}">
+              ${on ? check : '<span class="action-list-item__icon kn-action-list__leading" aria-hidden="true"></span>'}
+              <span class="action-list-item__copy kn-action-list__copy">
                 <span>${escapeHtml(item.label)}</span>
                 ${item.hint ? `<span class="type-caption-sm action-list-item__why">${escapeHtml(item.hint)}</span>` : ""}
               </span>
@@ -1033,7 +1059,7 @@
 
   function confirmIcon(tone = "negative") {
     const isNegative = tone === "negative";
-    return `<span class="blade-confirm__asset blade-confirm__asset--${isNegative ? "negative" : "neutral"}" aria-hidden="true">
+    return `<span class="kn-confirm__asset kn-confirm__asset--${isNegative ? "negative" : tone === "positive" ? "positive" : "neutral"}" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         ${
           isNegative
@@ -1059,24 +1085,28 @@
     if (!open) {
       return "";
     }
-    const primary = tone === "negative" ? "btn--primary btn--color-negative" : "btn--primary";
-    return `<div class="blade-modal-root">
-      <div class="blade-modal__overlay" ${dismissAttr} tabindex="-1"></div>
-      <div class="blade-modal blade-modal--confirm" role="alertdialog" aria-modal="true" aria-labelledby="${escapeHtml(titleId)}" aria-describedby="${escapeHtml(descId)}">
-        <header class="blade-modal__header">
+    const isNegative = tone === "negative";
+    const toneName = isNegative ? "negative" : tone === "positive" ? "positive" : "neutral";
+    const primary = isNegative
+      ? "btn--primary btn--color-negative kn-btn--negative"
+      : "btn--primary";
+    return `<div class="kn-modal-root">
+      <div class="kn-modal__overlay" ${dismissAttr} tabindex="-1"></div>
+      <div class="kn-modal kn-modal--confirm" role="alertdialog" aria-modal="true" aria-labelledby="${escapeHtml(titleId)}" aria-describedby="${escapeHtml(descId)}">
+        <header class="kn-modal__header">
           <button class="icon-btn" type="button" ${dismissAttr} aria-label="Close">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
           </button>
         </header>
-        <div class="blade-modal__body blade-confirm">
+        <div class="kn-modal__body kn-confirm kn-confirm--${toneName}" data-kn-component="confirmation">
           ${confirmIcon(tone)}
-          <div class="blade-confirm__copy">
-            <p class="type-body-lg type-weight-semibold" id="${escapeHtml(titleId)}">${escapeHtml(title)}</p>
-            <p class="type-body-md" id="${escapeHtml(descId)}">${escapeHtml(description)}</p>
+          <div class="kn-confirm__copy">
+            <p class="kn-confirm__title type-body-lg type-weight-semibold" id="${escapeHtml(titleId)}">${escapeHtml(title)}</p>
+            <p class="kn-confirm__description type-body-md" id="${escapeHtml(descId)}">${escapeHtml(description)}</p>
           </div>
-          <div class="blade-confirm__actions">
-            <button class="btn btn--tertiary btn--md type-ui-md" type="button" ${dismissAttr}>${escapeHtml(secondaryLabel)}</button>
-            <button class="btn ${primary} btn--md type-ui-md" type="button" ${confirmAttr}>${escapeHtml(confirmLabel)}</button>
+          <div class="kn-confirm__actions kn-btn-group kn-btn-group--loose">
+            <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" ${dismissAttr}>${escapeHtml(secondaryLabel)}</button>
+            <button class="btn ${primary} btn--md type-ui-md kn-btn" type="button" ${confirmAttr}>${escapeHtml(confirmLabel)}</button>
           </div>
         </div>
       </div>
@@ -1111,6 +1141,29 @@
     });
   }
 
+  /**
+   * Generic KlearNow modal shell (title + close button + arbitrary body/footer) for anything
+   * that isn't the icon+copy+2-button confirmDialog shape — e.g. a form or a status picker.
+   */
+  function modalShell({ open, id, titleId, title, dismissAttr, bodyHtml, footerHtml }) {
+    if (!open) {
+      return "";
+    }
+    return `<div class="kn-modal-root">
+      <div class="kn-modal__overlay" ${dismissAttr} tabindex="-1"></div>
+      <div class="kn-modal" ${id ? `id="${escapeHtml(id)}"` : ""} role="dialog" aria-modal="true" aria-labelledby="${escapeHtml(titleId)}">
+        <header class="kn-modal__header">
+          <h2 class="type-heading-h6 type-weight-semibold" id="${escapeHtml(titleId)}">${escapeHtml(title)}</h2>
+          <button class="icon-btn" type="button" ${dismissAttr} aria-label="Close">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </header>
+        <div class="kn-modal__body">${bodyHtml || ""}</div>
+        ${footerHtml ? `<footer class="kn-modal__footer">${footerHtml}</footer>` : ""}
+      </div>
+    </div>`;
+  }
+
   function multiSelect({
     labelledBy,
     triggerAttr,
@@ -1132,7 +1185,7 @@
     const chipItems = chipsInTrigger ? chips || [] : [];
     const triggerAria = `${triggerAttr} aria-haspopup="listbox" aria-expanded="${open}" aria-controls="${escapeHtml(menuId)}" aria-labelledby="${escapeHtml(labelledBy)}"`;
     const triggerBody = chipItems.length
-      ? `<div class="blade-select__chips">${chipItems
+      ? `<div class="kn-select__chips">${chipItems
           .map((chip) => {
             const label = escapeHtml(chip.label);
             const aiClass = chip.aiSuggested ? " is-ai-suggested" : "";
@@ -1142,42 +1195,44 @@
             const tip = chip.aiSuggested && (chip.title || chip.reason)
               ? ` title="${escapeHtml(chip.title || chip.reason)}"`
               : "";
-            return `<span class="badge type-caption-sm blade-select__chip${aiClass}"${tip}>
-              ${sparkle}<span class="blade-select__chip-label">${label}</span>
-              <button class="blade-select__chip-remove" type="button" ${chip.removeAttr} aria-label="Remove ${label}">×</button>
+            const closeSvg =
+              '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+            return `<span class="kn-tag kn-tag--medium kn-select__chip${aiClass}"${tip}>
+              ${sparkle}<span class="kn-tag__label kn-select__chip-label type-caption-sm">${label}</span>
+              <button class="kn-tag__dismiss kn-select__chip-remove" type="button" ${chip.removeAttr} aria-label="Close ${label} tag">${closeSvg}</button>
             </span>`;
           })
           .join("")}</div>`
-      : `<span class="${selected && !chipsInTrigger ? "" : "blade-select__placeholder"}">${escapeHtml(triggerLabel)}</span>`;
+      : `<span class="${selected && !chipsInTrigger ? "" : "kn-select__placeholder"}">${escapeHtml(triggerLabel)}</span>`;
     const trigger = chipsInTrigger
-      ? `<div class="blade-field__control blade-select__trigger type-body-sm${chipItems.length ? " blade-select__trigger--filled" : ""}" role="combobox" aria-autocomplete="list" tabindex="0" ${triggerAria}>
+      ? `<div class="kn-field__control kn-select__trigger type-body-sm${chipItems.length ? " kn-select__trigger--filled" : ""}" role="combobox" aria-autocomplete="list" tabindex="0" ${triggerAria}>
         ${triggerBody}
         ${chevron}
       </div>`
-      : `<button class="blade-field__control blade-select__trigger type-body-sm" type="button" ${triggerAria}>
+      : `<button class="kn-field__control kn-select__trigger type-body-sm" type="button" ${triggerAria}>
         ${triggerBody}
         ${chevron}
       </button>`;
-    return `<div class="vis-menu blade-select blade-select--multi${chipsInTrigger ? " blade-select--chips" : ""}">
+    return `<div class="vis-menu kn-dropdown kn-select kn-select--multi${chipsInTrigger ? " kn-select--chips" : ""}">
       ${trigger}
-      <div class="menu-overlay vis-menu__list blade-select__menu blade-select__menu--multi" id="${escapeHtml(menuId)}" ${open ? "" : "hidden"} role="listbox" aria-multiselectable="true" aria-labelledby="${escapeHtml(labelledBy)}">
-        <div class="blade-select__search">
-          <input class="blade-field__control type-body-sm" id="${escapeHtml(searchId)}" type="search" placeholder="${escapeHtml(searchPlaceholder)}" value="${escapeHtml(searchValue || "")}" aria-label="${escapeHtml(searchLabel)}" />
+      <div class="menu-overlay vis-menu__list kn-dropdown__overlay kn-select__menu kn-select__menu--multi" id="${escapeHtml(menuId)}" ${open ? "" : "hidden"} role="listbox" aria-multiselectable="true" aria-labelledby="${escapeHtml(labelledBy)}">
+        <div class="kn-select__search">
+          <input class="kn-field__control type-body-sm" id="${escapeHtml(searchId)}" type="search" placeholder="${escapeHtml(searchPlaceholder)}" value="${escapeHtml(searchValue || "")}" aria-label="${escapeHtml(searchLabel)}" />
         </div>
-        <div class="blade-select__options">
+        <div class="kn-select__options">
           ${
             (options || []).length
               ? options
                   .map((item) => {
                     const on = Boolean(item.checked);
-                    return `<label class="blade-check blade-select__option ${on ? "is-selected" : ""}">
+                    return `<label class="kn-checkbox kn-check kn-select__option ${on ? "is-selected" : ""}">
                       <input type="checkbox" ${item.attr} ${on ? "checked" : ""} />
-                      <span class="blade-check__box" aria-hidden="true"></span>
+                      <span class="kn-check__box" aria-hidden="true"></span>
                       <span class="type-body-sm">${escapeHtml(item.label)}</span>
                     </label>`;
                   })
                   .join("")
-              : `<p class="type-caption-sm blade-select__empty">${escapeHtml(emptyLabel || "No matches.")}</p>`
+              : `<p class="type-caption-sm kn-select__empty">${escapeHtml(emptyLabel || "No matches.")}</p>`
           }
         </div>
       </div>
@@ -1197,7 +1252,7 @@
         </button>
         <span class="visually-hidden" id="${escapeHtml(panelId)}-includes">${escapeHtml(intro)} ${escapeHtml(titles.join(", "))}</span>`
       : "";
-    return `<div class="role-perm__group blade-accordion-item${open ? " is-open" : ""}${toneClass}" data-perm-group="${escapeHtml(id)}">
+    return `<div class="role-perm__group kn-accordion kn-accordion--transparent kn-accordion__item${open ? " is-open" : ""}${toneClass}" data-perm-group="${escapeHtml(id)}">
       <h3 class="role-perm__heading">
         <div class="role-perm__summary">
           <button class="role-perm__toggle" type="button" id="${escapeHtml(btnId)}" data-admin-accordion="${escapeHtml(id)}" aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}" aria-labelledby="${escapeHtml(nameId)}">
@@ -1206,14 +1261,14 @@
               ${leadingExtra || ""}
             </span>
           </button>
-          <span class="role-perm__trailing">
+          <span class="role-perm__trailing kn-accordion__trailing">
             <span class="role-perm__info-slot">${infoBtn}</span>
             <span class="role-perm__count-slot">${trailing || ""}</span>
-            <svg class="kh-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
+            <svg class="kn-accordion__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" width="16" height="16"><path d="M4 6l4 4 4-4" /></svg>
           </span>
         </div>
       </h3>
-      <div class="role-perm__body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>
+      <div class="role-perm__body kn-accordion__body" id="${escapeHtml(panelId)}" role="region" aria-labelledby="${escapeHtml(btnId)}" ${open ? "" : "hidden"}>
         ${body}
       </div>
     </div>`;
@@ -1300,9 +1355,9 @@
   }
 
   function applicableHead({ titleId, title, allSelected, attr }) {
-    return `<div class="blade-field__head">
-      <span class="type-caption-sm type-weight-medium blade-field__label" id="${escapeHtml(titleId)}">${escapeHtml(title)}</span>
-      <button class="blade-link type-caption-sm" type="button" ${attr}>${allSelected ? "Unselect All" : "Select All"}</button>
+    return `<div class="kn-field__head">
+      <span class="type-caption-sm type-weight-medium kn-field__label kn-form-label" id="${escapeHtml(titleId)}">${escapeHtml(title)}</span>
+      <button class="kn-link type-caption-sm" type="button" ${attr}>${allSelected ? "Unselect All" : "Select All"}</button>
     </div>`;
   }
 
@@ -1329,15 +1384,15 @@
     if (!scope) {
       return null;
     }
-    const modalRoot = [...scope.querySelectorAll(".blade-modal-root")].find(
+    const modalRoot = [...scope.querySelectorAll(".kn-modal-root")].find(
       (node) => !node.hasAttribute("hidden") && node.querySelector("[aria-modal='true']")
     );
     const modal = modalRoot?.querySelector("[aria-modal='true']");
     if (modal) {
       return modal;
     }
-    const drawerRoot = [...scope.querySelectorAll(".blade-drawer-root.is-open")].find((node) => !node.hasAttribute("hidden"));
-    return drawerRoot?.querySelector(".blade-drawer[aria-modal='true']") || null;
+    const drawerRoot = [...scope.querySelectorAll(".kn-drawer-root.is-open")].find((node) => !node.hasAttribute("hidden"));
+    return drawerRoot?.querySelector(".kn-drawer[aria-modal='true']") || null;
   }
 
   function trapFocus(container, event) {
@@ -1371,7 +1426,19 @@
   }
 
   function syncOverlayFocus(scope) {
+    window.KNEmpty?.hydrate(scope);
+    window.KNFileUpload?.hydrate(scope);
+    window.KNFilterChip?.hydrate(scope);
+    window.KNForm?.hydrate(scope);
+    window.KNTag?.hydrate(scope);
+    window.KNSearchInput?.hydrate(scope);
+    window.KNPhone?.hydrate(scope);
     const overlay = activeOverlay(scope);
+    if (overlay) {
+      window.KNConfirmation?.hydrate(overlay);
+      window.KNDrawer?.hydrate(overlay.closest(".kn-drawer-root") || overlay);
+      window.KNDropdown?.hydrate(overlay);
+    }
     const key = overlay ? overlay.getAttribute("aria-labelledby") || "open" : "";
     if (overlayKeys.get(scope) === key) {
       return overlay;
@@ -1391,14 +1458,14 @@
     if (!scope) {
       return null;
     }
-    const overlay = activeOverlay(scope) || scope.querySelector?.(".blade-drawer[aria-modal='true']");
+    const overlay = activeOverlay(scope) || scope.querySelector?.(".kn-drawer[aria-modal='true']");
     if (!overlay) {
       return null;
     }
-    if (overlay.matches(".blade-drawer__body")) {
+    if (overlay.matches(".kn-drawer__body")) {
       return overlay;
     }
-    return overlay.querySelector(".blade-drawer__body");
+    return overlay.querySelector(".kn-drawer__body");
   }
 
   function captureDrawerScroll(scope) {
@@ -1473,17 +1540,19 @@
 
   function emptyState({ title, description, primaryLabel, primaryHref, primaryAttr, secondaryLabel, secondaryAttr }) {
     const secondary = secondaryLabel
-      ? `<button class="btn btn--tertiary btn--md type-ui-md" type="button" ${secondaryAttr || ""}>${escapeHtml(secondaryLabel)}</button>`
+      ? `<button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" ${secondaryAttr || ""}>${escapeHtml(secondaryLabel)}</button>`
       : "";
     const primary = primaryLabel
       ? primaryHref
-        ? `<a class="btn btn--primary btn--md type-ui-md" href="${escapeHtml(primaryHref)}" ${primaryAttr || ""}>${escapeHtml(primaryLabel)}</a>`
-        : `<button class="btn btn--primary btn--md type-ui-md" type="button" ${primaryAttr || ""}>${escapeHtml(primaryLabel)}</button>`
+        ? `<a class="btn btn--primary btn--md type-ui-md kn-btn" href="${escapeHtml(primaryHref)}" ${primaryAttr || ""}>${escapeHtml(primaryLabel)}</a>`
+        : `<button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" ${primaryAttr || ""}>${escapeHtml(primaryLabel)}</button>`
       : "";
-    return `<div class="empty-state role-empty">
-      <h2 class="type-heading-h5 type-weight-semibold">${escapeHtml(title)}</h2>
-      <p class="type-body-sm">${escapeHtml(description)}</p>
-      <div class="empty-state__actions">${secondary}${primary}</div>
+    return `<div class="empty-state role-empty kn-empty">
+      <div class="kn-empty__copy">
+      <h2 class="kn-empty__title type-heading-h5 type-weight-semibold">${escapeHtml(title)}</h2>
+      <p class="kn-empty__desc type-body-sm">${escapeHtml(description)}</p>
+      </div>
+      <div class="kn-empty__actions empty-state__actions">${secondary}${primary}</div>
     </div>`;
   }
 
@@ -1586,6 +1655,7 @@
         input.indeterminate = should;
       }
     });
+    window.KNCheckbox?.hydrate(root);
   }
 
   function emptyPermDepResult(permissions) {
@@ -1600,11 +1670,24 @@
   }
 
   /**
+   * Guard against a malformed permission source silently degrading to an empty Set —
+   * the SEV-1 wipe (docs/form-integrity-incident.md) reproduces via this vector too if a
+   * caller ever passes the wrong shape (e.g. a dependency-result object instead of
+   * `.permissions`). null/undefined stays legal — it means "start from no permissions".
+   */
+  function assertPermSource(value, fnName) {
+    if (value != null && !Array.isArray(value) && typeof value[Symbol.iterator] !== "function") {
+      throw new TypeError(`${fnName}: expected a Set, Array, or null/undefined permission source, got ${typeof value}`);
+    }
+  }
+
+  /**
    * Apply Read-dependency for a single permission key toggle.
    * Write actions (create/update/delete) imply Read; Read alone does not imply writes.
    * Unchecking Read while any write remains is blocked.
    */
   function applyPermDependency(permissionsSet, key, checked, actions = DEFAULT_PERM_ACTIONS) {
+    assertPermSource(permissionsSet, "applyPermDependency");
     // Always copy — never mutate the caller's Set. Callers that sync via clear()+add
     // will wipe everything if we return the same reference.
     const permissions = new Set(toKeyList(permissionsSet));
@@ -1658,6 +1741,7 @@
    * all writes for that module are also being removed (or already absent).
    */
   function applyPermDependencyToggle(permissionsSet, keys, actions = DEFAULT_PERM_ACTIONS) {
+    assertPermSource(permissionsSet, "applyPermDependencyToggle");
     // Always copy — row/col/group toggles call syncPermSet(target, result.permissions).
     // Returning the same Set made syncPermSet clear()+forEach a full cascade wipe.
     const permissions = new Set(toKeyList(permissionsSet));
@@ -1737,6 +1821,7 @@
 
   /** Ensure every module with a write action also has Read (e.g. AI suggest). */
   function ensureWriteImpliesRead(permissionsSet, actions = DEFAULT_PERM_ACTIONS) {
+    assertPermSource(permissionsSet, "ensureWriteImpliesRead");
     const permissions = new Set(toKeyList(permissionsSet));
     if (!actions.includes("read")) {
       return emptyPermDepResult(permissions);
@@ -1798,8 +1883,10 @@
     if (target === next) {
       return target;
     }
-    // Refuse to clear when next is missing — a null/undefined next used to empty the catalog.
-    if (next == null) {
+    // Refuse to clear when next is missing, or isn't a Set/Array/iterable — a caller
+    // passing e.g. the whole dependency-result object instead of `.permissions` used to
+    // silently degrade to an empty list here and wipe target. Only a real key list may proceed.
+    if (next == null || !(Array.isArray(next) || typeof next[Symbol.iterator] === "function")) {
       return target;
     }
     target.clear();
@@ -1893,8 +1980,11 @@
   }
 
   /**
-   * Prefer the richer of stored vs drawer-open snapshot when evaluating save risk.
-   * Prevents a silent wipe when localStorage was already corrupted mid-session.
+   * Union of stored vs drawer-open snapshot when evaluating save risk — comparing list
+   * *lengths* and picking one wholesale under-detects reduction whenever the two lists
+   * are the same size but hold different keys. The union is always at least as rich as
+   * either side, so it prevents a silent wipe when localStorage was already corrupted
+   * mid-session or the two snapshots diverged.
    */
   function permissionBaselineForSave(storedPermissions, formSnapshot) {
     const stored = toKeyList(storedPermissions);
@@ -1904,7 +1994,7 @@
           .map((key) => key.trim())
           .filter(Boolean)
       : [];
-    return opened.length > stored.length ? opened : stored;
+    return [...new Set([...stored, ...opened])];
   }
 
   /**
@@ -1996,7 +2086,7 @@
     toolbar,
     colFilter,
     colSelect,
-    colBladeSelect,
+    colKnSelect,
     emptyColFilter,
     captureColFilterFocus,
     restoreColFilterFocus,
@@ -2007,6 +2097,7 @@
     handleSelectClick,
     discardModal,
     confirmModal,
+    modalShell,
     emptyState,
     statusBadge,
     tmStatusBadge,
@@ -2077,8 +2168,12 @@
     repairNearEmptySeedRoles
   };
 
+  window.KNAvatar = Object.assign(window.KNAvatar || {}, {
+    initials: knAvatarInitials
+  });
+
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".blade-select, [data-admin-select-toggle], .admin-more, [data-admin-more-toggle]")) {
+    if (event.target.closest(".kn-select, [data-admin-select-toggle], .admin-more, [data-admin-more-toggle]")) {
       return;
     }
     document.dispatchEvent(new CustomEvent("kn-close-selects"));

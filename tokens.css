@@ -1,65 +1,223 @@
 /**
- * KlearNow Engine — Blade Theme + KN brand
+ * KlearNow Engine — design tokens
  *
- * Theme shape: Blade ThemeTokens
- * https://blade.razorpay.com/?path=/docs/tokens-theme--docs
- * packages/blade/src/tokens/theme/theme.ts
+ * `--theme-*` is the raw scale (spacing, type, radius, motion, semantic color).
+ * `--kn-*` aliases that scale for product CSS. Component styles must use
+ * semantic `--kn-color-*` / `--theme-spacing-*` / type tokens — never primitives.
  *
- * Brand overrides (WhiteLabelling):
- * - theme.colors uses KlearNow primitives / semantic values, not Razorpay azure
- * - theme.typography.fonts.family is Inter (KN), not Blade’s default family
+ * Existing brand hex values are unchanged. Incomplete palettes are expanded
+ * to a 50–1000 shade scale around those anchors.
  *
- * `--theme-*` is the Blade theme. `--kn-*` aliases it so existing CSS keeps working.
+ * Space Grotesk is declared only here (import + --theme-typography-fonts-family-display).
+ * Product CSS must use --kn-font-family-display, never the family name.
  */
 
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
 :root {
+  color-scheme: light;
+
   /* -------------------------------------------------------------------------
-     1.1 KN Color Primitives — never use these in component CSS
+     KlearNow Theme (light). Colors, type sizes, and elevation live here.
+     theme.js syncs spacing / size / radius / border width / opacity / motion
+     as rem (breakpoints as px) and sets data-theme / data-color-scheme.
+     Do not write type sizes or --theme-typography-fonts-family-display from JS.
      ------------------------------------------------------------------------- */
-  --kn-primitive-indigo-500: #003f5b;
-  --kn-primitive-blue-sapphire-500: #005d7b;
-  --kn-primitive-marigold-500: #f69000;
-  --kn-primitive-red-500: #ff3d32;
-  --kn-primitive-green-500: #22c55e;
-
-  --kn-primitive-surface-0: #ffffff;
-  --kn-primitive-surface-50: #fafafa;
-  --kn-primitive-surface-100: #f7f8f9;
-  --kn-primitive-surface-200: #f5f5f5;
-  --kn-primitive-surface-300: #eeeeee;
-  --kn-primitive-surface-400: #dadee3;
-  --kn-primitive-surface-500: #9e9e9e;
-  --kn-primitive-surface-600: #64748b;
-  --kn-primitive-surface-700: #556376;
-  --kn-primitive-surface-800: #465161;
-  --kn-primitive-surface-900: #282e38;
-
-  --kn-primitive-bluegray-400: #33657c;
-  --kn-primitive-bluegray-500: #556376;
-  --kn-primitive-red-50: #fff5f5;
-  --kn-primitive-red-200: #ffd0ce;
-  --kn-primitive-red-600: #d9342b;
-  --kn-primitive-gold-50: #fef4e6;
-  --kn-primitive-gold-200: #fcddb0;
-  --kn-primitive-gold-600: #e08300;
-  --kn-primitive-green-600: #1da750;
-  --kn-primitive-information-100: #d0e1fd;
-  --kn-primitive-sea-50: #e6ecef;
-
-  /* Purple scale — Klear Assistant accents (--ai-assistant-accent*) */
-  --kn-primitive-purple-50: #f3f1fb;
-  --kn-primitive-purple-100: #e4dff6;
-  --kn-primitive-purple-200: #c9c0ed;
-  --kn-primitive-purple-400: #8b7de0;
-  --kn-primitive-purple-500: #6c5dd3;
-  --kn-primitive-purple-600: #5648b8;
-
-  --kn-primitive-alpha-white-300: rgba(255, 255, 255, 0.18);
-  --kn-primitive-alpha-black-500: rgba(40, 46, 56, 0.09);
 
   /* -------------------------------------------------------------------------
-     Blade theme.name + theme.colors.onLight
-     Color VALUES are KlearNow. Token PATHS are Blade.
+     Color primitives — never use these in component CSS
+     Steps marked KEEP are original brand hex values.
+     ------------------------------------------------------------------------- */
+  --kn-primitive-indigo-50: #ebf0f2;
+  --kn-primitive-indigo-100: #d1dce1;
+  --kn-primitive-indigo-200: #9db5c0;
+  --kn-primitive-indigo-300: #698e9e;
+  --kn-primitive-indigo-400: #35677d;
+  --kn-primitive-indigo-500: #003f5b; /* KEEP */
+  --kn-primitive-indigo-600: #003750;
+  --kn-primitive-indigo-700: #002d42;
+  --kn-primitive-indigo-800: #002333;
+  --kn-primitive-indigo-900: #001a26;
+  --kn-primitive-indigo-1000: #001219;
+
+  --kn-primitive-blue-sapphire-50: #ebf2f4;
+  --kn-primitive-blue-sapphire-100: #d1e1e7;
+  --kn-primitive-blue-sapphire-200: #9dc0cc;
+  --kn-primitive-blue-sapphire-300: #699fb1;
+  --kn-primitive-blue-sapphire-400: #357e96;
+  --kn-primitive-blue-sapphire-500: #005d7b; /* KEEP */
+  --kn-primitive-blue-sapphire-600: #00526c;
+  --kn-primitive-blue-sapphire-700: #004359;
+  --kn-primitive-blue-sapphire-800: #003445;
+  --kn-primitive-blue-sapphire-900: #002734;
+  --kn-primitive-blue-sapphire-1000: #001a22;
+
+  --kn-primitive-marigold-50: #fef6eb;
+  --kn-primitive-marigold-100: #fdebd1;
+  --kn-primitive-marigold-200: #fbd49d;
+  --kn-primitive-marigold-300: #f9bd69;
+  --kn-primitive-marigold-400: #f8a735;
+  --kn-primitive-marigold-500: #f69000; /* KEEP */
+  --kn-primitive-marigold-600: #d87f00;
+  --kn-primitive-marigold-700: #b16800;
+  --kn-primitive-marigold-800: #8a5100;
+  --kn-primitive-marigold-900: #673c00;
+  --kn-primitive-marigold-1000: #452800;
+
+  --kn-primitive-red-50: #fff5f5; /* KEEP */
+  --kn-primitive-red-100: #ffe9e8;
+  --kn-primitive-red-200: #ffd0ce; /* KEEP */
+  --kn-primitive-red-300: #ff9f9a;
+  --kn-primitive-red-400: #ff6e66;
+  --kn-primitive-red-500: #ff3d32; /* KEEP */
+  --kn-primitive-red-600: #d9342b; /* KEEP */
+  --kn-primitive-red-700: #b82c24;
+  --kn-primitive-red-800: #8f221c;
+  --kn-primitive-red-900: #6b1a15;
+  --kn-primitive-red-1000: #47110e;
+
+  --kn-primitive-green-50: #edfaf2;
+  --kn-primitive-green-100: #d6f4e2;
+  --kn-primitive-green-200: #a9e8c1;
+  --kn-primitive-green-300: #7cdca0;
+  --kn-primitive-green-400: #4fd17f;
+  --kn-primitive-green-500: #22c55e; /* KEEP */
+  --kn-primitive-green-600: #1da750; /* KEEP */
+  --kn-primitive-green-700: #188e44;
+  --kn-primitive-green-800: #136e35;
+  --kn-primitive-green-900: #0e5327;
+  --kn-primitive-green-1000: #0a371a;
+
+  --kn-primitive-gold-50: #fef4e6; /* KEEP */
+  --kn-primitive-gold-100: #fdecd4;
+  --kn-primitive-gold-200: #fcddb0; /* KEEP */
+  --kn-primitive-gold-300: #f5c784;
+  --kn-primitive-gold-400: #eeb058;
+  --kn-primitive-gold-500: #e79a2c;
+  --kn-primitive-gold-600: #e08300; /* KEEP */
+  --kn-primitive-gold-700: #a15e00;
+  --kn-primitive-gold-800: #7d4900;
+  --kn-primitive-gold-900: #5e3700;
+  --kn-primitive-gold-1000: #3f2500;
+
+  --kn-primitive-purple-50: #f3f1fb; /* KEEP */
+  --kn-primitive-purple-100: #e4dff6; /* KEEP */
+  --kn-primitive-purple-200: #c9c0ed; /* KEEP */
+  --kn-primitive-purple-300: #aa9fe7;
+  --kn-primitive-purple-400: #8b7de0; /* KEEP */
+  --kn-primitive-purple-500: #6c5dd3; /* KEEP */
+  --kn-primitive-purple-600: #5648b8; /* KEEP */
+  --kn-primitive-purple-700: #4e4398;
+  --kn-primitive-purple-800: #3c3476;
+  --kn-primitive-purple-900: #2d2759;
+  --kn-primitive-purple-1000: #1e1a3b;
+
+  --kn-primitive-bluegray-50: #f1f3f4;
+  --kn-primitive-bluegray-100: #d6dfe3;
+  --kn-primitive-bluegray-200: #a0b6c1;
+  --kn-primitive-bluegray-300: #6a8e9f;
+  --kn-primitive-bluegray-400: #33657c; /* KEEP */
+  --kn-primitive-bluegray-500: #556376; /* KEEP */
+  --kn-primitive-bluegray-600: #4b5768;
+  --kn-primitive-bluegray-700: #3d4755;
+  --kn-primitive-bluegray-800: #303742;
+  --kn-primitive-bluegray-900: #242a32;
+  --kn-primitive-bluegray-1000: #181c21;
+
+  --kn-primitive-information-50: #f0f6fe;
+  --kn-primitive-information-100: #d0e1fd; /* KEEP */
+  --kn-primitive-information-200: #9dc1fb;
+  --kn-primitive-information-300: #629bf8;
+  --kn-primitive-information-400: #2876f6;
+  --kn-primitive-information-500: #0a5be1;
+  --kn-primitive-information-600: #084bba;
+  --kn-primitive-information-700: #063b93;
+  --kn-primitive-information-800: #052c6c;
+  --kn-primitive-information-900: #03204e;
+  --kn-primitive-information-1000: #021431;
+
+  --kn-primitive-sea-50: #e6ecef; /* KEEP */
+  --kn-primitive-sea-100: #cdd9df;
+  --kn-primitive-sea-200: #a8bdc7;
+  --kn-primitive-sea-300: #7c9cab;
+  --kn-primitive-sea-400: #5c7e8f;
+  --kn-primitive-sea-500: #486370;
+  --kn-primitive-sea-600: #384d57;
+  --kn-primitive-sea-700: #2c3c44;
+  --kn-primitive-sea-800: #202c32;
+  --kn-primitive-sea-900: #182125;
+  --kn-primitive-sea-1000: #101619;
+
+  --kn-primitive-surface-0: #ffffff; /* KEEP */
+  --kn-primitive-surface-50: #fafafa; /* KEEP */
+  --kn-primitive-surface-100: #f7f8f9; /* KEEP */
+  --kn-primitive-surface-200: #f5f5f5; /* KEEP */
+  --kn-primitive-surface-300: #eeeeee; /* KEEP */
+  --kn-primitive-surface-400: #dadee3; /* KEEP */
+  --kn-primitive-surface-500: #9e9e9e; /* KEEP */
+  --kn-primitive-surface-600: #64748b; /* KEEP */
+  --kn-primitive-surface-700: #556376; /* KEEP */
+  --kn-primitive-surface-800: #465161; /* KEEP */
+  --kn-primitive-surface-900: #282e38; /* KEEP */
+  --kn-primitive-surface-1000: #14171c;
+
+  --kn-primitive-alpha-white-50: color-mix(in srgb, var(--kn-primitive-surface-0) 9%, transparent);
+  --kn-primitive-alpha-white-100: color-mix(in srgb, var(--kn-primitive-surface-0) 18%, transparent);
+  --kn-primitive-alpha-white-300: rgba(255, 255, 255, 0.18); /* KEEP */
+  --kn-primitive-alpha-white-400: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --kn-primitive-alpha-black-100: color-mix(in srgb, var(--kn-primitive-surface-900) 9%, transparent);
+  --kn-primitive-alpha-black-500: rgba(40, 46, 56, 0.09); /* KEEP */
+  --kn-primitive-indigo-a50: color-mix(in srgb, var(--kn-primitive-indigo-500) 9%, transparent);
+  --kn-primitive-indigo-a100: color-mix(in srgb, var(--kn-primitive-indigo-500) 18%, transparent);
+  --kn-primitive-indigo-a150: color-mix(in srgb, var(--kn-primitive-indigo-500) 24%, transparent);
+  --kn-primitive-indigo-a200: color-mix(in srgb, var(--kn-primitive-indigo-500) 32%, transparent);
+  --kn-primitive-indigo-a400: color-mix(in srgb, var(--kn-primitive-indigo-500) 64%, transparent);
+  --kn-primitive-indigo-a500: color-mix(in srgb, var(--kn-primitive-indigo-500) 72%, transparent);
+  --kn-primitive-indigo-a600: color-mix(in srgb, var(--kn-primitive-indigo-500) 80%, transparent);
+  --kn-primitive-indigo-a700: color-mix(in srgb, var(--kn-primitive-indigo-500) 88%, transparent);
+  --kn-primitive-purple-a50: color-mix(in srgb, var(--kn-primitive-purple-500) 9%, transparent);
+  --kn-primitive-purple-a100: color-mix(in srgb, var(--kn-primitive-purple-500) 18%, transparent);
+  --kn-primitive-purple-a150: color-mix(in srgb, var(--kn-primitive-purple-500) 24%, transparent);
+  --kn-primitive-purple-a200: color-mix(in srgb, var(--kn-primitive-purple-500) 32%, transparent);
+  --kn-primitive-purple-a400: color-mix(in srgb, var(--kn-primitive-purple-500) 64%, transparent);
+  --kn-primitive-purple-a500: color-mix(in srgb, var(--kn-primitive-purple-500) 72%, transparent);
+  --kn-primitive-purple-a600: color-mix(in srgb, var(--kn-primitive-purple-500) 80%, transparent);
+  --kn-primitive-purple-a700: color-mix(in srgb, var(--kn-primitive-purple-500) 88%, transparent);
+  --kn-primitive-green-a50: color-mix(in srgb, var(--kn-primitive-green-600) 9%, transparent);
+  --kn-primitive-green-a100: color-mix(in srgb, var(--kn-primitive-green-600) 18%, transparent);
+  --kn-primitive-green-a150: color-mix(in srgb, var(--kn-primitive-green-600) 24%, transparent);
+  --kn-primitive-green-a200: color-mix(in srgb, var(--kn-primitive-green-600) 32%, transparent);
+  --kn-primitive-green-a400: color-mix(in srgb, var(--kn-primitive-green-600) 64%, transparent);
+  --kn-primitive-green-a500: color-mix(in srgb, var(--kn-primitive-green-600) 72%, transparent);
+  --kn-primitive-green-a600: color-mix(in srgb, var(--kn-primitive-green-600) 80%, transparent);
+  --kn-primitive-green-a700: color-mix(in srgb, var(--kn-primitive-green-600) 88%, transparent);
+  --kn-primitive-red-a50: color-mix(in srgb, var(--kn-primitive-red-600) 9%, transparent);
+  --kn-primitive-red-a100: color-mix(in srgb, var(--kn-primitive-red-600) 18%, transparent);
+  --kn-primitive-red-a150: color-mix(in srgb, var(--kn-primitive-red-600) 24%, transparent);
+  --kn-primitive-red-a200: color-mix(in srgb, var(--kn-primitive-red-600) 32%, transparent);
+  --kn-primitive-red-a400: color-mix(in srgb, var(--kn-primitive-red-600) 64%, transparent);
+  --kn-primitive-red-a500: color-mix(in srgb, var(--kn-primitive-red-600) 72%, transparent);
+  --kn-primitive-red-a600: color-mix(in srgb, var(--kn-primitive-red-600) 80%, transparent);
+  --kn-primitive-red-a700: color-mix(in srgb, var(--kn-primitive-red-600) 88%, transparent);
+  --kn-primitive-gold-a50: color-mix(in srgb, var(--kn-primitive-gold-600) 9%, transparent);
+  --kn-primitive-gold-a100: color-mix(in srgb, var(--kn-primitive-gold-600) 18%, transparent);
+  --kn-primitive-gold-a150: color-mix(in srgb, var(--kn-primitive-gold-600) 24%, transparent);
+  --kn-primitive-gold-a200: color-mix(in srgb, var(--kn-primitive-gold-600) 32%, transparent);
+  --kn-primitive-gold-a400: color-mix(in srgb, var(--kn-primitive-gold-600) 64%, transparent);
+  --kn-primitive-gold-a500: color-mix(in srgb, var(--kn-primitive-gold-600) 72%, transparent);
+  --kn-primitive-gold-a600: color-mix(in srgb, var(--kn-primitive-gold-600) 80%, transparent);
+  --kn-primitive-gold-a700: color-mix(in srgb, var(--kn-primitive-gold-600) 88%, transparent);
+  --kn-primitive-blue-sapphire-a50: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 9%, transparent);
+  --kn-primitive-blue-sapphire-a100: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 18%, transparent);
+  --kn-primitive-blue-sapphire-a150: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 24%, transparent);
+  --kn-primitive-blue-sapphire-a200: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 32%, transparent);
+  --kn-primitive-blue-sapphire-a400: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 64%, transparent);
+  --kn-primitive-blue-sapphire-a500: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 72%, transparent);
+  --kn-primitive-blue-sapphire-a600: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 80%, transparent);
+  --kn-primitive-blue-sapphire-a700: color-mix(in srgb, var(--kn-primitive-blue-sapphire-500) 88%, transparent);
+
+  /* -------------------------------------------------------------------------
+     Semantic color — light scheme
      ------------------------------------------------------------------------- */
   --theme-name: klearnow;
 
@@ -67,9 +225,13 @@
 
   --theme-colors-surface-background-gray-subtle: var(--kn-primitive-surface-50);
   --theme-colors-surface-background-gray-moderate: var(--kn-primitive-surface-100);
-  --theme-colors-surface-background-gray-intense: var(--kn-primitive-surface-900);
+  /* Light scheme canvas (white). surface-900 is the dark-scheme canvas — keep it
+     on text, elevation, and --on-dark chrome, not as a chip/well fill here. */
+  --theme-colors-surface-background-gray-intense: var(--kn-primitive-surface-0);
   --theme-colors-surface-background-primary-faint: var(--theme-colors-transparent);
-  --theme-colors-surface-background-primary-subtle: var(--kn-primitive-bluegray-400);
+  /* Light primary wash of indigo-500 (#003f5b). Do not use bluegray-400 here —
+     that step is too dark for a light subtle fill (it stays on primary.muted borders). */
+  --theme-colors-surface-background-primary-subtle: var(--kn-primitive-indigo-100);
   --theme-colors-surface-background-primary-moderate: var(--theme-colors-transparent);
   --theme-colors-surface-background-primary-intense: var(--kn-primitive-indigo-500);
   --theme-colors-surface-background-primary-strong: var(--theme-colors-transparent);
@@ -98,7 +260,9 @@
   --theme-colors-surface-text-staticBlack-normal: var(--kn-primitive-surface-900);
 
   --theme-colors-surface-icon-gray-normal: var(--kn-primitive-surface-900);
+  --theme-colors-surface-icon-gray-subtle: var(--kn-primitive-surface-800);
   --theme-colors-surface-icon-gray-muted: var(--kn-primitive-surface-700);
+  --theme-colors-surface-icon-primary-normal: var(--kn-primitive-indigo-500);
   --theme-colors-surface-icon-onSea-onIntense: var(--kn-primitive-surface-0);
   --theme-colors-surface-icon-staticWhite-normal: var(--kn-primitive-surface-0);
   --theme-colors-surface-icon-staticWhite-subtle: var(--kn-primitive-sea-50);
@@ -129,7 +293,19 @@
   --theme-colors-interactive-background-gray-default: var(--kn-primitive-surface-100);
   --theme-colors-interactive-background-gray-highlighted: var(--kn-primitive-surface-200);
   --theme-colors-interactive-background-gray-disabled: var(--kn-primitive-surface-100);
+  /* Light gray faded states share the default/highlighted solids (surface-100 / 200).
+     Chromatic faded is a 9% mix; gray has no separate wash step on this scale. */
+  --theme-colors-interactive-background-gray-faded: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-background-gray-fadedHighlighted: var(--kn-primitive-surface-200);
   --theme-colors-interactive-background-negative-faded: var(--kn-primitive-red-50);
+  --theme-colors-interactive-background-negative-default: var(--kn-primitive-red-500);
+  --theme-colors-interactive-background-negative-highlighted: var(--kn-primitive-red-600);
+  --theme-colors-interactive-background-negative-fadedHighlighted: var(--kn-primitive-red-200);
+  --theme-colors-interactive-background-negative-disabled: color-mix(
+    in srgb,
+    var(--kn-primitive-red-500) 18%,
+    transparent
+  );
   --theme-colors-interactive-background-notice-faded: var(--kn-primitive-gold-50);
   --theme-colors-interactive-background-information-faded: color-mix(
     in srgb,
@@ -147,6 +323,8 @@
   --theme-colors-interactive-border-gray-disabled: var(--kn-primitive-surface-400);
   --theme-colors-interactive-border-gray-faded: var(--kn-primitive-surface-400);
   --theme-colors-interactive-border-primary-default: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-border-primary-highlighted: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-border-negative-default: var(--kn-primitive-red-500);
   --theme-colors-interactive-border-information-default: var(--kn-primitive-blue-sapphire-500);
   --theme-colors-interactive-border-staticWhite-default: var(--kn-primitive-surface-0);
 
@@ -159,11 +337,23 @@
   --theme-colors-interactive-text-onPrimary-normal: var(--kn-primitive-surface-0);
   --theme-colors-interactive-text-staticWhite-normal: var(--kn-primitive-surface-0);
   --theme-colors-interactive-text-staticWhite-subtle: var(--kn-primitive-sea-50);
-  --theme-colors-interactive-text-positive-normal: var(--kn-primitive-green-600);
+  --theme-colors-interactive-text-positive-normal: var(--kn-primitive-green-800);
   --theme-colors-interactive-text-negative-normal: var(--kn-primitive-red-600);
-  --theme-colors-interactive-text-notice-normal: var(--kn-primitive-gold-600);
+  --theme-colors-interactive-text-notice-normal: var(--kn-primitive-gold-700);
+  /* onNeutral.disabled: FAB --neutral keeps feedback.neutral.intense as its fill (no new
+     interactive.background.neutral family — same call already made for Avatar's "neutral").
+     Disabled text on that charcoal fill reuses the same wash as staticWhite.disabled. */
+  --theme-colors-interactive-text-onNeutral-disabled: color-mix(
+    in srgb,
+    var(--kn-primitive-surface-0) 32%,
+    transparent
+  );
 
   --theme-colors-interactive-icon-gray-normal: var(--kn-primitive-surface-600);
+  --theme-colors-interactive-icon-gray-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-icon-gray-muted: var(--kn-primitive-surface-700);
+  --theme-colors-interactive-icon-gray-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-interactive-icon-primary-normal: var(--kn-primitive-indigo-500);
   --theme-colors-interactive-icon-staticWhite-normal: var(--kn-primitive-surface-0);
   --theme-colors-interactive-icon-onPrimary-normal: var(--kn-primitive-surface-0);
   --theme-colors-interactive-icon-information-normal: var(--kn-primitive-blue-sapphire-500);
@@ -188,14 +378,20 @@
   --theme-colors-feedback-border-information-intense: var(--kn-primitive-blue-sapphire-500);
 
   --theme-colors-feedback-text-negative-intense: var(--kn-primitive-red-600);
-  --theme-colors-feedback-text-notice-intense: var(--kn-primitive-gold-600);
-  --theme-colors-feedback-text-positive-intense: var(--kn-primitive-green-600);
+  /* Text/icon on subtle fills: KEEP 600 fails 4.5:1 (green-600 2.83 / gold-600 2.60).
+     Green-700 still fails (3.79 on positive-subtle). Green-800 and gold-700 pass
+     on the paired subtle fills without shifting hue off the KEEP 600 anchors.
+     Intense *fills* stay 600. */
+  --theme-colors-feedback-text-notice-intense: var(--kn-primitive-gold-700);
+  --theme-colors-feedback-text-positive-intense: var(--kn-primitive-green-800);
   --theme-colors-feedback-text-information-intense: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-feedback-text-neutral-intense: var(--kn-primitive-surface-900);
 
   --theme-colors-feedback-icon-negative-intense: var(--kn-primitive-red-600);
-  --theme-colors-feedback-icon-notice-intense: var(--kn-primitive-gold-600);
-  --theme-colors-feedback-icon-positive-intense: var(--kn-primitive-green-600);
+  --theme-colors-feedback-icon-notice-intense: var(--kn-primitive-gold-700);
+  --theme-colors-feedback-icon-positive-intense: var(--kn-primitive-green-800);
   --theme-colors-feedback-icon-information-intense: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-feedback-icon-neutral-intense: var(--kn-primitive-surface-900);
 
   --theme-colors-overlay-background-subtle: color-mix(
     in srgb,
@@ -208,9 +404,339 @@
     transparent
   );
 
-  --theme-colors-elevation-lowRaised: var(--kn-primitive-alpha-black-500);
-  --theme-colors-elevation-midRaised: color-mix(in srgb, var(--kn-primitive-surface-900) 12%, transparent);
-  --theme-colors-elevation-highRaised: color-mix(in srgb, var(--kn-primitive-surface-900) 18%, transparent);
+  --theme-colors-elevation-lowRaised: color-mix(
+    in srgb,
+    var(--kn-primitive-surface-900) 6%,
+    transparent
+  );
+  --theme-colors-elevation-midRaised: var(--theme-colors-elevation-lowRaised);
+  --theme-colors-elevation-highRaised: var(--theme-colors-elevation-lowRaised);
+
+  /* Missing on-light paths vs Klear360 Colors. Values stay KN primitives
+     (indigo/green/red/gold/sapphire/purple). No azure/emerald/magenta hexes.
+     Existing KEEP mappings above are unchanged. */
+  --theme-colors-surface-background-accent-intense: var(--theme-colors-transparent);
+  --theme-colors-surface-text-onCloud-onSubtle: var(--kn-primitive-blue-sapphire-600);
+  --theme-colors-surface-text-onCloud-onIntense: var(--kn-primitive-indigo-200);
+  --theme-colors-surface-text-staticBlack-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-surface-text-staticBlack-muted: var(--kn-primitive-surface-700);
+  --theme-colors-surface-text-staticBlack-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-surface-icon-gray-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-surface-icon-onSea-onSubtle: var(--kn-primitive-indigo-700);
+  --theme-colors-surface-icon-onCloud-onSubtle: var(--kn-primitive-blue-sapphire-400);
+  --theme-colors-surface-icon-onCloud-onIntense: var(--kn-primitive-blue-sapphire-300);
+  --theme-colors-surface-icon-staticWhite-muted: color-mix(in srgb, var(--kn-primitive-surface-0) 64%, transparent);
+  --theme-colors-surface-icon-staticWhite-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-surface-icon-staticBlack-normal: var(--kn-primitive-surface-900);
+  --theme-colors-surface-icon-staticBlack-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-surface-icon-staticBlack-muted: var(--kn-primitive-surface-700);
+  --theme-colors-surface-icon-staticBlack-disabled: var(--kn-primitive-surface-500);
+
+  --theme-colors-feedback-border-positive-subtle: var(--kn-primitive-green-a100);
+  --theme-colors-feedback-border-neutral-subtle: var(--kn-primitive-surface-300);
+  --theme-colors-feedback-border-neutral-intense: var(--kn-primitive-surface-800);
+  --theme-colors-feedback-text-positive-subtle: var(--kn-primitive-green-100);
+  --theme-colors-feedback-text-negative-subtle: var(--kn-primitive-red-100);
+  --theme-colors-feedback-text-notice-subtle: var(--kn-primitive-gold-100);
+  --theme-colors-feedback-text-information-subtle: var(--kn-primitive-information-100);
+  --theme-colors-feedback-text-neutral-subtle: var(--kn-primitive-surface-500);
+  --theme-colors-feedback-icon-positive-subtle: var(--kn-primitive-green-100);
+  --theme-colors-feedback-icon-negative-subtle: var(--kn-primitive-red-100);
+  --theme-colors-feedback-icon-notice-subtle: var(--kn-primitive-gold-100);
+  --theme-colors-feedback-icon-information-subtle: var(--kn-primitive-information-100);
+  --theme-colors-feedback-icon-neutral-subtle: var(--kn-primitive-surface-500);
+
+  --theme-colors-interactive-background-positive-default: var(--kn-primitive-green-600);
+  --theme-colors-interactive-background-positive-highlighted: var(--kn-primitive-green-700);
+  --theme-colors-interactive-background-positive-disabled: var(--kn-primitive-green-a50);
+  --theme-colors-interactive-background-positive-fadedHighlighted: var(--kn-primitive-green-a100);
+  --theme-colors-interactive-background-notice-default: var(--kn-primitive-gold-600);
+  --theme-colors-interactive-background-notice-highlighted: var(--kn-primitive-gold-700);
+  --theme-colors-interactive-background-notice-disabled: var(--kn-primitive-gold-a50);
+  --theme-colors-interactive-background-notice-fadedHighlighted: var(--kn-primitive-gold-a100);
+  --theme-colors-interactive-background-information-default: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-background-information-highlighted: var(--kn-primitive-blue-sapphire-600);
+  --theme-colors-interactive-background-information-disabled: var(--kn-primitive-blue-sapphire-a50);
+  --theme-colors-interactive-background-information-fadedHighlighted: var(--kn-primitive-blue-sapphire-a100);
+  --theme-colors-interactive-background-neutral-default: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-background-neutral-highlighted: var(--kn-primitive-surface-900);
+  --theme-colors-interactive-background-neutral-disabled: color-mix(in srgb, var(--kn-primitive-surface-900) 9%, transparent);
+  --theme-colors-interactive-background-neutral-faded: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-background-neutral-fadedHighlighted: var(--kn-primitive-surface-200);
+  --theme-colors-interactive-background-gray-ghost: var(--theme-colors-transparent);
+  --theme-colors-interactive-background-primary-fadedHighlighted: var(--kn-primitive-indigo-a100);
+  --theme-colors-interactive-background-staticBlack-highlighted: #000000;
+  --theme-colors-interactive-background-staticBlack-disabled: color-mix(in srgb, #000000 32%, transparent);
+  --theme-colors-interactive-background-staticBlack-faded: color-mix(in srgb, #000000 9%, transparent);
+  --theme-colors-interactive-background-staticBlack-fadedHighlighted: color-mix(in srgb, #000000 18%, transparent);
+  --theme-colors-interactive-background-staticBlack-ghost: var(--theme-colors-transparent);
+
+  --theme-colors-interactive-border-positive-default: var(--kn-primitive-green-600);
+  --theme-colors-interactive-border-positive-highlighted: var(--kn-primitive-green-700);
+  --theme-colors-interactive-border-positive-disabled: var(--kn-primitive-green-a100);
+  --theme-colors-interactive-border-positive-faded: var(--kn-primitive-green-a100);
+  --theme-colors-interactive-border-negative-highlighted: var(--kn-primitive-red-600);
+  --theme-colors-interactive-border-negative-disabled: var(--kn-primitive-red-a100);
+  --theme-colors-interactive-border-negative-faded: var(--kn-primitive-red-a100);
+  --theme-colors-interactive-border-notice-default: var(--kn-primitive-gold-600);
+  --theme-colors-interactive-border-notice-highlighted: var(--kn-primitive-gold-700);
+  --theme-colors-interactive-border-notice-disabled: var(--kn-primitive-gold-a100);
+  --theme-colors-interactive-border-notice-faded: var(--kn-primitive-gold-a100);
+  --theme-colors-interactive-border-information-highlighted: var(--kn-primitive-blue-sapphire-600);
+  --theme-colors-interactive-border-information-disabled: var(--kn-primitive-blue-sapphire-a100);
+  --theme-colors-interactive-border-information-faded: var(--kn-primitive-blue-sapphire-a100);
+  --theme-colors-interactive-border-neutral-default: var(--kn-primitive-surface-900);
+  --theme-colors-interactive-border-neutral-highlighted: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-border-neutral-disabled: var(--kn-primitive-surface-400);
+  --theme-colors-interactive-border-neutral-faded: var(--kn-primitive-surface-300);
+  --theme-colors-interactive-border-primary-disabled: var(--kn-primitive-indigo-a100);
+  --theme-colors-interactive-border-primary-faded: var(--kn-primitive-indigo-a100);
+  --theme-colors-interactive-border-staticWhite-highlighted: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-border-staticWhite-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-interactive-border-staticWhite-faded: color-mix(in srgb, var(--kn-primitive-surface-0) 9%, transparent);
+  --theme-colors-interactive-border-staticWhite-fadedHighlighted: color-mix(in srgb, var(--kn-primitive-surface-0) 18%, transparent);
+  --theme-colors-interactive-border-staticBlack-default: #000000;
+  --theme-colors-interactive-border-staticBlack-highlighted: #000000;
+  --theme-colors-interactive-border-staticBlack-disabled: color-mix(in srgb, #000000 32%, transparent);
+  --theme-colors-interactive-border-staticBlack-faded: color-mix(in srgb, #000000 18%, transparent);
+  --theme-colors-interactive-border-staticBlack-fadedHighlighted: color-mix(in srgb, #000000 9%, transparent);
+
+  --theme-colors-interactive-text-positive-subtle: var(--kn-primitive-green-600);
+  --theme-colors-interactive-text-positive-muted: var(--kn-primitive-green-400);
+  --theme-colors-interactive-text-positive-disabled: var(--kn-primitive-green-a200);
+  --theme-colors-interactive-text-negative-subtle: var(--kn-primitive-red-500);
+  --theme-colors-interactive-text-negative-muted: var(--kn-primitive-red-400);
+  --theme-colors-interactive-text-negative-disabled: var(--kn-primitive-red-a200);
+  --theme-colors-interactive-text-notice-subtle: var(--kn-primitive-gold-600);
+  --theme-colors-interactive-text-notice-muted: var(--kn-primitive-gold-400);
+  --theme-colors-interactive-text-notice-disabled: var(--kn-primitive-gold-a200);
+  --theme-colors-interactive-text-information-subtle: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-text-information-muted: var(--kn-primitive-blue-sapphire-400);
+  --theme-colors-interactive-text-information-disabled: var(--kn-primitive-blue-sapphire-a200);
+  --theme-colors-interactive-text-neutral-normal: var(--kn-primitive-surface-900);
+  --theme-colors-interactive-text-neutral-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-text-neutral-muted: var(--kn-primitive-surface-700);
+  --theme-colors-interactive-text-neutral-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-interactive-text-primary-subtle: var(--kn-primitive-indigo-400);
+  --theme-colors-interactive-text-primary-muted: var(--kn-primitive-indigo-300);
+  --theme-colors-interactive-text-primary-disabled: var(--kn-primitive-indigo-a200);
+  --theme-colors-interactive-text-onPrimary-subtle: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-text-onPrimary-muted: var(--kn-primitive-surface-300);
+  --theme-colors-interactive-text-onPrimary-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-interactive-text-onNeutral-normal: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-text-onNeutral-subtle: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-text-onNeutral-muted: var(--kn-primitive-surface-300);
+  --theme-colors-interactive-text-staticWhite-muted: color-mix(in srgb, var(--kn-primitive-surface-0) 56%, transparent);
+  --theme-colors-interactive-text-staticWhite-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-interactive-text-staticBlack-normal: #000000;
+  --theme-colors-interactive-text-staticBlack-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-text-staticBlack-muted: var(--kn-primitive-surface-700);
+  --theme-colors-interactive-text-staticBlack-disabled: var(--kn-primitive-surface-500);
+
+  --theme-colors-interactive-icon-positive-normal: var(--kn-primitive-green-800);
+  --theme-colors-interactive-icon-positive-subtle: var(--kn-primitive-green-600);
+  --theme-colors-interactive-icon-positive-muted: var(--kn-primitive-green-400);
+  --theme-colors-interactive-icon-positive-disabled: var(--kn-primitive-green-a200);
+  --theme-colors-interactive-icon-negative-normal: var(--kn-primitive-red-600);
+  --theme-colors-interactive-icon-negative-subtle: var(--kn-primitive-red-500);
+  --theme-colors-interactive-icon-negative-muted: var(--kn-primitive-red-400);
+  --theme-colors-interactive-icon-negative-disabled: var(--kn-primitive-red-a200);
+  --theme-colors-interactive-icon-notice-normal: var(--kn-primitive-gold-700);
+  --theme-colors-interactive-icon-notice-subtle: var(--kn-primitive-gold-600);
+  --theme-colors-interactive-icon-notice-muted: var(--kn-primitive-gold-400);
+  --theme-colors-interactive-icon-notice-disabled: var(--kn-primitive-gold-a200);
+  --theme-colors-interactive-icon-information-subtle: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-interactive-icon-information-muted: var(--kn-primitive-blue-sapphire-400);
+  --theme-colors-interactive-icon-information-disabled: var(--kn-primitive-blue-sapphire-a200);
+  --theme-colors-interactive-icon-neutral-normal: var(--kn-primitive-surface-900);
+  --theme-colors-interactive-icon-neutral-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-icon-neutral-muted: var(--kn-primitive-surface-700);
+  --theme-colors-interactive-icon-neutral-disabled: var(--kn-primitive-surface-500);
+  --theme-colors-interactive-icon-primary-subtle: var(--kn-primitive-indigo-400);
+  --theme-colors-interactive-icon-primary-muted: var(--kn-primitive-indigo-300);
+  --theme-colors-interactive-icon-primary-disabled: var(--kn-primitive-indigo-a200);
+  --theme-colors-interactive-icon-onPrimary-subtle: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-icon-onPrimary-muted: var(--kn-primitive-surface-300);
+  --theme-colors-interactive-icon-onPrimary-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-interactive-icon-onNeutral-normal: var(--kn-primitive-surface-0);
+  --theme-colors-interactive-icon-onNeutral-subtle: var(--kn-primitive-surface-100);
+  --theme-colors-interactive-icon-onNeutral-muted: var(--kn-primitive-surface-300);
+  --theme-colors-interactive-icon-onNeutral-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-interactive-icon-staticWhite-subtle: var(--kn-primitive-sea-50);
+  --theme-colors-interactive-icon-staticWhite-muted: color-mix(in srgb, var(--kn-primitive-surface-0) 56%, transparent);
+  --theme-colors-interactive-icon-staticWhite-disabled: color-mix(in srgb, var(--kn-primitive-surface-0) 32%, transparent);
+  --theme-colors-interactive-icon-staticBlack-normal: #000000;
+  --theme-colors-interactive-icon-staticBlack-subtle: var(--kn-primitive-surface-800);
+  --theme-colors-interactive-icon-staticBlack-muted: var(--kn-primitive-surface-700);
+  --theme-colors-interactive-icon-staticBlack-disabled: var(--kn-primitive-surface-500);
+
+  --theme-colors-popup-background-subtle: var(--kn-primitive-surface-0);
+  --theme-colors-popup-background-intense: var(--kn-primitive-surface-900);
+  --theme-colors-popup-background-gray-subtle: var(--kn-primitive-surface-0);
+  --theme-colors-popup-background-gray-moderate: color-mix(in srgb, var(--kn-primitive-surface-0) 6%, transparent);
+  --theme-colors-popup-background-gray-intense: var(--kn-primitive-surface-800);
+  --theme-colors-popup-background-positive-moderate: var(--kn-primitive-green-a700);
+  --theme-colors-popup-background-negative-moderate: var(--kn-primitive-red-a700);
+  --theme-colors-popup-background-notice-moderate: var(--kn-primitive-gold-a700);
+  --theme-colors-popup-background-information-moderate: var(--kn-primitive-blue-sapphire-a700);
+  --theme-colors-popup-background-neutral-moderate: color-mix(in srgb, var(--kn-primitive-surface-900) 88%, transparent);
+  --theme-colors-popup-border-subtle: color-mix(in srgb, var(--kn-primitive-surface-400) 18%, transparent);
+  --theme-colors-popup-border-intense: var(--kn-primitive-surface-800);
+  --theme-colors-popup-border-gray-subtle: var(--kn-primitive-surface-200);
+  --theme-colors-popup-border-gray-moderate: var(--kn-primitive-surface-100);
+  --theme-colors-popup-border-gray-intense: var(--kn-primitive-surface-900);
+  --theme-colors-popup-border-positive-moderate: var(--kn-primitive-green-600);
+  --theme-colors-popup-border-negative-moderate: var(--kn-primitive-red-600);
+  --theme-colors-popup-border-notice-moderate: var(--kn-primitive-gold-600);
+  --theme-colors-popup-border-information-moderate: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-popup-border-neutral-moderate: var(--kn-primitive-surface-800);
+
+  --theme-colors-data-background-categorical-blue-faint: var(--kn-primitive-indigo-100);
+  --theme-colors-data-background-categorical-blue-subtle: var(--kn-primitive-indigo-200);
+  --theme-colors-data-background-categorical-blue-moderate: var(--kn-primitive-indigo-300);
+  --theme-colors-data-background-categorical-blue-intense: var(--kn-primitive-indigo-400);
+  --theme-colors-data-background-categorical-blue-strong: var(--kn-primitive-indigo-500);
+  --theme-colors-data-background-categorical-green-faint: var(--kn-primitive-green-100);
+  --theme-colors-data-background-categorical-green-subtle: var(--kn-primitive-green-200);
+  --theme-colors-data-background-categorical-green-moderate: var(--kn-primitive-green-300);
+  --theme-colors-data-background-categorical-green-intense: var(--kn-primitive-green-400);
+  --theme-colors-data-background-categorical-green-strong: var(--kn-primitive-green-500);
+  --theme-colors-data-background-categorical-red-faint: var(--kn-primitive-red-100);
+  --theme-colors-data-background-categorical-red-subtle: var(--kn-primitive-red-200);
+  --theme-colors-data-background-categorical-red-moderate: var(--kn-primitive-red-300);
+  --theme-colors-data-background-categorical-red-intense: var(--kn-primitive-red-400);
+  --theme-colors-data-background-categorical-red-strong: var(--kn-primitive-red-500);
+  --theme-colors-data-background-categorical-orange-faint: var(--kn-primitive-gold-100);
+  --theme-colors-data-background-categorical-orange-subtle: var(--kn-primitive-gold-200);
+  --theme-colors-data-background-categorical-orange-moderate: var(--kn-primitive-gold-300);
+  --theme-colors-data-background-categorical-orange-intense: var(--kn-primitive-gold-400);
+  --theme-colors-data-background-categorical-orange-strong: var(--kn-primitive-gold-500);
+  --theme-colors-data-background-categorical-skyBlue-faint: var(--kn-primitive-blue-sapphire-100);
+  --theme-colors-data-background-categorical-skyBlue-subtle: var(--kn-primitive-blue-sapphire-200);
+  --theme-colors-data-background-categorical-skyBlue-moderate: var(--kn-primitive-blue-sapphire-300);
+  --theme-colors-data-background-categorical-skyBlue-intense: var(--kn-primitive-blue-sapphire-400);
+  --theme-colors-data-background-categorical-skyBlue-strong: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-data-background-categorical-purple-faint: var(--kn-primitive-purple-100);
+  --theme-colors-data-background-categorical-purple-subtle: var(--kn-primitive-purple-200);
+  --theme-colors-data-background-categorical-purple-moderate: var(--kn-primitive-purple-300);
+  --theme-colors-data-background-categorical-purple-intense: var(--kn-primitive-purple-400);
+  --theme-colors-data-background-categorical-purple-strong: var(--kn-primitive-purple-500);
+  --theme-colors-data-background-categorical-pink-faint: var(--kn-primitive-purple-50);
+  --theme-colors-data-background-categorical-pink-subtle: var(--kn-primitive-purple-100);
+  --theme-colors-data-background-categorical-pink-moderate: var(--kn-primitive-purple-200);
+  --theme-colors-data-background-categorical-pink-intense: var(--kn-primitive-purple-300);
+  --theme-colors-data-background-categorical-pink-strong: var(--kn-primitive-purple-400);
+  --theme-colors-data-background-categorical-gold-faint: var(--kn-primitive-marigold-50);
+  --theme-colors-data-background-categorical-gold-subtle: var(--kn-primitive-marigold-100);
+  --theme-colors-data-background-categorical-gold-moderate: var(--kn-primitive-marigold-200);
+  --theme-colors-data-background-categorical-gold-intense: var(--kn-primitive-marigold-300);
+  --theme-colors-data-background-categorical-gold-strong: var(--kn-primitive-marigold-400);
+  --theme-colors-data-background-categorical-gray-faint: var(--kn-primitive-surface-0);
+  --theme-colors-data-background-categorical-gray-subtle: var(--kn-primitive-surface-50);
+  --theme-colors-data-background-categorical-gray-moderate: var(--kn-primitive-surface-100);
+  --theme-colors-data-background-categorical-gray-intense: var(--kn-primitive-surface-400);
+  --theme-colors-data-background-categorical-gray-strong: var(--kn-primitive-surface-700);
+
+  --theme-colors-data-background-sequential-blue-50: var(--kn-primitive-indigo-50);
+  --theme-colors-data-background-sequential-blue-100: var(--kn-primitive-indigo-100);
+  --theme-colors-data-background-sequential-blue-200: var(--kn-primitive-indigo-200);
+  --theme-colors-data-background-sequential-blue-300: var(--kn-primitive-indigo-300);
+  --theme-colors-data-background-sequential-blue-400: var(--kn-primitive-indigo-400);
+  --theme-colors-data-background-sequential-blue-500: var(--kn-primitive-indigo-500);
+  --theme-colors-data-background-sequential-blue-600: var(--kn-primitive-indigo-600);
+  --theme-colors-data-background-sequential-blue-700: var(--kn-primitive-indigo-700);
+  --theme-colors-data-background-sequential-blue-800: var(--kn-primitive-indigo-800);
+  --theme-colors-data-background-sequential-blue-900: var(--kn-primitive-indigo-900);
+  --theme-colors-data-background-sequential-blue-1000: var(--kn-primitive-indigo-1000);
+  --theme-colors-data-background-sequential-green-50: var(--kn-primitive-green-50);
+  --theme-colors-data-background-sequential-green-100: var(--kn-primitive-green-100);
+  --theme-colors-data-background-sequential-green-200: var(--kn-primitive-green-200);
+  --theme-colors-data-background-sequential-green-300: var(--kn-primitive-green-300);
+  --theme-colors-data-background-sequential-green-400: var(--kn-primitive-green-400);
+  --theme-colors-data-background-sequential-green-500: var(--kn-primitive-green-500);
+  --theme-colors-data-background-sequential-green-600: var(--kn-primitive-green-600);
+  --theme-colors-data-background-sequential-green-700: var(--kn-primitive-green-700);
+  --theme-colors-data-background-sequential-green-800: var(--kn-primitive-green-800);
+  --theme-colors-data-background-sequential-green-900: var(--kn-primitive-green-900);
+  --theme-colors-data-background-sequential-green-1000: var(--kn-primitive-green-1000);
+  --theme-colors-data-background-sequential-red-50: var(--kn-primitive-red-50);
+  --theme-colors-data-background-sequential-red-100: var(--kn-primitive-red-100);
+  --theme-colors-data-background-sequential-red-200: var(--kn-primitive-red-200);
+  --theme-colors-data-background-sequential-red-300: var(--kn-primitive-red-300);
+  --theme-colors-data-background-sequential-red-400: var(--kn-primitive-red-400);
+  --theme-colors-data-background-sequential-red-500: var(--kn-primitive-red-500);
+  --theme-colors-data-background-sequential-red-600: var(--kn-primitive-red-600);
+  --theme-colors-data-background-sequential-red-700: var(--kn-primitive-red-700);
+  --theme-colors-data-background-sequential-red-800: var(--kn-primitive-red-800);
+  --theme-colors-data-background-sequential-red-900: var(--kn-primitive-red-900);
+  --theme-colors-data-background-sequential-red-1000: var(--kn-primitive-red-1000);
+  --theme-colors-data-background-sequential-orange-50: var(--kn-primitive-gold-50);
+  --theme-colors-data-background-sequential-orange-100: var(--kn-primitive-gold-100);
+  --theme-colors-data-background-sequential-orange-200: var(--kn-primitive-gold-200);
+  --theme-colors-data-background-sequential-orange-300: var(--kn-primitive-gold-300);
+  --theme-colors-data-background-sequential-orange-400: var(--kn-primitive-gold-400);
+  --theme-colors-data-background-sequential-orange-500: var(--kn-primitive-gold-500);
+  --theme-colors-data-background-sequential-orange-600: var(--kn-primitive-gold-600);
+  --theme-colors-data-background-sequential-orange-700: var(--kn-primitive-gold-700);
+  --theme-colors-data-background-sequential-orange-800: var(--kn-primitive-gold-800);
+  --theme-colors-data-background-sequential-orange-900: var(--kn-primitive-gold-900);
+  --theme-colors-data-background-sequential-orange-1000: var(--kn-primitive-gold-1000);
+  --theme-colors-data-background-sequential-skyBlue-50: var(--kn-primitive-blue-sapphire-50);
+  --theme-colors-data-background-sequential-skyBlue-100: var(--kn-primitive-blue-sapphire-100);
+  --theme-colors-data-background-sequential-skyBlue-200: var(--kn-primitive-blue-sapphire-200);
+  --theme-colors-data-background-sequential-skyBlue-300: var(--kn-primitive-blue-sapphire-300);
+  --theme-colors-data-background-sequential-skyBlue-400: var(--kn-primitive-blue-sapphire-400);
+  --theme-colors-data-background-sequential-skyBlue-500: var(--kn-primitive-blue-sapphire-500);
+  --theme-colors-data-background-sequential-skyBlue-600: var(--kn-primitive-blue-sapphire-600);
+  --theme-colors-data-background-sequential-skyBlue-700: var(--kn-primitive-blue-sapphire-700);
+  --theme-colors-data-background-sequential-skyBlue-800: var(--kn-primitive-blue-sapphire-800);
+  --theme-colors-data-background-sequential-skyBlue-900: var(--kn-primitive-blue-sapphire-900);
+  --theme-colors-data-background-sequential-skyBlue-1000: var(--kn-primitive-blue-sapphire-1000);
+  --theme-colors-data-background-sequential-purple-50: var(--kn-primitive-purple-50);
+  --theme-colors-data-background-sequential-purple-100: var(--kn-primitive-purple-100);
+  --theme-colors-data-background-sequential-purple-200: var(--kn-primitive-purple-200);
+  --theme-colors-data-background-sequential-purple-300: var(--kn-primitive-purple-300);
+  --theme-colors-data-background-sequential-purple-400: var(--kn-primitive-purple-400);
+  --theme-colors-data-background-sequential-purple-500: var(--kn-primitive-purple-500);
+  --theme-colors-data-background-sequential-purple-600: var(--kn-primitive-purple-600);
+  --theme-colors-data-background-sequential-purple-700: var(--kn-primitive-purple-700);
+  --theme-colors-data-background-sequential-purple-800: var(--kn-primitive-purple-800);
+  --theme-colors-data-background-sequential-purple-900: var(--kn-primitive-purple-900);
+  --theme-colors-data-background-sequential-purple-1000: var(--kn-primitive-purple-1000);
+  --theme-colors-data-background-sequential-pink-50: var(--kn-primitive-purple-50);
+  --theme-colors-data-background-sequential-pink-100: var(--kn-primitive-purple-100);
+  --theme-colors-data-background-sequential-pink-200: var(--kn-primitive-purple-200);
+  --theme-colors-data-background-sequential-pink-300: var(--kn-primitive-purple-300);
+  --theme-colors-data-background-sequential-pink-400: var(--kn-primitive-purple-400);
+  --theme-colors-data-background-sequential-pink-500: var(--kn-primitive-purple-500);
+  --theme-colors-data-background-sequential-pink-600: var(--kn-primitive-purple-600);
+  --theme-colors-data-background-sequential-pink-700: var(--kn-primitive-purple-700);
+  --theme-colors-data-background-sequential-pink-800: var(--kn-primitive-purple-800);
+  --theme-colors-data-background-sequential-pink-900: var(--kn-primitive-purple-900);
+  --theme-colors-data-background-sequential-pink-1000: var(--kn-primitive-purple-1000);
+  --theme-colors-data-background-sequential-gold-50: var(--kn-primitive-marigold-50);
+  --theme-colors-data-background-sequential-gold-100: var(--kn-primitive-marigold-100);
+  --theme-colors-data-background-sequential-gold-200: var(--kn-primitive-marigold-200);
+  --theme-colors-data-background-sequential-gold-300: var(--kn-primitive-marigold-300);
+  --theme-colors-data-background-sequential-gold-400: var(--kn-primitive-marigold-400);
+  --theme-colors-data-background-sequential-gold-500: var(--kn-primitive-marigold-500);
+  --theme-colors-data-background-sequential-gold-600: var(--kn-primitive-marigold-600);
+  --theme-colors-data-background-sequential-gold-700: var(--kn-primitive-marigold-700);
+  --theme-colors-data-background-sequential-gold-800: var(--kn-primitive-marigold-800);
+  --theme-colors-data-background-sequential-gold-900: var(--kn-primitive-marigold-900);
+  --theme-colors-data-background-sequential-gold-1000: var(--kn-primitive-marigold-1000);
+  --theme-colors-data-background-sequential-gray-0: var(--kn-primitive-surface-0);
+  --theme-colors-data-background-sequential-gray-50: var(--kn-primitive-surface-50);
+  --theme-colors-data-background-sequential-gray-100: var(--kn-primitive-surface-100);
+  --theme-colors-data-background-sequential-gray-200: var(--kn-primitive-surface-200);
+  --theme-colors-data-background-sequential-gray-300: var(--kn-primitive-surface-300);
+  --theme-colors-data-background-sequential-gray-400: var(--kn-primitive-surface-400);
+  --theme-colors-data-background-sequential-gray-500: var(--kn-primitive-surface-500);
+  --theme-colors-data-background-sequential-gray-600: var(--kn-primitive-surface-600);
+  --theme-colors-data-background-sequential-gray-700: var(--kn-primitive-surface-700);
+  --theme-colors-data-background-sequential-gray-800: var(--kn-primitive-surface-800);
+  --theme-colors-data-background-sequential-gray-900: var(--kn-primitive-surface-900);
+  --theme-colors-data-background-sequential-gray-1000: var(--kn-primitive-surface-1000);
 
   --kn-color-background-surface-gray-subtle: var(--theme-colors-surface-background-gray-subtle);
   --kn-color-background-surface-gray-moderate: var(--theme-colors-surface-background-gray-moderate);
@@ -229,7 +755,9 @@
   --kn-color-text-surface-gray-muted: var(--theme-colors-surface-text-gray-muted);
   --kn-color-text-surface-gray-disabled: var(--theme-colors-surface-text-gray-disabled);
   --kn-color-icon-surface-gray-normal: var(--theme-colors-surface-icon-gray-normal);
+  --kn-color-icon-surface-gray-subtle: var(--theme-colors-surface-icon-gray-subtle);
   --kn-color-icon-surface-gray-muted: var(--theme-colors-surface-icon-gray-muted);
+  --kn-color-icon-surface-primary-normal: var(--theme-colors-surface-icon-primary-normal);
   --kn-color-icon-surface-staticWhite-normal: var(--theme-colors-surface-icon-staticWhite-normal);
   --kn-color-icon-surface-staticWhite-subtle: var(--theme-colors-surface-icon-staticWhite-subtle);
   --kn-color-background-interactive-staticBlack-default: var(--theme-colors-interactive-background-staticBlack-default);
@@ -239,24 +767,37 @@
   --kn-color-icon-surface-onSea-onIntense: var(--theme-colors-surface-icon-onSea-onIntense);
   --kn-color-text-surface-staticWhite-normal: var(--theme-colors-surface-text-staticWhite-normal);
   --kn-color-text-surface-staticWhite-subtle: var(--theme-colors-surface-text-staticWhite-subtle);
+  --kn-color-text-surface-staticWhite-disabled: var(--theme-colors-surface-text-staticWhite-disabled);
   --kn-color-text-surface-staticBlack-normal: var(--theme-colors-surface-text-staticBlack-normal);
   --kn-color-background-interactive-staticWhite-default: var(--theme-colors-interactive-background-staticWhite-default);
   --kn-color-background-interactive-staticWhite-highlighted: var(--theme-colors-interactive-background-staticWhite-highlighted);
+  --kn-color-background-interactive-staticWhite-disabled: var(--theme-colors-interactive-background-staticWhite-disabled);
   --kn-color-background-interactive-staticWhite-faded: var(--theme-colors-interactive-background-staticWhite-faded);
   --kn-color-background-interactive-staticWhite-fadedHighlighted: var(--theme-colors-interactive-background-staticWhite-fadedHighlighted);
   --kn-color-background-interactive-primary-default: var(--theme-colors-interactive-background-primary-default);
+  --kn-color-background-interactive-primary-highlighted: var(--theme-colors-interactive-background-primary-highlighted);
+  --kn-color-background-interactive-primary-faded: var(--theme-colors-interactive-background-primary-faded);
   --kn-color-background-interactive-primary-disabled: var(--theme-colors-interactive-background-primary-disabled);
   --kn-color-background-interactive-gray-default: var(--theme-colors-interactive-background-gray-default);
   --kn-color-background-interactive-gray-highlighted: var(--theme-colors-interactive-background-gray-highlighted);
   --kn-color-background-interactive-gray-disabled: var(--theme-colors-interactive-background-gray-disabled);
+  --kn-color-background-interactive-gray-faded: var(--theme-colors-interactive-background-gray-faded);
+  --kn-color-background-interactive-gray-fadedHighlighted: var(--theme-colors-interactive-background-gray-fadedHighlighted);
   --kn-color-background-interactive-negative-faded: var(--theme-colors-interactive-background-negative-faded);
+  --kn-color-background-interactive-negative-default: var(--theme-colors-interactive-background-negative-default);
+  --kn-color-background-interactive-negative-highlighted: var(--theme-colors-interactive-background-negative-highlighted);
+  --kn-color-background-interactive-negative-fadedHighlighted: var(--theme-colors-interactive-background-negative-fadedHighlighted);
+  --kn-color-background-interactive-negative-disabled: var(--theme-colors-interactive-background-negative-disabled);
   --kn-color-background-interactive-notice-faded: var(--theme-colors-interactive-background-notice-faded);
   --kn-color-background-interactive-information-faded: var(--theme-colors-interactive-background-information-faded);
+  --kn-color-background-interactive-positive-faded: var(--theme-colors-interactive-background-positive-faded);
   --kn-color-border-interactive-gray-default: var(--theme-colors-interactive-border-gray-default);
   --kn-color-border-interactive-gray-highlighted: var(--theme-colors-interactive-border-gray-highlighted);
   --kn-color-border-interactive-gray-disabled: var(--theme-colors-interactive-border-gray-disabled);
   --kn-color-border-interactive-gray-faded: var(--theme-colors-interactive-border-gray-faded);
   --kn-color-border-interactive-primary-default: var(--theme-colors-interactive-border-primary-default);
+  --kn-color-border-interactive-primary-highlighted: var(--theme-colors-interactive-border-primary-highlighted);
+  --kn-color-border-interactive-negative-default: var(--theme-colors-interactive-border-negative-default);
   --kn-color-map-route: var(--theme-colors-interactive-border-primary-default);
   --kn-color-border-interactive-information-default: var(--theme-colors-interactive-border-information-default);
   --kn-color-border-interactive-staticWhite-default: var(--theme-colors-interactive-border-staticWhite-default);
@@ -267,17 +808,22 @@
   --kn-color-text-interactive-primary-normal: var(--theme-colors-interactive-text-primary-normal);
   --kn-color-text-interactive-information-normal: var(--theme-colors-interactive-text-information-normal);
   --kn-color-text-interactive-onPrimary-normal: var(--theme-colors-interactive-text-onPrimary-normal);
+  --kn-color-text-interactive-onNeutral-disabled: var(--theme-colors-interactive-text-onNeutral-disabled);
   --kn-color-text-interactive-staticWhite-normal: var(--theme-colors-interactive-text-staticWhite-normal);
   --kn-color-text-interactive-staticWhite-subtle: var(--theme-colors-interactive-text-staticWhite-subtle);
   --kn-color-text-interactive-positive-normal: var(--theme-colors-interactive-text-positive-normal);
   --kn-color-text-interactive-negative-normal: var(--theme-colors-interactive-text-negative-normal);
   --kn-color-text-interactive-notice-normal: var(--theme-colors-interactive-text-notice-normal);
   --kn-color-icon-interactive-gray-normal: var(--theme-colors-interactive-icon-gray-normal);
+  --kn-color-icon-interactive-gray-subtle: var(--theme-colors-interactive-icon-gray-subtle);
+  --kn-color-icon-interactive-gray-muted: var(--theme-colors-interactive-icon-gray-muted);
+  --kn-color-icon-interactive-gray-disabled: var(--theme-colors-interactive-icon-gray-disabled);
+  --kn-color-icon-interactive-primary-normal: var(--theme-colors-interactive-icon-primary-normal);
   --kn-color-icon-interactive-staticWhite-normal: var(--theme-colors-interactive-icon-staticWhite-normal);
   --kn-color-icon-interactive-onPrimary-normal: var(--theme-colors-interactive-icon-onPrimary-normal);
   --kn-color-icon-interactive-information-normal: var(--theme-colors-interactive-icon-information-normal);
 
-  /* Brand / AI accent — Blade interactive primary (app chrome & primary buttons) */
+  /* Brand / AI accent — interactive primary (app chrome & primary buttons) */
   --kn-color-brand-primary-default: var(--kn-color-background-interactive-primary-default);
   --kn-color-brand-primary-highlighted: var(--theme-colors-interactive-background-primary-highlighted);
   --kn-color-background-brand-primary-subtle: var(--kn-color-background-surface-sea-subtle);
@@ -293,6 +839,10 @@
   --kn-color-background-feedback-positive-intense: var(--theme-colors-feedback-background-positive-intense);
   --kn-color-background-feedback-information-subtle: var(--theme-colors-feedback-background-information-subtle);
   --kn-color-background-feedback-neutral-subtle: var(--theme-colors-feedback-background-neutral-subtle);
+  --kn-color-background-feedback-neutral-intense: var(--theme-colors-feedback-background-neutral-intense);
+  --kn-color-background-feedback-information-intense: var(--theme-colors-feedback-background-information-intense);
+  --kn-color-background-feedback-negative-intense: var(--theme-colors-feedback-background-negative-intense);
+  --kn-color-background-feedback-notice-intense: var(--theme-colors-feedback-background-notice-intense);
   --kn-color-border-feedback-negative-subtle: var(--theme-colors-feedback-border-negative-subtle);
   --kn-color-border-feedback-negative-intense: var(--theme-colors-feedback-border-negative-intense);
   --kn-color-border-feedback-notice-subtle: var(--theme-colors-feedback-border-notice-subtle);
@@ -303,82 +853,290 @@
   --kn-color-text-feedback-notice-intense: var(--theme-colors-feedback-text-notice-intense);
   --kn-color-text-feedback-positive-intense: var(--theme-colors-feedback-text-positive-intense);
   --kn-color-text-feedback-information-intense: var(--theme-colors-feedback-text-information-intense);
+  --kn-color-text-feedback-neutral-intense: var(--theme-colors-feedback-text-neutral-intense);
   --kn-color-icon-feedback-negative-intense: var(--theme-colors-feedback-icon-negative-intense);
   --kn-color-icon-feedback-notice-intense: var(--theme-colors-feedback-icon-notice-intense);
   --kn-color-icon-feedback-positive-intense: var(--theme-colors-feedback-icon-positive-intense);
   --kn-color-icon-feedback-information-intense: var(--theme-colors-feedback-icon-information-intense);
+  --kn-color-icon-feedback-neutral-intense: var(--theme-colors-feedback-icon-neutral-intense);
   --kn-color-elevation-lowRaised: var(--theme-colors-elevation-lowRaised);
   --kn-color-elevation-midRaised: var(--theme-colors-elevation-midRaised);
   --kn-color-elevation-highRaised: var(--theme-colors-elevation-highRaised);
   --kn-color-transparent: var(--theme-colors-transparent);
+  --kn-color-background-surface-accent-intense: var(--theme-colors-surface-background-accent-intense);
+  --kn-color-background-surface-cloud-subtle: var(--theme-colors-surface-background-cloud-subtle);
+  --kn-color-background-surface-cloud-intense: var(--theme-colors-surface-background-cloud-intense);
+  --kn-color-text-surface-onCloud-onSubtle: var(--theme-colors-surface-text-onCloud-onSubtle);
+  --kn-color-text-surface-onCloud-onIntense: var(--theme-colors-surface-text-onCloud-onIntense);
+  --kn-color-text-surface-staticBlack-subtle: var(--theme-colors-surface-text-staticBlack-subtle);
+  --kn-color-text-surface-staticBlack-muted: var(--theme-colors-surface-text-staticBlack-muted);
+  --kn-color-text-surface-staticBlack-disabled: var(--theme-colors-surface-text-staticBlack-disabled);
+  --kn-color-text-surface-staticWhite-muted: var(--theme-colors-surface-text-staticWhite-muted);
+  --kn-color-icon-surface-gray-disabled: var(--theme-colors-surface-icon-gray-disabled);
+  --kn-color-icon-surface-onSea-onSubtle: var(--theme-colors-surface-icon-onSea-onSubtle);
+  --kn-color-icon-surface-onCloud-onSubtle: var(--theme-colors-surface-icon-onCloud-onSubtle);
+  --kn-color-icon-surface-onCloud-onIntense: var(--theme-colors-surface-icon-onCloud-onIntense);
+  --kn-color-icon-surface-staticWhite-muted: var(--theme-colors-surface-icon-staticWhite-muted);
+  --kn-color-icon-surface-staticWhite-disabled: var(--theme-colors-surface-icon-staticWhite-disabled);
+  --kn-color-icon-surface-staticBlack-normal: var(--theme-colors-surface-icon-staticBlack-normal);
+  --kn-color-icon-surface-staticBlack-subtle: var(--theme-colors-surface-icon-staticBlack-subtle);
+  --kn-color-icon-surface-staticBlack-muted: var(--theme-colors-surface-icon-staticBlack-muted);
+  --kn-color-icon-surface-staticBlack-disabled: var(--theme-colors-surface-icon-staticBlack-disabled);
+  --kn-color-border-feedback-positive-subtle: var(--theme-colors-feedback-border-positive-subtle);
+  --kn-color-border-feedback-neutral-subtle: var(--theme-colors-feedback-border-neutral-subtle);
+  --kn-color-border-feedback-neutral-intense: var(--theme-colors-feedback-border-neutral-intense);
+  --kn-color-text-feedback-positive-subtle: var(--theme-colors-feedback-text-positive-subtle);
+  --kn-color-text-feedback-negative-subtle: var(--theme-colors-feedback-text-negative-subtle);
+  --kn-color-text-feedback-notice-subtle: var(--theme-colors-feedback-text-notice-subtle);
+  --kn-color-text-feedback-information-subtle: var(--theme-colors-feedback-text-information-subtle);
+  --kn-color-text-feedback-neutral-subtle: var(--theme-colors-feedback-text-neutral-subtle);
+  --kn-color-icon-feedback-positive-subtle: var(--theme-colors-feedback-icon-positive-subtle);
+  --kn-color-icon-feedback-negative-subtle: var(--theme-colors-feedback-icon-negative-subtle);
+  --kn-color-icon-feedback-notice-subtle: var(--theme-colors-feedback-icon-notice-subtle);
+  --kn-color-icon-feedback-information-subtle: var(--theme-colors-feedback-icon-information-subtle);
+  --kn-color-icon-feedback-neutral-subtle: var(--theme-colors-feedback-icon-neutral-subtle);
+  --kn-color-background-interactive-positive-default: var(--theme-colors-interactive-background-positive-default);
+  --kn-color-background-interactive-positive-highlighted: var(--theme-colors-interactive-background-positive-highlighted);
+  --kn-color-background-interactive-positive-disabled: var(--theme-colors-interactive-background-positive-disabled);
+  --kn-color-background-interactive-positive-fadedHighlighted: var(--theme-colors-interactive-background-positive-fadedHighlighted);
+  --kn-color-background-interactive-notice-default: var(--theme-colors-interactive-background-notice-default);
+  --kn-color-background-interactive-notice-highlighted: var(--theme-colors-interactive-background-notice-highlighted);
+  --kn-color-background-interactive-notice-disabled: var(--theme-colors-interactive-background-notice-disabled);
+  --kn-color-background-interactive-notice-fadedHighlighted: var(--theme-colors-interactive-background-notice-fadedHighlighted);
+  --kn-color-background-interactive-information-default: var(--theme-colors-interactive-background-information-default);
+  --kn-color-background-interactive-information-highlighted: var(--theme-colors-interactive-background-information-highlighted);
+  --kn-color-background-interactive-information-disabled: var(--theme-colors-interactive-background-information-disabled);
+  --kn-color-background-interactive-information-fadedHighlighted: var(--theme-colors-interactive-background-information-fadedHighlighted);
+  --kn-color-background-interactive-neutral-default: var(--theme-colors-interactive-background-neutral-default);
+  --kn-color-background-interactive-neutral-highlighted: var(--theme-colors-interactive-background-neutral-highlighted);
+  --kn-color-background-interactive-neutral-disabled: var(--theme-colors-interactive-background-neutral-disabled);
+  --kn-color-background-interactive-neutral-faded: var(--theme-colors-interactive-background-neutral-faded);
+  --kn-color-background-interactive-neutral-fadedHighlighted: var(--theme-colors-interactive-background-neutral-fadedHighlighted);
+  --kn-color-background-interactive-gray-ghost: var(--theme-colors-interactive-background-gray-ghost);
+  --kn-color-background-interactive-primary-fadedHighlighted: var(--theme-colors-interactive-background-primary-fadedHighlighted);
+  --kn-color-background-interactive-staticBlack-highlighted: var(--theme-colors-interactive-background-staticBlack-highlighted);
+  --kn-color-background-interactive-staticBlack-disabled: var(--theme-colors-interactive-background-staticBlack-disabled);
+  --kn-color-background-interactive-staticBlack-faded: var(--theme-colors-interactive-background-staticBlack-faded);
+  --kn-color-background-interactive-staticBlack-fadedHighlighted: var(--theme-colors-interactive-background-staticBlack-fadedHighlighted);
+  --kn-color-background-interactive-staticBlack-ghost: var(--theme-colors-interactive-background-staticBlack-ghost);
+  --kn-color-border-interactive-positive-default: var(--theme-colors-interactive-border-positive-default);
+  --kn-color-border-interactive-positive-highlighted: var(--theme-colors-interactive-border-positive-highlighted);
+  --kn-color-border-interactive-positive-disabled: var(--theme-colors-interactive-border-positive-disabled);
+  --kn-color-border-interactive-positive-faded: var(--theme-colors-interactive-border-positive-faded);
+  --kn-color-border-interactive-negative-highlighted: var(--theme-colors-interactive-border-negative-highlighted);
+  --kn-color-border-interactive-negative-disabled: var(--theme-colors-interactive-border-negative-disabled);
+  --kn-color-border-interactive-negative-faded: var(--theme-colors-interactive-border-negative-faded);
+  --kn-color-border-interactive-notice-default: var(--theme-colors-interactive-border-notice-default);
+  --kn-color-border-interactive-notice-highlighted: var(--theme-colors-interactive-border-notice-highlighted);
+  --kn-color-border-interactive-notice-disabled: var(--theme-colors-interactive-border-notice-disabled);
+  --kn-color-border-interactive-notice-faded: var(--theme-colors-interactive-border-notice-faded);
+  --kn-color-border-interactive-information-highlighted: var(--theme-colors-interactive-border-information-highlighted);
+  --kn-color-border-interactive-information-disabled: var(--theme-colors-interactive-border-information-disabled);
+  --kn-color-border-interactive-information-faded: var(--theme-colors-interactive-border-information-faded);
+  --kn-color-border-interactive-neutral-default: var(--theme-colors-interactive-border-neutral-default);
+  --kn-color-border-interactive-neutral-highlighted: var(--theme-colors-interactive-border-neutral-highlighted);
+  --kn-color-border-interactive-neutral-disabled: var(--theme-colors-interactive-border-neutral-disabled);
+  --kn-color-border-interactive-neutral-faded: var(--theme-colors-interactive-border-neutral-faded);
+  --kn-color-border-interactive-primary-disabled: var(--theme-colors-interactive-border-primary-disabled);
+  --kn-color-border-interactive-primary-faded: var(--theme-colors-interactive-border-primary-faded);
+  --kn-color-border-interactive-staticWhite-highlighted: var(--theme-colors-interactive-border-staticWhite-highlighted);
+  --kn-color-border-interactive-staticWhite-disabled: var(--theme-colors-interactive-border-staticWhite-disabled);
+  --kn-color-border-interactive-staticWhite-faded: var(--theme-colors-interactive-border-staticWhite-faded);
+  --kn-color-border-interactive-staticWhite-fadedHighlighted: var(--theme-colors-interactive-border-staticWhite-fadedHighlighted);
+  --kn-color-border-interactive-staticBlack-default: var(--theme-colors-interactive-border-staticBlack-default);
+  --kn-color-border-interactive-staticBlack-highlighted: var(--theme-colors-interactive-border-staticBlack-highlighted);
+  --kn-color-border-interactive-staticBlack-disabled: var(--theme-colors-interactive-border-staticBlack-disabled);
+  --kn-color-border-interactive-staticBlack-faded: var(--theme-colors-interactive-border-staticBlack-faded);
+  --kn-color-border-interactive-staticBlack-fadedHighlighted: var(--theme-colors-interactive-border-staticBlack-fadedHighlighted);
+  --kn-color-text-interactive-positive-subtle: var(--theme-colors-interactive-text-positive-subtle);
+  --kn-color-text-interactive-positive-muted: var(--theme-colors-interactive-text-positive-muted);
+  --kn-color-text-interactive-positive-disabled: var(--theme-colors-interactive-text-positive-disabled);
+  --kn-color-text-interactive-negative-subtle: var(--theme-colors-interactive-text-negative-subtle);
+  --kn-color-text-interactive-negative-muted: var(--theme-colors-interactive-text-negative-muted);
+  --kn-color-text-interactive-negative-disabled: var(--theme-colors-interactive-text-negative-disabled);
+  --kn-color-text-interactive-notice-subtle: var(--theme-colors-interactive-text-notice-subtle);
+  --kn-color-text-interactive-notice-muted: var(--theme-colors-interactive-text-notice-muted);
+  --kn-color-text-interactive-notice-disabled: var(--theme-colors-interactive-text-notice-disabled);
+  --kn-color-text-interactive-information-subtle: var(--theme-colors-interactive-text-information-subtle);
+  --kn-color-text-interactive-information-muted: var(--theme-colors-interactive-text-information-muted);
+  --kn-color-text-interactive-information-disabled: var(--theme-colors-interactive-text-information-disabled);
+  --kn-color-text-interactive-neutral-normal: var(--theme-colors-interactive-text-neutral-normal);
+  --kn-color-text-interactive-neutral-subtle: var(--theme-colors-interactive-text-neutral-subtle);
+  --kn-color-text-interactive-neutral-muted: var(--theme-colors-interactive-text-neutral-muted);
+  --kn-color-text-interactive-neutral-disabled: var(--theme-colors-interactive-text-neutral-disabled);
+  --kn-color-text-interactive-primary-subtle: var(--theme-colors-interactive-text-primary-subtle);
+  --kn-color-text-interactive-primary-muted: var(--theme-colors-interactive-text-primary-muted);
+  --kn-color-text-interactive-primary-disabled: var(--theme-colors-interactive-text-primary-disabled);
+  --kn-color-text-interactive-onPrimary-subtle: var(--theme-colors-interactive-text-onPrimary-subtle);
+  --kn-color-text-interactive-onPrimary-muted: var(--theme-colors-interactive-text-onPrimary-muted);
+  --kn-color-text-interactive-onPrimary-disabled: var(--theme-colors-interactive-text-onPrimary-disabled);
+  --kn-color-text-interactive-onNeutral-normal: var(--theme-colors-interactive-text-onNeutral-normal);
+  --kn-color-text-interactive-onNeutral-subtle: var(--theme-colors-interactive-text-onNeutral-subtle);
+  --kn-color-text-interactive-onNeutral-muted: var(--theme-colors-interactive-text-onNeutral-muted);
+  --kn-color-text-interactive-staticWhite-muted: var(--theme-colors-interactive-text-staticWhite-muted);
+  --kn-color-text-interactive-staticWhite-disabled: var(--theme-colors-interactive-text-staticWhite-disabled);
+  --kn-color-text-interactive-staticBlack-normal: var(--theme-colors-interactive-text-staticBlack-normal);
+  --kn-color-text-interactive-staticBlack-subtle: var(--theme-colors-interactive-text-staticBlack-subtle);
+  --kn-color-text-interactive-staticBlack-muted: var(--theme-colors-interactive-text-staticBlack-muted);
+  --kn-color-text-interactive-staticBlack-disabled: var(--theme-colors-interactive-text-staticBlack-disabled);
+  --kn-color-icon-interactive-positive-normal: var(--theme-colors-interactive-icon-positive-normal);
+  --kn-color-icon-interactive-positive-subtle: var(--theme-colors-interactive-icon-positive-subtle);
+  --kn-color-icon-interactive-positive-muted: var(--theme-colors-interactive-icon-positive-muted);
+  --kn-color-icon-interactive-positive-disabled: var(--theme-colors-interactive-icon-positive-disabled);
+  --kn-color-icon-interactive-negative-normal: var(--theme-colors-interactive-icon-negative-normal);
+  --kn-color-icon-interactive-negative-subtle: var(--theme-colors-interactive-icon-negative-subtle);
+  --kn-color-icon-interactive-negative-muted: var(--theme-colors-interactive-icon-negative-muted);
+  --kn-color-icon-interactive-negative-disabled: var(--theme-colors-interactive-icon-negative-disabled);
+  --kn-color-icon-interactive-notice-normal: var(--theme-colors-interactive-icon-notice-normal);
+  --kn-color-icon-interactive-notice-subtle: var(--theme-colors-interactive-icon-notice-subtle);
+  --kn-color-icon-interactive-notice-muted: var(--theme-colors-interactive-icon-notice-muted);
+  --kn-color-icon-interactive-notice-disabled: var(--theme-colors-interactive-icon-notice-disabled);
+  --kn-color-icon-interactive-information-subtle: var(--theme-colors-interactive-icon-information-subtle);
+  --kn-color-icon-interactive-information-muted: var(--theme-colors-interactive-icon-information-muted);
+  --kn-color-icon-interactive-information-disabled: var(--theme-colors-interactive-icon-information-disabled);
+  --kn-color-icon-interactive-neutral-normal: var(--theme-colors-interactive-icon-neutral-normal);
+  --kn-color-icon-interactive-neutral-subtle: var(--theme-colors-interactive-icon-neutral-subtle);
+  --kn-color-icon-interactive-neutral-muted: var(--theme-colors-interactive-icon-neutral-muted);
+  --kn-color-icon-interactive-neutral-disabled: var(--theme-colors-interactive-icon-neutral-disabled);
+  --kn-color-icon-interactive-primary-subtle: var(--theme-colors-interactive-icon-primary-subtle);
+  --kn-color-icon-interactive-primary-muted: var(--theme-colors-interactive-icon-primary-muted);
+  --kn-color-icon-interactive-primary-disabled: var(--theme-colors-interactive-icon-primary-disabled);
+  --kn-color-icon-interactive-onPrimary-subtle: var(--theme-colors-interactive-icon-onPrimary-subtle);
+  --kn-color-icon-interactive-onPrimary-muted: var(--theme-colors-interactive-icon-onPrimary-muted);
+  --kn-color-icon-interactive-onPrimary-disabled: var(--theme-colors-interactive-icon-onPrimary-disabled);
+  --kn-color-icon-interactive-onNeutral-normal: var(--theme-colors-interactive-icon-onNeutral-normal);
+  --kn-color-icon-interactive-onNeutral-subtle: var(--theme-colors-interactive-icon-onNeutral-subtle);
+  --kn-color-icon-interactive-onNeutral-muted: var(--theme-colors-interactive-icon-onNeutral-muted);
+  --kn-color-icon-interactive-onNeutral-disabled: var(--theme-colors-interactive-icon-onNeutral-disabled);
+  --kn-color-icon-interactive-staticWhite-subtle: var(--theme-colors-interactive-icon-staticWhite-subtle);
+  --kn-color-icon-interactive-staticWhite-muted: var(--theme-colors-interactive-icon-staticWhite-muted);
+  --kn-color-icon-interactive-staticWhite-disabled: var(--theme-colors-interactive-icon-staticWhite-disabled);
+  --kn-color-icon-interactive-staticBlack-normal: var(--theme-colors-interactive-icon-staticBlack-normal);
+  --kn-color-icon-interactive-staticBlack-subtle: var(--theme-colors-interactive-icon-staticBlack-subtle);
+  --kn-color-icon-interactive-staticBlack-muted: var(--theme-colors-interactive-icon-staticBlack-muted);
+  --kn-color-icon-interactive-staticBlack-disabled: var(--theme-colors-interactive-icon-staticBlack-disabled);
+  --kn-color-background-overlay-subtle: var(--theme-colors-overlay-background-subtle);
+  --kn-color-background-overlay-moderate: var(--theme-colors-overlay-background-moderate);
+  --kn-color-background-popup-gray-subtle: var(--theme-colors-popup-background-gray-subtle);
+  --kn-color-background-popup-gray-moderate: var(--theme-colors-popup-background-gray-moderate);
+  --kn-color-background-popup-gray-intense: var(--theme-colors-popup-background-gray-intense);
+  --kn-color-background-popup-positive-moderate: var(--theme-colors-popup-background-positive-moderate);
+  --kn-color-background-popup-negative-moderate: var(--theme-colors-popup-background-negative-moderate);
+  --kn-color-background-popup-notice-moderate: var(--theme-colors-popup-background-notice-moderate);
+  --kn-color-background-popup-information-moderate: var(--theme-colors-popup-background-information-moderate);
+  --kn-color-background-popup-neutral-moderate: var(--theme-colors-popup-background-neutral-moderate);
+  --kn-color-border-popup-gray-subtle: var(--theme-colors-popup-border-gray-subtle);
+  --kn-color-border-popup-gray-moderate: var(--theme-colors-popup-border-gray-moderate);
+  --kn-color-border-popup-gray-intense: var(--theme-colors-popup-border-gray-intense);
+  --kn-color-border-popup-positive-moderate: var(--theme-colors-popup-border-positive-moderate);
+  --kn-color-border-popup-negative-moderate: var(--theme-colors-popup-border-negative-moderate);
+  --kn-color-border-popup-notice-moderate: var(--theme-colors-popup-border-notice-moderate);
+  --kn-color-border-popup-information-moderate: var(--theme-colors-popup-border-information-moderate);
+  --kn-color-border-popup-neutral-moderate: var(--theme-colors-popup-border-neutral-moderate);
+  --kn-color-background-data-categorical-blue-strong: var(--theme-colors-data-background-categorical-blue-strong);
+  --kn-color-background-data-categorical-green-strong: var(--theme-colors-data-background-categorical-green-strong);
+  --kn-color-background-data-categorical-red-strong: var(--theme-colors-data-background-categorical-red-strong);
+  --kn-color-background-data-categorical-orange-strong: var(--theme-colors-data-background-categorical-orange-strong);
+  --kn-color-background-data-categorical-skyBlue-strong: var(--theme-colors-data-background-categorical-skyBlue-strong);
+  --kn-color-background-data-categorical-purple-strong: var(--theme-colors-data-background-categorical-purple-strong);
+  --kn-color-background-data-categorical-pink-strong: var(--theme-colors-data-background-categorical-pink-strong);
+  --kn-color-background-data-categorical-gold-strong: var(--theme-colors-data-background-categorical-gold-strong);
+  --kn-color-background-data-categorical-gray-strong: var(--theme-colors-data-background-categorical-gray-strong);
 
   /* -------------------------------------------------------------------------
-     theme.typography — Blade scale, Inter family (KN)
-     onDesktop values; onMobile overrides below
+     Typography — desktop steps. Mobile overrides below breakpoint m.
+     Families: Inter (text/heading), Roboto (sans), Roboto Mono (code).
+     Display stack is only --theme-typography-fonts-family-display (this file).
      ------------------------------------------------------------------------- */
-  --theme-typography-fonts-family-text: Inter, sans-serif;
-  --theme-typography-fonts-family-heading: Inter, sans-serif;
-  --theme-typography-fonts-family-code: Inter, sans-serif;
+  --theme-typography-fonts-family-text: Inter, Roboto, sans-serif;
+  --theme-typography-fonts-family-heading: Inter, Roboto, sans-serif;
+  --theme-typography-fonts-family-display: "Space Grotesk", Inter, sans-serif;
+  --theme-typography-fonts-family-sans: Roboto, Inter, sans-serif;
+  --theme-typography-fonts-family-code: "Roboto Mono", ui-monospace, monospace;
 
   --theme-typography-fonts-weight-regular: 400;
   --theme-typography-fonts-weight-medium: 500;
   --theme-typography-fonts-weight-semibold: 600;
   --theme-typography-fonts-weight-bold: 700;
 
-  --theme-typography-fonts-size-25: 0.625rem;
-  --theme-typography-fonts-size-50: 0.6875rem;
-  --theme-typography-fonts-size-75: 0.75rem;
-  --theme-typography-fonts-size-100: 0.875rem;
-  --theme-typography-fonts-size-200: 1rem;
-  --theme-typography-fonts-size-300: 1.125rem;
-  --theme-typography-fonts-size-400: 1.25rem;
-  --theme-typography-fonts-size-500: 1.5rem;
-  --theme-typography-fonts-size-600: 2rem;
-  --theme-typography-fonts-size-700: 2.5rem;
-  --theme-typography-fonts-size-800: 3rem;
-  --theme-typography-fonts-size-900: 3.5rem;
-  --theme-typography-fonts-size-1000: 4rem;
-  --theme-typography-fonts-size-1100: 4.5rem;
+  --theme-typography-fonts-size-25: 0.625rem;   /* 10 */
+  --theme-typography-fonts-size-50: 0.6875rem;  /* 11 */
+  --theme-typography-fonts-size-75: 0.75rem;    /* 12 */
+  --theme-typography-fonts-size-100: 0.875rem;  /* 14 */
+  --theme-typography-fonts-size-200: 1rem;      /* 16 */
+  --theme-typography-fonts-size-300: 1.125rem;  /* 18 */
+  --theme-typography-fonts-size-400: 1.25rem;   /* 20 */
+  --theme-typography-fonts-size-500: 1.5rem;    /* 24 */
+  --theme-typography-fonts-size-600: 2rem;      /* 32 */
+  --theme-typography-fonts-size-700: 2.5rem;    /* 40 */
+  --theme-typography-fonts-size-800: 3rem;      /* 48 */
+  --theme-typography-fonts-size-900: 3.5rem;    /* 56 */
+  --theme-typography-fonts-size-1000: 4rem;     /* 64 */
+  --theme-typography-fonts-size-1100: 4.5rem;   /* 72 */
 
   --theme-typography-line-heights-0: 0;
-  --theme-typography-line-heights-25: 0.8125rem;
-  --theme-typography-line-heights-50: 1rem;
-  --theme-typography-line-heights-75: 1.0625rem;
-  --theme-typography-line-heights-100: 1.25rem;
-  --theme-typography-line-heights-200: 1.5rem;
-  --theme-typography-line-heights-300: 1.5rem;
-  --theme-typography-line-heights-400: 1.625rem;
-  --theme-typography-line-heights-500: 2rem;
-  --theme-typography-line-heights-600: 2.375rem;
-  --theme-typography-line-heights-700: 2.875rem;
-  --theme-typography-line-heights-800: 3.5rem;
-  --theme-typography-line-heights-900: 4rem;
-  --theme-typography-line-heights-1000: 4.375rem;
-  --theme-typography-line-heights-1100: 4.875rem;
+  --theme-typography-line-heights-25: 0.8125rem;  /* 13 */
+  --theme-typography-line-heights-50: 1rem;       /* 16 */
+  --theme-typography-line-heights-75: 1.0625rem;  /* 17 */
+  --theme-typography-line-heights-100: 1.25rem;   /* 20 */
+  --theme-typography-line-heights-200: 1.5rem;    /* 24 */
+  --theme-typography-line-heights-300: 1.5rem;    /* 24 */
+  --theme-typography-line-heights-400: 1.625rem;  /* 26 */
+  --theme-typography-line-heights-500: 2rem;      /* 32 */
+  --theme-typography-line-heights-600: 2.375rem;  /* 38 */
+  --theme-typography-line-heights-700: 2.875rem;  /* 46 */
+  --theme-typography-line-heights-800: 3.5rem;    /* 56 */
+  --theme-typography-line-heights-900: 4rem;      /* 64 */
+  --theme-typography-line-heights-1000: 4.375rem; /* 70 */
+  --theme-typography-line-heights-1100: 4.875rem; /* 78 */
 
   --theme-typography-letter-spacings-25: -0.033em;
   --theme-typography-letter-spacings-50: -0.013em;
   --theme-typography-letter-spacings-100: 0;
 
   --kn-font-family: var(--theme-typography-fonts-family-text);
+  --kn-font-family-text: var(--theme-typography-fonts-family-text);
+  --kn-font-family-heading: var(--theme-typography-fonts-family-heading);
+  --kn-font-family-display: var(--theme-typography-fonts-family-display);
+  --kn-font-family-sans: var(--theme-typography-fonts-family-sans);
+  --kn-font-family-code: var(--theme-typography-fonts-family-code);
   --kn-weight-regular: var(--theme-typography-fonts-weight-regular);
   --kn-weight-medium: var(--theme-typography-fonts-weight-medium);
   --kn-weight-semibold: var(--theme-typography-fonts-weight-semibold);
   --kn-weight-bold: var(--theme-typography-fonts-weight-bold);
-  --kn-weight-light: 300;
-  --kn-weight-black: 800;
 
+  --kn-letter-spacing-tightest: var(--theme-typography-letter-spacings-25);
   --kn-letter-spacing-tight: var(--theme-typography-letter-spacings-50);
   --kn-letter-spacing-normal: var(--theme-typography-letter-spacings-100);
-  --kn-letter-spacing-wide: 0.125rem;
-  --kn-letter-spacing-wider: 0.25rem;
 
-  --kn-type-heading-h1-size: var(--theme-typography-fonts-size-500);
-  --kn-type-heading-h1-line: var(--theme-typography-line-heights-500);
-  --kn-type-heading-h2-size: var(--theme-typography-fonts-size-400);
-  --kn-type-heading-h2-line: var(--theme-typography-line-heights-400);
-  --kn-type-heading-h3-size: var(--theme-typography-fonts-size-300);
-  --kn-type-heading-h3-line: var(--theme-typography-line-heights-400);
+  --kn-type-display-xl-size: var(--theme-typography-fonts-size-1100);
+  --kn-type-display-xl-line: var(--theme-typography-line-heights-1100);
+  --kn-type-display-lg-size: var(--theme-typography-fonts-size-1000);
+  --kn-type-display-lg-line: var(--theme-typography-line-heights-1000);
+  --kn-type-display-md-size: var(--theme-typography-fonts-size-900);
+  --kn-type-display-md-line: var(--theme-typography-line-heights-900);
+  --kn-type-display-sm-size: var(--theme-typography-fonts-size-800);
+  --kn-type-display-sm-line: var(--theme-typography-line-heights-800);
+
+  --kn-type-heading-2xl-size: var(--theme-typography-fonts-size-700);
+  --kn-type-heading-2xl-line: var(--theme-typography-line-heights-700);
+  --kn-type-heading-xl-size: var(--theme-typography-fonts-size-600);
+  --kn-type-heading-xl-line: var(--theme-typography-line-heights-600);
+  --kn-type-heading-lg-size: var(--theme-typography-fonts-size-500);
+  --kn-type-heading-lg-line: var(--theme-typography-line-heights-500);
+  --kn-type-heading-md-size: var(--theme-typography-fonts-size-400);
+  --kn-type-heading-md-line: var(--theme-typography-line-heights-400);
+  --kn-type-heading-sm-size: var(--theme-typography-fonts-size-300);
+  --kn-type-heading-sm-line: var(--theme-typography-line-heights-300);
+
+  /* HTML heading tags in product chrome. Size names (sm…2xl) follow
+     Heading small→2xlarge. h3 line is heading-sm (300), not 400. */
+  --kn-type-heading-h1-size: var(--kn-type-heading-lg-size);
+  --kn-type-heading-h1-line: var(--kn-type-heading-lg-line);
+  --kn-type-heading-h2-size: var(--kn-type-heading-md-size);
+  --kn-type-heading-h2-line: var(--kn-type-heading-md-line);
+  --kn-type-heading-h3-size: var(--kn-type-heading-sm-size);
+  --kn-type-heading-h3-line: var(--kn-type-heading-sm-line);
   --kn-type-heading-h4-size: var(--theme-typography-fonts-size-200);
   --kn-type-heading-h4-line: var(--theme-typography-line-heights-200);
   --kn-type-heading-h5-size: var(--theme-typography-fonts-size-100);
@@ -390,17 +1148,38 @@
   --kn-type-body-lg-line: var(--theme-typography-line-heights-200);
   --kn-type-body-md-size: var(--theme-typography-fonts-size-100);
   --kn-type-body-md-line: var(--theme-typography-line-heights-100);
-  --kn-type-body-sm-size: 0.8125rem;
-  --kn-type-body-sm-line: var(--theme-typography-line-heights-100);
+  --kn-type-body-sm-size: var(--theme-typography-fonts-size-75);
+  --kn-type-body-sm-line: var(--theme-typography-line-heights-75);
+  /* KN extra between body-sm and body-xxs. Reference Text has no xs. */
   --kn-type-body-xs-size: var(--theme-typography-fonts-size-75);
   --kn-type-body-xs-line: var(--theme-typography-line-heights-50);
+  --kn-type-body-xxs-size: var(--theme-typography-fonts-size-25);
+  --kn-type-body-xxs-line: var(--theme-typography-line-heights-25);
 
-  --kn-type-caption-md-size: var(--theme-typography-fonts-size-75);
+  /* Caption medium = Text caption medium (14 / 16). Caption small stays
+     size-75 (12px), not size-50 (11px): 12px is the smallest readable
+     step for shipment IDs, ETAs, and port meta. */
+  --kn-type-caption-md-size: var(--theme-typography-fonts-size-100);
   --kn-type-caption-md-line: var(--theme-typography-line-heights-50);
-  /* Ops desktop floor: Blade caption-sm is 11px. Shipment IDs, ETAs, and
-     port meta are scanned for hours — 12px is the smallest readable step. */
   --kn-type-caption-sm-size: var(--theme-typography-fonts-size-75);
   --kn-type-caption-sm-line: var(--theme-typography-line-heights-50);
+
+  --kn-type-code-md-size: var(--theme-typography-fonts-size-75);
+  --kn-type-code-md-line: var(--theme-typography-line-heights-75);
+  --kn-type-code-sm-size: var(--theme-typography-fonts-size-25);
+  --kn-type-code-sm-line: var(--theme-typography-line-heights-25);
+
+  /* Tracking from Text / Heading / Display. Display semibold = 100;
+     medium/regular Display = 50 (see .type-weight-medium on display). */
+  --kn-type-display-tracking: var(--theme-typography-letter-spacings-100);
+  --kn-type-heading-tracking: var(--theme-typography-letter-spacings-100);
+  --kn-type-body-lg-tracking: var(--theme-typography-letter-spacings-25);
+  --kn-type-body-md-tracking: var(--theme-typography-letter-spacings-50);
+  --kn-type-body-sm-tracking: var(--theme-typography-letter-spacings-50);
+  --kn-type-body-xs-tracking: var(--theme-typography-letter-spacings-50);
+  --kn-type-body-xxs-tracking: var(--theme-typography-letter-spacings-50);
+  --kn-type-caption-tracking: var(--theme-typography-letter-spacings-50);
+  --kn-type-code-tracking: var(--theme-typography-letter-spacings-100);
 
   --kn-type-ui-label-size: var(--theme-typography-fonts-size-75);
   --kn-type-ui-label-line: var(--theme-typography-line-heights-50);
@@ -408,11 +1187,12 @@
   --kn-type-ui-lg-line: var(--theme-typography-line-heights-100);
   --kn-type-ui-md-size: var(--theme-typography-fonts-size-100);
   --kn-type-ui-md-line: var(--theme-typography-line-heights-50);
-  --kn-type-ui-sm-size: 0.8125rem;
+  --kn-type-ui-sm-size: var(--theme-typography-fonts-size-75);
   --kn-type-ui-sm-line: var(--theme-typography-line-heights-50);
 
   /* -------------------------------------------------------------------------
-     theme.spacing — 0…11 = 0, 2, 4, 8, 12, 16, 20, 24, 32, 40, 48, 56
+     Spacing — 0…11 = 0, 2, 4, 8, 12, 16, 20, 24, 32, 40, 48, 56
+     Size — component width/height (icons, controls, layout chrome)
      ------------------------------------------------------------------------- */
   --theme-spacing-0: 0;
   --theme-spacing-1: 0.125rem;
@@ -440,26 +1220,99 @@
   --kn-spacing-10: var(--theme-spacing-10);
   --kn-spacing-11: var(--theme-spacing-11);
 
+  --theme-size-0: 0;
+  --theme-size-1: 0.0625rem;
+  --theme-size-2: 0.125rem;
+  --theme-size-3: 0.1875rem;
+  --theme-size-4: 0.25rem;
+  --theme-size-5: 0.3125rem;
+  --theme-size-6: 0.375rem;
+  --theme-size-7: 0.4375rem;
+  --theme-size-8: 0.5rem;
+  --theme-size-10: 0.625rem;
+  --theme-size-12: 0.75rem;
+  --theme-size-14: 0.875rem;
+  --theme-size-15: 0.9375rem;
+  --theme-size-16: 1rem;
+  --theme-size-18: 1.125rem;
+  --theme-size-20: 1.25rem;
+  --theme-size-24: 1.5rem;
+  --theme-size-26: 1.625rem;
+  --theme-size-28: 1.75rem;
+  --theme-size-30: 1.875rem;
+  --theme-size-31: 1.9375rem;
+  --theme-size-32: 2rem;
+  --theme-size-33: 2.0625rem;
+  --theme-size-34: 2.125rem;
+  --theme-size-36: 2.25rem;
+  --theme-size-37: 2.3125rem;
+  --theme-size-38: 2.375rem;
+  --theme-size-40: 2.5rem;
+  --theme-size-42: 2.625rem;
+  --theme-size-44: 2.75rem;
+  --theme-size-46: 2.875rem;
+  --theme-size-48: 3rem;
+  --theme-size-50: 3.125rem;
+  --theme-size-52: 3.25rem;
+  --theme-size-56: 3.5rem;
+  --theme-size-59: 3.6875rem;
+  --theme-size-60: 3.75rem;
+  --theme-size-62: 3.875rem;
+  --theme-size-64: 4rem;
+  --theme-size-66: 4.125rem;
+  --theme-size-72: 4.5rem;
+  --theme-size-78: 4.875rem;
+  --theme-size-80: 5rem;
+  --theme-size-82: 5.125rem;
+  --theme-size-84: 5.25rem;
+  --theme-size-86: 5.375rem;
+  --theme-size-90: 5.625rem;
+  --theme-size-94: 5.875rem;
+  --theme-size-96: 6rem;
+  --theme-size-100: 6.25rem;
+  --theme-size-114: 7.125rem;
+  --theme-size-120: 7.5rem;
+  --theme-size-122: 7.625rem;
+  --theme-size-124: 7.75rem;
+  --theme-size-132: 8.25rem;
+  --theme-size-140: 8.75rem;
+  --theme-size-160: 10rem;
+  --theme-size-172: 10.75rem;
+  --theme-size-176: 11rem;
+  --theme-size-192: 12rem;
+  --theme-size-196: 12.25rem;
+  --theme-size-198: 12.375rem;
+  --theme-size-200: 12.5rem;
+  --theme-size-208: 13rem;
+  --theme-size-240: 15rem;
+  --theme-size-245: 15.3125rem;
+  --theme-size-250: 15.625rem;
+  --theme-size-256: 16rem;
+  --theme-size-264: 16.5rem;
+  --theme-size-300: 18.75rem;
+  --theme-size-314: 19.625rem;
+  --theme-size-360: 22.5rem;
+  --theme-size-400: 25rem;
+  --theme-size-584: 36.5rem;
+  --theme-size-640: 40rem;
+  --theme-size-760: 47.5rem;
+  --theme-size-800: 50rem;
+  --theme-size-1024: 64rem;
+  --theme-size-1136: 71rem;
+
   --kn-grid-gutter-condensed: var(--theme-spacing-5);
   --kn-grid-gutter-default: var(--theme-spacing-7);
   --kn-grid-gutter-spacious: var(--theme-spacing-8);
   --kn-grid-margin-default: var(--theme-spacing-10);
   --kn-grid-columns: 12;
 
-  /* theme.breakpoints */
+  /* Breakpoints */
   --theme-breakpoints-base: 0;
   --theme-breakpoints-xs: 320px;
   --theme-breakpoints-s: 480px;
   --theme-breakpoints-m: 768px;
   --theme-breakpoints-l: 1024px;
   --theme-breakpoints-xl: 1200px;
-
-  --blade-breakpoint-base: var(--theme-breakpoints-base);
-  --blade-breakpoint-xs: var(--theme-breakpoints-xs);
-  --blade-breakpoint-s: var(--theme-breakpoints-s);
-  --blade-breakpoint-m: var(--theme-breakpoints-m);
-  --blade-breakpoint-l: var(--theme-breakpoints-l);
-  --blade-breakpoint-xl: var(--theme-breakpoints-xl);
 
   --kn-breakpoint-base: var(--theme-breakpoints-base);
   --kn-breakpoint-xs: var(--theme-breakpoints-xs);
@@ -471,47 +1324,58 @@
   --kn-grid-gutter: var(--kn-grid-gutter-condensed);
   --kn-grid-margin: var(--theme-spacing-5);
 
-  --kn-layout-sidebar: var(--blade-sidenav-expanded);
+  --kn-layout-sidenav-collapsed: var(--theme-size-56);
+  --kn-layout-sidenav-expanded: var(--theme-size-240);
+  --kn-layout-sidenav-expanded-xl: var(--theme-size-264);
+  --kn-layout-sidenav-l2: calc(var(--kn-layout-sidenav-expanded) - var(--kn-layout-sidenav-collapsed));
+  --kn-layout-sidenav-item-height: var(--theme-size-40);
+  --kn-layout-topnav-height: var(--theme-size-56);
+  --kn-layout-appbar-height: var(--theme-size-64);
+  --kn-layout-alert-max-width: var(--theme-size-584);
+  --kn-layout-bottomnav-height: calc(
+    var(--theme-spacing-5) + var(--theme-size-20) + var(--theme-spacing-1) +
+      var(--kn-type-body-xxs-line) + var(--theme-spacing-4) + var(--theme-border-width-thin)
+  );
+  --kn-layout-sheet-handle-width: var(--theme-size-56);
+  --kn-layout-sheet-handle-height: var(--theme-size-4);
+  --kn-layout-header-slot: var(--theme-size-28);
+  --kn-layout-drawer-width: var(--theme-size-800);
+  --kn-layout-assistant-width: 26.875rem; /* 430px named layout, not a spacing step */
   --kn-layout-content: 71rem;
+  --kn-layout-sidebar: var(--kn-layout-sidenav-expanded);
 
-  /* Blade SideNav tokens (packages/blade/src/components/SideNav/tokens.ts) */
-  --blade-sidenav-collapsed: 3.5rem; /* size.56 */
-  --blade-sidenav-expanded: 15rem; /* size.240 */
-  --blade-sidenav-expanded-xl: 16.5rem; /* size.264 */
-  --blade-sidenav-l2: calc(var(--blade-sidenav-expanded) - var(--blade-sidenav-collapsed));
-  --blade-sidenav-item-height: 2.5rem; /* size.40 */
+  --kn-admin-search-width: var(--theme-size-256);
+  --kn-admin-search-max: var(--theme-size-300);
+  --kn-admin-field-width: var(--theme-size-400);
+  --kn-admin-name-col: var(--theme-size-256);
+  --kn-admin-name-col-wide: var(--theme-size-300);
+  --kn-admin-perm-col: var(--theme-size-80);
+  --kn-admin-coverage-min: var(--theme-size-120);
+  --kn-admin-chips-col: var(--theme-size-240);
 
-  /* One width for every side drawer (shipment detail, admin, dashboard). 50.4rem = 806px at 16px root. */
-  --blade-drawer-width: 50.4rem;
+  --kn-color-ai-accent: var(--kn-primitive-purple-500);
+  --kn-color-ai-accent-text: var(--kn-primitive-purple-600);
+  --kn-color-ai-accent-subtle: var(--kn-primitive-purple-100);
+  --kn-color-ai-accent-border: var(--kn-primitive-purple-200);
+  --kn-color-ai-accent-strong: color-mix(in srgb, var(--kn-color-ai-accent) 22%, transparent);
 
-  /* AI accent tokens — purple (Klear Assistant), not product indigo */
-  --blade-ai-accent: var(--kn-primitive-purple-500, #6c5dd3);
-  --blade-ai-accent-text: var(--kn-primitive-purple-600, #5648b8);
-  --blade-ai-accent-subtle: var(--kn-primitive-purple-100, #e4dff6);
-  --blade-ai-accent-border: var(--kn-primitive-purple-200, #c9c0ed);
-  --blade-ai-accent-strong: color-mix(in srgb, var(--blade-ai-accent) 22%, transparent);
-
-  /* Admin ListView / FormGroup widths, from Blade spacing tokens. */
-  --blade-admin-search-width: calc(var(--theme-spacing-8) * 8);
-  --blade-admin-search-max: calc(var(--theme-spacing-8) * 9);
-  --blade-admin-field-width: calc(var(--theme-spacing-8) * 14);
-  --blade-admin-name-col: calc(var(--theme-spacing-8) * 8);
-  --blade-admin-name-col-wide: calc(var(--theme-spacing-8) * 9);
-  --blade-admin-perm-col: calc(var(--theme-spacing-11) + var(--theme-spacing-8));
-  --blade-admin-coverage-min: calc(var(--theme-spacing-8) * 4);
-  --blade-admin-chips-col: calc(var(--theme-spacing-8) * 7);
-
-  /* Blade TopNav — TOP_NAV_HEIGHT = size[56] */
-  --blade-topnav-height: 3.5rem;
-
-  /* theme.zIndex — sticky chrome vs overlay */
+  /* z-index — sticky chrome vs overlay */
   --theme-zindex-base: 0;
   --theme-zindex-sticky: 100;
   --theme-zindex-overlay: 1000;
+  --kn-zindex-base: var(--theme-zindex-base);
+  --kn-zindex-sticky: var(--theme-zindex-sticky);
+  --kn-zindex-overlay: var(--theme-zindex-overlay);
+
+  --theme-blur-low: var(--theme-size-4);
+  --theme-blur-medium: var(--theme-size-8);
+  --theme-blur-high: var(--theme-size-12);
+  --kn-blur-low: var(--theme-blur-low);
+  --kn-blur-medium: var(--theme-blur-medium);
+  --kn-blur-high: var(--theme-blur-high);
 
   /* -------------------------------------------------------------------------
-     theme.border + theme.opacity + theme.elevation
-     Radius keeps KN product values (Blade large is 16; KN large is 6)
+     Border, radius, opacity, elevation
      ------------------------------------------------------------------------- */
   --theme-border-width-none: 0;
   --theme-border-width-thinner: 0.03125rem;
@@ -537,37 +1401,33 @@
   --kn-border-thicker: var(--theme-border-width-thicker);
 
   --kn-radius-none: var(--theme-border-radius-none);
-  --kn-radius-xsmall: 0.0625rem;
-  --kn-radius-small: var(--theme-border-radius-2xsmall);
-  --kn-radius-medium: var(--theme-border-radius-xsmall);
-  --kn-radius-large: 0.375rem;
-  --kn-radius-xlarge: var(--theme-border-radius-medium);
-  --kn-radius-2xlarge: var(--theme-border-radius-large);
+  --kn-radius-2xsmall: var(--theme-border-radius-2xsmall);
+  --kn-radius-xsmall: var(--theme-border-radius-xsmall);
+  --kn-radius-small: var(--theme-border-radius-small);
+  --kn-radius-medium: var(--theme-border-radius-medium);
+  --kn-radius-large: var(--theme-border-radius-large);
+  --kn-radius-xlarge: var(--theme-border-radius-xlarge);
+  --kn-radius-2xlarge: var(--theme-border-radius-2xlarge);
   --kn-radius-max: var(--theme-border-radius-max);
+  --kn-radius-round: var(--theme-border-radius-round);
 
-  /* Component roles
-     surface       — Card, panel, overlay (Blade Card medium)
-     surface-large — workspace, menus, dropdowns
-     nested        — tiles inside a padded surface (Blade small)
-     control       — Button, IconButton, SideNav item
-     input         — TextInput / SearchInput
-     pill          — Badge, Chip, Avatar-on-rect
-     round         — Avatar, icon wells
-     group-radius  — inherited by flush children of a clipped shell */
+  /* Component radius roles — mapped onto the scale */
   --radius-surface: var(--theme-border-radius-medium);
   --radius-surface-large: var(--theme-border-radius-large);
-  --radius-nested: var(--kn-radius-large);
-  --radius-control: var(--kn-radius-large);
+  --radius-nested: var(--theme-border-radius-small);
+  --radius-control: var(--theme-border-radius-small);
   --radius-input: var(--theme-border-radius-xsmall);
   --radius-pill: var(--theme-border-radius-max);
   --radius-round: var(--theme-border-radius-round);
+  --radius-card: var(--theme-border-radius-medium);
 
-  /* Table / ListView chrome — Blade Table + Card medium */
   --kn-table-radius: var(--theme-border-radius-medium);
   --kn-table-cell-pad-y: var(--theme-spacing-4);
   --kn-table-cell-pad-x: var(--theme-spacing-5);
 
   --theme-opacity-0: 0;
+  --theme-opacity-1: 0.01;
+  --theme-opacity-50: 0.06;
   --theme-opacity-100: 0.09;
   --theme-opacity-200: 0.12;
   --theme-opacity-300: 0.18;
@@ -596,13 +1456,12 @@
   --kn-opacity-11: var(--theme-opacity-1100);
   --kn-opacity-12: var(--theme-opacity-1300);
 
-  --theme-elevation-lowRaised: 0 var(--theme-spacing-1) var(--theme-spacing-5) var(--theme-spacing-0)
-    var(--theme-colors-elevation-lowRaised);
-  --theme-elevation-midRaised: 0 var(--theme-spacing-3) var(--theme-spacing-7) var(--theme-spacing-0)
-    var(--theme-colors-elevation-midRaised);
-  --theme-elevation-highRaised: 0 var(--theme-spacing-5) var(--theme-spacing-10) -0.25rem
-    var(--theme-colors-elevation-highRaised);
+  --theme-elevation-none: none;
+  --theme-elevation-lowRaised: 0px 2px 4px 0px var(--theme-colors-elevation-lowRaised);
+  --theme-elevation-midRaised: 0px 16px 12px 0px var(--theme-colors-elevation-midRaised);
+  --theme-elevation-highRaised: 0px 8px 24px -4px var(--theme-colors-elevation-highRaised);
 
+  --kn-elevation-none: var(--theme-elevation-none);
   --kn-elevation-lowRaised: var(--theme-elevation-lowRaised);
   --kn-elevation-midRaised: var(--theme-elevation-midRaised);
   --kn-elevation-highRaised: var(--theme-elevation-highRaised);
@@ -610,7 +1469,7 @@
   --kn-focus-ring: 0 0 0 var(--theme-border-width-thicker)
     var(--theme-colors-interactive-border-information-default);
 
-  /* theme.motion */
+  /* Motion */
   --theme-motion-duration-2xquick: 80ms;
   --theme-motion-duration-xquick: 160ms;
   --theme-motion-duration-quick: 200ms;
@@ -637,34 +1496,33 @@
   --theme-motion-easing-overshoot: cubic-bezier(0.5, 0, 0.3, 1.5);
   --theme-motion-easing-shake: cubic-bezier(1, 0.5, 0, 0.5);
 
-  --blade-motion-duration-2xquick: var(--theme-motion-duration-2xquick);
-  --blade-motion-duration-xquick: var(--theme-motion-duration-xquick);
-  --blade-motion-duration-quick: var(--theme-motion-duration-quick);
-  --blade-motion-duration-moderate: var(--theme-motion-duration-moderate);
-  --blade-motion-duration-xmoderate: var(--theme-motion-duration-xmoderate);
-  --blade-motion-duration-gentle: var(--theme-motion-duration-gentle);
-  --blade-motion-duration-xgentle: var(--theme-motion-duration-xgentle);
-  --blade-motion-duration-2xgentle: var(--theme-motion-duration-2xgentle);
-  --blade-motion-delay-2xquick: var(--theme-motion-delay-2xquick);
-  --blade-motion-delay-xquick: var(--theme-motion-delay-xquick);
-  --blade-motion-delay-moderate: var(--theme-motion-delay-moderate);
-  --blade-motion-delay-gentle: var(--theme-motion-delay-gentle);
-  --blade-motion-delay-xgentle: var(--theme-motion-delay-xgentle);
-  --blade-motion-delay-long: var(--theme-motion-delay-long);
-  --blade-motion-delay-xlong: var(--theme-motion-delay-xlong);
-  --blade-motion-delay-2xlong: var(--theme-motion-delay-2xlong);
-  --blade-motion-easing-linear: var(--theme-motion-easing-linear);
-  --blade-motion-easing-entrance: var(--theme-motion-easing-entrance);
-  --blade-motion-easing-exit: var(--theme-motion-easing-exit);
-  --blade-motion-easing-standard: var(--theme-motion-easing-standard);
-  --blade-motion-easing-emphasized: var(--theme-motion-easing-emphasized);
-  --blade-motion-easing-overshoot: var(--theme-motion-easing-overshoot);
-  --blade-motion-easing-shake: var(--theme-motion-easing-shake);
+  --kn-motion-duration-2xquick: var(--theme-motion-duration-2xquick);
+  --kn-motion-duration-xquick: var(--theme-motion-duration-xquick);
+  --kn-motion-duration-quick: var(--theme-motion-duration-quick);
+  --kn-motion-duration-moderate: var(--theme-motion-duration-moderate);
+  --kn-motion-duration-xmoderate: var(--theme-motion-duration-xmoderate);
+  --kn-motion-duration-gentle: var(--theme-motion-duration-gentle);
+  --kn-motion-duration-xgentle: var(--theme-motion-duration-xgentle);
+  --kn-motion-duration-2xgentle: var(--theme-motion-duration-2xgentle);
+  --kn-motion-delay-2xquick: var(--theme-motion-delay-2xquick);
+  --kn-motion-delay-xquick: var(--theme-motion-delay-xquick);
+  --kn-motion-delay-moderate: var(--theme-motion-delay-moderate);
+  --kn-motion-delay-gentle: var(--theme-motion-delay-gentle);
+  --kn-motion-delay-xgentle: var(--theme-motion-delay-xgentle);
+  --kn-motion-delay-long: var(--theme-motion-delay-long);
+  --kn-motion-delay-xlong: var(--theme-motion-delay-xlong);
+  --kn-motion-delay-2xlong: var(--theme-motion-delay-2xlong);
+  --kn-motion-easing-linear: var(--theme-motion-easing-linear);
+  --kn-motion-easing-entrance: var(--theme-motion-easing-entrance);
+  --kn-motion-easing-exit: var(--theme-motion-easing-exit);
+  --kn-motion-easing-standard: var(--theme-motion-easing-standard);
+  --kn-motion-easing-emphasized: var(--theme-motion-easing-emphasized);
+  --kn-motion-easing-overshoot: var(--theme-motion-easing-overshoot);
+  --kn-motion-easing-shake: var(--theme-motion-easing-shake);
 
-  /* Klear Assistant conversation motion aliases (map to Blade durations — no new hues) */
-  --kn-ai-motion-msg-enter: var(--blade-motion-duration-quick);
-  --kn-ai-motion-stream-chunk: var(--blade-motion-duration-2xquick);
-  --kn-ai-motion-thinking: var(--blade-motion-duration-xquick);
+  --kn-ai-motion-msg-enter: var(--kn-motion-duration-quick);
+  --kn-ai-motion-stream-chunk: var(--kn-motion-duration-2xquick);
+  --kn-ai-motion-thinking: var(--kn-motion-duration-xquick);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -733,21 +1591,92 @@
   :root {
     --kn-grid-gutter: var(--kn-grid-gutter-default);
     --kn-grid-margin: var(--kn-spacing-10);
-    --blade-sidenav-expanded: var(--blade-sidenav-expanded-xl);
-    --kn-layout-sidebar: var(--blade-sidenav-expanded-xl);
+    --kn-layout-sidenav-expanded: var(--kn-layout-sidenav-expanded-xl);
+    --kn-layout-sidebar: var(--kn-layout-sidenav-expanded-xl);
   }
 }
 
-/* Typography utilities — bind size + default weight from design.md */
+/* Typography utilities — Display uses heading family (same as reference
+   Display). Space Grotesk is only .agentic-home__greeting / .agentic-thread__title. */
+.type-display-sm,
+.type-display-md,
+.type-display-lg,
+.type-display-xl {
+  font-family: var(--kn-font-family-heading);
+  font-weight: var(--kn-weight-semibold);
+  letter-spacing: var(--kn-type-display-tracking);
+}
+
+.type-display-sm.type-weight-regular,
+.type-display-sm.type-weight-medium,
+.type-display-md.type-weight-regular,
+.type-display-md.type-weight-medium,
+.type-display-lg.type-weight-regular,
+.type-display-lg.type-weight-medium,
+.type-display-xl.type-weight-regular,
+.type-display-xl.type-weight-medium {
+  letter-spacing: var(--theme-typography-letter-spacings-50);
+}
+
+.type-display-sm {
+  font-size: var(--kn-type-display-sm-size);
+  line-height: var(--kn-type-display-sm-line);
+}
+
+.type-display-md {
+  font-size: var(--kn-type-display-md-size);
+  line-height: var(--kn-type-display-md-line);
+}
+
+.type-display-lg {
+  font-size: var(--kn-type-display-lg-size);
+  line-height: var(--kn-type-display-lg-line);
+}
+
+.type-display-xl {
+  font-size: var(--kn-type-display-xl-size);
+  line-height: var(--kn-type-display-xl-line);
+}
+
+.type-heading-sm,
+.type-heading-md,
+.type-heading-lg,
+.type-heading-xl,
+.type-heading-2xl,
 .type-heading-h1,
 .type-heading-h2,
 .type-heading-h3,
 .type-heading-h4,
 .type-heading-h5,
 .type-heading-h6 {
-  font-family: var(--kn-font-family);
+  font-family: var(--kn-font-family-heading);
   font-weight: var(--kn-weight-semibold);
-  letter-spacing: var(--kn-letter-spacing-normal);
+  letter-spacing: var(--kn-type-heading-tracking);
+}
+
+.type-heading-sm {
+  font-size: var(--kn-type-heading-sm-size);
+  line-height: var(--kn-type-heading-sm-line);
+}
+
+.type-heading-md {
+  font-size: var(--kn-type-heading-md-size);
+  line-height: var(--kn-type-heading-md-line);
+}
+
+.type-heading-lg {
+  font-size: var(--kn-type-heading-lg-size);
+  line-height: var(--kn-type-heading-lg-line);
+}
+
+.type-heading-xl {
+  font-size: var(--kn-type-heading-xl-size);
+  line-height: var(--kn-type-heading-xl-line);
+}
+
+.type-heading-2xl {
+  font-size: var(--kn-type-heading-2xl-size);
+  line-height: var(--kn-type-heading-2xl-line);
 }
 
 .type-heading-h1 {
@@ -776,50 +1705,61 @@
 }
 
 .type-heading-h6 {
-  /* Same step as h5 (Blade Heading small). Do not treat h6 as a smaller title. */
-  font-size: var(--kn-type-heading-h5-size);
-  line-height: var(--kn-type-heading-h5-line);
+  font-size: var(--kn-type-heading-h6-size);
+  line-height: var(--kn-type-heading-h6-line);
 }
 
 .type-body-lg,
 .type-body-md,
 .type-body-sm,
 .type-body-xs,
+.type-body-xxs,
 .type-caption-md,
 .type-caption-sm {
   font-family: var(--kn-font-family);
   font-weight: var(--kn-weight-regular);
-  letter-spacing: var(--kn-letter-spacing-normal);
 }
 
 .type-body-lg {
   font-size: var(--kn-type-body-lg-size);
   line-height: var(--kn-type-body-lg-line);
+  letter-spacing: var(--kn-type-body-lg-tracking);
 }
 
 .type-body-md {
   font-size: var(--kn-type-body-md-size);
   line-height: var(--kn-type-body-md-line);
+  letter-spacing: var(--kn-type-body-md-tracking);
 }
 
 .type-body-sm {
   font-size: var(--kn-type-body-sm-size);
   line-height: var(--kn-type-body-sm-line);
+  letter-spacing: var(--kn-type-body-sm-tracking);
 }
 
 .type-body-xs {
   font-size: var(--kn-type-body-xs-size);
   line-height: var(--kn-type-body-xs-line);
+  letter-spacing: var(--kn-type-body-xs-tracking);
+}
+
+.type-body-xxs {
+  font-size: var(--kn-type-body-xxs-size);
+  line-height: var(--kn-type-body-xxs-line);
+  letter-spacing: var(--kn-type-body-xxs-tracking);
 }
 
 .type-caption-md {
   font-size: var(--kn-type-caption-md-size);
   line-height: var(--kn-type-caption-md-line);
+  letter-spacing: var(--kn-type-caption-tracking);
 }
 
 .type-caption-sm {
   font-size: var(--kn-type-caption-sm-size);
   line-height: var(--kn-type-caption-sm-line);
+  letter-spacing: var(--kn-type-caption-tracking);
 }
 
 .type-ui-label,
@@ -865,4 +1805,21 @@
 
 .type-weight-bold {
   font-weight: var(--kn-weight-bold);
+}
+
+.type-code-sm,
+.type-code-md {
+  font-family: var(--kn-font-family-code);
+  font-weight: var(--kn-weight-regular);
+  letter-spacing: var(--kn-type-code-tracking);
+}
+
+.type-code-sm {
+  font-size: var(--kn-type-code-sm-size);
+  line-height: var(--kn-type-code-sm-line);
+}
+
+.type-code-md {
+  font-size: var(--kn-type-code-md-size);
+  line-height: var(--kn-type-code-md-line);
 }

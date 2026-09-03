@@ -1,7 +1,7 @@
 /**
- * Blade behavioral stress tests — form / drawer data-integrity.
+ * Behavioral stress tests — form / drawer data-integrity.
  *
- * Run: node tests/blade-behavior-stress.test.cjs
+ * Run: node tests/behavior-stress.test.cjs
  *
  * Covers Role, Default Role, User drawers via shared KNAdminUX pure helpers
  * (mergePermissionSelections, applyPermissionToggle, applyUserField,
@@ -209,7 +209,7 @@ const FULL_SEED = {
   openGroups: ["a", "b"]
 };
 
-console.log("\n=== Part 2 — Blade behavior stress tests ===\n");
+console.log("\n=== Part 2 — behavior stress tests ===\n");
 
 console.log("\n1b) Row/col/group toggleKeys must not cascade-wipe (SEV-1 2026-08-24)");
 test("role: toggling an unrelated category row keeps prior category selections", () => {
@@ -728,7 +728,7 @@ if (failures.length) {
 }
 
 console.log(`
-Manual browser checks (not automated — DOM + focus + Blade chrome):
+Manual browser checks (not automated — DOM + focus + chrome):
   M1. Role drawer: search permissions → toggle one visible → clear search → hidden still checked.
   M2. Default Role: service multi-select search → uncheck visible → clear search → hidden services intact.
   M3. User: role menu search → toggle → clear search → hidden roles intact; chips-in-trigger × removes one only.

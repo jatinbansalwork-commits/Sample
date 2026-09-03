@@ -919,6 +919,49 @@
     </div>`;
   }
 
+  function shipmentCardsHtml(items, selectedId) {
+    if (!items?.length) {
+      return `<p class="type-body-sm">No shipments matched that query.</p>`;
+    }
+    return `<div class="ai-shipment-list" role="list">
+      ${items
+        .map((item, index) => {
+          const isSelected = selectedId ? item.id === selectedId : index === 0;
+          return `<a class="ai-shipment-card${isSelected ? " is-selected" : ""}" role="listitem" href="${escapeHtml(item.href)}" data-ai-shipment-open="${escapeHtml(item.id)}">
+            <span class="ai-shipment-card__row">
+              <span class="ai-shipment-card__name type-ui-sm type-weight-semibold">${escapeHtml(item.name)}</span>
+              ${isSelected ? `<span class="ai-shipment-card__badge type-caption-sm">✓ Selected</span>` : ""}
+            </span>
+            <span class="ai-shipment-card__meta type-caption-sm">ETA: ${escapeHtml(item.eta)} · MOT: ${escapeHtml(item.mot)} · BOL: ${escapeHtml(item.bol)}</span>
+          </a>`;
+        })
+        .join("")}
+    </div>`;
+  }
+
+  function findingsListHtml(findings) {
+    if (!findings?.length) {
+      return `<p class="type-body-sm">No issues found — this entry passes all available checks.</p>`;
+    }
+    const critical = findings.filter((item) => item.severity === "critical").length;
+    const warnings = findings.length - critical;
+    return `<div class="ai-findings-list" role="list">
+      <p class="type-caption-sm ai-findings-summary">${findings.length} issue${findings.length === 1 ? "" : "s"} found · ${critical} critical · ${warnings} warning${warnings === 1 ? "" : "s"}</p>
+      ${findings
+        .map(
+          (item) => `<button type="button" class="ai-finding-item ai-finding-item--${escapeHtml(item.severity)}" role="listitem" data-ai-finding-open="${escapeHtml(item.fieldKey || "")}">
+            <span class="ai-finding-item__head">
+              <span class="ai-finding-item__icon" aria-hidden="true">${item.severity === "critical" ? "❌" : "⚠️"}</span>
+              <span class="ai-finding-item__name type-ui-sm type-weight-semibold">${escapeHtml(item.name)}</span>
+            </span>
+            <span class="ai-finding-item__desc type-caption-sm">${escapeHtml(item.description)}</span>
+            <span class="ai-finding-item__path type-caption-sm">${escapeHtml(item.path)} →</span>
+          </button>`
+        )
+        .join("")}
+    </div>`;
+  }
+
   function userRoleChipsHtml(suggestions, { selected = [], aiOnly = [] } = {}) {
     const selectedSet = new Set(selected);
     const aiSet = new Set(aiOnly);
@@ -928,7 +971,7 @@
     return `<div class="ai-user-role-suggest" data-ai-user-role-suggest>
       <div class="ai-user-role-suggest__head">
         <p class="type-caption-sm type-weight-medium">AI role suggestions</p>
-        ${aiSet.size ? `<button type="button" class="blade-link type-caption-sm" data-ai-user-roles-clear>Clear AI-only</button>` : ""}
+        ${aiSet.size ? `<button type="button" class="kn-link type-caption-sm" data-ai-user-roles-clear>Clear AI-only</button>` : ""}
       </div>
       ${reviewHint()}
       <div class="ai-user-role-suggest__chips" role="group" aria-label="Suggested roles">
@@ -1093,6 +1136,8 @@
     reviewHint,
     draftCardHtml,
     reviewChecklistHtml,
+    shipmentCardsHtml,
+    findingsListHtml,
     userRoleChipsHtml,
     detectIntent,
     mergeAiSelections,
@@ -1101,4 +1146,60 @@
     finalizeAiPermissionOwnership,
     applyDraftNavigation
   };
+
+  function registerGenUIWidgets() {
+    const pending = (name, renderer) => {
+      if (window.KNGenUI?.register) {
+        window.KNGenUI.register(name, renderer);
+        return;
+      }
+      window.__knGenUIPending = window.__knGenUIPending || [];
+      window.__knGenUIPending.push([name, renderer]);
+    };
+    const skeleton = () =>
+      `<div class="skeleton-stack kn-genui__skeleton" aria-hidden="true"><span class="skeleton skeleton--title" style="width:48%"></span><span class="skeleton skeleton--row"></span><span class="skeleton skeleton--row"></span></div>`;
+    pending("KN_DRAFT", (node) => {
+      const draft = node?.draft;
+      if (!draft || (draft.type == null && !draft.name && !draft.title)) {
+        return skeleton();
+      }
+      try {
+        return draftCardHtml(draft);
+      } catch (_error) {
+        return skeleton();
+      }
+    });
+    pending("KN_REVIEW", (node) => {
+      if (!Array.isArray(node?.items)) {
+        return skeleton();
+      }
+      try {
+        return reviewChecklistHtml(node.items.filter((item) => item?.id && item?.name));
+      } catch (_error) {
+        return skeleton();
+      }
+    });
+    pending("KN_SHIPMENTS", (node) => {
+      if (!Array.isArray(node?.items)) {
+        return skeleton();
+      }
+      try {
+        return shipmentCardsHtml(node.items.filter((item) => item?.id && item?.name), node.selectedId);
+      } catch (_error) {
+        return skeleton();
+      }
+    });
+    pending("KN_FINDINGS", (node) => {
+      if (!Array.isArray(node?.findings)) {
+        return skeleton();
+      }
+      try {
+        return findingsListHtml(node.findings);
+      } catch (_error) {
+        return skeleton();
+      }
+    });
+  }
+
+  registerGenUIWidgets();
 })();

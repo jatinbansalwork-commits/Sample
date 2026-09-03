@@ -220,6 +220,7 @@
     aiNoMatch: false,
     aiSuggestions: {},
     aiFieldMeta: {},
+    aiDraftApplied: false,
     permAutoRead: {},
     permBlockedMsg: {},
     aiSeed: "new-role"
@@ -271,9 +272,10 @@
         input.setSelectionRange(end, end);
       }
     });
+    const seedAtSchedule = state.aiSeed;
     state._aiDebounce = setTimeout(() => {
       const liveRoot = document.getElementById("kn-role-root");
-      if (!state.form || !liveRoot?.querySelector("#kn-role-form")) {
+      if (!state.form || !liveRoot?.querySelector("#kn-role-form") || state.aiSeed !== seedAtSchedule) {
         state.aiLoading = false;
         return;
       }
@@ -642,8 +644,8 @@
   }
 
   function toast(content, color = "positive", anchor) {
-    if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color, anchor });
+    if (typeof window.showKnToast === "function") {
+      window.showKnToast({ content, color, anchor });
     }
   }
 
@@ -798,7 +800,7 @@
         <h1 class="type-heading-h3 type-weight-semibold">KN Role Management</h1>
         <p class="type-body-sm">Internal KlearNow access for Visibility, ISF, finance, and administration.</p>
       </div>
-      <a class="btn btn--primary btn--md type-ui-md" href="#kn-role-management/add" data-role-nav="add">Add Role</a>
+      <a class="btn btn--primary btn--md type-ui-md kn-btn" href="#kn-role-management/add" data-role-nav="add">Add Role</a>
     </header>
     ${ux.toolbar({
       chips: [
@@ -824,10 +826,10 @@
             </tr>
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-role-filter", key: "name", value: state.filters.name, label: "role name", placeholder: "Search by role name" })}
-              ${ux.colBladeSelect({ attr: "data-role-filter", key: "applicable", value: state.filters.applicable, label: "applicable to", open: state.selectOpen, options: APPLICABLE.map(item => ({ value: item.id, label: item.label })) })}
+              ${ux.colKnSelect({ attr: "data-role-filter", key: "applicable", value: state.filters.applicable, label: "applicable to", open: state.selectOpen, options: APPLICABLE.map(item => ({ value: item.id, label: item.label })) })}
               ${ux.colFilter({ attr: "data-role-filter", key: "createdBy", value: state.filters.createdBy, label: "owner", placeholder: "Search by owner" })}
               ${ux.colFilter({ attr: "data-role-filter", key: "coverage", value: state.filters.coverage, label: "coverage" })}
-              ${ux.colBladeSelect({ attr: "data-role-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [
+              ${ux.colKnSelect({ attr: "data-role-filter", key: "status", value: state.filters.status, label: "status", open: state.selectOpen, options: [
                 { value: "Active", label: "Active" },
                 { value: "Inactive", label: "Inactive" },
                 { value: "Draft", label: "Draft" }
@@ -888,13 +890,27 @@
     if (!draft || !state.form) {
       return;
     }
-    state.form.name = draft.name || state.form.name;
-    if (Array.isArray(draft.applicable) && draft.applicable.length) {
+    // First draft on a fresh form always applies. A later draft (drawer already open,
+    // possibly hand-edited) only overwrites fields the user hasn't taken ownership of —
+    // see the aiFieldMeta clears in the change handler below.
+    const isFirstApply = !state.aiDraftApplied;
+    const nameApplied = Boolean(draft.name && (isFirstApply || state.aiFieldMeta?.name));
+    if (nameApplied) {
+      state.form.name = draft.name;
+    }
+    const applicableApplied = Boolean(
+      Array.isArray(draft.applicable) && draft.applicable.length && (isFirstApply || state.aiFieldMeta?.applicable)
+    );
+    if (applicableApplied) {
       state.form.applicable = draft.applicable.slice();
     }
-    if (draft.partiesCategory) {
+    const partiesCategoryApplied = Boolean(
+      draft.partiesCategory && (isFirstApply || state.aiFieldMeta?.partiesCategory)
+    );
+    if (partiesCategoryApplied) {
       state.form.partiesCategory = draft.partiesCategory;
     }
+    state.aiDraftApplied = true;
     const suggestionsObj = { ...(draft.permissions || {}) };
     Object.keys(suggestionsObj).forEach((key) => state.form.permissions.add(key));
     if (window.KNAdminUX?.ensureWriteImpliesRead) {
@@ -914,8 +930,10 @@
     state.seenUsedGroups = new Set(usedGroupIds(state.form.permissions));
     state.unusedOpen = false;
     state.aiFieldMeta = {
-      name: draft.nameReason || "Prefill from Klear Assistant draft",
-      applicable: draft.applicableReasons || {}
+      ...state.aiFieldMeta,
+      ...(nameApplied ? { name: draft.nameReason || "Prefill from Klear Assistant draft" } : {}),
+      ...(applicableApplied ? { applicable: draft.applicableReasons || {} } : {}),
+      ...(partiesCategoryApplied ? { partiesCategory: "Prefill from Klear Assistant draft" } : {})
     };
     state.formSnapshot = snapshotForm(state.form);
     state.dirty = isFormDataDirty(state.form);
@@ -1022,17 +1040,17 @@
       ? `<span class="visually-hidden">${escapeHtml(label)}</span>`
       : `<span class="${labelClass}">${escapeHtml(label)}${mark}</span>`;
     const titleAttr = extras.title ? ` title="${escapeHtml(extras.title)}"` : "";
-    return `<label class="blade-check${extras.hideLabel ? " blade-check--bare" : ""}${extras.className ? ` ${extras.className}` : ""}"${extras.attr ? ` ${extras.attr}` : ""}${titleAttr}>
+    return `<label class="kn-checkbox kn-check${extras.hideLabel ? " kn-check--bare" : ""}${extras.className ? ` ${extras.className}` : ""}"${extras.attr ? ` ${extras.attr}` : ""}${titleAttr}>
       <input type="checkbox"${name ? ` name="${escapeHtml(name)}" value="${escapeHtml(value)}"` : ""} ${checked ? "checked" : ""} ${extras.indeterminate && !checked ? "data-indeterminate" : ""} aria-label="${escapeHtml(extras.ariaLabel || label)}"${titleAttr} />
-      <span class="blade-check__box" aria-hidden="true"></span>
+      <span class="kn-check__box" aria-hidden="true"></span>
       ${text}
     </label>`;
   }
 
   function radio(name, value, checked, label) {
-    return `<label class="blade-radio">
+    return `<label class="kn-radio">
       <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${checked ? "checked" : ""} />
-      <span class="blade-radio__control" aria-hidden="true"></span>
+      <span class="kn-radio__control" aria-hidden="true"></span>
       <span class="type-body-sm">${escapeHtml(label)}</span>
     </label>`;
   }
@@ -1052,9 +1070,9 @@
         <span class="form-display-field__value">${escapeHtml(partiesCategoryLabel(form.partiesCategory))}</span>
       </div>`;
     }
-    return `<div class="blade-field role-parties-category" role="radiogroup" aria-labelledby="kn-role-parties-category-title" aria-required="true">
-      <div class="blade-field__head">
-        <span class="type-caption-sm type-weight-medium blade-field__label" id="kn-role-parties-category-title">Select Parties Category <span class="role-req" aria-hidden="true">*</span></span>
+    return `<div class="kn-field role-parties-category" role="radiogroup" aria-labelledby="kn-role-parties-category-title" aria-required="true">
+      <div class="kn-field__head">
+        <span class="type-caption-sm type-weight-medium kn-field__label kn-form-label" id="kn-role-parties-category-title">Select Parties Category <span class="role-req" aria-hidden="true">*</span></span>
       </div>
       <div class="role-parties-category__row">
         ${PARTIES_CATEGORY.map((item) => radio("partiesCategory", item.id, form.partiesCategory === item.id, item.label)).join("")}
@@ -1164,10 +1182,10 @@
       modules: group.modules,
       includesLabel: "Includes these KlearNow services:",
       // Coverage tone stays on the count badge only — not the whole row (avoids peach/notice chrome).
-      trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count">${selected}/${keys.length}</span>`,
+      trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count kn-badge">${selected}/${keys.length}</span>`,
       body: `
         <div class="role-perm__row role-perm__row--head">
-          <span class="type-caption-sm blade-field__hint">Permission</span>
+          <span class="type-caption-sm kn-field__hint">Permission</span>
           <div class="role-perm__actions">
             ${ACTIONS.map((action) => {
               const colKeys = mods.map((mod) => keyOf(mod.id, action));
@@ -1212,7 +1230,7 @@
                     : "";
                   const classNames = [
                     isAiPerm ? "is-ai-suggested-check" : "",
-                    isAutoRead ? "blade-check--auto-read" : ""
+                    isAutoRead ? "kn-check--auto-read" : ""
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -1268,7 +1286,7 @@
                 <span class="form-display-field__label">PEOPLE ASSIGNED</span>
                 <span class="form-display-field__value">${
                   people
-                    ? `<a class="blade-link type-body-sm" href="#kn-user-management?role=${encodeURIComponent(role.name)}">${people} ${people === 1 ? "person" : "people"}</a>`
+                    ? `<a class="kn-link type-body-sm" href="#kn-user-management?role=${encodeURIComponent(role.name)}">${people} ${people === 1 ? "person" : "people"}</a>`
                     : `—`
                 }</span>
               </div>
@@ -1311,13 +1329,13 @@
     const accessFields = !editing
       ? ""
       : `<section class="role-form-zone role-form-zone--access" aria-label="Basics">
-            <div class="blade-field">
+            <div class="kn-field">
               <label class="type-caption-sm type-weight-medium" for="kn-role-name">Role Name <span class="role-req" aria-hidden="true">*</span></label>
-              <input class="blade-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="Enter role name" value="${escapeHtml(form.name)}" autocomplete="off" />
+              <input class="kn-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="Enter role name" value="${escapeHtml(form.name)}" autocomplete="off" />
               ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name) : ""}
               ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
             </div>
-            <div class="blade-field role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
+            <div class="kn-field role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
               ${window.KNAdminUX.applicableHead({
                 titleId: "kn-role-applicable-title",
                 title: "Applicable to",
@@ -1357,11 +1375,11 @@
             })}
             ${renderPermBrowser(form.permissions)}
           </section>`;
-    return `<div class="blade-drawer-root ${isEdit ? "admin-profile-drawer" : "admin-form-drawer"} is-open" id="admin-role-form-drawer">
-      <div class="blade-drawer__overlay" data-role-form-close tabindex="-1"></div>
-      <aside class="blade-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-role-form-title">
-        <header class="blade-drawer__header">
-          <div class="blade-drawer__titles">
+    return `<div class="kn-drawer-root ${isEdit ? "admin-profile-drawer" : "admin-form-drawer"} is-open" id="admin-role-form-drawer">
+      <div class="kn-drawer__overlay" data-role-form-close tabindex="-1"></div>
+      <aside class="kn-drawer" role="dialog" aria-modal="true" aria-labelledby="kn-role-form-title">
+        <header class="kn-drawer__header">
+          <div class="kn-drawer__titles">
             <div class="admin-drawer-title-row">
               <h2 class="type-heading-h5 type-weight-semibold" id="kn-role-form-title" tabindex="-1">${escapeHtml(title)}</h2>
             </div>
@@ -1369,8 +1387,8 @@
               isEdit
                 ? editing
                   ? ""
-                  : `<p class="type-caption-sm blade-field__hint">${escapeHtml(applicable || "—")}</p>`
-                : `<p class="type-caption-sm blade-field__hint">Customer dashboard role access</p>`
+                  : `<p class="type-caption-sm kn-field__hint">${escapeHtml(applicable || "—")}</p>`
+                : `<p class="type-caption-sm kn-field__hint">Customer dashboard role access</p>`
             }
           </div>
           ${
@@ -1384,7 +1402,7 @@
           }
           <button class="icon-btn" type="button" data-role-form-close aria-label="Close">${iconClose()}</button>
         </header>
-        <form class="blade-drawer__body role-form" id="kn-role-form" novalidate>
+        <form class="kn-drawer__body role-form kn-form-group kn-box kn-box--column" id="kn-role-form" novalidate>
           <p class="visually-hidden" aria-live="polite" data-admin-mode-live></p>
           ${
             role
@@ -1404,14 +1422,14 @@
             ${accessFields}${permFields}
           </div>
         </form>
-        <footer class="blade-drawer__footer">
-          ${isEdit ? `<div class="role-delete-action"><button class="btn btn--primary btn--color-negative btn--md type-ui-md" type="button" data-role-delete="${escapeHtml(form.id)}">
+        <footer class="kn-drawer__footer">
+          ${isEdit ? `<div class="role-delete-action"><button class="btn btn--primary btn--color-negative btn--md type-ui-md kn-btn" type="button" data-role-delete="${escapeHtml(form.id)}">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15"><path d="M3 4h10M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4M5.5 4l.5 8M10.5 4l-.5 8M7.5 4v8M8.5 4v8"/></svg>
             Delete Role
           </button></div>` : ""}
-          <div class="blade-drawer__footer-actions">
-            <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-role-form-close>Cancel</button>
-            <button class="btn btn--primary btn--md type-ui-md" type="submit" form="kn-role-form" id="kn-role-submit-btn" ${window.KNAdminUX.submitButtonAttrs(submitDisabled)}>${isEdit ? "Update Role" : "Add Role"}</button>
+          <div class="kn-drawer__footer-actions">
+            <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-role-form-close>Cancel</button>
+            <button class="btn btn--primary btn--md type-ui-md kn-btn" type="submit" form="kn-role-form" id="kn-role-submit-btn" ${window.KNAdminUX.submitButtonAttrs(submitDisabled)}>${isEdit ? "Update Role" : "Add Role"}</button>
           </div>
         </footer>
       </aside>
@@ -1451,6 +1469,7 @@
         state.aiNoMatch = false;
         state.aiSuggestions = {};
         state.aiFieldMeta = {};
+        state.aiDraftApplied = false;
         state.aiSeed = existing?.id || `new-role-${Date.now()}`;
         if (!existing) {
           applyPendingAiDraft();
@@ -1778,7 +1797,7 @@
         return;
       }
       const row = event.target.closest("tr[data-role-id]");
-      if (row && !event.target.closest("a, button, input, label, .blade-select, .user-row-actions, .admin-more")) {
+      if (row && !event.target.closest("a, button, input, label, .kn-select, .user-row-actions, .admin-more")) {
         const id = row.getAttribute("data-role-id");
         const route = parseRoute();
         if (route.view !== "list" && route.id === id) {
@@ -1999,6 +2018,12 @@
         }
         persistForm(readForm(formEl));
         if (event.target.matches('input[name="applicable"], input[name="partiesCategory"]')) {
+          if (event.target.matches('input[name="applicable"]') && state.aiFieldMeta?.applicable) {
+            state.aiFieldMeta = { ...state.aiFieldMeta, applicable: "" };
+          }
+          if (event.target.matches('input[name="partiesCategory"]') && state.aiFieldMeta?.partiesCategory) {
+            state.aiFieldMeta = { ...state.aiFieldMeta, partiesCategory: "" };
+          }
           if (event.target.matches('input[name="applicable"]') && event.target.value === "parties" && state.form) {
             if (!event.target.checked) {
               state.form.partiesCategory = "";
@@ -2204,7 +2229,7 @@
     state.aiFieldMeta = {};
     document
       .getElementById("kn-role-root")
-      ?.querySelectorAll(".blade-drawer-root, .blade-modal-root")
+      ?.querySelectorAll(".kn-drawer-root, .kn-modal-root")
       .forEach((node) => node.remove());
   }
 

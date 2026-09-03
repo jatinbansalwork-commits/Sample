@@ -1,0 +1,42 @@
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const root = path.resolve(new URL('.', import.meta.url).pathname, '..');
+const port = Number(process.env.PORT) || 8080;
+
+const types = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.mp4': 'video/mp4',
+  '.ico': 'image/x-icon',
+};
+
+http.createServer((req, res) => {
+  let urlPath = decodeURIComponent(req.url.split('?')[0]);
+  if (urlPath === '/') urlPath = '/index.html';
+  const filePath = path.join(root, urlPath);
+  if (!filePath.startsWith(root)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    const ext = path.extname(filePath);
+    res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    res.end(data);
+  });
+}).listen(port, () => {
+  console.log(`Serving ${root} on http://localhost:${port}`);
+});

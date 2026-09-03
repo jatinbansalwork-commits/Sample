@@ -221,13 +221,13 @@
         </div>
         <div class="map-preview__body">
           <code class="code type-caption-sm">${escapeHtml(id)}</code>
-          <span class="badge badge--${badgeTone(data)} type-caption-sm type-weight-medium">${escapeHtml(status)}</span>
+          <span class="badge badge--${badgeTone(data)} type-caption-sm type-weight-medium kn-badge">${escapeHtml(status)}</span>
           ${company ? `<p class="type-body-sm">${escapeHtml(company)}</p>` : ""}
           ${route ? `<p class="type-caption-sm map-preview__meta">${escapeHtml(route)}${mot ? ` · ${escapeHtml(mot)}` : ""}</p>` : ""}
           ${container ? `<p class="type-caption-sm map-preview__meta">Container ${escapeHtml(container)}</p>` : ""}
           ${sog ? `<p class="type-caption-sm map-preview__meta">${escapeHtml(sog)}</p>` : ""}
           ${extras ? `<ul class="map-preview__stack">${extras}</ul>` : ""}
-          <a class="btn btn--primary btn--sm type-ui-sm" href="#klearhub-visibility" data-vis-open='${query}'>View in Visibility</a>
+          <a class="btn btn--primary btn--sm type-ui-sm kn-btn" href="#klearhub-visibility" data-vis-open='${query}'>View in Visibility</a>
         </div>
       </article>
     `;

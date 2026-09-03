@@ -77,7 +77,9 @@ function persistVisViewHash(view) {
     params.delete("tab");
   }
   const query = params.toString();
-  history.replaceState(null, "", query ? `#klearhub-visibility?${query}` : "#klearhub-visibility");
+  const next = query ? `#klearhub-visibility?${query}` : "#klearhub-visibility";
+  history.replaceState(null, "", next);
+  window.dispatchEvent(new CustomEvent("kn-route-change", { detail: { hash: next } }));
 }
 
 function setVisRisk(risk) {
@@ -105,11 +107,14 @@ const visSortTriggerLabels = {
 
 function closeVisMenus(exceptId) {
   document.querySelectorAll("#klearhub-visibility-page .vis-menu__list").forEach((menu) => {
-    if (menu.id === exceptId) {
+    if (exceptId && menu.id === exceptId) {
       return;
     }
     menu.hidden = true;
-    const trigger = document.querySelector(`[aria-controls="${menu.id}"]`);
+    const host = menu.closest(".vis-menu, .kn-dropdown");
+    const trigger =
+      (menu.id && document.querySelector(`[aria-controls="${menu.id}"]`)) ||
+      host?.querySelector("[aria-haspopup], [data-vis-size-trigger]");
     trigger?.setAttribute("aria-expanded", "false");
   });
 }
@@ -321,16 +326,23 @@ function scrollVisShipmentIntoView(id) {
 }
 
 function badgeClass(tone) {
-  const intense = tone === "negative" || tone === "notice" ? " badge--intense" : "";
-  return `badge badge--${tone}${intense} type-caption-sm type-weight-medium`;
+  const intense = tone === "negative" || tone === "notice";
+  if (typeof window.knBadgeClass === "function") {
+    return window.knBadgeClass(tone, { emphasis: intense ? "intense" : "subtle" });
+  }
+  return `kn-badge kn-badge--${tone} kn-badge--${intense ? "intense" : "subtle"} kn-badge--medium badge badge--${tone}${intense ? " badge--intense" : ""}`;
 }
 
 function renderVisEmpty() {
-  return `
-    <div class="empty-state vis-empty-state">
-      <h2 class="type-heading-h5 type-weight-semibold">No shipments match</h2>
-      <p class="type-body-sm">Try another MOT, direction, or search term — or reset filters to see the live list.</p>
-      <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-vis-reset>Reset filters</button>
+    return `
+    <div class="empty-state vis-empty-state kn-empty">
+      <div class="kn-empty__copy">
+      <h2 class="kn-empty__title type-heading-h5 type-weight-semibold">No shipments match</h2>
+      <p class="kn-empty__desc type-body-sm">Try another MOT, direction, or search term — or reset filters to see the live list.</p>
+      </div>
+      <div class="kn-empty__actions">
+      <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-vis-reset>Reset filters</button>
+      </div>
     </div>
   `;
 }
@@ -355,7 +367,7 @@ function renderVisCard(item) {
           <p class="vis-card__id type-heading-h6 type-weight-semibold">
             ${action ? '<span class="indicator indicator--negative" aria-hidden="true"></span>' : ""}
             ${visCopyControl(item.id, "Shipment ID")}
-            <span class="badge badge--information type-caption-sm type-weight-medium">${item.direction}</span>
+            <span class="badge badge--information type-caption-sm type-weight-medium kn-badge">${item.direction}</span>
           </p>
           <p class="vis-card__company type-body-sm">${item.company}</p>
         </div>
@@ -439,14 +451,14 @@ function renderVisTable(rows) {
     .map((item) => {
       const selected = item.id === visState.selectedId;
       const secondary = item.statusSecondary
-        ? `<span class="badge badge--${item.statusSecondaryTone || "notice"} type-caption-sm type-weight-medium">${item.statusSecondary}</span>`
+        ? `<span class="kn-badge badge badge--${item.statusSecondaryTone || "notice"} type-caption-sm type-weight-medium">${item.statusSecondary}</span>`
         : "";
       return `
         <tr class="${selected ? "is-selected" : ""}" data-vis-id="${item.id}" tabindex="0" aria-selected="${selected}">
           <th scope="row">
             <span class="vis-id-cell">
               ${isActionNeeded(item) ? '<span class="indicator indicator--negative" aria-hidden="true"></span>' : ""}
-              <button class="blade-link vis-id-link type-ui-sm type-weight-medium" type="button">${item.id}</button>
+              <button class="kn-link vis-id-link type-ui-sm type-weight-medium" type="button">${item.id}</button>
               <button class="icon-btn vis-copy-btn" type="button" data-copy="${item.id}" data-copy-label="Shipment ID" aria-label="Copy shipment ID" data-tooltip="Copy shipment ID">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
@@ -464,7 +476,7 @@ function renderVisTable(rows) {
           <td>${visCopyCode(item.po, "PO")} ${visPlusCount(item.extraPo)}</td>
           <td>
             <span class="vis-status-stack">
-              <span class="badge badge--${item.statusTone} type-caption-sm type-weight-medium">${item.status}</span>
+              <span class="badge badge--${item.statusTone} type-caption-sm type-weight-medium kn-badge">${item.status}</span>
               ${secondary}
             </span>
           </td>
@@ -525,25 +537,25 @@ function renderVisPagination(target, total, totalPages) {
         return `<span class="vis-pagination__ellipsis type-caption-sm" aria-hidden="true">…</span>`;
       }
       const on = item === visState.page;
-      return `<button class="btn btn--tertiary btn--sm type-ui-sm vis-pagination__page${on ? " is-current" : ""}" type="button" data-vis-page="${item}" ${on ? 'aria-current="page"' : ""} aria-label="Page ${item}">${item}</button>`;
+      return `<button class="kn-btn btn btn--tertiary btn--sm type-ui-sm vis-pagination__page${on ? " is-current" : ""}" type="button" data-vis-page="${item}" ${on ? 'aria-current="page"' : ""} aria-label="Page ${item}">${item}</button>`;
     })
     .join("");
   target.innerHTML = `
     <p class="type-caption-sm vis-pagination__label" aria-live="polite">Showing ${start}–${end} of ${total}</p>
     <div class="vis-pagination__pages">
-      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-vis-page="prev" ${visState.page === 1 ? "disabled" : ""} aria-label="Previous page">Previous</button>
+      <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-vis-page="prev" ${visState.page === 1 ? "disabled" : ""} aria-label="Previous page">Previous</button>
       ${numbers}
-      <button class="btn btn--tertiary btn--sm type-ui-sm" type="button" data-vis-page="next" ${visState.page === safePages ? "disabled" : ""} aria-label="Next page">Next</button>
+      <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-vis-page="next" ${visState.page === safePages ? "disabled" : ""} aria-label="Next page">Next</button>
     </div>
     ${
       showSizePicker
-        ? `<div class="vis-pagination__size vis-menu vis-menu--end">
+        ? `<div class="vis-pagination__size vis-menu vis-menu--end kn-dropdown">
       <span class="type-caption-sm vis-pagination__label">Rows per page</span>
-      <button class="btn btn--secondary btn--sm type-ui-sm" type="button" data-vis-size-trigger aria-haspopup="listbox" aria-expanded="false" aria-label="Rows per page">${visState.pageSize}</button>
-      <div class="menu-overlay vis-menu__list" hidden role="listbox" aria-label="Rows per page">
+      <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-vis-size-trigger aria-haspopup="listbox" aria-expanded="false" aria-label="Rows per page">${visState.pageSize}</button>
+      <div class="menu-overlay vis-menu__list kn-dropdown__overlay" hidden role="listbox" aria-label="Rows per page">
         ${VIS_TABLE_PAGE_SIZES.map(
           (size) =>
-            `<button class="action-list-item type-ui-sm" type="button" role="option" data-vis-page-size="${size}" aria-selected="${size === visState.pageSize}">${size}</button>`
+            `<button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-vis-page-size="${size}" aria-selected="${size === visState.pageSize}">${size}</button>`
         ).join("")}
       </div>
     </div>`
@@ -710,6 +722,7 @@ function syncVisRiskChips() {
   document.querySelectorAll("[data-vis-count]").forEach((node) => {
     const key = node.getAttribute("data-vis-count");
     node.textContent = String(counts[key] ?? 0);
+    window.KNCounter?.hydrate(node);
   });
   document.querySelectorAll("#vis-quickfilters [data-vis-risk]").forEach((chip) => {
     const selected = chip.getAttribute("data-vis-risk") === visState.risk;
@@ -761,6 +774,10 @@ function renderVisibilityPage({ keepPage = false, fitMap = !keepPage, resetScrol
   renderVisTable(paged.rows);
   renderVisPagination(document.getElementById("vis-pagination"), paged.total, paged.totalPages);
   renderVisPagination(document.getElementById("vis-table-pagination"), paged.total, paged.totalPages);
+  const visRoot = document.getElementById("klearhub-visibility-page");
+  window.KNDropdown?.hydrate(visRoot);
+  window.KNDivider?.hydrate(visRoot);
+  window.KNEmpty?.hydrate(visRoot);
   syncVisRiskChips();
   announceVisResults(paged.total, getVisRiskCounts().action);
   renderVisibilityMapMarkers(getFilteredVisShipments(), { fit: fitMap });
@@ -1081,8 +1098,8 @@ function resetVisibilityMap() {
     pane.classList.add("map-pills-enter");
     window.setTimeout(() => pane.classList.remove("map-pills-enter"), 700);
   }
-  if (typeof window.showBladeToast === "function") {
-    window.showBladeToast({
+  if (typeof window.showKnToast === "function") {
+    window.showKnToast({
       content: "Map reset to default view",
       color: "positive",
       anchor: btn instanceof HTMLElement ? btn : null
@@ -1400,8 +1417,8 @@ function exportVisibilityData(event) {
         : null;
   closeVisMenus();
   if (!rows.length) {
-    if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content: "Nothing in this view to export.", color: "information", anchor });
+    if (typeof window.showKnToast === "function") {
+      window.showKnToast({ content: "Nothing in this view to export.", color: "information", anchor });
     }
     return;
   }
@@ -1436,8 +1453,8 @@ function exportVisibilityData(event) {
     item.company || ""
   ]);
   downloadCsv(`klearnow-visibility-${visExportStamp()}.csv`, headers, data);
-  if (typeof window.showBladeToast === "function") {
-    window.showBladeToast({
+  if (typeof window.showKnToast === "function") {
+    window.showKnToast({
       content: `Exported ${rows.length} shipment${rows.length === 1 ? "" : "s"}.`,
       color: "positive",
       anchor

@@ -108,8 +108,8 @@
   }
 
   function toast(content, color = "positive") {
-    if (typeof window.showBladeToast === "function") {
-      window.showBladeToast({ content, color });
+    if (typeof window.showKnToast === "function") {
+      window.showKnToast({ content, color });
     }
   }
 
@@ -442,7 +442,7 @@
           .map(
             (row) => `<tr data-inb-id="${escapeHtml(row.id)}" tabindex="0">
           <td class="admin-table-nowrap">
-            <a class="blade-link admin-name-link" href="#transaction-us-in-bond" data-inb-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}">
+            <a class="kn-link admin-name-link" href="#transaction-us-in-bond" data-inb-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}">
               <span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span>
             </a>
           </td>
@@ -501,7 +501,7 @@
               ${ux.colFilter({ attr: "data-inb-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name", placeholder: "Search by company name" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "entryNumber", value: state.txn.filters.entryNumber, label: "entry number", placeholder: "Search by entry number" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-inb-filter",
                 key: "transactionState",
                 value: state.txn.filters.transactionState,
@@ -518,7 +518,7 @@
               ${ux.colFilter({ attr: "data-inb-filter", key: "eta", value: state.txn.filters.eta, label: "ETA", placeholder: "Search by ETA" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments", placeholder: "Search by shipments" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "filingDate", value: state.txn.filters.filingDate, label: "filing date", placeholder: "Search by filing date" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-inb-filter",
                 key: "mot",
                 value: state.txn.filters.mot,
@@ -588,7 +588,7 @@
           .map(
             (row) => `<tr data-inb-ship-id="${escapeHtml(row.id)}" tabindex="0">
           <td class="admin-table-nowrap">
-            <a class="blade-link admin-name-link" href="#transaction-us-in-bond" data-inb-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}">
+            <a class="kn-link admin-name-link" href="#transaction-us-in-bond" data-inb-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}">
               <span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span>
             </a>
           </td>
@@ -638,7 +638,7 @@
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-inb-ship-filter",
                 key: "shipmentState",
                 value: state.ship.filters.shipmentState,
@@ -652,7 +652,7 @@
                   { value: "Completed", label: "Completed" }
                 ]
               })}
-              ${ux.colBladeSelect({
+              ${ux.colKnSelect({
                 attr: "data-inb-ship-filter",
                 key: "mot",
                 value: state.ship.filters.mot,
@@ -852,14 +852,18 @@
       if (open) {
         event.preventDefault();
         const row = findTxnRow(open.getAttribute("data-inb-open"));
-        toast(`${row?.transactionId || "Filing"} opened as read-only in this sample.`, "notice");
+        if (row) {
+          location.hash = `#transaction-us-in-bond/history/${encodeURIComponent(row.id)}`;
+        }
         return;
       }
       const shipOpen = event.target.closest("[data-inb-ship-open]");
       if (shipOpen) {
         event.preventDefault();
         const row = findShipRow(shipOpen.getAttribute("data-inb-ship-open"));
-        toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice");
+        if (row) {
+          location.hash = `#transaction-us-in-bond/history/${encodeURIComponent(row.id)}`;
+        }
         return;
       }
       const copy = event.target.closest("[data-inb-copy], [data-inb-ship-copy]");

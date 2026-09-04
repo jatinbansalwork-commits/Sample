@@ -1,7 +1,17 @@
 (function () {
   "use strict";
 
-  const BLOCK_TYPES = new Set(["CARD", "TABLE"]);
+  const STRUCTURED_MODES = [
+    "schema",
+    "draft",
+    "review",
+    "shipments",
+    "findings",
+    "classification",
+    "duty",
+    "entry-status"
+  ];
+  const BLOCK_TYPES = new Set(["CARD", "TABLE", "ENTRY_STATUS_TABLE", "DUTY_BREAKDOWN"]);
   const CARD_TABLE = new Set(["CARD", "TABLE"]);
   const ACTION_TYPES = new Set(["BUTTON", "LINK"]);
   const FEEDBACK = new Set(["information", "negative", "notice", "positive", "neutral", "primary"]);
@@ -246,39 +256,137 @@
     }
   }
 
+  function chartSeriesMeta(key) {
+    const catalog = {
+      ocean: { tone: "blue", label: "Ocean", token: "var(--kn-color-background-interactive-primary-default)" },
+      air: { tone: "green", label: "Air", token: "var(--kn-color-background-feedback-positive-intense)" },
+      truck: { tone: "gold", label: "Truck", token: "var(--kn-color-background-feedback-notice-intense)" },
+      rail: { tone: "purple", label: "Rail", token: "var(--kn-primitive-purple-500)" },
+      value: { tone: "blue", label: "Value", token: "var(--kn-color-background-interactive-primary-default)" }
+    };
+    const normalized = String(key || "").toLowerCase();
+    if (catalog[normalized]) {
+      return { key, ...catalog[normalized] };
+    }
+    const byLabel = Object.entries(catalog).find(([, meta]) => meta.label.toLowerCase() === normalized);
+    if (byLabel) {
+      return { key, ...byLabel[1] };
+    }
+    return { key, tone: "blue", label: String(key || "Value"), token: catalog.value.token };
+  }
+
+  function chartPlotKeys(firstItem, xAxis) {
+    const preferred = ["ocean", "air", "truck", "rail"];
+    const numeric = Object.keys(firstItem || {}).filter((key) => key !== xAxis && typeof firstItem[key] === "number");
+    const ordered = preferred.filter((key) => numeric.includes(key));
+    if (ordered.length) {
+      return ordered;
+    }
+    if (numeric.includes("value")) {
+      return ["value"];
+    }
+    return numeric;
+  }
+
+  function formatChartLegendValue(value, formatter) {
+    const num = Number(value) || 0;
+    if (formatter?.type === "percentage") {
+      return `${Math.round(num)}%`;
+    }
+    if (formatter?.type === "number") {
+      return String(num);
+    }
+    return String(value ?? "");
+  }
+
+  function chartCenterLabelHtml(label) {
+    if (!label) {
+      return "";
+    }
+    const parts = String(label).trim().split(/\s+/);
+    const strong = parts.shift() || "";
+    const rest = parts.join(" ") || "active";
+    return `<span class="kn-chart__center dash-donut__center"><strong class="type-heading-h5">${escapeHtml(strong)}</strong><span class="type-caption-sm">${escapeHtml(rest)}</span></span>`;
+  }
+
   function chartHtml(node) {
     const data = Array.isArray(node.data) ? node.data.filter((row) => row && node.xAxis && row[node.xAxis] != null) : [];
-    const tiny = node.variant === "tiny";
-    const chartClass = tiny ? "kn-genui__chart" : "kn-genui__chart kn-genui__chart--full";
-    if (!node.chartType || !node.xAxis || !data.length) {
+    const compact = node.variant === "compact" || node.variant === "tiny";
+    const chartClass = compact ? "kn-genui__chart" : "kn-genui__chart kn-genui__chart--full";
+    if (!node.chartType || !node.xAxis || !data.length || !node.valueFormatter?.type) {
       return `<div class="${chartClass} skeleton skeleton--bar" aria-hidden="true"></div>`;
     }
-    const max = Math.max(...data.map((row) => Number(row.value) || 0), 1);
+
     if (node.chartType === "donut" || node.chartType === "pie") {
+      const rows = data.map((row) => ({
+        label: String(row[node.xAxis]),
+        value: Number(row.value ?? row.count ?? 0) || 0,
+        meta: chartSeriesMeta(row[node.xAxis])
+      }));
+      const total = rows.reduce((sum, row) => sum + row.value, 0);
       let cursor = 0;
-      const cats = ["blue", "green", "gold", "purple"];
-      const catToken = {
-        blue: "var(--kn-color-background-interactive-primary-default)",
-        green: "var(--kn-color-background-feedback-positive-intense)",
-        gold: "var(--kn-color-background-feedback-notice-intense)",
-        purple: "var(--kn-primitive-purple-500)"
-      };
-      const stops = data.map((row, index) => {
-        const next = cursor + ((Number(row.value) || 0) / max) * 100;
+      const gradientRows = total > 0 ? rows.filter((row) => row.value > 0) : rows.slice(0, 1);
+      const stops = gradientRows.map((row) => {
+        const slice = total > 0 ? (row.value / total) * 100 : 100;
         const start = cursor;
-        cursor = next;
-        const cat = cats[index % cats.length];
-        return `${catToken[cat]} ${start}% ${next}%`;
+        cursor += slice;
+        return `${row.meta.token} ${start}% ${cursor}%`;
       });
-      return `<div class="kn-chart kn-chart--donut"><div class="kn-chart__plot dash-donut" style="background: conic-gradient(${stops.join(",")})"></div></div>`;
+      const aria = rows.map((row) => `${formatChartLegendValue(row.value, node.valueFormatter)} ${row.label}`).join(", ");
+      const legend = rows
+        .map(
+          (row) =>
+            `<li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--${row.meta.tone}"></span> ${escapeHtml(row.meta.label)} ${formatChartLegendValue(row.value, node.valueFormatter)}</li>`
+        )
+        .join("");
+      return `<div class="kn-chart kn-chart--donut dash-donut-wrap ${chartClass}">
+        <div class="kn-chart__plot dash-donut" role="img" aria-label="${escapeHtml(aria)}" style="background: conic-gradient(${stops.join(",")})">
+          ${chartCenterLabelHtml(node.centerLabel)}
+        </div>
+        <ul class="kn-chart__legend kn-chart__legend--vertical dash-donut__legend type-caption-sm">${legend}</ul>
+      </div>`;
     }
+
+    const firstItem = data[0];
+    const keysToPlot = chartPlotKeys(firstItem, node.xAxis);
+    if (!keysToPlot.length) {
+      return `<div class="${chartClass} skeleton skeleton--bar" aria-hidden="true"></div>`;
+    }
+    const max = Math.max(
+      ...data.map((row) => keysToPlot.reduce((sum, key) => sum + (Number(row[key]) || 0), 0)),
+      1
+    );
     const bars = data
       .map((row) => {
-        const pct = Math.max(4, ((Number(row.value) || 0) / max) * 100);
-        return `<div class="kn-chart__row dash-bars__row"><span class="kn-chart__tick dash-bars__label type-caption-sm">${escapeHtml(String(row[node.xAxis]))}</span><span class="kn-chart__track dash-bars__track"><span class="kn-chart__seg dash-bars__seg chart-cat--blue" style="width:${pct}%"></span></span><span class="kn-chart__value dash-bars__value type-caption-sm">${escapeHtml(String(row.value))}</span></div>`;
+        const total = keysToPlot.reduce((sum, key) => sum + (Number(row[key]) || 0), 0);
+        const segments = keysToPlot
+          .map((key) => {
+            const value = Number(row[key]) || 0;
+            if (!value) {
+              return "";
+            }
+            const meta = chartSeriesMeta(key);
+            return `<span class="kn-chart__seg dash-bars__seg chart-cat--${meta.tone}" style="width:${Math.round((value / max) * 100)}%"></span>`;
+          })
+          .join("");
+        return `<div class="kn-chart__row dash-bars__row">
+          <span class="kn-chart__tick dash-bars__label type-caption-sm">${escapeHtml(String(row[node.xAxis]))}</span>
+          <div class="kn-chart__track dash-bars__track">${segments}</div>
+          <strong class="kn-chart__value dash-bars__value type-caption-sm">${total}</strong>
+        </div>`;
       })
       .join("");
-    return `<div class="kn-chart kn-chart--bar ${chartClass}"><div class="kn-chart__plot dash-bars">${bars}</div></div>`;
+    const legendKeys = keysToPlot.includes("value") ? keysToPlot : ["ocean", "air", "truck", "rail"];
+    const legend = legendKeys
+      .map((key) => {
+        const meta = chartSeriesMeta(key);
+        return `<li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--${meta.tone}"></span> ${escapeHtml(meta.label)}</li>`;
+      })
+      .join("");
+    return `<div class="kn-chart kn-chart--bar ${chartClass}">
+      <div class="kn-chart__plot dash-bars" role="img" aria-label="${escapeHtml(node.title || "Chart")}">${bars}</div>
+      <ul class="kn-chart__legend dash-legend type-caption-sm">${legend}</ul>
+    </div>`;
   }
 
   function infoGroupHtml(node, ctx) {
@@ -319,11 +427,30 @@
     return `<div class="kn-alert kn-alert--${tone} kn-alert--${emphasis} kn-alert--full" role="${role}"${live}><span class="kn-alert__icon" aria-hidden="true">${alertIcon(tone)}</span><div class="kn-alert__content">${title}${desc}</div></div>`;
   }
 
-  function wrapRing(inner, animate) {
-    if (!animate || prefersReducedMotion()) {
+  function wrapRing(inner) {
+    if (prefersReducedMotion()) {
       return `<div class="kn-genui__ring kn-genui__ring--static is-settled"><div class="kn-genui__ring-content">${inner}</div></div>`;
     }
     return `<div class="kn-genui__ring" data-kn-genui-ring><span class="kn-genui__ring-glow" aria-hidden="true"></span><div class="kn-genui__ring-content">${inner}<span class="kn-genui__ring-shade" aria-hidden="true"></span></div></div>`;
+  }
+
+  function isBlockComplete(node) {
+    if (!node?.component) {
+      return false;
+    }
+    const type = String(node.component);
+    if (type === "TABLE" || type === "ENTRY_STATUS_TABLE") {
+      const rows = Array.isArray(node.rows) ? node.rows.filter((row) => Array.isArray(row) && row.length) : [];
+      return Array.isArray(node.headers) && node.headers.length > 0 && rows.length > 0;
+    }
+    if (type === "DUTY_BREAKDOWN") {
+      return Array.isArray(node.lines) && node.lines.filter((line) => line?.label).length > 0;
+    }
+    if (type === "CARD") {
+      const kids = Array.isArray(node.children) ? node.children : [];
+      return Boolean(node.title || node.description || kids.length);
+    }
+    return true;
   }
 
   function blockSkeleton() {
@@ -407,6 +534,9 @@
     if (isPartialTypeName(type)) {
       return "";
     }
+    if ((ctx.streaming || ctx.skeletonUntilComplete) && BLOCK_TYPES.has(type) && !isBlockComplete(node)) {
+      return blockSkeleton();
+    }
     try {
       switch (type) {
       case "TEXT":
@@ -452,7 +582,7 @@
       case "CARD": {
         const kids = Array.isArray(node.children) ? node.children : [];
         if (!node.title && !node.description && !kids.length) {
-          return wrapRing(blockSkeleton(), false);
+          return wrapRing(blockSkeleton());
         }
         const header =
           node.title || node.description
@@ -461,13 +591,13 @@
         const body = kids.length ? kids.map((child) => renderNode(child, ctx)).join("") : blockSkeleton();
         const footer = node.footer ? `<div class="kn-card__footer"><p class="type-caption-sm">${escapeHtml(node.footer)}</p></div>` : "";
         const card = `<article class="kn-card kn-genui__card">${header}<div class="kn-card__body">${body}</div>${footer}</article>`;
-        return wrapRing(card, ctx.animate);
+        return wrapRing(card);
       }
       case "TABLE": {
-        if (!node.headers?.length) {
-          return wrapRing(blockSkeleton(), false);
-        }
         const rows = (node.rows || []).filter((row) => Array.isArray(row) && row.length);
+        if (!node.headers?.length || !rows.length) {
+          return wrapRing(blockSkeleton());
+        }
         const head = node.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
         const body = rows
           .map(
@@ -476,7 +606,7 @@
           )
           .join("");
         const table = `<div class="kn-genui__table-wrap"><table class="kn-genui__table vis-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
-        return wrapRing(table, ctx.animate);
+        return wrapRing(table);
       }
       default: {
         const custom = customRenderers[type];
@@ -556,7 +686,11 @@
     try {
       const components = schemaComponents(schema).filter((component) => component && !isPartialTypeName(component.component));
       const animate = Boolean(opts?.animate) && !prefersReducedMotion();
-      const ctx = { animate };
+      const ctx = {
+        animate,
+        streaming: Boolean(opts?.streaming),
+        skeletonUntilComplete: Boolean(opts?.skeletonUntilComplete)
+      };
       el.classList.add("kn-genui");
       if (animate && components.length > 1) {
         el.classList.add("kn-stagger");
@@ -572,7 +706,7 @@
         })
         .join("");
       bind(el);
-      if (animate) {
+      if (animate || el.querySelector("[data-kn-genui-ring]")) {
         settleRings(el);
       }
     } catch (_error) {
@@ -603,23 +737,46 @@
       mount(el, { components }, { animate: Boolean(opts.animate) });
       return el;
     }
-    const step = Math.max(36, Math.ceil(payload.length / 48));
-    for (let i = step; i < payload.length; i += step) {
+    if (opts.preStreamDelay) {
+      await delay(opts.preStreamDelay);
       if (signal?.aborted) {
         throw new DOMException("Aborted", "AbortError");
       }
-      const parsed = repairPartialJson(payload.slice(0, i));
-      if (!parsed) {
-        await delay(opts.interval ?? 28);
-        continue;
+    }
+    const chunkInterval = opts.interval ?? 36;
+    if (opts.skeletonUntilComplete) {
+      mount(el, { components }, { animate: false, skeletonUntilComplete: true });
+      opts.onChunk?.(null);
+      const chunks = Math.max(4, Math.ceil(payload.length / 100));
+      for (let i = 0; i < chunks; i += 1) {
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+        await delay(chunkInterval);
+        opts.onChunk?.(null);
       }
-      const partial = schemaComponents(parsed);
-      mount(el, { components: partial }, { animate: false });
-      opts.onChunk?.(partial);
-      await delay(opts.interval ?? 28);
+    } else {
+      const step = Math.max(36, Math.ceil(payload.length / 48));
+      for (let i = step; i < payload.length; i += step) {
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+        const parsed = repairPartialJson(payload.slice(0, i));
+        if (!parsed) {
+          await delay(chunkInterval);
+          continue;
+        }
+        const partial = schemaComponents(parsed);
+        mount(el, { components: partial }, { animate: false, streaming: true, skeletonUntilComplete: Boolean(opts.skeletonUntilComplete) });
+        opts.onChunk?.(partial);
+        await delay(chunkInterval);
+      }
     }
     if (signal?.aborted) {
       throw new DOMException("Aborted", "AbortError");
+    }
+    if (!reduce) {
+      await delay(opts.preRevealDelay ?? opts.settleDelay ?? 140);
     }
     mount(el, { components }, { animate: Boolean(opts.animate) && !reduce });
     opts.onDone?.(components);
@@ -662,10 +819,10 @@
     </article>`;
   });
 
-  register("DUTY_BREAKDOWN", (node) => {
+  register("DUTY_BREAKDOWN", (node, ctx) => {
     const lines = Array.isArray(node?.lines) ? node.lines.filter((line) => line?.label) : [];
     if (!lines.length) {
-      return blockSkeleton();
+      return wrapRing(blockSkeleton());
     }
     const rows = lines
       .map(
@@ -676,21 +833,55 @@
     const total = node.total != null
       ? `<tfoot><tr><th>Estimated duty</th><td>${amountHtml(node.total, node.currency || "USD", { suffix: "none" })}</td></tr></tfoot>`
       : "";
-    return `<div class="kn-genui__table-wrap"><table class="kn-genui__table vis-table"><thead><tr><th>Line</th><th>Amount</th></tr></thead><tbody>${rows}</tbody>${total}</table></div>`;
+    const table = `<div class="kn-genui__table-wrap"><table class="kn-genui__table vis-table"><thead><tr><th>Line</th><th>Amount</th></tr></thead><tbody>${rows}</tbody>${total}</table></div>`;
+    return wrapRing(table);
   });
 
-  register("ENTRY_STATUS_TABLE", (node) => {
+  register("ENTRY_STATUS_TABLE", (node, ctx) => {
     const headers = Array.isArray(node?.headers) ? node.headers : [];
     const rows = Array.isArray(node?.rows) ? node.rows.filter((row) => Array.isArray(row) && row.length) : [];
-    if (!headers.length) {
-      return blockSkeleton();
+    if (!headers.length || !rows.length) {
+      return wrapRing(blockSkeleton());
     }
     const head = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
     const body = rows
       .map((row) => `<tr>${(row || []).map((cell) => `<td>${cellHtml(cell)}</td>`).join("")}</tr>`)
       .join("");
-    return `<div class="kn-genui__table-wrap"><table class="kn-genui__table vis-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    const table = `<div class="kn-genui__table-wrap"><table class="kn-genui__table vis-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    return wrapRing(table);
   });
+
+  function isStructuredResult(result) {
+    if (!result) {
+      return false;
+    }
+    if (Array.isArray(result.schema?.components) && result.schema.components.length) {
+      return true;
+    }
+    if (STRUCTURED_MODES.includes(result.mode)) {
+      return true;
+    }
+    return Boolean(String(result.text || result.leadIn || "").trim());
+  }
+
+  function textSchema(text, leadIn) {
+    const components = [];
+    const lead = String(leadIn || "").trim();
+    const body = String(text || "").trim();
+    if (lead) {
+      components.push({ component: "TEXT", content: lead });
+    }
+    if (body) {
+      components.push({ component: "TEXT", content: body });
+    }
+    if (!components.length) {
+      components.push({
+        component: "TEXT",
+        content: "I could not process that request right now. Please try again."
+      });
+    }
+    return { components };
+  }
 
   function schemaFromResult(result) {
     if (!result) {
@@ -749,7 +940,17 @@
     return { components };
   }
 
-  window.KNGenUI = { mount, html, stream, register, schemaFromResult, repairPartialJson };
+  window.KNGenUI = {
+    STRUCTURED_MODES,
+    mount,
+    html,
+    stream,
+    register,
+    schemaFromResult,
+    textSchema,
+    isStructuredResult,
+    repairPartialJson
+  };
   (window.__knGenUIPending || []).forEach((entry) => register(entry[0], entry[1]));
   window.__knGenUIPending = [];
 })();

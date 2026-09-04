@@ -1,5 +1,5 @@
 /**
- * Shared Klear Assist thread store.
+ * Shared Klear Agent thread store.
  * One localStorage record (`kn-agentic-threads-v1`) consumed by the full-page
  * thread, the sidebar drawer, and later the contextual panel. Do not add a
  * second conversation key.
@@ -9,6 +9,7 @@
 
   const THREADS_KEY = "kn-agentic-threads-v1";
   const ACTIVE_KEY = "kn-agentic-active-v1";
+  const EXPAND_HANDOFF_KEY = "kn-assist-expand-handoff";
 
   function brokerUserId() {
     const name = document.querySelector(".profile-text__name")?.textContent?.trim() || "";
@@ -68,10 +69,15 @@
   function persist(thread, { touchUpdatedAt = true } = {}) {
     const store = read();
     const index = store.threads.findIndex((item) => item.id === thread.id);
+    const session =
+      thread.session && typeof thread.session === "object"
+        ? thread.session
+        : window.KNAgentSession?.capture?.() || null;
     const next = {
       ...thread,
       updatedAt: touchUpdatedAt ? Date.now() : thread.updatedAt || Date.now(),
-      userId: thread.userId || brokerUserId()
+      userId: thread.userId || brokerUserId(),
+      session
     };
     if (index >= 0) {
       store.threads[index] = next;
@@ -221,9 +227,48 @@
     return find(read(), id);
   }
 
+  /** Panel → full-page: keep scoped thread + page context in one handoff payload. */
+  function prepareFullPageHandoff({ scopeKey, title, context } = {}) {
+    const displayTitle = title || context?.headline || context?.title || "Conversation";
+    let thread = null;
+    if (scopeKey) {
+      thread = ensureScopedThread({
+        title: displayTitle,
+        scopeKey,
+        surface: "panel"
+      });
+      thread = persist({
+        ...thread,
+        title: displayTitle,
+        surface: "page",
+        contextMeta: context || {}
+      });
+      writeActiveId(thread.id);
+    } else {
+      thread = getActiveLiveThread();
+      if (thread) {
+        writeActiveId(thread.id);
+      }
+    }
+    const handoff = {
+      threadId: thread?.id || readActiveId() || "",
+      scopeKey: scopeKey || thread?.scopeKey || "",
+      title: displayTitle,
+      context: context || thread?.contextMeta || {}
+    };
+    try {
+      window.sessionStorage.setItem(EXPAND_HANDOFF_KEY, JSON.stringify(handoff));
+    } catch (_error) {
+      /* ignore */
+    }
+    emitChange(handoff.threadId);
+    return handoff;
+  }
+
   window.KNThreadStore = {
     THREADS_KEY,
     ACTIVE_KEY,
+    EXPAND_HANDOFF_KEY,
     brokerUserId,
     isSeededId,
     read,
@@ -241,6 +286,7 @@
     serializeFiles,
     appendMessage,
     patchMessage,
-    getActiveLiveThread
+    getActiveLiveThread,
+    prepareFullPageHandoff
   };
 })();

@@ -753,7 +753,7 @@ Canonical behavior:
 - `KNChatMessage.hydrate` stamps `data-kn-component="chat-message"`, sender classes, Chip classes on related prompts, `.icon-btn` on footer actions, and hydrates nested Collapsibles. `KNCollapsible.toggle` owns trace open/close (and the Show/Hide / Exploring… label). Do not rebind copy / thumbs in hydrate.
 - Screen-reader announcements use a sibling polite live region, not `aria-live` on the scroller (innerHTML replace during fill would re-announce). Sidebar: `#ai-assistant-live`. Agentic thread: `#agentic-thread-live` (`role="status" aria-live="polite" aria-atomic="true"`), announced on thinking, completed answer, stop, and restored history.
 
-Existing: Klear Assistant sidebar (`.ai-assistant-history .ai-msg`) and Agentic Broker thread (`.agentic-thread-msg .ai-msg`). Aliases: `.ai-msg`, `.ai-msg__body`, `.ai-msg__footer`, `.ai-msg__thinking-panel`.
+Existing: Klear Agent sidebar (`.ai-assistant-history .ai-msg`) and Agentic Broker thread (`.agentic-thread-msg .ai-msg`). Aliases: `.ai-msg`, `.ai-msg__body`, `.ai-msg__footer`, `.ai-msg__thinking-panel`.
 
 Do not merge with ChatInput, Avatar (thread mark stays **26**, decorative), or toolbar chrome. Do not restyle `.agentic-home__disclaimer`. Thumbnails are CSS/docs only (`size-120`) — no live image stack.
 
@@ -1406,7 +1406,7 @@ Canonical viewport-anchored action. Not a Button replacement and not IconButton.
 - Hover/focus motion **xquick / standard** + `--kn-focus-ring`. Reduced-motion: `transition: none`. No entry/exit. No speed-dial. No collapse-on-scroll. No press scale.
 - `KNFab.hydrate` (`KNFloatingActionButton`): stamps `data-kn-component="fab"`, default `--bottom-end` + `--primary`, `--icon` when there is no label, `kn-btn kn-btn--large kn-btn--primary` on the inner control, wraps a bare SVG in `__icon`, `type="button"`, `aria-label` on icon-only from `data-tooltip` / `title`, `aria-busy` when loading, nested `KNButton.hydrate`. Does not invent a spinner or a live product instance. Skips `#ai-assistant-trigger` / `.ai-assistant-trigger`.
 
-No product instance — CSS + hydrate only. Do not convert TopNav Klear Assistant into this.
+No product instance — CSS + hydrate only. Do not convert TopNav Klear Agent into this.
 
 FLAG: no size/variant scale; no `interactive.neutral` tokens; centering `--bottom` uses `translateX(-50%)` (layout, not a motion token). Icon is now **16** to match Button large (no product reason found for the prior 24px override).
 
@@ -1560,7 +1560,7 @@ Return this shape from `KNAssistant.answer` (or any broker that calls `presentRe
 }
 ```
 
-Klear Assistant (`presentResult`) and the agentic thread both mount into `[data-kn-genui]`.
+Klear Agent (`presentResult`) and the agentic thread both mount into `[data-kn-genui]`.
 
 ### Component types
 
@@ -1604,10 +1604,10 @@ Prompt actions:
 ```
 
 - Agentic thread: `askInline(prompt)`
-- Klear Assistant (`#ai-assistant-panel`): `KNAssistant.ask(prompt)`
+- Klear Agent (`#ai-assistant-panel`): `KNAssistant.ask(prompt)`
 
 ### Motion
 
 Ring travel uses `--kn-motion-duration-2xgentle`. Mask reveal is `2xgentle * 2` with `xmoderate` delay. Shade is `xgentle + 2xgentle`. Word fade-in uses `xmoderate`. `@media (prefers-reduced-motion: reduce)` skips ring, shade, mask, and word animation.
 
-Existing: agentic home “Today's Statements” / “All items due today”, and the same prompts in Klear Assistant.
+Existing: agentic home “Today's Statements” / “All items due today”, and the same prompts in Klear Agent.

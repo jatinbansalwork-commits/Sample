@@ -492,8 +492,18 @@
     return `${base}-${Date.now().toString(36)}`;
   }
 
-  function parseRoute(hash = location.hash) {
-    const path = (hash || "#dashboard").split("?")[0];
+  function routeHash(hash) {
+    if (hash != null && hash !== "") {
+      return String(hash).split("?")[0];
+    }
+    if (typeof window.getHashPath === "function") {
+      return window.getHashPath();
+    }
+    return (location.hash || "#dashboard").split("?")[0];
+  }
+
+  function parseRoute(hash) {
+    const path = routeHash(hash);
     if (path === "#kn-user-management/add") {
       return { view: "form", id: "", preferEdit: true };
     }
@@ -816,7 +826,12 @@
             <p class="type-caption-sm">Roles</p>
             <div class="user-chips">${roles}</div>
           </div>`
-              : `<div class="empty-state kn-empty"><div class="kn-empty__copy"><h3 class="kn-empty__title type-heading-h6 type-weight-semibold">Nothing left to review</h3><p class="kn-empty__desc type-body-sm">Privileged inactive access is cleared.</p></div></div>`
+              : window.KNAdminUX.knEmptyState({
+                  title: "Nothing left to review",
+                  description: "Privileged inactive access is cleared.",
+                  size: "small",
+                  showAsset: false
+                })
           }
         </div>
         ${
@@ -909,15 +924,17 @@
         </tr>`;
           })
           .join("")
-      : `<tr class="role-empty-row"><td colspan="6">${window.KNAdminUX.emptyState({
+      : window.KNAdminUX.tableEmptyRow({
+          colspan: 6,
           title: hasListFilters() ? "No people match this view" : "No people yet",
           description: hasListFilters() ? "Clear filters to see everyone, or add a user." : "Add a user to start assigning access.",
+          assetIcon: hasListFilters() ? "search" : "list",
           primaryLabel: "Add User",
           primaryHref: "#kn-user-management/add",
           primaryAttr: 'data-user-nav="add"',
           secondaryLabel: hasListFilters() ? "Clear filters" : "",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
 
     const all = loadUsers();
     const ux = window.KNAdminUX;
@@ -1116,7 +1133,7 @@
     }
     if (draft.title) {
       state.form.title = draft.title;
-      state.aiFieldMeta = { title: draft.titleReason || "Prefill from Klear Assistant draft" };
+      state.aiFieldMeta = { title: draft.titleReason || "Prefill from Klear Agent draft" };
     }
     const suggested = (draft.roles || []).map((r) => r.name).filter(Boolean);
     if (suggested.length && window.KNAiSuggest?.mergeAiSelections) {

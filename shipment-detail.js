@@ -361,15 +361,21 @@
     return "Draft saved";
   }
 
-  const emptyState = (icon, title, description, action = "") =>
-    `<div class="empty-state vis-empty-state kn-empty">
-      <span class="empty-state__asset kn-empty__asset" aria-hidden="true">${icon}</span>
-      <div class="kn-empty__copy">
-      <p class="kn-empty__title type-heading-h5 type-weight-semibold">${escapeHtml(title)}</p>
-      <p class="kn-empty__desc type-body-sm">${escapeHtml(description)}</p>
-      </div>
-      ${action ? `<div class="kn-empty__actions">${action}</div>` : ""}
-    </div>`;
+  const emptyState = (icon, title, description, action = "") => {
+    const ux = window.KNAdminUX;
+    if (!ux?.knEmptyState) {
+      return "";
+    }
+    return ux.knEmptyState({
+      asset: `<span class="kn-empty__asset" aria-hidden="true">${icon}</span>`,
+      showAsset: false,
+      title,
+      description,
+      size: "small",
+      actionsHtml: action ? `<div class="kn-empty__actions">${action}</div>` : "",
+      className: "vis-empty-state"
+    });
+  };
 
   function applyDocSearch(scope) {
     const panel = scope?.closest?.(".kn-detail-docs") || document.querySelector("#kn-detail-panel .kn-detail-docs");

@@ -558,8 +558,18 @@
     return `role-${Date.now().toString(36)}`;
   }
 
-  function parseRoute(hash = location.hash) {
-    const path = (hash || "#dashboard").split("?")[0];
+  function routeHash(hash) {
+    if (hash != null && hash !== "") {
+      return String(hash).split("?")[0];
+    }
+    if (typeof window.getHashPath === "function") {
+      return window.getHashPath();
+    }
+    return (location.hash || "#dashboard").split("?")[0];
+  }
+
+  function parseRoute(hash) {
+    const path = routeHash(hash);
     if (path === "#kn-role-management/add") {
       return { view: "form", id: "", preferEdit: true };
     }
@@ -779,15 +789,17 @@
         </tr>`;
           })
           .join("")
-      : `<tr class="role-empty-row"><td colspan="6">${window.KNAdminUX.emptyState({
+      : window.KNAdminUX.tableEmptyRow({
+          colspan: 6,
           title: hasListFilters() ? "No roles match this view" : "No roles yet",
           description: hasListFilters() ? "Clear filters to see every internal role, or add a new one." : "Add a role so people can be assigned access.",
+          assetIcon: hasListFilters() ? "search" : "list",
           primaryLabel: "Add Role",
           primaryHref: "#kn-role-management/add",
           primaryAttr: 'data-role-nav="add"',
           secondaryLabel: hasListFilters() ? "Clear filters" : "",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
 
     const all = loadRoles();
     const unused = all.filter((role) => !(role.permissions || []).length).length;
@@ -931,9 +943,9 @@
     state.unusedOpen = false;
     state.aiFieldMeta = {
       ...state.aiFieldMeta,
-      ...(nameApplied ? { name: draft.nameReason || "Prefill from Klear Assistant draft" } : {}),
+      ...(nameApplied ? { name: draft.nameReason || "Prefill from Klear Agent draft" } : {}),
       ...(applicableApplied ? { applicable: draft.applicableReasons || {} } : {}),
-      ...(partiesCategoryApplied ? { partiesCategory: "Prefill from Klear Assistant draft" } : {})
+      ...(partiesCategoryApplied ? { partiesCategory: "Prefill from Klear Agent draft" } : {})
     };
     state.formSnapshot = snapshotForm(state.form);
     state.dirty = isFormDataDirty(state.form);
@@ -1181,7 +1193,6 @@
       open,
       modules: group.modules,
       includesLabel: "Includes these KlearNow services:",
-      // Coverage tone stays on the count badge only — not the whole row (avoids peach/notice chrome).
       trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count kn-badge">${selected}/${keys.length}</span>`,
       body: `
         <div class="role-perm__row role-perm__row--head">
@@ -1328,52 +1339,63 @@
     const submitDisabled = !canSubmitRole(form);
     const accessFields = !editing
       ? ""
-      : `<section class="role-form-zone role-form-zone--access" aria-label="Basics">
-            <div class="kn-field">
-              <label class="type-caption-sm type-weight-medium" for="kn-role-name">Role Name <span class="role-req" aria-hidden="true">*</span></label>
-              <input class="kn-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="Enter role name" value="${escapeHtml(form.name)}" autocomplete="off" />
-              ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name) : ""}
-              ${form.error ? `<p class="type-caption-sm role-form__error">${escapeHtml(form.error)}</p>` : ""}
+      : `<section class="kn-form-group__section kn-form-group__section--details user-form-section role-form-zone role-form-zone--access" aria-labelledby="kn-role-details-title">
+            <div class="kn-form-group__header">
+              <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-details-title">Details</h3>
+              <p class="type-body-sm kn-form-group__subtitle">Name this role and choose where it applies.</p>
             </div>
-            <div class="kn-field role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
-              ${window.KNAdminUX.applicableHead({
-                titleId: "kn-role-applicable-title",
-                title: "Applicable to",
-                allSelected: form.applicable.length === APPLICABLE.length,
-                attr: "data-role-select-applicable"
-              })}
-              <div class="role-applicable__row">
-                ${APPLICABLE.map((item) => check("applicable", item.id, form.applicable.includes(item.id), item.label)).join("")}
+            <div class="kn-form-group__fields">
+              <div class="kn-field kn-field--full">
+                <label class="type-caption-sm type-weight-medium kn-form-label" for="kn-role-name">Role Name <span class="role-req" aria-hidden="true">*</span></label>
+                <input class="kn-field__control type-body-sm${state.aiFieldMeta?.name ? " is-ai-suggested-field" : ""}" id="kn-role-name" name="name" type="text" required maxlength="80" placeholder="Enter role name" value="${escapeHtml(form.name)}" autocomplete="off" />
+                ${state.aiFieldMeta?.name ? window.KNAiSuggest.reasonTag(state.aiFieldMeta.name) : ""}
+                ${form.error ? `<p class="type-caption-sm role-form__error kn-field__hint kn-form-hint kn-form-hint--error">${escapeHtml(form.error)}</p>` : ""}
               </div>
+              <div class="kn-field kn-field--full role-applicable" role="group" aria-labelledby="kn-role-applicable-title">
+                ${window.KNAdminUX.applicableHead({
+                  titleId: "kn-role-applicable-title",
+                  title: "Applicable to",
+                  allSelected: form.applicable.length === APPLICABLE.length,
+                  attr: "data-role-select-applicable"
+                })}
+                <div class="role-applicable__row">
+                  ${APPLICABLE.map((item) => check("applicable", item.id, form.applicable.includes(item.id), item.label)).join("")}
+                </div>
+              </div>
+              ${renderPartiesCategoryField(form, { editing: true })}
             </div>
-            ${renderPartiesCategoryField(form, { editing: true })}
           </section>`;
     const permFields = !editing
       ? ""
-      : `<section class="role-form-zone role-form-zone--perms role-perm" aria-labelledby="kn-role-perm-title">
-            <header class="role-perm__head">
-              <h3 class="type-heading-h5 type-weight-semibold" id="kn-role-perm-title">What they can do</h3>
-            </header>
-            ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-role", catalog: CATALOG })}
-            ${window.KNAdminUX.permFilters({
-              query: state.permQuery,
-              selectedOnly: state.permSelectedOnly,
-              aiDescribe: state.aiDescribe,
-              aiLoading: state.aiLoading,
-              aiNoMatch: state.aiNoMatch,
-              aiAttr: "role",
-              inputMode: state.permInputMode,
-              selectedCount: form.permissions.size,
-              totalCount: ALL_KEYS.length,
-              ...window.KNAdminUX.aiRoleAssist({
-                name: form.name,
-                permissions: form.permissions,
-                catalog: CATALOG,
-                mode: "role",
-                seed: state.aiSeed
-              })
-            })}
-            ${renderPermBrowser(form.permissions)}
+      : `<section class="kn-form-group__section user-form-section role-form-zone role-form-zone--perms role-perm" aria-labelledby="kn-role-perm-title">
+            <div class="kn-form-group__header role-perm__head">
+              <div class="kn-form-group__header-copy">
+                <h3 class="type-heading-h6 type-weight-semibold" id="kn-role-perm-title">What they can do</h3>
+                <p class="type-body-sm kn-form-group__subtitle">Describe or search permissions, then review the grid below.</p>
+              </div>
+            </div>
+            <div class="kn-form-group__fields">
+              ${window.KNAdminUX.permissionAnomalyFlagHtml(form.name, form.permissions, { idPrefix: "perm-anomaly-role", catalog: CATALOG })}
+              ${window.KNAdminUX.permFilters({
+                query: state.permQuery,
+                selectedOnly: state.permSelectedOnly,
+                aiDescribe: state.aiDescribe,
+                aiLoading: state.aiLoading,
+                aiNoMatch: state.aiNoMatch,
+                aiAttr: "role",
+                inputMode: state.permInputMode,
+                selectedCount: form.permissions.size,
+                totalCount: ALL_KEYS.length,
+                ...window.KNAdminUX.aiRoleAssist({
+                  name: form.name,
+                  permissions: form.permissions,
+                  catalog: CATALOG,
+                  mode: "role",
+                  seed: state.aiSeed
+                })
+              })}
+              ${renderPermBrowser(form.permissions)}
+            </div>
           </section>`;
     return `<div class="kn-drawer-root ${isEdit ? "admin-profile-drawer" : "admin-form-drawer"} is-open" id="admin-role-form-drawer">
       <div class="kn-drawer__overlay" data-role-form-close tabindex="-1"></div>
@@ -1384,11 +1406,9 @@
               <h2 class="type-heading-h5 type-weight-semibold" id="kn-role-form-title" tabindex="-1">${escapeHtml(title)}</h2>
             </div>
             ${
-              isEdit
-                ? editing
-                  ? ""
-                  : `<p class="type-caption-sm kn-field__hint">${escapeHtml(applicable || "—")}</p>`
-                : `<p class="type-caption-sm kn-field__hint">Customer dashboard role access</p>`
+              isEdit && !editing
+                ? `<p class="type-caption-sm kn-field__hint">${escapeHtml(applicable || "—")}</p>`
+                : ""
             }
           </div>
           ${
@@ -1402,7 +1422,7 @@
           }
           <button class="icon-btn" type="button" data-role-form-close aria-label="Close">${iconClose()}</button>
         </header>
-        <form class="kn-drawer__body role-form kn-form-group kn-box kn-box--column" id="kn-role-form" novalidate>
+        <form class="kn-drawer__body role-form kn-form-group kn-box kn-box--column" id="kn-role-form" novalidate data-kn-component="form-group">
           <p class="visually-hidden" aria-live="polite" data-admin-mode-live></p>
           ${
             role
@@ -1411,14 +1431,17 @@
               detailsOpen: state.detailsOpen,
               detailsId: "kn-role-meta-details",
               detailsHtml: renderDetailsGrid(role, people),
-              toggleAttr: "data-admin-details-toggle"
+              toggleAttr: "data-admin-details-toggle",
+              previewItems: [{ label: "Owner", value: role.createdBy }].filter((item) => item.value),
             })}
             ${editing ? "" : `<p class="role-access-summary type-body-sm">${escapeHtml(summary)}</p>`}
             ${editing ? "" : renderAccessReadonly(form)}
           </section>`
-              : ""
+              : `<div class="kn-form-group__header">
+            <p class="type-body-sm kn-form-group__subtitle">Customer dashboard role access</p>
+          </div>`
           }
-          <div id="kn-role-edit-panel">
+          <div class="kn-form-group__sections" id="kn-role-edit-panel">
             ${accessFields}${permFields}
           </div>
         </form>

@@ -7,13 +7,14 @@
     <script>
       (function () {
         const root = document.documentElement;
-        const route = (location.hash || "#dashboard").split("?")[0].replace(/^#/, "") || "dashboard";
+        const route = (location.hash || "#dashboard").split("?")[0].replace(/^#\/?/, "") || "dashboard";
         root.dataset.knRoute = route;
         const width = window.innerWidth;
         const bp = width >= 1200 ? "xl" : width >= 1024 ? "l" : width >= 768 ? "m" : width >= 480 ? "s" : width >= 320 ? "xs" : "base";
         root.dataset.matchedBreakpoint = bp;
         root.dataset.matchedDeviceType = bp === "base" || bp === "xs" || bp === "s" ? "mobile" : "desktop";
-        if (route === "agentic-broker" && (bp === "l" || bp === "xl")) {
+        var l1OnlyRoutes = { dashboard: 1, "notification-management": 1 };
+        if ((bp === "l" || bp === "xl") && !l1OnlyRoutes[route]) {
           root.dataset.knL1 = "collapsed";
         }
       })();
@@ -27,9 +28,9 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./tokens.css?v=71" />
-    <link rel="stylesheet" href="./components.css?v=82" />
-    <link rel="stylesheet" href="./styles.css?v=427" />
+    <link rel="stylesheet" href="./tokens.css?v=72" />
+    <link rel="stylesheet" href="./components.css?v=91" />
+    <link rel="stylesheet" href="./styles.css?v=506" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -41,6 +42,9 @@
     <div class="app-shell">
       <svg class="ai-assistant-tint-defs" aria-hidden="true" focusable="false" width="0" height="0">
         <defs>
+          <symbol id="klear-assist-ray" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M3 3H7.5H9.74999L12 12L14.25 3H16.5H21V7.5V9.75L12 12L21 14.25V16.5V21H16.5H14.25L12 12L9.74999 21H7.5H3V16.5V14.25L12 12L3 9.75V7.5V3Z" />
+          </symbol>
           <filter id="ai-accent-tint" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
             <feFlood result="flood" />
             <feComposite in="flood" in2="SourceAlpha" operator="in" />
@@ -55,11 +59,11 @@
             </svg>
           </button>
           <p class="top-nav-mobile-title type-heading-h6" id="top-nav-mobile-title">Dashboard</p>
-          <button class="ai-assistant-trigger ai-assistant-trigger--mobile type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger-mobile" aria-label="Klear Assist" aria-controls="ai-assistant-panel" aria-expanded="false" hidden>
+          <button class="ai-assistant-trigger ai-assistant-trigger--mobile type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger-mobile" aria-label="Klear Agent" aria-controls="ai-assistant-panel" aria-expanded="false" hidden>
             <span class="ai-assistant-trigger__icon" aria-hidden="true">
-              <img class="klear-assistant-mark klear-assistant-mark--spin" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" />
+              <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
             </span>
-            <span class="ai-assistant-trigger__label">Klear Assist</span>
+            <span class="ai-assistant-trigger__label">Klear Agent</span>
           </button>
           <button class="avatar-trigger" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">
             <span class="avatar avatar--information avatar--on-dark type-caption-sm type-weight-semibold kn-avatar" aria-hidden="true">BN</span>
@@ -68,17 +72,17 @@
 
         <div class="top-nav-desktop">
           <div class="top-nav-brand">
-            <a class="top-nav-brand-link" href="#dashboard" aria-label="Dashboard">
+            <a class="top-nav-brand-link" href="#agentic-broker" aria-label="Klear Agent">
               <img class="top-nav-logo top-nav-logo--slb" src="./assets/slb-logo.png" alt="SLB" width="56" height="40" />
             </a>
           </div>
           <div class="top-nav-content"></div>
           <div class="top-nav-actions">
-            <button class="ai-assistant-trigger type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger" aria-label="Klear Assist" aria-controls="ai-assistant-panel" aria-expanded="false" hidden>
+            <button class="ai-assistant-trigger type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger" aria-label="Klear Agent" aria-controls="ai-assistant-panel" aria-expanded="false" hidden>
               <span class="ai-assistant-trigger__icon" aria-hidden="true">
-                <img class="klear-assistant-mark klear-assistant-mark--spin" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" />
+                <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
               </span>
-              <span class="ai-assistant-trigger__label">Klear Assist</span>
+              <span class="ai-assistant-trigger__label">Klear Agent</span>
             </button>
             <button class="avatar-trigger" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">
               <span class="avatar avatar--information avatar--on-dark type-caption-sm type-weight-semibold kn-avatar" aria-hidden="true">BN</span>
@@ -119,7 +123,7 @@
           <div class="side-nav-l1" id="side-nav-l1">
           <nav class="side-nav-body sidebar-nav" aria-label="Sections">
             <ul class="side-nav-list"> <!-- kn-sidenav- Canonical-v1 -->
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="dashboard">
                 <a class="side-nav-link" href="#dashboard" data-level="1" aria-current="page">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
@@ -127,7 +131,7 @@
                   <span class="side-nav-link__title type-ui-md hide-when-collapsed">Dashboard</span>
                 </a>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="administration">
                 <a class="side-nav-link" href="#kn-role-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-administration">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.25"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17.5" cy="8.5" r="2.25"/><path d="M17.5 13.5a3.6 3.6 0 0 1 3 1.7"/></svg>
@@ -155,7 +159,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="entity">
                 <a class="side-nav-link" href="#kn-customers" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-entity">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="5.5" rx="1.25"/><path d="M12 8v3.5M7 11.5h10"/><rect x="2.5" y="16" width="7" height="5.5" rx="1.25"/><rect x="14.5" y="16" width="7" height="5.5" rx="1.25"/><path d="M6 16v-4.5M18 16v-4.5"/></svg>
@@ -178,7 +182,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="master-data">
                 <a class="side-nav-link" href="#notification-table" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-master-data">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v5c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 11v5c0 1.66 3.58 3 8 3s8-1.34 8-3v-5"/></svg>
@@ -196,7 +200,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="finance">
                 <a class="side-nav-link" href="#kn-credits-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-finance">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/><path d="M6.5 15h4"/></svg>
@@ -219,7 +223,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="billing">
                 <a class="side-nav-link" href="#billing-ar-invoices" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-billing">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.25"/><path d="M3 10h18"/></svg>
@@ -316,7 +320,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="klearhub">
                 <a class="side-nav-link" href="#klearhub-overview" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-klearhub">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-7h6v7"/><path d="M4 20h16"/></svg>
@@ -357,7 +361,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="transaction">
                 <a class="side-nav-link" href="#transaction-gb-exports" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-transaction">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7"/></svg>
@@ -455,9 +459,9 @@
                         </a>
                       </li>
                       <li class="side-nav-tree__item">
-                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-ftz" data-level="3">
+                        <a class="side-nav-link side-nav-tree__row" href="#transaction-us-export" data-level="3">
                           <span class="side-nav-tree__chevron side-nav-tree__chevron--leaf" aria-hidden="true"></span>
-                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">FTZ</span>
+                          <span class="side-nav-link__title side-nav-tree__title type-ui-md">Export</span>
                         </a>
                       </li>
                       <li class="side-nav-tree__item">
@@ -510,7 +514,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="drayage">
                 <a class="side-nav-link" href="#drayage" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-drayage">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5V8.75A1.75 1.75 0 0 1 4.75 7H14v9.5"/><path d="M14 10h3.2L20 13.2V16.5h-6"/><circle cx="7" cy="17.5" r="1.75"/><circle cx="17" cy="17.5" r="1.75"/></svg>
@@ -528,7 +532,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="analytics">
                 <a class="side-nav-link" href="#analytics-klearhub-dashboard" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-analytics">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 14l4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg>
@@ -561,7 +565,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="payment">
                 <a class="side-nav-link" href="#payment-us-statements" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-payment">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.25"/><path d="M3 10h18"/></svg>
@@ -604,7 +608,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="einvoices">
                 <a class="side-nav-link" href="#e-invoices" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-einvoices">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8.5L20 8v12.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M15.5 3.5V8H20"/><path d="M9 12h6M9 15.5h4"/></svg>
@@ -622,7 +626,7 @@
                   </li>
                 </ul>
               </li>
-              <li class="l1-item-wrapper">
+              <li class="l1-item-wrapper" data-nav-key="notification-mgmt">
                 <a class="side-nav-link" href="#notification-management" data-level="1">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 20a2 2 0 0 1-3.46 0"/></svg>
@@ -1183,15 +1187,7 @@
                   </div>
                 </div>
                 <div class="kn-card__body card-body">
-                <div class="kn-chart kn-chart--bar">
-                  <div class="kn-chart__plot dash-bars" id="dash-lanes" role="img" aria-label="Shipments by origin country"></div>
-                  <ul class="kn-chart__legend dash-legend type-caption-sm">
-                    <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--blue"></span> Ocean</li>
-                    <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--green"></span> Air</li>
-                    <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--gold"></span> Truck</li>
-                    <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--purple"></span> Rail</li>
-                  </ul>
-                </div>
+                  <div id="dash-lanes-genui" aria-label="Shipments by origin country"></div>
                 </div>
               </article>
               <article class="panel card kn-card">
@@ -1201,15 +1197,7 @@
                   </div>
                 </div>
                 <div class="kn-card__body card-body">
-                <div class="kn-chart kn-chart--donut dash-donut-wrap">
-                  <div class="kn-chart__plot dash-donut" id="dash-donut" role="img" aria-label="Mode mix">
-                    <span class="kn-chart__center dash-donut__center">
-                      <strong class="type-heading-h5" data-kn="active-total">12</strong>
-                      <span class="type-caption-sm">active</span>
-                    </span>
-                  </div>
-                  <ul class="kn-chart__legend kn-chart__legend--vertical dash-donut__legend" id="dash-mot-legend"></ul>
-                </div>
+                  <div id="dash-donut-genui" aria-label="Mode mix"></div>
                 </div>
               </article>
             </div>
@@ -1956,6 +1944,10 @@
             <div id="kn-default-role-root"></div>
           </section>
 
+          <section class="role-page" id="kn-contract-page" hidden>
+            <div id="kn-contract-root"></div>
+          </section>
+
           <section class="role-page" id="kn-isf-page" hidden>
             <div id="kn-isf-root"></div>
           </section>
@@ -1966,6 +1958,10 @@
 
           <section class="role-page" id="kn-entry-page" hidden>
             <div id="kn-entry-root"></div>
+          </section>
+
+          <section class="role-page" id="kn-export-page" hidden>
+            <div id="kn-export-root"></div>
           </section>
 
           <section class="role-page" id="kn-ftz-page" hidden>
@@ -2009,7 +2005,7 @@
             class="ai-assistant-panel__resize"
             id="ai-assistant-resize"
             role="separator"
-            aria-label="Resize Klear Assist panel"
+            aria-label="Resize Klear Agent panel"
             aria-orientation="vertical"
             aria-valuemin="360"
             aria-valuemax="600"
@@ -2022,27 +2018,27 @@
             <header class="ai-assistant-panel__header">
               <div class="ai-assistant-panel__title-wrap">
                 <span class="ai-assistant-mark" aria-hidden="true">
-                  <img class="ai-assistant-mark__img klear-assistant-mark klear-assistant-mark--spin" src="./assets/klear-assistant-mark.png" alt="" width="28" height="28" />
+                  <svg class="ai-assistant-mark__img klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="28" height="28" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
                 </span>
                 <div class="ai-assistant-panel__heading">
-                  <h2 class="type-heading-h6 type-weight-semibold" id="ai-assistant-title">Klear Assist</h2>
+                  <h2 class="type-heading-h6 type-weight-semibold" id="ai-assistant-title">Klear Agent</h2>
                   <p class="ai-assistant-panel__status type-caption-sm" id="ai-assistant-status">Ask about this record</p>
                 </div>
               </div>
               <div class="ai-assistant-panel__actions">
-                <button class="icon-btn" type="button" id="ai-assistant-expand" aria-label="Open in full-page Klear Assist" hidden>
+                <button class="icon-btn" type="button" id="ai-assistant-expand" aria-label="Open in full-page Klear Agent" hidden>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4" />
                   </svg>
                 </button>
-                <button class="icon-btn" type="button" id="ai-assistant-help" aria-label="About Klear Assist" aria-controls="ai-assistant-intro" aria-expanded="false">
+                <button class="icon-btn" type="button" id="ai-assistant-help" aria-label="About Klear Agent" aria-controls="ai-assistant-intro" aria-expanded="false">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                     <path d="M12 17h.01" />
                   </svg>
                 </button>
-                <button class="icon-btn ai-assistant-close" type="button" id="ai-assistant-close" aria-label="Close Klear Assist">
+                <button class="icon-btn ai-assistant-close" type="button" id="ai-assistant-close" aria-label="Close Klear Agent">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
                     <path d="M6 6l12 12M18 6 6 18" />
                   </svg>
@@ -2063,12 +2059,13 @@
               <div class="ai-assistant-ref" id="ai-assistant-ref" hidden>
                 <span class="ai-assistant-ref__spark" aria-hidden="true">✦</span>
                 <p class="ai-assistant-ref__text type-caption-sm" id="ai-assistant-ref-text"></p>
-                <button class="ai-assistant-ref__dismiss icon-btn" type="button" id="ai-assistant-ref-dismiss" aria-label="Dismiss referencing chip">
+                <button class="ai-assistant-ref__dismiss icon-btn" type="button" id="ai-assistant-ref-dismiss" aria-label="Hide page reference" title="Hide page reference">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
                     <path d="M6 6l12 12M18 6 6 18" />
                   </svg>
                 </button>
               </div>
+              <button class="ai-assistant-ref-restore type-caption-sm" type="button" id="ai-assistant-ref-restore" hidden>Show page reference</button>
               <div class="kn-chat-input" id="ai-assistant-chat-input" data-kn-component="chat-input">
                 <div class="kn-chat-input__error" id="ai-assistant-input-error" hidden role="alert">
                   <svg class="kn-chat-input__error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
@@ -2078,7 +2075,7 @@
                   </button>
                 </div>
                 <form class="kn-chat-input__card ai-assistant-input" id="ai-assistant-form">
-                  <label class="visually-hidden" for="ai-assistant-input">Ask Klear Assist</label>
+                  <label class="visually-hidden" for="ai-assistant-input">Ask Klear Agent</label>
                   <div class="kn-chat-input__field">
                     <span class="kn-chat-input__ghost type-body-md" id="ai-assistant-ghost" data-chat-ghost aria-hidden="true">
                       <span class="kn-chat-input__ghost-stage">
@@ -2213,24 +2210,30 @@
     <script src="./shipments-data.js?v=9"></script>
     <script src="./map-ux.js?v=6"></script>
     <script src="./ais-live.js?v=5"></script>
-    <script src="./visibility.js?v=42"></script>
+    <script src="./page-reload-loader.js?v=1"></script>
+    <script src="./visibility.js?v=43"></script>
     <script src="./shipment-detail.js?v=29"></script>
-    <script src="./admin-ux.js?v=87"></script>
+    <script src="./admin-ux.js?v=107"></script>
     <script src="./ai-suggest.js?v=9"></script>
-    <script src="./role-management.js?v=66"></script>
+    <script src="./role-management.js?v=76"></script>
     <script src="./user-management.js?v=47"></script>
-    <script src="./default-role-management.js?v=69"></script>
-    <script src="./transaction-us-isf.js?v=8"></script>
-    <script src="./transaction-us-in-bond.js?v=4"></script>
-    <script src="./transaction-us-entry-filing.js?v=1"></script>
-    <script src="./transaction-us-entry.js?v=5"></script>
-    <script src="./transaction-us-ftz.js?v=2"></script>
-    <script src="./transaction-us-psc.js?v=3"></script>
-    <script src="./transaction-us-delivery-order.js?v=3"></script>
-    <script src="./transaction-us-shipments.js?v=4"></script>
-    <script src="./genui.js?v=11"></script>
-    <script src="./agentic-threads.js?v=2"></script>
-    <script src="./klear-assist-core.js?v=4"></script>
-    <script src="./script.js?v=195"></script>
+    <script src="./default-role-management.js?v=78"></script>
+    <script src="./contract-management.js?v=1"></script>
+    <script src="./transaction-us-isf.js?v=15"></script>
+    <script src="./transaction-us-in-bond.js?v=11"></script>
+    <script src="./entry-form-state.js?v=1"></script>
+    <script src="./transaction-us-entry-filing.js?v=2"></script>
+    <script src="./transaction-us-entry.js?v=15"></script>
+    <script src="./transaction-us-export.js?v=1"></script>
+    <script src="./transaction-us-ftz.js?v=4"></script>
+    <script src="./transaction-us-psc.js?v=9"></script>
+    <script src="./transaction-us-delivery-order.js?v=8"></script>
+    <script src="./transaction-us-shipments.js?v=9"></script>
+    <script src="./genui.js?v=16"></script>
+    <script src="./agentic-threads.js?v=5"></script>
+    <script src="./klear-assist-core.js?v=13"></script>
+    <script src="./persona-config.js?v=1"></script>
+    <script src="./session-restore.js?v=1"></script>
+    <script src="./script.js?v=215"></script>
   </body>
 </html>

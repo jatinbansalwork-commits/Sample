@@ -21,8 +21,15 @@
   let detailLoadTimer = null;
 
   const COMPANIES = [
-    "GLOBAL-PAK",
+    "TEST US COMPANY 4",
+    "ENGINE-KX-ISF-4-REAJITWARI100",
+    "TEST COMPANY 1",
+    "LEGEND VALVE US",
+    "US LEGEND",
+    "ILLUMINATE USA, LLC",
     "ILLUMINATE USA LLC",
+    "COMPANY 1",
+    "GLOBAL-PAK",
     "BASF AGRICULTURAL SOLUTIONS INC LLC",
     "PACIFIC RIM TRADING CO",
     "NORTHSTAR LOGISTICS INC",
@@ -32,86 +39,103 @@
     "MEKONG EXPORTS LTD",
     "CHENNAI MARINE SUPPLY",
     "SAIGON TRADE HOUSE",
-    "SHENZHEN BRIGHT PACKAGING",
-    "MUMBAI TEXTILE EXPORTS",
-    "BUSAN OCEAN LINKS",
-    "VANCOUVER GATEWAY LLC"
+    "SHENZHEN BRIGHT PACKAGING"
   ];
 
   const USERS = [
+    "ARUN-OPS",
+    "ILLUMINATECOMPANYADMIN",
+    "KNSR-USER",
+    "KNSFUSER",
+    "TESTUSER",
+    "ENTRY AUTOMATION QA",
+    "ISF OPS",
     "KAMAL SINGH",
     "RAJA KUMAR",
     "PRIYA SHARMA",
-    "ANITA DESAI",
-    "JAMES CHEN",
     "MARIA LOPEZ",
-    "DAVID PARK",
+    "JAMES CHEN",
     "",
     "",
     "SOPHIE MARTIN"
   ];
 
   const VESSELS = [
+    { name: "COSCO MALAYSIA", id: "9448786" },
+    { name: "CMA CGM G. WASHINGTON", id: "9462047" },
+    { name: "THALASSA AXIA", id: "9438879" },
+    { name: "EVER ENVOY", id: "9240500" },
     { name: "CMA CGM GANGES", id: "9436367" },
     { name: "MSC OSCAR", id: "9703318" },
     { name: "EVER GOLDEN", id: "9783510" },
     { name: "MAERSK ESSEX", id: "9632153" },
     { name: "ONE HAMBURG", id: "9741425" },
-    { name: "HMM ALGECIRAS", id: "9863302" },
-    { name: "COSCO SHIPPING UNIVERSE", id: "9795600" },
-    { name: "YANG MING WELLINGTON", id: "9704623" },
-    { name: "HAPAG LLOYD BERLIN", id: "9450428" },
-    { name: "OOCL GERMANY", id: "9622575" }
+    { name: "HMM ALGECIRAS", id: "9863302" }
   ];
 
   const COUNTRIES = [
-    { code: "IN", name: "India" },
     { code: "VN", name: "Vietnam" },
+    { code: "IN", name: "India" },
     { code: "CN", name: "China" },
+    { code: "US", name: "United States of America" },
+    { code: "QA", name: "Qatar" },
+    { code: "GE", name: "Georgia" },
+    { code: "CA", name: "Canada" },
     { code: "KR", name: "Korea, Republic of" },
     { code: "TW", name: "Taiwan" },
     { code: "TH", name: "Thailand" },
     { code: "MY", name: "Malaysia" },
-    { code: "ID", name: "Indonesia" },
     { code: "SG", name: "Singapore" },
-    { code: "JP", name: "Japan" }
+    { code: "BE", name: "Belgium" },
+    { code: "AE", name: "United Arab Emirates" }
   ];
+
+  /** Realistic ISF transaction list size — matches QAT production snapshot (55 records). */
+  const TXN_SEED_TOTAL = 55;
+
+  const MBL_PREFIXES = ["CMDU", "MAEU", "ONEY", "EGLV", "HLCU", "MEDU", "COSU", "YMLU"];
+  const HBL_PREFIXES = ["EGET", "MCLM", "SHAA", "TPEB", "BLR", "SGN", "DXB", "BKK"];
 
   const IMPORT_COUNTRY = { code: "US", name: "United States of America" };
 
   const MOTS = ["OCEAN", "OCEAN", "OCEAN", "AIR", "TRUCK"];
 
   const STATUSES = [
+    { label: "FILED", chip: "submitted" },
     { label: "ACCEPTED", chip: "submitted" },
-    { label: "REPLACE ACCEPTED", chip: "submitted" },
-    { label: "ACCEPTED", chip: "submitted" },
-    { label: "PENDING SUBMISSION", chip: "pending" },
-    { label: "ACCEPTED", chip: "submitted" },
-    { label: "FIN BILL MATCH", chip: "finBill" },
-    { label: "REPLACE ACCEPTED", chip: "submitted" },
-    { label: "PENDING SUBMISSION", chip: "pending" }
+    { label: "SENT", chip: "submitted" },
+    { label: "NEW", chip: "pending" },
+    { label: "IN PROCESS", chip: "pending" },
+    { label: "REJECTED", chip: "pending" },
+    { label: "RETRANSMIT", chip: "pending" }
   ];
 
   // Options offered in the "Update Transaction Status" modal, each mapped to the chip
   // group (submitted/pending/finBill) it should file under once applied.
   const TXN_STATUS_OPTIONS = [
-    { id: "New", label: "New", chip: "pending" },
-    { id: "In Process", label: "In Process", chip: "pending" },
-    { id: "Ready", label: "Ready", chip: "pending" },
-    { id: "Pending Submission", label: "Pending Submission", chip: "pending" },
-    { id: "Filed", label: "Filed", chip: "submitted" },
-    { id: "Accepted", label: "Accepted", chip: "submitted" },
-    { id: "Replace Accepted", label: "Replace Accepted", chip: "submitted" },
-    { id: "Fin Bill Match", label: "Fin Bill Match", chip: "finBill" }
+    { id: "NEW", label: "New", chip: "pending" },
+    { id: "IN PROCESS", label: "In Process", chip: "pending" },
+    { id: "READY", label: "Ready", chip: "pending" },
+    { id: "PENDING SUBMISSION", label: "Pending Submission", chip: "pending" },
+    { id: "RETRANSMIT", label: "Retransmit", chip: "pending" },
+    { id: "REJECTED", label: "Rejected", chip: "pending" },
+    { id: "FILED", label: "Filed", chip: "submitted" },
+    { id: "ACCEPTED", label: "Accepted", chip: "submitted" },
+    { id: "REPLACE ACCEPTED", label: "Replace Accepted", chip: "submitted" },
+    { id: "FIN BILL MATCH", label: "Fin Bill Match", chip: "finBill" }
   ];
 
   const SHIP_STATES = [
+    { label: "New", chip: "active", tone: "information" },
     { label: "NOT CREATED", chip: "notCreated", tone: "notice" },
     { label: "IN PROGRESS", chip: "inProgress", tone: "information" },
     { label: "COMPLETED", chip: "completed", tone: "positive" }
   ];
 
-  const ID_MID = ["398T", "M400", "7K2A", "B19C", "Q88P", "H3N1", "R55W", "L2X9", "P0VT", "D44E"];
+  /** QAT production snapshot — ISF Shipment tab list size. */
+  const SHIP_SEED_TOTAL = 58;
+
+  const ID_MID = ["SR7L", "397L", "M301", "2206", "3G36", "021D", "398T", "M400", "7K2A", "B19C", "Q88P", "H3N1", "R55W", "L2X9", "P0VT", "D44E"];
 
   const emptyTxnFilters = () => ({
     chip: "all",
@@ -181,167 +205,505 @@
     return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
   }
 
+  function parseSortDate(value) {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function curatedTxnRows() {
+    return [
+      {
+        id: "isf-1",
+        transactionId: "ISF-SR7L-5",
+        companyName: "US LEGEND",
+        cbpNumber: "",
+        username: "ARUN-OPS",
+        status: "FILED",
+        statusChip: "submitted",
+        etd: "Jan 04, 2024",
+        etdSort: parseSortDate("Jan 04, 2024"),
+        vesselName: "COSCO MALAYSIA",
+        vesselId: "9448786",
+        filingDate: "Oct 12, 2023",
+        filingSort: parseSortDate("Oct 12, 2023"),
+        shipments: "KX-O47L-17",
+        mbl: "COSU6151471624",
+        hbl: "",
+        country: "VN - Vietnam"
+      },
+      {
+        id: "isf-2",
+        transactionId: "ISF-SR7L-6",
+        companyName: "US LEGEND",
+        cbpNumber: "",
+        username: "ARUN-OPS",
+        status: "NEW",
+        statusChip: "pending",
+        etd: "Jan 04, 2024",
+        etdSort: parseSortDate("Jan 04, 2024"),
+        vesselName: "COSCO MALAYSIA",
+        vesselId: "9448786",
+        filingDate: "",
+        filingSort: 0,
+        shipments: "KX-O47L-18",
+        mbl: "COSU6151471625",
+        hbl: "",
+        country: "IN - India"
+      },
+      {
+        id: "isf-3",
+        transactionId: "ISF-M301-4",
+        companyName: "ILLUMINATE USA, LLC",
+        cbpNumber: "",
+        username: "ILLUMINATECOMPANYADMIN",
+        status: "ACCEPTED",
+        statusChip: "submitted",
+        etd: "Jan 04, 2024",
+        etdSort: parseSortDate("Jan 04, 2024"),
+        vesselName: "COSCO MALAYSIA",
+        vesselId: "9448786",
+        filingDate: "Sep 04, 2024",
+        filingSort: parseSortDate("Sep 04, 2024"),
+        shipments: "KX-M301-27",
+        mbl: "COSU6151471824",
+        hbl: "HCI0414432",
+        country: "VN - Vietnam"
+      },
+      {
+        id: "isf-4",
+        transactionId: "ISF-M301-3",
+        companyName: "ILLUMINATE USA LLC",
+        cbpNumber: "",
+        username: "ILLUMINATECOMPANYADMIN",
+        status: "ACCEPTED",
+        statusChip: "submitted",
+        etd: "Jan 04, 2024",
+        etdSort: parseSortDate("Jan 04, 2024"),
+        vesselName: "COSCO MALAYSIA",
+        vesselId: "9448786",
+        filingDate: "Sep 04, 2024",
+        filingSort: parseSortDate("Sep 04, 2024"),
+        shipments: "KX-M301-26",
+        mbl: "COSU6151471823",
+        hbl: "",
+        country: "VN - Vietnam"
+      },
+      {
+        id: "isf-5",
+        transactionId: "ISF-397L-5",
+        companyName: "US LEGEND",
+        cbpNumber: "",
+        username: "ARUN-OPS",
+        status: "FILED",
+        statusChip: "submitted",
+        etd: "Jan 04, 2024",
+        etdSort: parseSortDate("Jan 04, 2024"),
+        vesselName: "COSCO MALAYSIA",
+        vesselId: "9448786",
+        filingDate: "Oct 12, 2023",
+        filingSort: parseSortDate("Oct 12, 2023"),
+        shipments: "KX-C87L-17",
+        mbl: "COSU6151471824",
+        hbl: "",
+        country: "VN - Vietnam"
+      },
+      {
+        id: "isf-6",
+        transactionId: "ISF-2206-1",
+        companyName: "COMPANY 1",
+        cbpNumber: "",
+        username: "KNSFUSER",
+        status: "NEW",
+        statusChip: "pending",
+        etd: "Aug 27, 2024",
+        etdSort: parseSortDate("Aug 27, 2024"),
+        vesselName: "CMA CGM G. WASHINGTON",
+        vesselId: "9462047",
+        filingDate: "",
+        filingSort: 0,
+        shipments: "KX-2206-11",
+        mbl: "CMDUHB2206001",
+        hbl: "",
+        country: "CN - China"
+      },
+      {
+        id: "isf-7",
+        transactionId: "ISF-3G36-3",
+        companyName: "COMPANY 1",
+        cbpNumber: "",
+        username: "TESTUSER",
+        status: "SENT",
+        statusChip: "submitted",
+        etd: "Apr 01, 2025",
+        etdSort: parseSortDate("Apr 01, 2025"),
+        vesselName: "THALASSA AXIA",
+        vesselId: "9438879",
+        filingDate: "Feb 01, 2024",
+        filingSort: parseSortDate("Feb 01, 2024"),
+        shipments: "KX-3G36-03",
+        mbl: "HLCUHB0336033",
+        hbl: "",
+        country: "QA - Qatar"
+      },
+      {
+        id: "isf-8",
+        transactionId: "ISF-021D-8",
+        companyName: "GLOBAL-PAK",
+        cbpNumber: "ISF-18354115",
+        username: "KAMAL SINGH",
+        status: "ACCEPTED",
+        statusChip: "submitted",
+        etd: "Feb 11, 2025",
+        etdSort: parseSortDate("Feb 11, 2025"),
+        vesselName: "APL LE HAVRE",
+        vesselId: "9350381",
+        filingDate: "May 18, 2025",
+        filingSort: parseSortDate("May 18, 2025"),
+        shipments: "KR-OB0T-283",
+        mbl: "CMDUHB0204786",
+        hbl: "EGET20427328",
+        country: "BE - Belgium"
+      },
+      {
+        id: "isf-9",
+        transactionId: "ISF-021D-9",
+        companyName: "ILLUMINATE USA LLC",
+        cbpNumber: "ISF-18354132",
+        username: "MARIA LOPEZ",
+        status: "SENT",
+        statusChip: "submitted",
+        etd: "Feb 17, 2025",
+        etdSort: parseSortDate("Feb 17, 2025"),
+        vesselName: "WAN HAI 512",
+        vesselId: "9457822",
+        filingDate: "May 24, 2025",
+        filingSort: parseSortDate("May 24, 2025"),
+        shipments: "VN-OB1K-441",
+        mbl: "ONEYSGNFL9591500",
+        hbl: "MCLMVSSAV2507004",
+        country: "VN - Vietnam"
+      },
+      {
+        id: "isf-10",
+        transactionId: "ISF-021D-5",
+        companyName: "BASF AGRICULTURAL SOLUTIONS INC LLC",
+        cbpNumber: "",
+        username: "ENTRY AUTOMATION QA",
+        status: "NEW",
+        statusChip: "pending",
+        etd: "May 03, 2025",
+        etdSort: parseSortDate("May 3, 2025"),
+        vesselName: "EVER LISSOME",
+        vesselId: "9593878",
+        filingDate: "",
+        filingSort: 0,
+        shipments: "CN-OB3M-118",
+        mbl: "EGLV1975001234",
+        hbl: "SHAA240518047",
+        country: "CN - China"
+      },
+      {
+        id: "isf-11",
+        transactionId: "ISF-021D-4",
+        companyName: "PACIFIC RIM TRADING CO",
+        cbpNumber: "",
+        username: "ISF OPS",
+        status: "REJECTED",
+        statusChip: "pending",
+        etd: "May 04, 2025",
+        etdSort: parseSortDate("May 4, 2025"),
+        vesselName: "MSC OSCAR",
+        vesselId: "9703318",
+        filingDate: "",
+        filingSort: 0,
+        shipments: "TW-OB2F-512",
+        mbl: "MEDUHB0284764",
+        hbl: "TPEB240512901",
+        country: "TW - Taiwan"
+      },
+      {
+        id: "isf-12",
+        transactionId: "ISF-021D-6",
+        companyName: "NORTHSTAR LOGISTICS INC",
+        cbpNumber: "",
+        username: "KNSR-USER",
+        status: "RETRANSMIT",
+        statusChip: "pending",
+        etd: "May 04, 2025",
+        etdSort: parseSortDate("May 4, 2025"),
+        vesselName: "MAERSK ESSEX",
+        vesselId: "9632153",
+        filingDate: "",
+        filingSort: 0,
+        shipments: "IN-OB7R-902",
+        mbl: "MAEU9876543210",
+        hbl: "BLR2405041182",
+        country: "IN - India"
+      }
+    ];
+  }
+
+  function generatedTxnStatus(i) {
+    if (i % 17 === 0) {
+      return { label: "FIN BILL MATCH", chip: "finBill" };
+    }
+    if (i % 5 === 0) {
+      return { label: "FILED", chip: "submitted" };
+    }
+    if (i % 4 === 0) {
+      return { label: "REJECTED", chip: "pending" };
+    }
+    if (i % 3 === 0 || i % 3 === 1) {
+      return i % 2 === 0 ? { label: "ACCEPTED", chip: "submitted" } : { label: "SENT", chip: "submitted" };
+    }
+    const pending = STATUSES.filter((s) => s.chip === "pending");
+    return pending[i % pending.length];
+  }
+
+  function generatedTxnRow(i) {
+    const mid = ID_MID[i % ID_MID.length];
+    const company = COMPANIES[i % COMPANIES.length];
+    const user = USERS[i % USERS.length];
+    const vessel = VESSELS[i % VESSELS.length];
+    const country = COUNTRIES[i % COUNTRIES.length];
+    const status = generatedTxnStatus(i);
+    const etd = new Date(Date.UTC(2024 + ((i * 3) % 2), (i * 5) % 12, 1 + (i % 27)));
+    const filed = status.chip === "submitted" || (status.chip === "pending" && i % 4 === 0);
+    const filing = filed ? new Date(etd.getTime() + ((i % 14) + 3) * 86400000) : null;
+    const txnNum = 18354115 + i * 17;
+    const mblPrefix = MBL_PREFIXES[i % MBL_PREFIXES.length];
+    const hblPrefix = HBL_PREFIXES[i % HBL_PREFIXES.length];
+    let cbpNumber = "";
+    if (status.chip === "submitted") {
+      cbpNumber = i % 11 === 0 ? `ISF-${txnNum}\nISF-${64000000000 + i * 91}` : `ISF-${txnNum}`;
+    }
+    const shipMid = ((i * 7) % 36).toString(36).toUpperCase();
+
+    return {
+      id: `isf-${i + 1}`,
+      transactionId: `ISF-${mid}-${100 + (i % 900)}`,
+      companyName: company,
+      cbpNumber,
+      username: user,
+      status: status.label,
+      statusChip: status.chip,
+      etd: formatDate(etd),
+      etdSort: etd.getTime(),
+      vesselName: vessel.name,
+      vesselId: vessel.id,
+      filingDate: filing ? formatDate(filing) : "",
+      filingSort: filing ? filing.getTime() : 0,
+      shipments: i % 3 === 0 ? `KX-${shipMid}-${200 + (i % 800)}` : `${country.code}-OB${shipMid}-${200 + (i % 800)}`,
+      mbl: `${mblPrefix}${pad((i * 7919) % 1e10, 10)}`,
+      hbl: i % 6 === 0 ? "" : `${hblPrefix}${pad((i * 6287) % 1e8, 8)}`,
+      country: `${country.code} - ${country.name}`
+    };
+  }
+
   function buildSeed() {
     if (seedCache) {
       return seedCache;
     }
-    const rows = [];
-    const total = 2470;
-    for (let i = 0; i < total; i += 1) {
-      const mid = ID_MID[i % ID_MID.length];
-      const company = COMPANIES[i % COMPANIES.length];
-      const user = USERS[i % USERS.length];
-      const vessel = VESSELS[i % VESSELS.length];
-      const country = COUNTRIES[i % COUNTRIES.length];
-      const status = STATUSES[i % STATUSES.length];
-      const etd = new Date(Date.UTC(2024 + ((i * 3) % 6), (i * 5) % 12, 1 + (i % 27)));
-      const filing = new Date(etd.getTime() + ((i % 14) + 1) * 86400000);
-      const txnNum = 18354115 + i * 17;
-      const cbpExtra = i % 5 === 0 ? `\nISF-${64000000000 + i * 91}` : "";
-      rows.push({
-        id: `isf-${i + 1}`,
-        transactionId: `ISF-${mid}-${100 + (i % 900)}`,
-        companyName: company,
-        cbpNumber: `ISF-${txnNum}${cbpExtra}`,
-        username: user,
-        status: status.label,
-        statusChip: status.chip,
-        etd: formatDate(etd),
-        etdSort: etd.getTime(),
-        vesselName: vessel.name,
-        vesselId: vessel.id,
-        filingDate: formatDate(filing),
-        filingSort: filing.getTime(),
-        shipments: `${country.code}-OB${((i * 7) % 36).toString(36).toUpperCase()}-${200 + (i % 800)}`,
-        mbl: `MBL${pad((i * 7919) % 1e10, 10)}${String.fromCharCode(65 + (i % 26))}`,
-        hbl: `HBL${pad((i * 6287) % 1e10, 10)}${String.fromCharCode(65 + ((i + 3) % 26))}`,
-        country: `${country.code} - ${country.name}`
-      });
+    const rows = curatedTxnRows();
+    for (let i = rows.length; i < TXN_SEED_TOTAL; i += 1) {
+      rows.push(generatedTxnRow(i));
     }
-    Object.assign(rows[0], {
-      transactionId: "ISF-398T-218",
-      companyName: "GLOBAL-PAK",
-      cbpNumber: "ISF-18354115",
-      username: "",
-      status: "ACCEPTED",
-      statusChip: "submitted",
-      etd: "Jul 23, 2028",
-      vesselName: "CMA CGM GANGES",
-      vesselId: "9436367",
-      filingDate: "Jul 31, 2028",
-      shipments: "KR-OB0T-283",
-      country: "IN - India"
-    });
-    Object.assign(rows[1], {
-      transactionId: "ISF-M400-90",
-      companyName: "ILLUMINATE USA LLC",
-      cbpNumber: "ISF-18354132\nISF-64682239695",
-      username: "KAMAL SINGH",
-      status: "REPLACE ACCEPTED",
-      statusChip: "submitted",
-      etd: "May 29, 2026",
-      vesselName: "MSC OSCAR",
-      vesselId: "9703318",
-      filingDate: "Jun 2, 2026",
-      shipments: "VN-OB1K-441",
-      country: "VN - Vietnam"
-    });
-    Object.assign(rows[2], {
-      transactionId: "ISF-7K2A-412",
-      companyName: "BASF AGRICULTURAL SOLUTIONS INC LLC",
-      cbpNumber: "ISF-18354201",
-      username: "RAJA KUMAR",
-      status: "ACCEPTED",
-      statusChip: "submitted",
-      etd: "Aug 4, 2026",
-      vesselName: "EVER GOLDEN",
-      vesselId: "9783510",
-      filingDate: "Aug 9, 2026",
-      shipments: "CN-OB3M-118",
-      country: "CN - China"
-    });
     seedCache = rows;
-    return rows;
+    return seedCache;
   }
 
-  function shipStateForIndex(i) {
-    // ~3600 rows: 80 notCreated, 113 inProgress, 3407 completed (matches production Completed count).
-    if (i < 80) {
-      return SHIP_STATES[0];
-    }
-    if (i < 193) {
-      return SHIP_STATES[1];
-    }
-    return SHIP_STATES[2];
+  function curatedShipRows() {
+    const usImport = "US - United States of America";
+    return [
+      {
+        id: "isf-ship-1",
+        shipmentId: "KN-ISF-1-65",
+        companyName: "TEST US COMPANY 4",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Aug 03, 2022",
+        etdSort: parseSortDate("Aug 03, 2022"),
+        vesselName: "WAN HAI 512",
+        vesselId: "9223710",
+        mbl: "EGLV143264634009",
+        hbl: "RAJA667800",
+        countryExport: "GE - Georgia",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-2",
+        shipmentId: "KN-ISF-4",
+        companyName: "ENGINE-KX-ISF-4-REAJITWARI100",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Jul 14, 2025",
+        etdSort: parseSortDate("Jul 14, 2025"),
+        vesselName: "MAERSK BROK",
+        vesselId: "8408789",
+        mbl: "M001099292",
+        hbl: "DE3738101397",
+        countryExport: "IN - India",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-3",
+        shipmentId: "KN-ISF-13",
+        companyName: "TEST US COMPANY 4",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Jul 18, 2025",
+        etdSort: parseSortDate("Jul 18, 2025"),
+        vesselName: "MAERSK BINTAN",
+        vesselId: "9400758",
+        mbl: "AEHU-LHI1017-2",
+        hbl: "",
+        countryExport: "VN - Vietnam",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-4",
+        shipmentId: "KN-ISF-60",
+        companyName: "ILLUMINATE USA, LLC",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Sep 25, 2025",
+        etdSort: parseSortDate("Sep 25, 2025"),
+        vesselName: "HUMBER BRIDGE",
+        vesselId: "9293454",
+        mbl: "MOLU3368282",
+        hbl: "",
+        countryExport: "CA - Canada",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-5",
+        shipmentId: "KN-ISF-1-5",
+        companyName: "LEGEND VALVE US",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Aug 21, 2025",
+        etdSort: parseSortDate("Aug 21, 2025"),
+        vesselName: "COSCO MALAYSIA",
+        vesselId: "9448786",
+        mbl: "COSU6151471824",
+        hbl: "HCI0414432",
+        countryExport: "CN - China",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-6",
+        shipmentId: "KN-ISF-80",
+        companyName: "ILLUMINATE USA, LLC",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Sep 05, 2025",
+        etdSort: parseSortDate("Sep 05, 2025"),
+        vesselName: "HUMBER BRIDGE",
+        vesselId: "9302140",
+        mbl: "MOLU3368282",
+        hbl: "",
+        countryExport: "CA - Canada",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-7",
+        shipmentId: "KN-ISF-9",
+        companyName: "TEST COMPANY 1",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "Sep 10, 2025",
+        etdSort: parseSortDate("Sep 10, 2025"),
+        vesselName: "UA VESSEL",
+        vesselId: "1111111",
+        mbl: "MOLU0067890",
+        hbl: "HDEQ5557760",
+        countryExport: "US - United States of America",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-8",
+        shipmentId: "KR-OB0T-283",
+        companyName: "GLOBAL-PAK",
+        shipmentState: "IN PROGRESS",
+        statusChip: "inProgress",
+        stateTone: "information",
+        etd: "Jul 23, 2028",
+        etdSort: parseSortDate("Jul 23, 2028"),
+        vesselName: "CMA CGM GANGES",
+        vesselId: "9436367",
+        mbl: "CMDUHB0204786",
+        hbl: "EGET20427328",
+        countryExport: "KR - Korea, Republic of",
+        countryImport: usImport,
+        mot: "OCEAN"
+      },
+      {
+        id: "isf-ship-9",
+        shipmentId: "VN-OB1K-441",
+        companyName: "ILLUMINATE USA LLC",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        etd: "May 29, 2026",
+        etdSort: parseSortDate("May 29, 2026"),
+        vesselName: "MSC OSCAR",
+        vesselId: "9703318",
+        mbl: "ONEYSGNFL9591500",
+        hbl: "MCLMVSSAV2507004",
+        countryExport: "VN - Vietnam",
+        countryImport: usImport,
+        mot: "OCEAN"
+      }
+    ];
+  }
+
+  function generatedShipRow(i) {
+    const company = COMPANIES[i % COMPANIES.length];
+    const vessel = VESSELS[i % VESSELS.length];
+    const country = COUNTRIES[i % COUNTRIES.length];
+    const shipState = SHIP_STATES[0];
+    const etd = new Date(Date.UTC(2022 + ((i * 2) % 4), (i * 7) % 12, 1 + (i % 27)));
+    return {
+      id: `isf-ship-${i + 1}`,
+      shipmentId: `KN-ISF-${i % 9 === 0 ? "1-" : ""}${100 + (i % 900)}`,
+      companyName: company,
+      shipmentState: shipState.label,
+      statusChip: shipState.chip,
+      stateTone: shipState.tone,
+      etd: formatDate(etd),
+      etdSort: etd.getTime(),
+      vesselName: vessel.name,
+      vesselId: vessel.id,
+      mbl: `${MBL_PREFIXES[i % MBL_PREFIXES.length]}${pad((i * 7919) % 1e10, 10)}`,
+      hbl: i % 4 === 0 ? "" : `${HBL_PREFIXES[i % HBL_PREFIXES.length]}${pad((i * 6287) % 1e8, 8)}`,
+      countryExport: `${country.code} - ${country.name}`,
+      countryImport: `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
+      mot: "OCEAN"
+    };
   }
 
   function buildShipSeed() {
     if (shipSeedCache) {
       return shipSeedCache;
     }
-    const rows = [];
-    const total = 3600;
-    for (let i = 0; i < total; i += 1) {
-      const mid = ID_MID[i % ID_MID.length];
-      const company = COMPANIES[i % COMPANIES.length];
-      const vessel = VESSELS[i % VESSELS.length];
-      const country = COUNTRIES[i % COUNTRIES.length];
-      const shipState = shipStateForIndex(i);
-      const mot = MOTS[i % MOTS.length];
-      const etd = new Date(Date.UTC(2024 + ((i * 2) % 5), (i * 7) % 12, 1 + (i % 27)));
-      rows.push({
-        id: `isf-ship-${i + 1}`,
-        shipmentId: `${country.code}-OB${((i * 11) % 36).toString(36).toUpperCase()}-${100 + (i % 900)}`,
-        companyName: company,
-        shipmentState: shipState.label,
-        statusChip: shipState.chip,
-        stateTone: shipState.tone,
-        etd: formatDate(etd),
-        etdSort: etd.getTime(),
-        vesselName: vessel.name,
-        vesselId: vessel.id,
-        mbl: `MBL${pad((i * 7919) % 1e10, 10)}${String.fromCharCode(65 + (i % 26))}`,
-        hbl: `HBL${pad((i * 6287) % 1e10, 10)}${String.fromCharCode(65 + ((i + 5) % 26))}`,
-        countryExport: `${country.code} - ${country.name}`,
-        countryImport: `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
-        mot
-      });
+    const rows = curatedShipRows();
+    for (let i = rows.length; i < SHIP_SEED_TOTAL; i += 1) {
+      rows.push(generatedShipRow(i));
     }
-    Object.assign(rows[0], {
-      shipmentId: "KR-OB0T-283",
-      companyName: "GLOBAL-PAK",
-      shipmentState: "IN PROGRESS",
-      statusChip: "inProgress",
-      stateTone: "information",
-      etd: "Jul 23, 2028",
-      vesselName: "CMA CGM GANGES",
-      vesselId: "9436367",
-      mbl: "ONEYSGNFL9591500",
-      hbl: "MCLMVSSAV2507004",
-      countryExport: "KR - Korea, Republic of",
-      countryImport: "US - United States of America",
-      mot: "OCEAN"
-    });
-    Object.assign(rows[1], {
-      shipmentId: "VN-OB1K-441",
-      companyName: "ILLUMINATE USA LLC",
-      shipmentState: "NOT CREATED",
-      statusChip: "notCreated",
-      stateTone: "notice",
-      etd: "May 29, 2026",
-      vesselName: "MSC OSCAR",
-      vesselId: "9703318",
-      countryExport: "VN - Vietnam",
-      countryImport: "US - United States of America",
-      mot: "OCEAN"
-    });
-    Object.assign(rows[80], {
-      shipmentId: `ISF-SHP-${ID_MID[0]}-1`,
-      companyName: "PACIFIC RIM TRADING CO",
-      shipmentState: "IN PROGRESS",
-      statusChip: "inProgress",
-      stateTone: "information"
-    });
     shipSeedCache = rows;
     return rows;
   }
@@ -352,20 +714,12 @@
     }
   }
 
-  function iconList() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="6" r="1"/><path d="M9 6h11"/><circle cx="4" cy="12" r="1"/><path d="M9 12h11"/><circle cx="4" cy="18" r="1"/><path d="M9 18h11"/></svg>`;
+  function iconClose() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
   }
 
-  function iconPencil() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
-  }
-
-  function iconDoc() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>`;
-  }
-
-  function iconRefresh() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>`;
+  function iconCheck() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
   }
 
   function statusBadge(label, tone) {
@@ -385,7 +739,7 @@
   }
 
   function vesselCell(row) {
-    const joined = `${row.vesselName} · ${row.vesselId}`;
+    const joined = `${row.vesselName}, ${row.vesselId}`;
     return `<span class="type-body-sm tm-ellipsis" title="${escapeHtml(joined)}">${escapeHtml(joined)}</span>`;
   }
 
@@ -451,7 +805,7 @@
     const rows = buildShipSeed().filter((row) => {
       const chipOk =
         f.chip === "allActive"
-          ? row.statusChip === "notCreated" || row.statusChip === "inProgress"
+          ? row.statusChip !== "completed"
           : row.statusChip === f.chip;
       if (!chipOk) return false;
       const checks = [
@@ -498,7 +852,7 @@
     const inProgress = all.filter((row) => row.statusChip === "inProgress").length;
     const completed = all.filter((row) => row.statusChip === "completed").length;
     return {
-      allActive: notCreated + inProgress,
+      allActive: all.filter((row) => row.statusChip !== "completed").length,
       notCreated,
       inProgress,
       completed
@@ -510,20 +864,6 @@
       ...opts,
       open: state.selectOpen
     });
-  }
-
-  function rowActions(id, label, prefix, opts = {}) {
-    if (opts.onlyDocument) {
-      return `<div class="user-row-actions">
-        <button class="icon-btn" type="button" data-${prefix}-document="${escapeHtml(id)}" aria-label="View document for ${escapeHtml(label)}" data-tooltip="Document">${iconDoc()}</button>
-      </div>`;
-    }
-    return `<div class="user-row-actions">
-      <button class="icon-btn" type="button" data-${prefix}-history="${escapeHtml(id)}" aria-label="History for ${escapeHtml(label)}" data-tooltip="History">${iconList()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-open="${escapeHtml(id)}" aria-label="Edit ${escapeHtml(label)}" data-tooltip="Edit">${iconPencil()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-document="${escapeHtml(id)}" aria-label="View document for ${escapeHtml(label)}" data-tooltip="Document">${iconDoc()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-refresh="${escapeHtml(id)}" aria-label="Update status for ${escapeHtml(label)}" data-tooltip="Update Status">${iconRefresh()}</button>
-    </div>`;
   }
 
   function openStatusModal(row) {
@@ -562,8 +902,14 @@
         })}
       </div>`;
     const footerHtml = `
-      <button class="btn btn--tertiary btn--md type-ui-md" type="button" data-admin-modal-dismiss>Cancel</button>
-      <button class="btn btn--primary btn--md type-ui-md" type="button" data-isf-status-confirm ${state.statusModal.value ? "" : "disabled"}>Update</button>`;
+      <button class="btn btn--primary btn--md type-ui-md kn-btn isf-status-modal__cancel" type="button" data-admin-modal-dismiss>
+        <span class="btn-icon" aria-hidden="true">${iconClose()}</span>
+        Cancel
+      </button>
+      <button class="btn btn--secondary btn--md type-ui-md kn-btn isf-status-modal__reset" type="button" data-isf-status-confirm ${state.statusModal.value ? "" : "disabled"}>
+        <span class="btn-icon" aria-hidden="true">${iconCheck()}</span>
+        Reset Status
+      </button>`;
     return ux.modalShell({
       open: true,
       id: "kn-isf-status-modal",
@@ -579,7 +925,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading ISF filings." })}
-      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table isf-table" aria-label="Loading US ISF transactions"><thead><tr class="vis-table__labels"><th scope="col">Transaction ID</th><th scope="col">Company Name</th><th scope="col">…</th><th scope="col">Actions</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 13, rows: 8 })}</tbody></table></div></div>`;
+      <div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table" })}" aria-label="Loading US ISF transactions"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Transaction ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 13, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -595,6 +941,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-isf-id="${escapeHtml(row.id)}" tabindex="0">
+          <td>${ux.tmTxnRowActions({ id: row.id, label: row.transactionId, prefix: "isf", statusUpdate: true })}</td>
           <td class="admin-table-nowrap" title="${escapeHtml(row.transactionId)}">
             <span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span>
           </td>
@@ -609,45 +956,47 @@
           <td class="type-body-sm"><span class="code">${escapeHtml(row.mbl)}</span></td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.hbl)}</span></td>
           <td class="type-body-sm">${escapeHtml(row.country)}</td>
-          <td>${rowActions(row.id, row.transactionId, "isf")}</td>
         </tr>`
           )
           .join("")
-      : `<tr class="role-empty-row"><td colspan="13">${ux.emptyState({
-          title: "No ISF filings found matching your search", description: "Clear filters or switch status chips to see filings.",
+      : ux.tmTableEmptyRow({
+          colspan: 13,
+          title: "No ISF filings found matching your search",
+          description: "Clear filters or switch status chips to see filings.",
           secondaryLabel: "Clear filters",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
 
     return `${ux.toolbar({
       chips: [
         { id: "all", label: "All", count: counts.all, selected: chip === "all" },
         { id: "submitted", label: "Submitted", count: counts.submitted, selected: chip === "submitted" },
         { id: "pending", label: "Pending Submission", count: counts.pending, selected: chip === "pending" },
-        { id: "finBill", label: "Fin Bill Match", count: counts.finBill, selected: chip === "finBill" }
+        { id: "finBill", label: "No Bill Match", count: counts.finBill, selected: chip === "finBill" }
       ],
       results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}. Sorted by ${state.txn.sortKey}, ${state.txn.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card isf-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface isf-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table isf-table" aria-label="US ISF transactions">
+        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table" })}" aria-label="US ISF transactions">
           <thead>
             <tr class="vis-table__labels">
+              ${ux.actionsColHeader()}
               ${sortHeader("transactionId", "Transaction ID", "data-isf-sort")}
               ${sortHeader("companyName", "Company Name", "data-isf-sort")}
               ${sortHeader("cbpNumber", "CBP Transaction Number", "data-isf-sort")}
               ${sortHeader("username", "Username", "data-isf-sort")}
-              ${sortHeader("status", "Transaction Status", "data-isf-sort")}
+              ${sortHeader("status", "Transaction State", "data-isf-sort")}
               ${sortHeader("etd", "ETD", "data-isf-sort")}
               ${sortHeader("vesselName", "Vessel Name", "data-isf-sort")}
               ${sortHeader("filingDate", "Filing Date", "data-isf-sort")}
-              ${sortHeader("shipments", "Shipments", "data-isf-sort")}
+              ${sortHeader("shipments", "Shipment #", "data-isf-sort")}
               ${sortHeader("mbl", "MBL", "data-isf-sort")}
               ${sortHeader("hbl", "HBL", "data-isf-sort")}
               ${sortHeader("country", "Country of Export", "data-isf-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
+              ${ux.emptyColFilter()}
               ${ux.colFilter({ attr: "data-isf-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
               ${ux.colFilter({ attr: "data-isf-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name", placeholder: "Search by company name" })}
               ${ux.colFilter({ attr: "data-isf-filter", key: "cbpNumber", value: state.txn.filters.cbpNumber, label: "CBP transaction number", placeholder: "Search by CBP transaction number" })}
@@ -660,7 +1009,6 @@
               ${ux.colFilter({ attr: "data-isf-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL", placeholder: "Search by MBL" })}
               ${ux.colFilter({ attr: "data-isf-filter", key: "hbl", value: state.txn.filters.hbl, label: "HBL", placeholder: "Search by HBL" })}
               ${ux.colFilter({ attr: "data-isf-filter", key: "country", value: state.txn.filters.country, label: "country of export", placeholder: "Search by country of export" })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -695,7 +1043,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading ISF shipments." })}
-      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table isf-table isf-table--ship" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th><th scope="col">Actions</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
+      <div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" })}" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -711,6 +1059,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-isf-ship-id="${escapeHtml(row.id)}" tabindex="0">
+          <td>${ux.tmShipRowActions({ id: row.id, label: row.shipmentId, prefix: "isf-ship" })}</td>
           <td class="admin-table-nowrap">
             <a class="kn-link admin-name-link" href="#transaction-us-isf" data-isf-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}">
               <span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span>
@@ -725,15 +1074,16 @@
           <td class="type-body-sm">${escapeHtml(row.countryExport)}</td>
           <td class="type-body-sm">${escapeHtml(row.countryImport)}</td>
           <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
-          <td>${rowActions(row.id, row.shipmentId, "isf-ship", { onlyDocument: true })}</td>
         </tr>`
           )
           .join("")
-      : `<tr class="role-empty-row"><td colspan="11">${ux.emptyState({
-          title: "No ISF shipments found matching your search", description: "Clear filters or switch status chips to see shipments.",
+      : ux.tmTableEmptyRow({
+          colspan: 11,
+          title: "No ISF shipments found matching your search",
+          description: "Clear filters or switch status chips to see shipments.",
           secondaryLabel: "Clear filters",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
 
     return `${ux.toolbar({
       chips: [
@@ -744,11 +1094,12 @@
       ],
       results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}. Sorted by ${state.ship.sortKey}, ${state.ship.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card isf-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface isf-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table isf-table isf-table--ship" aria-label="US ISF shipments">
+        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" })}" aria-label="US ISF shipments">
           <thead>
             <tr class="vis-table__labels">
+              ${ux.actionsColHeader()}
               ${sortHeader("shipmentId", "Shipment ID", "data-isf-ship-sort")}
               ${sortHeader("companyName", "Company Name", "data-isf-ship-sort")}
               ${sortHeader("shipmentState", "Shipment State", "data-isf-ship-sort")}
@@ -759,9 +1110,9 @@
               ${sortHeader("countryExport", "Country of Export", "data-isf-ship-sort")}
               ${sortHeader("countryImport", "Country of Import", "data-isf-ship-sort")}
               ${sortHeader("mot", "MoT", "data-isf-ship-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
+              ${ux.emptyColFilter()}
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-isf-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
               ${ux.colKnSelect({
@@ -773,6 +1124,7 @@
                 placeholder: "Select",
                 emptyLabel: "Select",
                 options: [
+                  { value: "New", label: "New" },
                   { value: "NOT CREATED", label: "NOT CREATED" },
                   { value: "IN PROGRESS", label: "IN PROGRESS" },
                   { value: "COMPLETED", label: "COMPLETED" }
@@ -798,7 +1150,6 @@
                   { value: "TRUCK", label: "TRUCK" }
                 ]
               })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -1103,12 +1454,33 @@
         const row = findTxnRow(state.statusModal.id);
         const chosen = TXN_STATUS_OPTIONS.find((opt) => opt.id === state.statusModal.value);
         if (row && chosen) {
-          row.status = chosen.label;
+          row.status = chosen.id;
           row.statusChip = chosen.chip;
           closeStatusModal();
-          toast(`${row.transactionId} status updated to ${chosen.label}.`, "positive");
+          toast(`${row.transactionId} status reset to ${chosen.label}.`, "positive");
           render();
         }
+        return;
+      }
+      const shipView = event.target.closest("[data-isf-ship-view]");
+      if (shipView) {
+        event.preventDefault();
+        const row = findShipRow(shipView.getAttribute("data-isf-ship-view"));
+        toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice");
+        return;
+      }
+      const shipCreate = event.target.closest("[data-isf-ship-create]");
+      if (shipCreate) {
+        event.preventDefault();
+        const row = findShipRow(shipCreate.getAttribute("data-isf-ship-create"));
+        toast(`Create Transaction for ${row?.shipmentId || "shipment"} opened in this sample.`, "notice");
+        return;
+      }
+      const shipIntake = event.target.closest("[data-isf-ship-intake]");
+      if (shipIntake) {
+        event.preventDefault();
+        const row = findShipRow(shipIntake.getAttribute("data-isf-ship-intake"));
+        toast(`${row?.shipmentId || "Shipment"} moved back to Intake in this sample.`, "notice");
         return;
       }
       const shipOpen = event.target.closest("[data-isf-ship-open]");
@@ -1133,6 +1505,15 @@
         toast(`History for ${row?.shipmentId || "record"} is not available in this sample.`, "notice");
         return;
       }
+      const edit = event.target.closest("[data-isf-open]");
+      if (edit) {
+        event.preventDefault();
+        const row = findTxnRow(edit.getAttribute("data-isf-open"));
+        if (row) {
+          goto(`#transaction-us-isf/history/${encodeURIComponent(row.id)}`);
+        }
+        return;
+      }
       const doc = event.target.closest("[data-isf-document], [data-isf-ship-document]");
       if (doc) {
         event.preventDefault();
@@ -1141,7 +1522,7 @@
           ? findShipRow(doc.getAttribute("data-isf-ship-document"))
           : findTxnRow(doc.getAttribute("data-isf-document"));
         const label = isShip ? row?.shipmentId : row?.transactionId;
-        toast(`Document view for ${label || "record"} is not available in this sample.`, "notice");
+        toast(`Documents for ${label || "record"} opened in this sample.`, "notice");
         return;
       }
       const refresh = event.target.closest("[data-isf-refresh], [data-isf-ship-refresh]");

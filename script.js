@@ -136,14 +136,65 @@ function originLaneRows(origin, limit = 5) {
   ];
 }
 
-function laneSegHtml(tone, mot, value, max, places) {
-  if (!value || !max) {
-    return "";
+function mountDashCharts(summary) {
+  if (!window.KNGenUI?.mount) {
+    return;
   }
-  const mode = typeof knMotLabel === "function" ? knMotLabel(mot) : mot;
-  const where = (places || []).join(", ");
-  const tip = where ? `${mode} · ${where}` : `${mode} · ${value}`;
-  return `<span class="kn-chart__seg dash-bars__seg chart-cat--${tone}" style="width: ${Math.round((value / max) * 100)}%" data-tooltip="${attrTip(tip)}"></span>`;
+  const lanesHost = document.getElementById("dash-lanes-genui");
+  if (lanesHost) {
+    const rows = originLaneRows(summary.origin);
+    window.KNGenUI.mount(
+      lanesHost,
+      {
+        components: [
+          {
+            component: "CHART",
+            chartType: "bar",
+            variant: "compact",
+            title: "Shipments by lane",
+            xAxis: "lane",
+            valueFormatter: { type: "number" },
+            data: rows.map((row) => ({
+              lane: row.label,
+              ocean: row.counts.ocean,
+              air: row.counts.air,
+              truck: row.counts.truck,
+              rail: row.counts.rail
+            }))
+          }
+        ]
+      },
+      { animate: false }
+    );
+    hydrateKnCharts(lanesHost);
+  }
+  const donutHost = document.getElementById("dash-donut-genui");
+  if (donutHost) {
+    window.KNGenUI.mount(
+      donutHost,
+      {
+        components: [
+          {
+            component: "CHART",
+            chartType: "pie",
+            variant: "compact",
+            title: "Mode mix",
+            xAxis: "mode",
+            centerLabel: `${summary.total} active`,
+            valueFormatter: { type: "percentage", suffix: "%" },
+            data: [
+              { mode: "Ocean", value: summary.motPct.ocean || 0 },
+              { mode: "Air", value: summary.motPct.air || 0 },
+              { mode: "Truck", value: summary.motPct.truck || 0 },
+              { mode: "Rail", value: summary.motPct.rail || 0 }
+            ]
+          }
+        ]
+      },
+      { animate: false }
+    );
+    hydrateKnCharts(donutHost);
+  }
 }
 
 function syncAlertViewAll(linkId, total) {
@@ -459,12 +510,7 @@ function syncL1Classes() {
   /* Keep data-kn-l1 for first-paint collapsed chrome, but drop it while L1 is
      hover-expanded — otherwise html[data-kn-l1=collapsed] .hide-when-collapsed
      in index.html/styles.css wins over .is-l1-hovered and titles stay blank. */
-  if (
-    desktop &&
-    isL1Collapsed &&
-    !isL1Hovered &&
-    document.documentElement.dataset.knRoute === "agentic-broker"
-  ) {
+  if (desktop && isL1Collapsed && !isL1Hovered) {
     document.documentElement.dataset.knL1 = "collapsed";
   } else {
     delete document.documentElement.dataset.knL1;
@@ -644,6 +690,17 @@ function firstNavigableInLevel(level) {
 function getL2TriggerForLevel(level) {
   const id = level?.id;
   return id ? sideNav.querySelector(`[data-l2trigger][aria-controls="${id}"]`) : null;
+}
+
+function resolveL2TriggerForLink(link) {
+  if (!link) {
+    return null;
+  }
+  if (link.dataset.l2trigger === "true") {
+    return link;
+  }
+  const levelEl = link.closest('.side-nav-level[data-level="2"]');
+  return levelEl ? getL2TriggerForLevel(levelEl) : null;
 }
 
 function getActiveL2Trigger() {
@@ -857,6 +914,10 @@ function isDefaultRoleManagementRoute() {
   return getHashPath().startsWith("#default-role-management");
 }
 
+function isContractManagementRoute() {
+  return getHashPath().startsWith("#contract-management");
+}
+
 function isUsIsfRoute() {
   return getHashPath().startsWith("#transaction-us-isf");
 }
@@ -867,6 +928,10 @@ function isUsInBondRoute() {
 
 function isUsEntryRoute() {
   return getHashPath().startsWith("#transaction-us-entry");
+}
+
+function isUsExportRoute() {
+  return getHashPath().startsWith("#transaction-us-export");
 }
 
 function isUsFtzRoute() {
@@ -883,6 +948,10 @@ function isUsDeliveryOrderRoute() {
 
 function isUsShipmentsRoute() {
   return getHashPath().startsWith("#transaction-us-shipments");
+}
+
+function isUsStatementsRoute() {
+  return getHashPath().startsWith("#payment-us-statements");
 }
 
 function findNavLinkForHash(path = getHashPath()) {
@@ -907,6 +976,9 @@ function nestedAdminNavHash(path = getHashPath()) {
   if (path.startsWith("#default-role-management")) {
     return "#default-role-management";
   }
+  if (path.startsWith("#contract-management")) {
+    return "#contract-management";
+  }
   if (path.startsWith("#transaction-us-isf")) {
     return "#transaction-us-isf";
   }
@@ -922,6 +994,9 @@ function adminModuleApi(navHash) {
   }
   if (navHash === "#default-role-management") {
     return window.KNDefaultRoles;
+  }
+  if (navHash === "#contract-management") {
+    return window.KNContracts;
   }
   return null;
 }
@@ -955,6 +1030,10 @@ function getCurrentPageTitle() {
     if (label) {
       return label;
     }
+  }
+  const stmtApproval = path.match(/^#payment-us-statements\/approval\/([^/]+)$/);
+  if (stmtApproval) {
+    return decodeURIComponent(stmtApproval[1]);
   }
   const l3Current = sideNav.querySelector('.side-nav-link[data-level="3"][aria-current="page"]');
   if (l3Current) {
@@ -996,19 +1075,61 @@ function isKnownRoute() {
     isRoleManagementRoute() ||
     isUserManagementRoute() ||
     isDefaultRoleManagementRoute() ||
+    isContractManagementRoute() ||
     isUsIsfRoute() ||
     isUsInBondRoute() ||
     isUsEntryRoute() ||
+    isUsExportRoute() ||
     isUsFtzRoute() ||
     isUsPscRoute() ||
     isUsDeliveryOrderRoute() ||
-    isUsShipmentsRoute()
+    isUsShipmentsRoute() ||
+    isUsStatementsRoute()
   );
 }
 
-function getHashPath(hash = location.hash) {
-  return (hash || "#agentic-broker").split("?")[0];
+function hashFromPathname(pathname = location.pathname) {
+  const segments = String(pathname || "")
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!segments.length) {
+    return "";
+  }
+  const last = segments[segments.length - 1];
+  if (/\.[a-z0-9]+$/i.test(last)) {
+    return "";
+  }
+  if (segments.length === 1 && (last === "index.html" || last === "home.html")) {
+    return "";
+  }
+  if (segments[0] === "index.html" || segments[0] === "home.html") {
+    segments.shift();
+  }
+  if (!segments.length) {
+    return "";
+  }
+  return `#${segments.map(decodeURIComponent).join("/")}`;
 }
+
+function normalizeHashPath(hash = location.hash) {
+  const raw = (hash || "").split("?")[0];
+  if (!raw || raw === "#") {
+    const fromPath = hashFromPathname();
+    if (fromPath) {
+      return fromPath;
+    }
+    return "#agentic-broker";
+  }
+  return `#${raw.replace(/^#\/?/, "")}`;
+}
+
+function getHashPath(hash = location.hash) {
+  return normalizeHashPath(hash);
+}
+
+window.getHashPath = getHashPath;
+window.hashFromPathname = hashFromPathname;
 
 function syncDocumentRoute() {
   if (!document.getElementById("agentic-broker-page")) {
@@ -1021,7 +1142,7 @@ function setRouteHash(href) {
   if (!href?.startsWith("#")) {
     return;
   }
-  const nextPath = href.split("?")[0];
+  const nextPath = normalizeHashPath(href);
   if (nextPath === getHashPath()) {
     if (!href.includes("?") && !window.KNVisLoading && typeof window.closeKnShipmentDetail === "function" && visState?.detailId) {
       window.closeKnShipmentDetail();
@@ -1047,6 +1168,11 @@ function setPageSectionVisibility(el, visible) {
   }
 }
 
+function bootActivePage({ page, root, kind = "admin-list", init, sync, cols, rows }) {
+  init?.();
+  window.KNPageReload?.run?.({ page, root, kind, cols, rows, refresh: sync }) || sync?.();
+}
+
 function syncPageView() {
   syncDocumentRoute();
   const dashboardInner = document.querySelector(".dashboard-inner");
@@ -1056,13 +1182,16 @@ function syncPageView() {
   const rolePage = document.getElementById("kn-role-page");
   const userPage = document.getElementById("kn-user-page");
   const defaultRolePage = document.getElementById("kn-default-role-page");
+  const contractPage = document.getElementById("kn-contract-page");
   const isfPage = document.getElementById("kn-isf-page");
   const inbPage = document.getElementById("kn-inb-page");
   const entryPage = document.getElementById("kn-entry-page");
+  const exportPage = document.getElementById("kn-export-page");
   const ftzPage = document.getElementById("kn-ftz-page");
   const pscPage = document.getElementById("kn-psc-page");
   const doPage = document.getElementById("kn-do-page");
   const tmshipPage = document.getElementById("kn-tmship-page");
+  const statementPage = document.getElementById("kn-statement-page");
   const emptyPage = document.getElementById("empty-page");
   const emptyTitle = document.getElementById("empty-page-title");
   const emptyDescription = document.getElementById("empty-page-description");
@@ -1074,15 +1203,18 @@ function syncPageView() {
   const isRoles = isRoleManagementRoute();
   const isUsers = isUserManagementRoute();
   const isDefaultRoles = isDefaultRoleManagementRoute();
+  const isContracts = isContractManagementRoute();
   const isUsIsf = isUsIsfRoute();
   const isUsInBond = isUsInBondRoute();
   const isUsEntry = isUsEntryRoute();
+  const isUsExport = isUsExportRoute();
   const isUsFtz = isUsFtzRoute();
   const isUsPsc = isUsPscRoute();
   const isUsDeliveryOrder = isUsDeliveryOrderRoute();
   const isUsShipments = isUsShipmentsRoute();
-  const isAdminModule = isRoles || isUsers || isDefaultRoles;
-  const isTmUsPage = isUsIsf || isUsInBond || isUsEntry || isUsFtz || isUsPsc || isUsDeliveryOrder || isUsShipments;
+  const isUsStatements = isUsStatementsRoute();
+  const isAdminModule = isRoles || isUsers || isDefaultRoles || isContracts;
+  const isTmUsPage = isUsIsf || isUsInBond || isUsEntry || isUsExport || isUsFtz || isUsPsc || isUsDeliveryOrder || isUsShipments || isUsStatements;
   const isKnownPage = isKnownRoute();
 
   if (!isAgenticBroker) {
@@ -1097,6 +1229,9 @@ function syncPageView() {
   if (!isDefaultRoles) {
     window.KNDefaultRoles?.suspend?.();
   }
+  if (!isContracts) {
+    window.KNContracts?.suspend?.();
+  }
   if (!isUsIsf) {
     window.KNUsIsf?.suspend?.();
   }
@@ -1105,6 +1240,9 @@ function syncPageView() {
   }
   if (!isUsEntry) {
     window.KNUsEntry?.suspend?.();
+  }
+  if (!isUsExport) {
+    window.KNUsExport?.suspend?.();
   }
   if (!isUsFtz) {
     window.KNUsFtz?.suspend?.();
@@ -1118,6 +1256,9 @@ function syncPageView() {
   if (!isUsShipments) {
     window.KNUsShipments?.suspend?.();
   }
+  if (!isUsStatements) {
+    window.KNPaymentUsStatements?.suspend?.();
+  }
   if (!isVisibility) {
     window.suspendVisibility?.();
   }
@@ -1129,18 +1270,18 @@ function syncPageView() {
   setPageSectionVisibility(rolePage, isRoles);
   setPageSectionVisibility(userPage, isUsers);
   setPageSectionVisibility(defaultRolePage, isDefaultRoles);
+  setPageSectionVisibility(contractPage, isContracts);
   setPageSectionVisibility(isfPage, isUsIsf);
   setPageSectionVisibility(inbPage, isUsInBond);
   setPageSectionVisibility(entryPage, isUsEntry);
+  setPageSectionVisibility(exportPage, isUsExport);
   setPageSectionVisibility(ftzPage, isUsFtz);
   setPageSectionVisibility(pscPage, isUsPsc);
   setPageSectionVisibility(doPage, isUsDeliveryOrder);
   setPageSectionVisibility(tmshipPage, isUsShipments);
+  setPageSectionVisibility(statementPage, isUsStatements);
   if (isVisibility && typeof persistVisViewHash === "function") {
     persistVisViewHash(visState?.view || "cards");
-  }
-  if (isVisibility && typeof window.syncKnDetailFromHash === "function") {
-    window.syncKnDetailFromHash();
   }
   if (!isVisibility && visState?.detailId && typeof window.closeKnShipmentDetail === "function") {
     window.closeKnShipmentDetail({ persistHash: false });
@@ -1149,48 +1290,149 @@ function syncPageView() {
     setPageSectionVisibility(emptyPage, !isKnownPage);
   }
   if (isAgenticBroker) {
-    window.KNAgenticBroker?.init?.();
-    window.KNAgenticBroker?.sync?.();
+    bootActivePage({
+      page: agenticBrokerPage,
+      kind: "agentic",
+      init: () => window.KNAgenticBroker?.init?.(),
+      sync: () => window.KNAgenticBroker?.sync?.()
+    });
   }
   if (isRoles) {
-    window.KNRoles?.init?.();
-    window.KNRoles?.sync?.();
+    bootActivePage({
+      page: rolePage,
+      root: document.getElementById("kn-role-root"),
+      kind: "admin-list",
+      cols: 6,
+      init: () => window.KNRoles?.init?.(),
+      sync: () => window.KNRoles?.sync?.()
+    });
   }
   if (isUsers) {
-    window.KNUsers?.init?.();
-    window.KNUsers?.sync?.();
+    bootActivePage({
+      page: userPage,
+      root: document.getElementById("kn-user-root"),
+      kind: "admin-list",
+      cols: 7,
+      init: () => window.KNUsers?.init?.(),
+      sync: () => window.KNUsers?.sync?.()
+    });
   }
   if (isDefaultRoles) {
-    window.KNDefaultRoles?.init?.();
-    window.KNDefaultRoles?.sync?.();
+    bootActivePage({
+      page: defaultRolePage,
+      root: document.getElementById("kn-default-role-root"),
+      kind: "admin-list",
+      cols: 6,
+      init: () => window.KNDefaultRoles?.init?.(),
+      sync: () => window.KNDefaultRoles?.sync?.()
+    });
+  }
+  if (isContracts) {
+    bootActivePage({
+      page: contractPage,
+      root: document.getElementById("kn-contract-root"),
+      kind: "admin-list",
+      cols: 5,
+      init: () => window.KNContracts?.init?.(),
+      sync: () => window.KNContracts?.sync?.()
+    });
   }
   if (isUsIsf) {
-    window.KNUsIsf?.init?.();
-    window.KNUsIsf?.sync?.();
+    bootActivePage({
+      page: isfPage,
+      root: document.getElementById("kn-isf-root"),
+      kind: "tm-table",
+      init: () => window.KNUsIsf?.init?.(),
+      sync: () => window.KNUsIsf?.sync?.()
+    });
   }
   if (isUsInBond) {
-    window.KNUsInBond?.init?.();
-    window.KNUsInBond?.sync?.();
+    bootActivePage({
+      page: inbPage,
+      root: document.getElementById("kn-inb-root"),
+      kind: "tm-table",
+      init: () => window.KNUsInBond?.init?.(),
+      sync: () => window.KNUsInBond?.sync?.()
+    });
   }
   if (isUsEntry) {
-    window.KNUsEntry?.init?.();
-    window.KNUsEntry?.sync?.();
+    bootActivePage({
+      page: entryPage,
+      root: document.getElementById("kn-entry-root"),
+      kind: "tm-table",
+      init: () => window.KNUsEntry?.init?.(),
+      sync: () => window.KNUsEntry?.sync?.()
+    });
+  }
+  if (isUsExport) {
+    bootActivePage({
+      page: exportPage,
+      root: document.getElementById("kn-export-root"),
+      kind: "tm-table",
+      init: () => window.KNUsExport?.init?.(),
+      sync: () => window.KNUsExport?.sync?.()
+    });
   }
   if (isUsFtz) {
-    window.KNUsFtz?.init?.();
-    window.KNUsFtz?.sync?.();
+    bootActivePage({
+      page: ftzPage,
+      root: document.getElementById("kn-ftz-root"),
+      kind: "tm-table",
+      init: () => window.KNUsFtz?.init?.(),
+      sync: () => window.KNUsFtz?.sync?.()
+    });
   }
   if (isUsPsc) {
-    window.KNUsPsc?.init?.();
-    window.KNUsPsc?.sync?.();
+    bootActivePage({
+      page: pscPage,
+      root: document.getElementById("kn-psc-root"),
+      kind: "tm-table",
+      init: () => window.KNUsPsc?.init?.(),
+      sync: () => window.KNUsPsc?.sync?.()
+    });
   }
   if (isUsDeliveryOrder) {
-    window.KNUsDeliveryOrder?.init?.();
-    window.KNUsDeliveryOrder?.sync?.();
+    bootActivePage({
+      page: doPage,
+      root: document.getElementById("kn-do-root"),
+      kind: "tm-table",
+      init: () => window.KNUsDeliveryOrder?.init?.(),
+      sync: () => window.KNUsDeliveryOrder?.sync?.()
+    });
   }
   if (isUsShipments) {
-    window.KNUsShipments?.init?.();
-    window.KNUsShipments?.sync?.();
+    bootActivePage({
+      page: tmshipPage,
+      root: document.getElementById("kn-tmship-root"),
+      kind: "tm-table",
+      init: () => window.KNUsShipments?.init?.(),
+      sync: () => window.KNUsShipments?.sync?.()
+    });
+  }
+  if (isUsStatements) {
+    bootActivePage({
+      page: statementPage,
+      root: document.getElementById("kn-statement-root"),
+      kind: "tm-table",
+      init: () => window.KNPaymentUsStatements?.init?.(),
+      sync: () => window.KNPaymentUsStatements?.sync?.()
+    });
+  }
+  if (isVisibility) {
+    bootActivePage({
+      page: visibilityPage,
+      kind: "visibility",
+      sync: () => {
+        if (typeof setVisTab === "function") {
+          setVisTab(getInitialVisView(), { persist: false });
+        }
+        if (typeof renderVisibilityPage === "function") {
+          renderVisibilityPage({ keepPage: true, fitMap: false, resetScroll: false });
+        }
+        window.syncKnDetailFromHash?.();
+        refreshVisibilityMap?.();
+      }
+    });
   }
   if (!isKnownPage) {
     const title = getCurrentPageTitle();
@@ -1207,7 +1449,7 @@ function syncPageView() {
     }
   }
   refreshShipmentMap();
-  if (typeof refreshVisibilityMap === "function") {
+  if (typeof refreshVisibilityMap === "function" && !isVisibility) {
     refreshVisibilityMap();
   }
   if (isOverview) {
@@ -4062,6 +4304,59 @@ function activateL2Trigger(trigger, { firstRender = false } = {}) {
   renderBreadcrumb();
 }
 
+function activateNavLinkOnFirstLoad(link) {
+  if (!link) {
+    return;
+  }
+
+  const l2Trigger = resolveL2TriggerForLink(link);
+
+  if (link.dataset.l2trigger === "true") {
+    const activeTrigger = link;
+    const level = getL2Level(activeTrigger);
+    const path = getHashPath();
+    const hashTarget =
+      sideNav.querySelector(`.side-nav-link[data-level="3"][href="${path}"]`) ||
+      sideNav.querySelector(`.side-nav-link[data-level="2"][href="${path}"]`);
+    const target = hashTarget || firstNavigableInLevel(level);
+
+    clearCurrent();
+    setCurrent(activeTrigger);
+    if (target && target !== activeTrigger) {
+      setCurrent(target);
+      if (target.matches("[data-tree-trigger]")) {
+        accordionTreeTriggers(target);
+        setTreeExpanded(target, true);
+      } else {
+        expandTreeAncestors(target);
+      }
+    }
+  } else {
+    clearCurrent();
+    setCurrent(link);
+    const level = Number(link.dataset.level || "1");
+    if (level === 3) {
+      expandTreeAncestors(link);
+    }
+  }
+
+  /* Never expand L1 on first paint for L2-panel routes — that undoes the
+     collapsed chrome and re-inlines portaled L2 (e.g. Klear Agent history). */
+  if (l2Trigger) {
+    onLinkActiveChange({
+      level: 1,
+      isActive: true,
+      isL2Trigger: true,
+      isFirstRender: true,
+      title: getNavTitle(l2Trigger),
+      trigger: l2Trigger,
+    });
+  } else {
+    expandL1();
+  }
+  renderBreadcrumb();
+}
+
 function setNavOpen(isOpen) {
   const desktop = isMediumOrHdDesktop();
   shell.classList.toggle("nav-open", isOpen && !desktop);
@@ -4180,9 +4475,6 @@ sideNav.addEventListener("click", (event) => {
     chatItem.classList.add("is-active");
     chatItem.setAttribute("aria-current", "true");
     const chatId = chatItem.closest("[data-chat-id]")?.getAttribute("data-chat-id") || "";
-    if (getHashPath() !== "#agentic-broker") {
-      setRouteHash("#agentic-broker");
-    }
     window.KNAgenticBroker?.openHistoryChat?.(chatId);
     return;
   }
@@ -4243,6 +4535,9 @@ sideNav.addEventListener("click", (event) => {
 
   if (isL2TriggerLink) {
     activateL2Trigger(link);
+    if (link.matches(".side-nav-link--agentic-broker")) {
+      window.KNAgenticBroker?.newChat?.();
+    }
     return;
   }
 
@@ -4279,14 +4574,16 @@ sideNav.addEventListener("click", (event) => {
 });
 
 function filterChatList(rawQuery) {
-  const query = rawQuery.trim().toLowerCase();
+  const query = rawQuery.trim();
+  const matchIds = window.KNShellSearchIndex?.chatIdsMatching?.(query);
   const groups = sideNav.querySelectorAll("[data-chat-group]");
   let visibleTotal = 0;
   groups.forEach((group) => {
     let visibleInGroup = 0;
     group.querySelectorAll(".side-nav-chat-row").forEach((row) => {
+      const chatId = row.getAttribute("data-chat-id") || "";
       const label = row.querySelector(".side-nav-chat-item")?.textContent || "";
-      const matches = !query || label.toLowerCase().includes(query);
+      const matches = matchIds ? matchIds.has(chatId) : !query || label.toLowerCase().includes(query.toLowerCase());
       row.hidden = !matches;
       if (matches) {
         visibleInGroup += 1;
@@ -4304,6 +4601,12 @@ function filterChatList(rawQuery) {
     clearBtn.hidden = query.length === 0;
   }
 }
+
+window.KNAgenticNav = Object.assign(window.KNAgenticNav || {}, {
+  refilterChatHistory() {
+    filterChatList(sideNav.querySelector("[data-agentic-chat-search]")?.value || "");
+  }
+});
 
 sideNav.addEventListener("input", (event) => {
   const search = event.target.closest("[data-agentic-chat-search]");
@@ -4415,23 +4718,29 @@ function hydrateCollapsedSideNavTooltips() {
 syncL1Classes();
 enhanceTreeGroups();
 hydrateCollapsedSideNavTooltips();
+window.setRouteHash = setRouteHash;
+window.KNPersona?.bootstrap?.();
 
 // HTML default aria-current is Agentic Broker (the landing page). Every hash —
 // including #dashboard — must mark the matching nav item before renderBreadcrumb()
 // runs. Skipping #dashboard left Agentic Broker selected while the dashboard
 // page was showing (first-paint CSS unhides .dashboard-inner from data-kn-route).
 {
-  const { path, navHash, link } = findNavLinkForHash();
+  const path = getHashPath();
+  const rawHashPath = (location.hash || "").split("?")[0];
+  const pathnameRoute = hashFromPathname();
+  const shouldCanonicalize =
+    Boolean(pathnameRoute && (!rawHashPath || rawHashPath === "#")) ||
+    Boolean(rawHashPath && normalizeHashPath(rawHashPath) !== path);
+  if (shouldCanonicalize) {
+    history.replaceState(null, "", `${path}${location.search || ""}`);
+    window.dispatchEvent(new CustomEvent("kn-route-change", { detail: { hash: path } }));
+  }
+  const { navHash, link } = findNavLinkForHash(path);
   if (link) {
-    if (link.dataset.level === "3") {
-      expandTreeAncestors(link);
-    }
-    if (link.dataset.l2trigger === "true") {
-      activateL2Trigger(link, { firstRender: true });
-    } else {
-      link.click();
-    }
+    activateNavLinkOnFirstLoad(link);
   } else {
+    expandL1();
     renderBreadcrumb();
   }
   if (navHash !== path) {
@@ -4523,224 +4832,7 @@ document.getElementById("profile-logout")?.addEventListener("click", () => {
   location.reload();
 });
 
-const quickActionsTrigger = document.getElementById("quick-actions-trigger");
-const quickActionsMenu = document.getElementById("quick-actions-menu");
-if (quickActionsMenu && quickActionsMenu.parentElement !== document.body) {
-  document.body.appendChild(quickActionsMenu);
-}
-const quickActionsSearch = document.getElementById("quick-actions-search");
-const quickActionsClear = document.getElementById("quick-actions-clear");
-const quickActionsEmpty = document.getElementById("quick-actions-empty");
-const quickActionsClose = document.getElementById("quick-actions-close");
-const quickActionsItems = Array.from(quickActionsMenu.querySelectorAll(".action-list-item"));
-let quickActionsIndex = 0;
-
-function visibleQuickActionItems() {
-  return quickActionsItems.filter((item) => !item.hidden);
-}
-
-function syncQuickActionsActive() {
-  const visible = visibleQuickActionItems();
-  if (visible.length === 0) {
-    quickActionsIndex = -1;
-    quickActionsSearch.removeAttribute("aria-activedescendant");
-    return;
-  }
-  if (quickActionsIndex < 0) {
-    quickActionsIndex = 0;
-  }
-  if (quickActionsIndex >= visible.length) {
-    quickActionsIndex = visible.length - 1;
-  }
-  visible.forEach((item, index) => {
-    const isActive = index === quickActionsIndex;
-    item.classList.toggle("is-active", isActive);
-    item.removeAttribute("aria-selected");
-    if (isActive) {
-      item.scrollIntoView({ block: "nearest" });
-      quickActionsSearch.setAttribute("aria-activedescendant", item.id);
-    }
-  });
-}
-
-function filterQuickActions(query) {
-  const needle = query.trim().toLowerCase();
-  quickActionsMenu.querySelectorAll(".action-list-section").forEach((section) => {
-    const items = Array.from(section.querySelectorAll(".action-list-item"));
-    let visibleCount = 0;
-    items.forEach((item) => {
-      const label = item.dataset.label || item.textContent;
-      const matches = !needle || label.toLowerCase().includes(needle);
-      item.hidden = !matches;
-      if (matches) {
-        visibleCount += 1;
-      }
-    });
-    section.hidden = visibleCount === 0;
-  });
-  const hasResults = visibleQuickActionItems().length > 0;
-  quickActionsEmpty.hidden = hasResults;
-  quickActionsIndex = hasResults ? 0 : -1;
-  syncQuickActionsActive();
-}
-
-function knTokenPx(name, fallback) {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  if (!raw) {
-    return fallback;
-  }
-  if (raw.endsWith("rem")) {
-    return parseFloat(raw) * 16;
-  }
-  if (raw.endsWith("px")) {
-    return parseFloat(raw);
-  }
-  const asNumber = Number.parseFloat(raw);
-  return Number.isFinite(asNumber) ? asNumber : fallback;
-}
-
-function positionQuickActionsMenu() {
-  const gutter = knTokenPx("--theme-size-16", 16);
-  const width = Math.min(knTokenPx("--theme-size-300", 300), window.innerWidth - gutter * 2);
-  const centeredWidth = Math.min(knTokenPx("--theme-size-360", 360), window.innerWidth - gutter * 2);
-  const offset = knTokenPx("--theme-size-8", 8);
-  const triggerRect = quickActionsTrigger?.getBoundingClientRect();
-  const triggerVisible = Boolean(triggerRect && triggerRect.width && triggerRect.height);
-  if (!triggerVisible) {
-    quickActionsMenu.classList.add("is-centered");
-    quickActionsMenu.style.width = `${centeredWidth}px`;
-    quickActionsMenu.style.left = `${Math.round((window.innerWidth - centeredWidth) / 2)}px`;
-    quickActionsMenu.style.top = "20vh";
-    return;
-  }
-  quickActionsMenu.classList.remove("is-centered");
-  let left = triggerRect.right - width;
-  if (left < gutter) {
-    left = gutter;
-  }
-  if (left + width > window.innerWidth - gutter) {
-    left = window.innerWidth - width - gutter;
-  }
-  let top = triggerRect.bottom + offset;
-  const menuHeight = quickActionsMenu.offsetHeight;
-  if (menuHeight && top + menuHeight > window.innerHeight - gutter) {
-    const above = triggerRect.top - menuHeight - offset;
-    if (above >= gutter) {
-      top = above;
-    }
-  }
-  quickActionsMenu.style.width = `${width}px`;
-  quickActionsMenu.style.left = `${left}px`;
-  quickActionsMenu.style.top = `${top}px`;
-}
-
-function setQuickActionsOpen(isOpen) {
-  if (isOpen) {
-    setProfileMenuOpen(false);
-    if (typeof setDashDatePickerOpen === "function") {
-      setDashDatePickerOpen(false);
-    }
-  }
-  quickActionsMenu.hidden = !isOpen;
-  quickActionsTrigger.setAttribute("aria-expanded", String(isOpen));
-  quickActionsSearch.setAttribute("aria-expanded", String(isOpen));
-  if (!isOpen) {
-    quickActionsSearch.removeAttribute("aria-activedescendant");
-    return;
-  }
-  positionQuickActionsMenu();
-  quickActionsSearch.value = "";
-  quickActionsClear.hidden = true;
-  filterQuickActions("");
-  window.requestAnimationFrame(() => {
-    quickActionsSearch.focus();
-    positionQuickActionsMenu();
-  });
-}
-
-function selectQuickAction(item) {
-  if (!item || item.getAttribute("aria-disabled") === "true") {
-    return;
-  }
-  const href = item.getAttribute("data-href");
-  const focusSel = item.getAttribute("data-focus");
-  const scrollSel = item.getAttribute("data-scroll");
-  let filters = {};
-  try {
-    filters = JSON.parse(item.getAttribute("data-vis-open") || "{}");
-  } catch (error) {
-    filters = {};
-  }
-  setQuickActionsOpen(false);
-  if (Object.keys(filters).length && typeof applyVisibilityFilters === "function") {
-    applyVisibilityFilters(filters);
-  }
-  if (href) {
-    const navLink = sideNav.querySelector(`.side-nav-link[href="${href}"]`);
-    if (navLink) {
-      navLink.click();
-    } else if (href === "#dashboard") {
-      sideNav.querySelector('.side-nav-link[href="#dashboard"]')?.click();
-    }
-  }
-  const rolePath = item.getAttribute("data-role-path");
-  if (rolePath) {
-    window.requestAnimationFrame(() => window.KNRoles?.open(rolePath));
-  }
-  const userPath = item.getAttribute("data-user-path");
-  if (userPath) {
-    window.requestAnimationFrame(() => window.KNUsers?.open(userPath));
-  }
-  window.requestAnimationFrame(() => {
-    if (scrollSel) {
-      const target = document.querySelector(scrollSel);
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      target?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-    }
-    if (focusSel) {
-      document.querySelector(focusSel)?.focus();
-    }
-  });
-}
-
-quickActionsTrigger.addEventListener("click", (event) => {
-  event.stopPropagation();
-  setQuickActionsOpen(quickActionsMenu.hidden);
-});
-
-quickActionsClose.addEventListener("click", () => {
-  setQuickActionsOpen(false);
-  quickActionsTrigger.focus();
-});
-
-quickActionsSearch.addEventListener("input", () => {
-  quickActionsClear.hidden = quickActionsSearch.value.length === 0;
-  filterQuickActions(quickActionsSearch.value);
-});
-
-quickActionsClear.addEventListener("click", () => {
-  quickActionsSearch.value = "";
-  quickActionsClear.hidden = true;
-  filterQuickActions("");
-  quickActionsSearch.focus();
-});
-
-quickActionsItems.forEach((item) => {
-  item.addEventListener("mouseenter", () => {
-    const visible = visibleQuickActionItems();
-    quickActionsIndex = visible.indexOf(item);
-    syncQuickActionsActive();
-  });
-  item.addEventListener("click", () => {
-    selectQuickAction(item);
-  });
-});
-
-window.addEventListener("resize", () => {
-  if (!quickActionsMenu.hidden) {
-    positionQuickActionsMenu();
-  }
-});
+/* ⌘K command palette — shell-command-palette.js (shared KNShellSearchIndex). */
 
 document.addEventListener("click", (event) => {
   if (!profileMenu.hidden) {
@@ -4748,60 +4840,16 @@ document.addEventListener("click", (event) => {
       setProfileMenuOpen(false);
     }
   }
-  if (!quickActionsMenu.hidden) {
-    if (!quickActionsMenu.contains(event.target) && !quickActionsTrigger.contains(event.target)) {
-      setQuickActionsOpen(false);
-    }
-  }
 });
 
 document.addEventListener("keydown", (event) => {
-  const isToggleShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
-  if (isToggleShortcut) {
-    event.preventDefault();
-    setQuickActionsOpen(quickActionsMenu.hidden);
-    return;
-  }
-
-  if (event.key === "Escape") {
-    if (!quickActionsMenu.hidden) {
-      setQuickActionsOpen(false);
-      quickActionsTrigger.focus();
+  if (event.key === "Escape" && !profileMenu.hidden) {
+    const paletteOpen = document.getElementById("quick-actions-menu") && !document.getElementById("quick-actions-menu").hidden;
+    if (paletteOpen) {
       return;
     }
-    if (!profileMenu.hidden) {
-      setProfileMenuOpen(false);
-      document.querySelector(".avatar-trigger")?.focus();
-    }
-    return;
-  }
-
-  if (quickActionsMenu.hidden) {
-    return;
-  }
-
-  const visible = visibleQuickActionItems();
-  if (event.key === "ArrowDown") {
-    event.preventDefault();
-    if (visible.length === 0) {
-      return;
-    }
-    quickActionsIndex = (quickActionsIndex + 1) % visible.length;
-    syncQuickActionsActive();
-    return;
-  }
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    if (visible.length === 0) {
-      return;
-    }
-    quickActionsIndex = (quickActionsIndex - 1 + visible.length) % visible.length;
-    syncQuickActionsActive();
-    return;
-  }
-  if (event.key === "Enter") {
-    event.preventDefault();
-    selectQuickAction(visible[quickActionsIndex]);
+    setProfileMenuOpen(false);
+    document.querySelector(".avatar-trigger")?.focus();
   }
 });
 
@@ -5496,10 +5544,34 @@ function revealDashboard() {
 
 function initDashboardLoader() {
   const root = document.querySelector(".dashboard-inner");
+  const skeleton = document.getElementById("dash-skeleton");
+  const live = document.getElementById("dash-live");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const onDashboard = typeof isDashboardRoute === "function" ? isDashboardRoute() : true;
+  const reloading = window.KNPageReload?.isReload?.() && onDashboard;
 
-  if (!root || reduceMotion || !onDashboard) {
+  if (!root || !onDashboard) {
+    revealDashboard();
+    return;
+  }
+
+  if (reloading && !reduceMotion) {
+    root.dataset.loading = "true";
+    root.setAttribute("aria-busy", "true");
+    root.classList.remove("is-ready");
+    if (skeleton) {
+      skeleton.hidden = false;
+    }
+    if (live) {
+      live.hidden = true;
+    }
+    const delay = window.KNPageReload?.loadingMs?.() ?? 1400;
+    window.setTimeout(revealDashboard, delay);
+    window.setTimeout(revealDashboard, 4000);
+    return;
+  }
+
+  if (reduceMotion) {
     revealDashboard();
     return;
   }
@@ -7598,10 +7670,6 @@ function hydrateDashFromVisibility() {
     .filter((item) => !window.knIsActionNeeded?.(item))
     .reduce((sum, item) => sum + Math.round((summary.amounts[item.id] || 0) * 0.35), 0);
   const service = summary.total * 540;
-  const oceanStart = 0;
-  const airStart = summary.motPct.ocean || 0;
-  const truckStart = airStart + (summary.motPct.air || 0);
-  const railStart = truckStart + (summary.motPct.truck || 0);
 
   setKnText("active-total", String(summary.total));
   setKnText("in-transit", String(summary.inTransit));
@@ -7673,28 +7741,7 @@ function hydrateDashFromVisibility() {
     urgent.hidden = summary.arrived === 0;
   }
 
-  const donut = document.getElementById("dash-donut");
-  if (donut) {
-    donut.style.background = `conic-gradient(
-      var(--kn-color-background-interactive-primary-default) ${oceanStart}% ${airStart}%,
-      var(--kn-color-background-feedback-positive-intense) ${airStart}% ${truckStart}%,
-      var(--kn-color-background-feedback-notice-intense) ${truckStart}% ${railStart}%,
-      var(--kn-primitive-purple-500) ${railStart}% 100%
-    )`;
-    donut.setAttribute(
-      "aria-label",
-      `${summary.motPct.ocean} percent ocean, ${summary.motPct.air} percent air, ${summary.motPct.truck} percent truck, ${summary.motPct.rail} percent rail`
-    );
-  }
-  const motLegend = document.getElementById("dash-mot-legend");
-  if (motLegend) {
-    motLegend.innerHTML = `
-      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--blue"></span> Ocean ${summary.motPct.ocean}%</li>
-      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--green"></span> Air ${summary.motPct.air}%</li>
-      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--gold"></span> Truck ${summary.motPct.truck}%</li>
-      <li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--purple"></span> Rail ${summary.motPct.rail}%</li>
-    `;
-  }
+  mountDashCharts(summary);
 
   const arrivalsList = document.getElementById("dash-arrivals");
   if (arrivalsList) {
@@ -7756,30 +7803,6 @@ function hydrateDashFromVisibility() {
       `);
     }
     filings.innerHTML = items.join("");
-  }
-
-  const lanes = document.getElementById("dash-lanes");
-  if (lanes) {
-    const rows = originLaneRows(summary.origin);
-    const max = rows[0]?.counts.total || 1;
-    lanes.setAttribute("aria-label", "Shipments by origin country");
-    lanes.innerHTML = rows
-      .map((row) => {
-        const rowTip = row.label === "Other" ? ` data-tooltip="${attrTip(row.hint)}" tabindex="0"` : "";
-        return `
-          <div class="kn-chart__row dash-bars__row"${rowTip}>
-            <span class="kn-chart__tick dash-bars__label type-caption-sm">${row.label}</span>
-            <div class="kn-chart__track dash-bars__track">
-              ${laneSegHtml("blue", "ocean", row.counts.ocean, max, row.namesByMot?.ocean)}
-              ${laneSegHtml("green", "air", row.counts.air, max, row.namesByMot?.air)}
-              ${laneSegHtml("gold", "truck", row.counts.truck, max, row.namesByMot?.truck)}
-              ${laneSegHtml("purple", "rail", row.counts.rail, max, row.namesByMot?.rail)}
-            </div>
-            <strong class="kn-chart__value dash-bars__value type-caption-sm">${row.counts.total}</strong>
-          </div>
-        `;
-      })
-      .join("");
   }
 
   const recentBody = document.getElementById("dash-recent-body");
@@ -7852,6 +7875,7 @@ function initAiAssistant() {
   const refChip = document.getElementById("ai-assistant-ref");
   const refChipText = document.getElementById("ai-assistant-ref-text");
   const refChipDismiss = document.getElementById("ai-assistant-ref-dismiss");
+  const refChipRestore = document.getElementById("ai-assistant-ref-restore");
   const resizeHandle = document.getElementById("ai-assistant-resize");
   const helpBtn = document.getElementById("ai-assistant-help");
   const introEl = document.getElementById("ai-assistant-intro");
@@ -7867,7 +7891,9 @@ function initAiAssistant() {
   const sendIcon = sendBtn?.querySelector(".kn-chat-input__icon--send");
   const stopIcon = sendBtn?.querySelector(".kn-chat-input__icon--stop");
   const DEFAULT_INPUT_PLACEHOLDER =
-    input?.getAttribute("placeholder") || "Ask about a hold, role, or shipment on this page";
+    window.KNKnowledgeExpert?.placeholder ||
+    input?.getAttribute("data-placeholder") ||
+    "Ask about HTS, tariffs, FTA, CBP regulations, or CATAIR codes…";
   if (!shell || !panel || !form || !input || !history || !resizeHandle || !triggers.length) {
     return;
   }
@@ -7881,7 +7907,7 @@ function initAiAssistant() {
   const COACHMARK_SEEN_KEY = "kn-klear-assist-rename-seen";
   const INTRO_SEEN_KEY = "kn-ai-assistant-intro-seen";
   const COACHMARK_COPY =
-    "Agentic Broker is now Klear Assist — and you can now get contextual help anywhere, not just here";
+    "Klear Agent is available on every page — open contextual help from the top nav, not just here.";
   const ELEVATED_ROLE = /administrator|access manager|user access/i;
   const MSG_ACTION_COPY =
     '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M4.5 13V4.5A1.5 1.5 0 0 1 6 3h7"/></svg>';
@@ -7898,6 +7924,7 @@ function initAiAssistant() {
   let coachmarkListening = false;
   let pendingDraftPayload = null;
   let refChipDismissed = false;
+  let refChipDismissedForScope = "";
   let generationId = 0;
   let isResponding = false;
   let isRestoringTranscript = false;
@@ -7959,7 +7986,7 @@ function initAiAssistant() {
   }
 
   function setExpandedState(expanded) {
-    const label = window.KNAssistCore?.triggerLabel?.(expanded) || (expanded ? "Close Klear Assist" : "Klear Assist");
+    const label = window.KNAssistCore?.triggerLabel?.(expanded) || (expanded ? "Close Klear Agent" : "Klear Agent");
     triggers.forEach((trigger) => {
       trigger.setAttribute("aria-expanded", String(expanded));
       trigger.setAttribute("aria-pressed", String(expanded));
@@ -8175,7 +8202,7 @@ function initAiAssistant() {
     if (/inactive|status|flag|hold|delay|action|elevated|owner and status/.test(text)) {
       return "flag";
     }
-    if (/where|navigate|open|add a |go to|look first/.test(text)) {
+    if (/where|navigate|open|add |create |go to|look first|more filter|submit/.test(text)) {
       return "nav";
     }
     if (/before|miss|confirm|check|review|know|should i/.test(text)) {
@@ -8195,6 +8222,9 @@ function initAiAssistant() {
       button.type = "button";
       button.className = "ai-prompt-chip type-body-sm";
       button.setAttribute("data-ai-prompt", item.prompt);
+      if (item.action) {
+        button.setAttribute("data-ai-action", JSON.stringify(item.action));
+      }
       const newSuffix = item.isNew ? ", new suggestion" : "";
       button.setAttribute("aria-label", `Ask: ${item.prompt}${newSuffix}`);
       button.innerHTML = `
@@ -8239,7 +8269,7 @@ function initAiAssistant() {
     history.hidden = true;
     form.hidden = false;
     helpBtn?.setAttribute("aria-expanded", "true");
-    announceFtue("Klear Assist. Answers use the record on this page. Suggests only — it cannot change records.");
+    announceFtue("Klear Agent. Answers use the record on this page. Suggests only — it cannot change records.");
     window.requestAnimationFrame(() => input.focus());
   }
 
@@ -8349,10 +8379,7 @@ function initAiAssistant() {
   ];
 
   let rollingTimer = null;
-  let ghostTimer = null;
-  let ghostFadeTimer = null;
-  let ghostSuggestions = [];
-  let ghostIndex = 0;
+  let panelGhost = null;
 
   function partyLabel(id) {
     const key = String(id || "").toLowerCase();
@@ -8721,6 +8748,7 @@ function initAiAssistant() {
   }
 
   function contextOf(partial) {
+    const hash = typeof getHashPath === "function" ? getHashPath() : "";
     return {
       kind: "generic",
       area: "this page",
@@ -8731,7 +8759,9 @@ function initAiAssistant() {
       prompts: [],
       manualPath: "Use the left navigation to open the relevant module",
       facts: {},
-      ...partial
+      scopeKey: hash || undefined,
+      ...partial,
+      scopeKey: partial.scopeKey || hash || undefined
     };
   }
 
@@ -9165,19 +9195,60 @@ function initAiAssistant() {
   function agenticBrokerContext() {
     return contextOf({
       kind: "agentic-broker",
-      area: "Klear Assist",
-      title: "Klear Assist",
-      summary: "You're on Klear Assist. Ask about entries, shipments, or compliance and I'll pull up the right screen — or open a past conversation from the sidebar.",
-      hint: "Try “Recent entries in my queue” or ask about a specific BOL or entry number.",
-      details: ["Ask for recent entries, a specific BOL, or compliance guidance.", "Past conversations are in the sidebar, grouped by Today, This week, This month, and so on."],
+      area: "Klear Agent",
+      title: "Klear Agent",
+      summary: "You're on Klear Agent. Ask about HTS, tariffs, FTA, CBP regulations, or CATAIR codes — no entry required. Or pull up entries, shipments, and compliance screens from the suggestions.",
+      hint: "Knowledge Expert answers work without a record loaded. Try “CATAIR code 398” or “USMCA for auto parts from Mexico”.",
+      details: ["HTS classification, duty estimates, and CATAIR codes are available on every screen.", "Past conversations are in the sidebar, grouped by Today, This week, This month, and so on."],
       prompts: [
-        { label: "Recent entries in my queue", prompt: "Recent entries in my queue" },
-        { label: "Today's Statements", prompt: "Today's Statements" },
-        { label: "ISF Dashboard", prompt: "ISF Dashboard" },
-        { label: "Personal dashboard", prompt: "Show my personal dashboard" }
+        { label: "CATAIR code 398", prompt: "What does CATAIR code 398 mean and how do I fix it?", icon: "flag", new: true },
+        { label: "HTS classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" },
+        { label: "Today's Statements", prompt: "Today's Statements" }
       ],
-      manualPath: "Klear Assist",
+      manualPath: "Klear Agent",
       facts: {}
+    });
+  }
+
+  function paymentUsStatementsContext(hash) {
+    const approvalMatch = hash.match(/^#payment-us-statements\/approval\/([^/]+)$/);
+    const statementId = approvalMatch ? decodeURIComponent(approvalMatch[1]) : "";
+    const stmt = statementId ? window.KNPaymentUsStatements?.find?.(statementId) : null;
+    if (stmt) {
+      return contextOf({
+        kind: "statement-approval",
+        area: "US Statements",
+        title: stmt.id,
+        headline: `Looking at Statement ${stmt.id}`,
+        summary: `Statement ${stmt.id} for ${stmt.company} — ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(stmt.totalDue)} due. Review entry lines and approve explicitly.`,
+        hint: "Ask about ACH timing or duty breakdown. I cannot approve the statement for you.",
+        details: [`Company: ${stmt.company}`, `ACH: ${stmt.achStatus}`, `${stmt.entries.length} entry summaries on this statement`],
+        prompts: [
+          { label: "ACH timing", prompt: `When does ACH debit hit for statement ${stmt.id}?` },
+          { label: "CATAIR code 398", prompt: "What does CATAIR code 398 mean and how do I fix it?", icon: "flag", new: true },
+          { label: "Duty breakdown", prompt: `Break down duty, MPF, and HMF on statement ${stmt.id}` }
+        ],
+        manualPath: "Payment → US → Statements → Statement Approval",
+        facts: { statementId: stmt.id, company: stmt.company, totalDue: stmt.totalDue },
+        scopeKey: `#payment-us-statements/approval/${encodeURIComponent(stmt.id)}`
+      });
+    }
+    return contextOf({
+      kind: "statements",
+      area: "US Statements",
+      title: "Statements",
+      headline: "Looking at US Statements",
+      summary: "Review pending periodic daily statements before ACH debit. Select a statement to approve or update entry lines.",
+      hint: "Ask about ACH, unpaid lines, or customs expertise. I cannot approve a statement from chat.",
+      details: ["Statement Approval lists pending periodic daily statements.", "Approve requires an explicit click — Klear Agent cannot approve for you."],
+      prompts: [
+        { label: "Today's statements", prompt: "Today's Statements" },
+        { label: "CATAIR code 398", prompt: "What does CATAIR code 398 mean and how do I fix it?", icon: "flag", new: true },
+        { label: "HTS classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" }
+      ],
+      manualPath: "Payment → US → Statements",
+      facts: { listView: true, region: "us" },
+      scopeKey: "#payment-us-statements"
     });
   }
 
@@ -9187,28 +9258,27 @@ function initAiAssistant() {
       return record;
     }
     const hash = getHashPath();
+    let context = null;
     if (hash.startsWith("#kn-role-management")) {
-      return rolesContext(hash);
+      context = rolesContext(hash);
+    } else if (hash.startsWith("#kn-user-management")) {
+      context = usersContext(hash);
+    } else if (hash.startsWith("#default-role-management")) {
+      context = defaultsContext(hash);
+    } else if (isDashboardRoute()) {
+      context = operationsContext("dashboard");
+    } else if (isAgenticBrokerRoute()) {
+      context = agenticBrokerContext();
+    } else if (isKlearhubOverviewRoute() || hash.startsWith("#klearhub-overview")) {
+      context = operationsContext("overview");
+    } else if (isKlearhubVisibilityRoute() || hash === "#klearhub-visibility") {
+      context = operationsContext("visibility");
+    } else if (hash.startsWith("#payment-us-statements")) {
+      context = paymentUsStatementsContext(hash);
+    } else {
+      context = unavailableContext();
     }
-    if (hash.startsWith("#kn-user-management")) {
-      return usersContext(hash);
-    }
-    if (hash.startsWith("#default-role-management")) {
-      return defaultsContext(hash);
-    }
-    if (isDashboardRoute()) {
-      return operationsContext("dashboard");
-    }
-    if (isAgenticBrokerRoute()) {
-      return agenticBrokerContext();
-    }
-    if (isKlearhubOverviewRoute() || hash.startsWith("#klearhub-overview")) {
-      return operationsContext("overview");
-    }
-    if (isKlearhubVisibilityRoute() || hash === "#klearhub-visibility") {
-      return operationsContext("visibility");
-    }
-    return unavailableContext();
+    return window.KNAssistCore?.enrichContext?.(context) || context;
   }
 
   function prefersReducedMotion() {
@@ -9251,7 +9321,7 @@ function initAiAssistant() {
     if (kind === "visibility-detail" && (facts.detailId || context.title)) {
       return `Referencing: shipment ${facts.detailId || context.title}`;
     }
-    if ((kind === "isf" || kind === "entry" || kind === "in-bond" || kind === "ftz" || kind === "psc" || kind === "delivery-order" || kind === "tm-shipment" || kind === "statement-detail") && (facts.label || context.title)) {
+    if ((kind === "isf" || kind === "entry" || kind === "in-bond" || kind === "ftz" || kind === "psc" || kind === "delivery-order" || kind === "tm-shipment" || kind === "statement-detail" || kind === "statement-approval") && (facts.label || context.title)) {
       return `Referencing: ${facts.label || context.title}`;
     }
     if (kind === "roles" || kind === "role-add") {
@@ -9273,10 +9343,16 @@ function initAiAssistant() {
         : "Referencing: Role Management";
     }
     if (kind === "visibility" || kind === "dashboard" || kind === "overview") {
-      const total = Number(facts.stats?.total) || 0;
+      const total = Number(facts.stats?.total) || Number(facts.count) || 0;
       return total
         ? `Referencing: ${context.area} — ${total} shipment${total === 1 ? "" : "s"} in view`
         : `Referencing: ${context.area || context.title}`;
+    }
+    if (facts.listView && context.area) {
+      const count = Number(facts.count) || 0;
+      return count
+        ? `Referencing: ${context.area} — ${count.toLocaleString()} record${count === 1 ? "" : "s"} in view`
+        : `Referencing: ${context.area}`;
     }
     return `Referencing: ${context.area || context.title || "this page"}`;
   }
@@ -9289,7 +9365,7 @@ function initAiAssistant() {
     if (kind === "visibility-detail" && context?.title) {
       return `Looking at Shipment ${context.title}…`;
     }
-    if ((kind === "isf" || kind === "entry" || kind === "in-bond" || kind === "ftz" || kind === "psc" || kind === "delivery-order" || kind === "tm-shipment" || kind === "statement-detail") && context?.headline) {
+    if ((kind === "isf" || kind === "entry" || kind === "in-bond" || kind === "ftz" || kind === "psc" || kind === "delivery-order" || kind === "tm-shipment" || kind === "statement-detail" || kind === "statement-approval") && context?.headline) {
       return `${context.headline}…`;
     }
     if (kind === "defaults" || kind === "default-add") {
@@ -9309,6 +9385,9 @@ function initAiAssistant() {
     }
     if (kind === "overview") {
       return "Looking at By mode…";
+    }
+    if (facts.listView && context?.area) {
+      return `Looking at ${context.area}…`;
     }
     const area = context?.area || context?.title || "this page";
     return `Looking at ${area}…`;
@@ -9404,12 +9483,36 @@ function initAiAssistant() {
     return context?.title || "On this page";
   }
 
-  function syncContextChip(context = getContext()) {
-    if (!refChip || !refChipText) {
+  function refChipScopeKey(context = panelContextForUi()) {
+    return window.KNAssistCore?.sessionKey?.(context) || context?.scopeKey || "";
+  }
+
+  function syncRefChipDismissForScope(scopeKey) {
+    if (!refChipDismissed) {
       return;
     }
+    if (scopeKey && scopeKey !== refChipDismissedForScope) {
+      refChipDismissed = false;
+      refChipDismissedForScope = "";
+    }
+  }
+
+  function syncContextChip(context = getContext()) {
+    const scopeKey = refChipScopeKey(context);
+    syncRefChipDismissForScope(scopeKey);
     if (refChipDismissed) {
-      refChip.hidden = true;
+      if (refChip) {
+        refChip.hidden = true;
+      }
+      if (refChipRestore) {
+        refChipRestore.hidden = false;
+      }
+      return;
+    }
+    if (refChipRestore) {
+      refChipRestore.hidden = true;
+    }
+    if (!refChip || !refChipText) {
       return;
     }
     const copy = referencingCopy(context);
@@ -9728,123 +9831,48 @@ function initAiAssistant() {
     return [look, ...LOADING_TEXTS.filter((t) => t !== look)].slice(0, 5);
   }
 
-  function clearGhostCrossfade() {
-    if (ghostFadeTimer) {
-      window.clearTimeout(ghostFadeTimer);
-      ghostFadeTimer = null;
-    }
-    if (!ghostEl) {
+  function panelPromptPhrases() {
+    const context = panelContextForUi();
+    const page = starterPrompts(context).map((item) => item.prompt).filter(Boolean);
+    const expert = (window.KNKnowledgeExpert?.getPrompts?.(3) || []).map((item) => item.prompt);
+    const merged = [...page];
+    expert.forEach((prompt) => {
+      if (!merged.includes(prompt)) {
+        merged.push(prompt);
+      }
+    });
+    return merged;
+  }
+
+  function initPanelGhost() {
+    if (!input || !ghostEl || !window.KNAgentGhost?.bind) {
       return;
     }
-    ghostEl.classList.remove("is-fading", "is-crossfading");
-    const ghostOut = ghostEl.querySelector("[data-chat-ghost-out]");
-    if (ghostOut) {
-      ghostOut.textContent = "";
+    panelGhost = window.KNAgentGhost.bind(input, {
+      ghostEl,
+      getPromptPhrases: panelPromptPhrases,
+      isPaused: () => isResponding,
+      restorePlaceholder: (field) => {
+        if (!field.value.trim()) {
+          field.placeholder = field.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER;
+        }
+      }
+    });
+  }
+
+  function syncGhostSuggestion() {
+    panelGhost?.sync?.();
+  }
+
+  function refreshGhostSuggestions(_context = getContext()) {
+    panelGhost?.refresh?.();
+    if (!input?.value.trim() && !isResponding) {
+      panelGhost?.startIdleCycle?.();
     }
   }
 
   function stopGhostCycle() {
-    if (ghostTimer) {
-      window.clearInterval(ghostTimer);
-      ghostTimer = null;
-    }
-    clearGhostCrossfade();
-  }
-
-  function beginGhostCrossfade(nextText) {
-    const ghostText = ghostEl?.querySelector("[data-chat-ghost-text]");
-    const ghostOut = ghostEl?.querySelector("[data-chat-ghost-out]");
-    if (!ghostEl || !ghostText) {
-      return;
-    }
-    const reduce = prefersReducedMotion();
-    const fadeMs = knMotionDurationMs("--theme-motion-duration-xmoderate", 360);
-    const from = ghostText.textContent || "";
-    if (!reduce && ghostOut && from && from !== nextText) {
-      ghostOut.textContent = from;
-      ghostText.textContent = nextText;
-      ghostEl.classList.remove("is-crossfading");
-      void ghostEl.offsetWidth;
-      ghostEl.classList.add("is-crossfading");
-    } else {
-      ghostText.textContent = nextText;
-      ghostEl.classList.remove("is-crossfading");
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-    }
-    if (ghostFadeTimer) {
-      window.clearTimeout(ghostFadeTimer);
-    }
-    ghostFadeTimer = window.setTimeout(() => {
-      ghostFadeTimer = null;
-      ghostEl.classList.remove("is-crossfading");
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-    }, reduce ? 0 : fadeMs);
-  }
-
-  function syncGhostSuggestion() {
-    if (!ghostEl || !input) {
-      return;
-    }
-    const ghostText = ghostEl.querySelector("[data-chat-ghost-text]");
-    const ghostOut = ghostEl.querySelector("[data-chat-ghost-out]");
-    if (isResponding || input.value.trim()) {
-      if (ghostText) {
-        ghostText.textContent = "";
-      }
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-      ghostEl.classList.remove("is-visible", "is-fading", "is-crossfading");
-      ghostEl.hidden = true;
-      input.placeholder = input.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER;
-      return;
-    }
-    const suggestion = ghostSuggestions[ghostIndex] || "";
-    if (ghostText) {
-      ghostText.textContent = suggestion;
-    }
-    if (ghostOut) {
-      ghostOut.textContent = "";
-    }
-    ghostEl.hidden = !suggestion;
-    ghostEl.classList.toggle("is-visible", Boolean(suggestion));
-    ghostEl.classList.remove("is-fading", "is-crossfading");
-    // Ghost replaces placeholder — never stack both.
-    input.placeholder = suggestion ? "" : (input.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER);
-  }
-
-  function refreshGhostSuggestions(context = getContext()) {
-    ghostSuggestions = starterPrompts(context)
-      .map((item) => item.prompt)
-      .filter(Boolean)
-      .slice(0, 5);
-    ghostIndex = 0;
-    stopGhostCycle();
-    syncGhostSuggestion();
-    if (ghostSuggestions.length > 1 && !prefersReducedMotion()) {
-      ghostTimer = window.setInterval(() => {
-        if (ghostFadeTimer || input.value.trim() || isResponding) {
-          return;
-        }
-        ghostIndex = (ghostIndex + 1) % ghostSuggestions.length;
-        beginGhostCrossfade(ghostSuggestions[ghostIndex] || "");
-      }, 4000);
-    }
-  }
-
-  function acceptGhostSuggestion() {
-    const suggestion = ghostSuggestions[ghostIndex];
-    if (!suggestion || input.value.trim()) {
-      return false;
-    }
-    input.value = suggestion;
-    syncGhostSuggestion();
-    updateSendControl();
-    return true;
+    panelGhost?.stopIdleCycle?.();
   }
 
   function stopGeneration() {
@@ -10079,16 +10107,10 @@ function initAiAssistant() {
   }
 
   function drawerSchemaFromResult(result) {
-    if (result?.schema) {
+    if (result?.schema?.components?.length) {
       return result.schema;
     }
-    if (!result?.mode || !window.KNGenUI?.schemaFromResult) {
-      return null;
-    }
-    if (!["schema", "draft", "review", "shipments", "findings"].includes(result.mode)) {
-      return null;
-    }
-    return window.KNGenUI.schemaFromResult(result);
+    return window.KNGenUI?.schemaFromResult?.(result) || null;
   }
 
   function persistDrawerMessage(message) {
@@ -10142,8 +10164,10 @@ function initAiAssistant() {
       addMessage("user", msg.text || "", { id: msg.id || "" });
       return;
     }
-    const schema = msg.schema || null;
-    const html = schema
+    const schema =
+      msg.schema ||
+      (msg.text && window.KNGenUI?.schemaFromResult ? window.KNGenUI.schemaFromResult({ mode: "text", text: msg.text }) : null);
+    const html = schema?.components?.length
       ? `${msg.text ? renderAssistantMarkdown(msg.text, getContext()) : ""}<div class="kn-genui" data-kn-genui></div>`
       : "";
     const node = addMessage("assistant", msg.text || "", {
@@ -10155,7 +10179,7 @@ function initAiAssistant() {
       sources: msg.sources || [],
       id: msg.id || ""
     });
-    if (schema) {
+    if (schema?.components?.length) {
       window.KNGenUI?.mount(node.querySelector("[data-kn-genui]"), schema, { animate: false });
     }
   }
@@ -10290,7 +10314,7 @@ function initAiAssistant() {
     status.innerHTML = `
       <div class="ai-msg__row">
         <span class="ai-msg__leading is-rotating" aria-hidden="true">
-          <img class="klear-assistant-mark klear-assistant-mark--spin" src="./assets/klear-assistant-mark.png" alt="" width="20" height="20" />
+          <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
         </span>
         <div class="ai-msg__loading-col">
           <div class="ai-msg__loading-line">
@@ -10436,12 +10460,15 @@ function initAiAssistant() {
     if (genId !== generationId) {
       return;
     }
-    if (["schema", "draft", "review", "shipments", "findings"].includes(result?.mode)) {
-      await streamStructuredResult(result, context, genId, { title, thinking });
-      if (genId === generationId) {
-        persistDrawerAssistant(result, { title, thinking });
+    if (window.KNGenUI?.isStructuredResult?.(result) || window.KNGenUI?.schemaFromResult) {
+      const schema = window.KNGenUI.schemaFromResult(result);
+      if (schema?.components?.length) {
+        await streamStructuredResult(result, context, genId, { title, thinking });
+        if (genId === generationId) {
+          persistDrawerAssistant(result, { title, thinking });
+        }
+        return;
       }
-      return;
     }
     await streamAssistantText(result?.text || "I could not process that request right now. Please try again.", context, genId, {
       title,
@@ -10462,9 +10489,9 @@ function initAiAssistant() {
   }
 
   function starterPrompts(context) {
-    return (context.prompts || [])
+    const pageItems = (context.prompts || [])
       .filter(Boolean)
-      .slice(0, 3)
+      .slice(0, 2)
       .map((item) => {
         if (typeof item === "string") {
           return { label: item, prompt: item, icon: "", isNew: false };
@@ -10475,10 +10502,32 @@ function initAiAssistant() {
           label: label || prompt,
           prompt: prompt || label,
           icon: String(item.icon || "").trim(),
-          isNew: Boolean(item.new)
+          isNew: Boolean(item.new),
+          action: item.action || null
         };
       })
       .filter((item) => item.label && item.prompt);
+
+    const expertItems = (window.KNKnowledgeExpert?.getPrompts?.(3) || []).map((item) => ({
+      label: item.label,
+      prompt: item.prompt,
+      icon: item.icon || "ask",
+      isNew: Boolean(item.new),
+      action: null
+    }));
+
+    const merged = [...pageItems];
+    expertItems.forEach((item) => {
+      if (merged.length >= 3) {
+        return;
+      }
+      const key = `${item.label}|${item.prompt}`.toLowerCase();
+      if (!merged.some((entry) => `${entry.label}|${entry.prompt}`.toLowerCase() === key)) {
+        merged.push(item);
+      }
+    });
+
+    return merged.slice(0, 3).filter((item) => item.label && item.prompt);
   }
 
   function panelContextForUi() {
@@ -11358,6 +11407,10 @@ function initAiAssistant() {
   }
 
   function answerBrokerExpertise(question) {
+    const expert = window.KNKnowledgeExpert?.answer?.(question);
+    if (expert) {
+      return expert;
+    }
     const q = String(question || "").trim();
     if (/\b(hts|hs code|harmonized|classif(?:y|ication))\b/i.test(q)) {
       return {
@@ -11465,7 +11518,7 @@ function initAiAssistant() {
     const adminKind = /^(roles|role-detail|role-add|users|user-detail|user-add|defaults|default-detail|default-add)$/.test(
       context.kind || ""
     );
-    const opsKind = /^(dashboard|visibility|visibility-detail|overview|isf|entry|in-bond|ftz|psc|delivery-order|tm-shipment|statement-detail)$/.test(
+    const opsKind = /^(dashboard|visibility|visibility-detail|overview|isf|entry|in-bond|ftz|psc|delivery-order|tm-shipment|export|statement-detail|statements|statement-approval)$/.test(
       context.kind || ""
     );
     // Refuse ops/shipment answers on admin pages before any other branch can leak Dashboard data.
@@ -11496,7 +11549,7 @@ function initAiAssistant() {
       return textAnswer({
         title: "Stay on a KlearNow page",
         thinking: ["Checked that this question needs product context, not a general definition"],
-        text: "Klear Assist is not a general knowledge tool. Open a record — a shipment, ISF, or entry — and ask about that filing.",
+        text: "Klear Agent is not a general knowledge tool. Open a record — a shipment, ISF, or entry — and ask about that filing.",
         followUps: []
       });
     }
@@ -11780,10 +11833,40 @@ function initAiAssistant() {
       const stats = facts.stats || visStats();
       const mode = facts.mode || topMode(stats);
       if (/action|need/.test(lower)) {
-        return textAnswer({
+        return schemaAnswer({
           title: "Shipments needing action",
           thinking: [`Checked live shipment counts on ${context.area}`],
-          text: `**${stats.action}** shipments need action out of **${stats.total}** active.\n\n- On hold: **${stats.hold}**\n- Delayed: **${stats.delayed}**\n\nOpen **Visibility** to work the exceptions; I cannot clear them here.`,
+          schema: {
+            components: [
+              {
+                component: "GRID",
+                columns: 3,
+                gap: "small",
+                children: [
+                  {
+                    component: "CARD",
+                    title: "Need action",
+                    children: [{ component: "TEXT", content: `**${stats.action}** of **${stats.total}** active shipments` }]
+                  },
+                  {
+                    component: "CARD",
+                    title: "On hold",
+                    children: [{ component: "BADGE", text: String(stats.hold), color: stats.hold ? "notice" : "positive" }]
+                  },
+                  {
+                    component: "CARD",
+                    title: "Delayed",
+                    children: [{ component: "BADGE", text: String(stats.delayed), color: stats.delayed ? "negative" : "positive" }]
+                  }
+                ]
+              },
+              {
+                component: "TEXT",
+                content: "Open **Visibility** to work the exceptions; I cannot clear them here."
+              },
+              genuiNav("Open Visibility", "#klearhub-visibility")
+            ]
+          },
           followUps: followUpsFromContext(context, q)
         });
       }
@@ -11998,7 +12081,7 @@ function initAiAssistant() {
   }
 
   function openPanel(trigger) {
-    if (!window.KNAssistCore?.isTriggerRoute?.()) {
+    if (!window.KNAssistCore?.isPanelRoute?.()) {
       return;
     }
     lastTrigger = trigger || lastTrigger;
@@ -12033,7 +12116,33 @@ function initAiAssistant() {
     if (!isOpen) {
       return;
     }
+    const context = panelContext || window.KNAssistCore?.getContext?.() || getContext();
+    const scopeKey = panelScopeKey || window.KNAssistCore?.sessionKey?.(context) || context?.scopeKey || "";
+    const title = context?.headline || context?.title || "Conversation";
+    if (window.KNThreadStore?.prepareFullPageHandoff) {
+      window.KNThreadStore.prepareFullPageHandoff({
+        scopeKey,
+        title,
+        context: window.KNAssistCore?.handoffContext?.(context, location.hash) || {
+          title: context?.title || "",
+          headline: context?.headline || "",
+          area: context?.area || "",
+          kind: context?.kind || "",
+          route: location.hash
+        }
+      });
+    } else if (scopeKey && window.KNThreadStore?.ensureScopedThread) {
+      window.KNThreadStore.ensureScopedThread({
+        title,
+        scopeKey,
+        surface: "panel"
+      });
+    }
     closePanel();
+    navigateToFullPageAssist();
+  }
+
+  function navigateToFullPageAssist() {
     const link = document.querySelector('.side-nav-link[href="#agentic-broker"]');
     if (link) {
       link.click();
@@ -12043,19 +12152,8 @@ function initAiAssistant() {
   }
 
   function focusFullPageComposer() {
-    const thread = document.getElementById("agentic-thread-input");
-    const home = document.getElementById("agentic-home-input");
-    const visible = [thread, home].find((el) => {
-      if (!el) {
-        return false;
-      }
-      const style = window.getComputedStyle(el);
-      if (style.display === "none" || style.visibility === "hidden") {
-        return false;
-      }
-      return el.getClientRects().length > 0;
-    });
-    (visible || thread || home)?.focus();
+    const input = document.getElementById("agentic-thread-input");
+    input?.focus();
   }
 
   triggers.forEach((trigger) => {
@@ -12064,11 +12162,15 @@ function initAiAssistant() {
         focusFullPageComposer();
         return;
       }
-      if (isOpen) {
-        closePanel();
+      if (window.KNAssistCore?.isPanelRoute?.()) {
+        if (isOpen) {
+          closePanel();
+          return;
+        }
+        openPanel(trigger);
         return;
       }
-      openPanel(trigger);
+      navigateToFullPageAssist();
     });
   });
 
@@ -12218,15 +12320,34 @@ function initAiAssistant() {
       return;
     }
     event.preventDefault();
-    sendQuestion(chip.getAttribute("data-ai-prompt") || chip.textContent);
+    const prompt = chip.getAttribute("data-ai-prompt") || chip.textContent;
+    const actionRaw = chip.getAttribute("data-ai-action");
+    if (actionRaw) {
+      try {
+        const action = JSON.parse(actionRaw);
+        if (window.KNAssistCore?.runPageAction?.(action)) {
+          sendQuestion(prompt);
+          return;
+        }
+      } catch (_error) {
+        /* ignore malformed action payload */
+      }
+    }
+    sendQuestion(prompt);
   });
 
   refChipDismiss?.addEventListener("click", (event) => {
     event.preventDefault();
     refChipDismissed = true;
-    if (refChip) {
-      refChip.hidden = true;
-    }
+    refChipDismissedForScope = refChipScopeKey(panelContextForUi());
+    syncContextChip(panelContextForUi());
+  });
+
+  refChipRestore?.addEventListener("click", (event) => {
+    event.preventDefault();
+    refChipDismissed = false;
+    refChipDismissedForScope = "";
+    syncContextChip(panelContextForUi());
   });
 
   input.addEventListener("input", () => {
@@ -12237,28 +12358,10 @@ function initAiAssistant() {
     input.style.overflowY = input.scrollHeight > maxHeight ? "auto" : "hidden";
     clearInputError();
     updateSendControl();
+    syncGhostSuggestion();
   });
   input.addEventListener("keydown", (event) => {
-    if (event.key === "Tab" && !event.shiftKey && acceptGhostSuggestion()) {
-      event.preventDefault();
-      return;
-    }
-    if (event.key === "Escape" && ghostEl && ghostEl.classList.contains("is-visible")) {
-      const ghostText = ghostEl.querySelector("[data-chat-ghost-text]");
-      const ghostOut = ghostEl.querySelector("[data-chat-ghost-out]");
-      if (ghostText) {
-        ghostText.textContent = "";
-      }
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-      ghostEl.classList.remove("is-visible", "is-crossfading", "is-fading");
-      ghostEl.hidden = true;
-      input.placeholder = input.getAttribute("data-placeholder") || DEFAULT_INPUT_PLACEHOLDER;
-      event.preventDefault();
+    if (window.KNAgentGhost?.handleKeydown?.(event)) {
       return;
     }
     if (event.key === "Enter" && !event.shiftKey) {
@@ -12294,10 +12397,11 @@ function initAiAssistant() {
     }
     const question = input.value.trim();
     if (!question) {
-      showInputError("Enter a question to ask Klear Assist.");
+      showInputError("Enter a question to ask Klear Agent.");
       return;
     }
     clearInputError();
+    panelGhost?.recordSubmitted?.(question);
     const genId = ++generationId;
     fadeOutEmptySurfaces();
     const userId = `msg-user-${Date.now()}`;
@@ -12368,15 +12472,14 @@ function initAiAssistant() {
   });
 
   function onAssistantRouteChange() {
-    const triggerOn = window.KNAssistCore?.syncTriggerVisibility?.(shell) ?? false;
+    window.KNAssistCore?.syncTriggerVisibility?.(shell);
     const nextKey = window.KNAssistCore?.sessionKey?.() || "";
     const leftRecord = Boolean(isOpen && panelScopeKey && nextKey !== panelScopeKey);
     const onFullPage = Boolean(window.KNAssistCore?.isFullPageAssist?.());
-    if (leftRecord || (isOpen && !triggerOn) || (isOpen && onFullPage)) {
+    if (leftRecord || (isOpen && onFullPage)) {
       closePanel();
       resetPanelSession();
     }
-    refChipDismissed = false;
     const context = isOpen && panelContext ? panelContext : getContext();
     syncContextChip(context);
     syncOpsFlags();
@@ -12400,12 +12503,22 @@ function initAiAssistant() {
 
   document.addEventListener("keydown", (event) => {
     if (window.KNAssistCore?.isAssistShortcut?.(event)) {
+      event.preventDefault();
+      event.stopPropagation();
       if (window.KNAssistCore?.isFullPageAssist?.()) {
-        event.preventDefault();
-        event.stopPropagation();
         focusFullPageComposer();
         return;
       }
+      if (window.KNAssistCore?.isPanelRoute?.()) {
+        if (!isOpen) {
+          openPanel(triggers[0]);
+        } else {
+          input.focus();
+        }
+        return;
+      }
+      navigateToFullPageAssist();
+      return;
     }
     if (event.key !== "Escape") {
       return;
@@ -12473,6 +12586,7 @@ function initAiAssistant() {
 
   updateWidth(preferredWidth);
   setExpandedState(false);
+  initPanelGhost();
   updateSendControl();
   window.KNAssistCore?.syncTriggerVisibility?.(shell);
   syncContextChip();
@@ -12526,6 +12640,7 @@ initAiAssistant();
 
 document.querySelector(".top-nav-brand-link")?.addEventListener("click", (event) => {
   event.preventDefault();
-  sideNav.querySelector('.side-nav-link[href="#dashboard"]')?.click();
-  window.requestAnimationFrame(() => replayDashEnter());
+  const trigger =
+    document.getElementById("ai-assistant-trigger") || document.getElementById("ai-assistant-trigger-mobile");
+  trigger?.click();
 });

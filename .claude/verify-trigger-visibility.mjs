@@ -43,8 +43,8 @@ await page.setViewport({ width: 1440, height: 900 });
 
 const routes = [
   { hash: "#agentic-broker", expectVisible: true },
-  { hash: "#dashboard", expectVisible: false },
-  { hash: "#klearhub-visibility", expectVisible: false }
+  { hash: "#dashboard", expectVisible: true },
+  { hash: "#klearhub-visibility", expectVisible: true }
 ];
 
 for (const route of routes) {

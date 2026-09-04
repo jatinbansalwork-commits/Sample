@@ -1544,10 +1544,27 @@ details.kn-accordion__item {
 .kn-autocomplete__clear,
 .search-input__clear {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: var(--theme-size-16);
   height: var(--theme-size-16);
   padding: var(--theme-spacing-0);
+}
+
+/* icon-btn is 32px by default — clear stays 16px to match search-input__icon. */
+.search-input__clear.icon-btn,
+.kn-autocomplete__clear.icon-btn {
+  width: var(--theme-size-16);
+  height: var(--theme-size-16);
+}
+
+.search-input__clear.icon-btn img,
+.search-input__clear.icon-btn svg,
+.kn-autocomplete__clear.icon-btn img,
+.kn-autocomplete__clear.icon-btn svg {
+  width: var(--theme-size-16);
+  height: var(--theme-size-16);
 }
 
 .kn-autocomplete__clear[hidden],
@@ -3881,11 +3898,6 @@ a.btn:hover {
   min-width: 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.kn-carousel__track::-webkit-scrollbar {
-  display: none;
 }
 
 .kn-carousel__item {
@@ -4305,17 +4317,12 @@ a.btn:hover {
   gap: var(--theme-spacing-3);
   padding: var(--theme-spacing-0);
   overflow: hidden;
-  scrollbar-width: none;
 }
 
 .kn-chat-input__files-host.is-open .kn-chat-input__files {
   padding: var(--theme-spacing-5) var(--theme-spacing-5) var(--theme-spacing-0);
   overflow-x: auto;
   overflow-y: hidden;
-}
-
-.kn-chat-input__files::-webkit-scrollbar {
-  display: none;
 }
 
 .kn-chat-input__file {
@@ -4409,7 +4416,16 @@ a.btn:hover {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--kn-color-text-surface-gray-muted);
+}
+
+/* Inline completion suffix — blue-sapphire-300 per Klear Agent autocomplete spec. */
+.kn-chat-input__ghost-prefix {
+  color: transparent;
+}
+
+.kn-chat-input__ghost-suffix,
+.kn-chat-input__ghost-text:not(:has(.kn-chat-input__ghost-suffix)) {
+  color: var(--kn-primitive-blue-sapphire-300);
 }
 
 .kn-chat-input__ghost-text--out {
@@ -4853,20 +4869,17 @@ button.kn-link.agentic-home__attach {
   margin: var(--theme-spacing-0);
   padding: var(--theme-spacing-2) var(--theme-spacing-0) var(--theme-spacing-0);
   display: grid;
-  gap: var(--theme-spacing-0);
+  gap: var(--theme-spacing-2);
 }
 
 .ai-msg__thinking-list li {
   display: grid;
-  grid-template-columns: var(--theme-size-16) 1fr;
+  grid-template-columns: var(--theme-size-12) 1fr;
   column-gap: var(--theme-spacing-3);
-  align-items: start;
-  padding-bottom: var(--theme-spacing-2);
-  color: var(--kn-color-text-surface-gray-muted);
-}
-
-.ai-msg__thinking-list li:last-child {
+  align-items: center;
+  min-height: var(--kn-type-caption-sm-line);
   padding-bottom: var(--theme-spacing-0);
+  color: var(--kn-color-text-surface-gray-muted);
 }
 
 .ai-msg__thinking-list li.is-pending {
@@ -4877,12 +4890,24 @@ button.kn-link.agentic-home__attach {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100%;
+  align-self: stretch;
+  width: 100%;
+  margin-bottom: calc(-1 * var(--theme-spacing-2));
+}
+
+.ai-msg__thinking-list li:last-child .ai-msg__trace-rail {
+  align-self: center;
+  margin-bottom: var(--theme-spacing-0);
+}
+
+.ai-msg__thinking-list li:last-child .ai-msg__trace-dot {
+  margin-top: var(--theme-spacing-0);
 }
 
 .ai-msg__trace-dot {
   width: var(--theme-size-6);
   height: var(--theme-size-6);
+  margin-top: calc((var(--kn-type-caption-sm-line) - var(--theme-size-6)) / 2);
   border-radius: var(--theme-border-radius-max);
   background: var(--kn-color-icon-interactive-gray-muted);
   flex-shrink: 0;
@@ -4900,8 +4925,8 @@ button.kn-link.agentic-home__attach {
 .ai-msg__trace-connector {
   flex: 1 1 auto;
   width: var(--theme-size-1);
-  min-height: var(--theme-size-6);
-  margin-top: var(--theme-spacing-1);
+  min-height: var(--theme-spacing-2);
+  margin-top: var(--theme-spacing-0);
   background: var(--kn-color-border-surface-gray-muted);
 }
 
@@ -7017,7 +7042,6 @@ body > .kn-date-picker__panel:not([hidden]) {
   padding: var(--theme-spacing-0) var(--theme-spacing-5);
   background: var(--kn-color-background-surface-gray-intense);
   border-bottom: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);
-  scrollbar-width: none;
 }
 
 @media screen and (min-width: 768px) {
@@ -7025,11 +7049,6 @@ body > .kn-date-picker__panel:not([hidden]) {
   .kn-detail-tabs {
     padding-inline: var(--theme-spacing-6);
   }
-}
-
-.kn-detailed-view__tabs::-webkit-scrollbar,
-.kn-detail-tabs::-webkit-scrollbar {
-  display: none;
 }
 
 .kn-tab {
@@ -9037,6 +9056,25 @@ textarea.kn-field__control,
   min-width: 0;
 }
 
+.kn-form-group__subtitle {
+  margin: var(--theme-spacing-0);
+  color: var(--kn-color-text-surface-gray-muted);
+}
+
+.kn-form-group__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-7);
+  min-width: 0;
+}
+
+.kn-form-group__header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-spacing-2);
+  min-width: 0;
+}
+
 .kn-form-group__actions {
   display: flex;
   flex-direction: row;
@@ -9395,6 +9433,7 @@ textarea.kn-field__control,
   min-height: 0;
   margin: var(--theme-spacing-0);
   border-radius: var(--radius-surface, var(--theme-border-radius-medium));
+  overflow: hidden;
 }
 
 .kn-genui__item > .kn-genui__ring {
@@ -9417,18 +9456,18 @@ textarea.kn-field__control,
     conic-gradient(
       from calc(var(--kn-genui-travel-r) - 50deg) at var(--kn-genui-travel-x) 50%,
       transparent 0%,
-      var(--kn-color-icon-feedback-information-intense) 3%,
-      var(--kn-color-icon-feedback-positive-intense) 5%,
-      color-mix(in srgb, var(--kn-color-icon-feedback-positive-intense) 55%, white) 7%,
+      var(--ai-assistant-accent-border) 3%,
+      var(--ai-assistant-accent) 5%,
+      color-mix(in srgb, var(--ai-assistant-accent) 55%, white) 7%,
       transparent 30%,
       transparent 100%
     ),
     conic-gradient(
       from calc(var(--kn-genui-travel-r2) - 50deg) at var(--kn-genui-travel-x2) 50%,
       transparent 0%,
-      var(--kn-color-icon-feedback-information-intense) 3%,
-      var(--kn-color-icon-feedback-positive-intense) 5%,
-      color-mix(in srgb, var(--kn-color-icon-feedback-positive-intense) 55%, white) 7%,
+      var(--ai-assistant-accent-border) 3%,
+      var(--ai-assistant-accent) 5%,
+      color-mix(in srgb, var(--ai-assistant-accent) 55%, white) 7%,
       transparent 30%,
       transparent 100%
     );
@@ -9520,6 +9559,8 @@ textarea.kn-field__control,
   min-width: 0;
   min-height: 0;
   height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
   -webkit-mask-image: linear-gradient(135deg, black 0%, black 45%, transparent 55%);
   mask-image: linear-gradient(135deg, black 0%, black 45%, transparent 55%);
   -webkit-mask-size: 300% 300%;
@@ -9539,9 +9580,9 @@ textarea.kn-field__control,
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in srgb, var(--kn-color-icon-feedback-positive-intense) 15%, transparent) 30%,
-    color-mix(in srgb, var(--kn-color-icon-feedback-positive-intense) 25%, transparent) 50%,
-    color-mix(in srgb, var(--kn-color-icon-feedback-positive-intense) 15%, transparent) 70%,
+    color-mix(in srgb, var(--ai-assistant-accent) 15%, transparent) 30%,
+    color-mix(in srgb, var(--ai-assistant-accent-text) 25%, transparent) 50%,
+    color-mix(in srgb, var(--ai-assistant-accent) 15%, transparent) 70%,
     transparent 100%
   );
   background-size: 50% 100%;
@@ -9620,7 +9661,10 @@ textarea.kn-field__control,
   flex-direction: column;
   gap: var(--theme-spacing-3);
   min-width: 0;
-  overflow-x: auto;
+  overflow: auto;
+  border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);
+  border-radius: var(--kn-table-radius);
+  background: var(--kn-color-background-interactive-staticWhite-default);
 }
 
 .kn-genui__table {

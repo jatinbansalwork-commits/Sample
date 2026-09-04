@@ -18,14 +18,24 @@
   };
 
   const PROMPT_CARDS = [
-    { icon: "dashboard", label: "Show my personal dashboard", kind: "prompt", prompt: "Show my personal dashboard" },
-    { icon: "queue", label: "Recent entries in my queue", kind: "prompt", prompt: "Recent entries in my queue" },
-    { icon: "statements", label: "Today's Statements", kind: "prompt", prompt: "Today's Statements" },
-    { icon: "shipments", label: "Recent shipments in operations", kind: "prompt", prompt: "Recent shipments in operations" },
-    { icon: "dueToday", label: "All items due today", kind: "prompt", prompt: "All items due today" },
-    { icon: "corrections", label: "Post Summary Corrections", kind: "prompt", prompt: "Post Summary Corrections" },
-    { icon: "isf", label: "ISF Dashboard", kind: "prompt", prompt: "ISF Dashboard" },
+    { key: "dashboard", icon: "dashboard", label: "Personal dashboard", kind: "prompt", prompt: "Show my personal dashboard" },
+    { key: "queue", icon: "queue", label: "Recent entries in my queue", kind: "prompt", prompt: "Recent entries in my queue" },
+    { key: "statements", icon: "statements", label: "Today's statements", kind: "prompt", prompt: "Today's Statements" },
+    { key: "hts", icon: "queue", label: "HTS classification", kind: "prompt", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" },
+    { key: "catair", icon: "corrections", label: "CATAIR code 398", kind: "prompt", prompt: "What does CATAIR code 398 mean and how do I fix it?" },
+    { key: "shipments", icon: "shipments", label: "Recent shipments", kind: "prompt", prompt: "Recent shipments in operations" },
+    { key: "dueToday", icon: "dueToday", label: "Items due today", kind: "prompt", prompt: "All items due today" },
+    { key: "corrections", icon: "corrections", label: "Post summary corrections", kind: "prompt", prompt: "Post Summary Corrections" },
+    { key: "isf", icon: "isf", label: "ISF dashboard", kind: "prompt", prompt: "ISF Dashboard" }
   ];
+
+  function promptCardsForPersona() {
+    const allowed = window.KNPersona?.getHomePromptKeys?.() || "*";
+    if (allowed === "*") {
+      return PROMPT_CARDS.slice();
+    }
+    return PROMPT_CARDS.filter((card) => allowed.includes(card.key));
+  }
 
   // Seeded sidebar chat history — the question a broker asked in a past session,
   // and the KlearAgent answer that was given. Rendered dynamically into
@@ -187,7 +197,64 @@
     { key: "older", label: "Older", test: (d) => d >= 60 }
   ];
 
-  const STRUCTURED_MODES = ["schema", "draft", "review", "shipments", "findings", "classification", "duty", "entry-status"];
+  /** Demo session binding — restores route, entry form, and agent mode with the transcript. */
+  function sessionForSeededChat(chatId, entry = {}) {
+    const agentMode = window.KNPersona?.resolve?.()?.agentMode || "auto-accept";
+    const brokerCtx = {
+      routeHash: "#agentic-broker",
+      agentMode,
+      contextMeta: { area: "Klear Agent", title: "Klear Agent", kind: "agentic-broker" }
+    };
+    const byId = {
+      "chat-01": {
+        routeHash: "#transaction-us-isf",
+        agentMode,
+        contextMeta: { area: "ISF", title: "ISF", kind: "transaction-us-isf" }
+      },
+      "chat-02": brokerCtx,
+      "chat-03": brokerCtx,
+      "chat-04": {
+        routeHash: "#transaction-us-entry/filing/entry-1",
+        entryId: "entry-1",
+        agentMode: "permission",
+        contextMeta: { area: "US Entry", title: "Entry filing", kind: "transaction-us-entry", recordId: "entry-1" }
+      },
+      "chat-05": {
+        routeHash: "#transaction-us-entry",
+        agentMode,
+        contextMeta: { area: "US Entry", title: "Entry", kind: "transaction-us-entry" }
+      },
+      "chat-07": {
+        routeHash: "#transaction-us-isf",
+        agentMode,
+        contextMeta: { area: "ISF", title: "ISF", kind: "transaction-us-isf" }
+      },
+      "chat-08": {
+        routeHash: "#transaction-us-entry/filing/entry-2",
+        entryId: "entry-2",
+        agentMode: "deny-all",
+        contextMeta: { area: "US Entry", title: "Entry filing", kind: "transaction-us-entry", recordId: "entry-2" }
+      },
+      "chat-17": {
+        routeHash: "#transaction-us-entry/filing/entry-3",
+        entryId: "entry-3",
+        agentMode,
+        contextMeta: { area: "US Entry", title: "Entry filing", kind: "transaction-us-entry", recordId: "entry-3" }
+      }
+    };
+    return byId[chatId] || entry.session || brokerCtx;
+  }
+
+  const STRUCTURED_MODES = window.KNGenUI?.STRUCTURED_MODES || [
+    "schema",
+    "draft",
+    "review",
+    "shipments",
+    "findings",
+    "classification",
+    "duty",
+    "entry-status"
+  ];
   const storeApi = () => window.KNThreadStore;
 
   function brokerUserId() {
@@ -322,6 +389,8 @@
         </div>`
       )
       .join("");
+    window.KNShellSearchIndex?.rebuild?.();
+    window.KNAgenticNav?.refilterChatHistory?.();
   }
 
   function escapeHtml(text) {
@@ -332,135 +401,6 @@
 
   function prefersReducedMotion() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }
-
-  function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  function greetingCopy() {
-    const hour = new Date().getHours();
-    const period = hour < 5 || hour >= 21 ? "evening" : hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-    const name =
-      document.querySelector(".profile-text__name")?.textContent?.trim()?.split(/\s+/)[0] || "there";
-    return `Good ${period}, ${name}`;
-  }
-
-  function cardHtml(card) {
-    const label = escapeHtml(card.label);
-    const icon = (ICONS[card.icon] || "").replace("<svg ", '<svg class="kn-btn__icon" aria-hidden="true" ');
-    const disabled = card.kind === "unavailable" ? " disabled" : "";
-    const attrs =
-      card.kind === "navigate"
-        ? `data-agentic-home-nav="${escapeHtml(card.href)}"`
-        : card.kind === "prompt"
-          ? `data-agentic-home-prompt="${escapeHtml(card.prompt)}"`
-          : `data-agentic-home-unavailable="true"`;
-    return `<button class="kn-btn kn-btn--tertiary kn-btn--small btn btn--tertiary btn--sm type-ui-sm" type="button"${disabled} ${attrs}>
-      ${icon}
-      <span class="kn-btn__label">${label}</span>
-    </button>`;
-  }
-
-  function renderCards() {
-    const grid = document.getElementById("agentic-home-cards");
-    if (!grid) {
-      return;
-    }
-    grid.innerHTML = PROMPT_CARDS.map(cardHtml).join("");
-    window.KNButton?.hydrate(grid);
-  }
-
-  function syncGreeting() {
-    const greetingEl = document.getElementById("agentic-home-greeting");
-    if (greetingEl) {
-      greetingEl.textContent = greetingCopy();
-    }
-  }
-
-  // --- Ghost suggestion (composer) -------------------------------------
-
-  const GHOST_SUGGESTIONS = PROMPT_CARDS.filter((card) => card.kind === "prompt").map((card) => card.prompt);
-  let ghostIndex = 0;
-  let ghostSuggestion = "";
-  let ghostTimer = null;
-  let ghostFadeTimer = null;
-
-  function ghostTargets() {
-    return Array.from(document.querySelectorAll("#agentic-broker-page [data-chat-ghost]")).map((ghost) => {
-      const root = ghost.closest("[data-kn-component='chat-input']");
-      const field = ghost.closest(".kn-chat-input__field, .agentic-home__field");
-      return {
-        ghost,
-        ghostText: ghost.querySelector("[data-chat-ghost-text]"),
-        ghostOut: ghost.querySelector("[data-chat-ghost-out]"),
-        input: root?.querySelector("textarea") || field?.querySelector("textarea"),
-        root
-      };
-    });
-  }
-
-  function restorePlaceholder(input) {
-    if (input) {
-      input.placeholder = input.getAttribute("data-placeholder") || input.placeholder || "";
-    }
-  }
-
-  function clearGhostCrossfade(targets = ghostTargets()) {
-    if (ghostFadeTimer) {
-      clearTimeout(ghostFadeTimer);
-      ghostFadeTimer = null;
-    }
-    targets.forEach(({ ghost, ghostOut }) => {
-      ghost?.classList.remove("is-fading", "is-crossfading");
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-    });
-  }
-
-  function stopGhostCycle() {
-    if (ghostTimer) {
-      clearInterval(ghostTimer);
-      ghostTimer = null;
-    }
-    clearGhostCrossfade();
-  }
-
-  function beginGhostCrossfade(targets, nextText) {
-    const reduce = prefersReducedMotion();
-    const fadeMs = knMotionDurationMs("--theme-motion-duration-xmoderate", 360);
-    targets.forEach(({ ghost, ghostText, ghostOut }) => {
-      if (!ghost || !ghostText) {
-        return;
-      }
-      const from = ghostText.textContent || "";
-      if (!reduce && ghostOut && from && from !== nextText) {
-        ghostOut.textContent = from;
-        ghostText.textContent = nextText;
-        ghost.classList.remove("is-crossfading");
-        void ghost.offsetWidth;
-        ghost.classList.add("is-crossfading");
-      } else {
-        ghostText.textContent = nextText;
-        ghost.classList.remove("is-crossfading");
-        if (ghostOut) {
-          ghostOut.textContent = "";
-        }
-      }
-    });
-    if (ghostFadeTimer) {
-      clearTimeout(ghostFadeTimer);
-    }
-    ghostFadeTimer = setTimeout(() => {
-      ghostFadeTimer = null;
-      targets.forEach(({ ghost, ghostOut }) => {
-        ghost?.classList.remove("is-crossfading");
-        if (ghostOut) {
-          ghostOut.textContent = "";
-        }
-      });
-    }, reduce ? 0 : fadeMs);
   }
 
   function knMotionDurationMs(tokenName, fallbackMs) {
@@ -475,82 +415,99 @@
     return n;
   }
 
-  // Dual-layer RollingText crossfade (not kn-chat-msg-enter). Skip a tick
-  // while an exit is still running so the outgoing string cannot sit at
-  // full opacity under the incoming one.
-  function startGhostCycle() {
-    stopGhostCycle();
-    if (GHOST_SUGGESTIONS.length < 2 || prefersReducedMotion()) {
-      return;
-    }
-    ghostTimer = setInterval(() => {
-      if (ghostFadeTimer) {
-        return;
-      }
-      const idle = ghostTargets().filter(({ input }) => input && !input.value.trim());
-      if (!idle.length) {
-        return;
-      }
-      ghostIndex = (ghostIndex + 1) % GHOST_SUGGESTIONS.length;
-      ghostSuggestion = GHOST_SUGGESTIONS[ghostIndex];
-      beginGhostCrossfade(idle, ghostSuggestion);
-    }, 4000);
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  function syncGhostSuggestion() {
-    ghostTargets().forEach(({ ghost, ghostText, input }) => {
-      if (!ghost || !ghostText || !input) {
+  function greetingCopy() {
+    const hour = new Date().getHours();
+    const period = hour >= 17 || hour < 5 ? "evening" : "morning";
+    const name =
+      document.querySelector(".profile-text__name")?.textContent?.trim()?.split(/\s+/)[0] || "there";
+    return `Good ${period}, ${name}`;
+  }
+
+  function renderCards() {
+    const grid = document.getElementById("agentic-home-cards");
+    if (!grid) {
+      return;
+    }
+    grid.innerHTML = window.KNNextActions?.render?.(window.KNNextActions.homeActions(), {
+      ariaLabel: "Suggested questions",
+      align: "center"
+    }) || "";
+  }
+
+  function syncGreeting() {
+    const greetingEl = document.getElementById("agentic-home-greeting");
+    if (greetingEl) {
+      greetingEl.textContent = greetingCopy();
+    }
+  }
+
+  // --- Ghost autocomplete (composer) -----------------------------------
+
+  let threadGhost = null;
+
+  function ghostPromptPhrases() {
+    const cards = (window.KNNextActions?.homeActions?.() || promptCardsForPersona().map((card) => ({ query: card.prompt }))).map((item) => item.query);
+    const expert = (window.KNKnowledgeExpert?.getPrompts?.(3) || []).map((item) => item.prompt);
+    const merged = [...cards];
+    expert.forEach((prompt) => {
+      if (merged.length >= 12) {
         return;
       }
-      if (input.value.trim()) {
-        ghost.classList.remove("is-visible", "is-crossfading", "is-fading");
-        const ghostOut = ghost.querySelector("[data-chat-ghost-out]");
-        if (ghostOut) {
-          ghostOut.textContent = "";
+      if (!merged.includes(prompt)) {
+        merged.push(prompt);
+      }
+    });
+    return merged;
+  }
+
+  function seededBrokerQuestions() {
+    return Object.values(CHAT_HISTORY)
+      .map((entry) => entry.question)
+      .filter(Boolean);
+  }
+
+  function initThreadGhost() {
+    const input = document.getElementById("agentic-thread-input");
+    const ghostEl = document.getElementById("agentic-thread-ghost");
+    if (!input || !ghostEl || !window.KNAgentGhost?.bind) {
+      return;
+    }
+    threadGhost = window.KNAgentGhost.bind(input, {
+      ghostEl,
+      getPromptPhrases: ghostPromptPhrases,
+      getSeededQuestions: seededBrokerQuestions,
+      isPaused: () => isAsking,
+      restorePlaceholder: (field) => {
+        syncComposerPlaceholder();
+        if (!field.value.trim()) {
+          field.placeholder = field.getAttribute("data-placeholder") || field.placeholder || "";
         }
-        restorePlaceholder(input);
-        return;
       }
-      ghostText.textContent = ghostSuggestion;
-      ghost.classList.add("is-visible");
-      ghost.classList.remove("is-crossfading", "is-fading");
-      const ghostOut = ghost.querySelector("[data-chat-ghost-out]");
-      if (ghostOut) {
-        ghostOut.textContent = "";
-      }
-      input.placeholder = "";
     });
   }
 
-  function acceptGhostSuggestion(input) {
-    const root = composerRoot(input);
-    const ghost = root?.querySelector("[data-chat-ghost]");
-    if (!ghostSuggestion || !ghost?.classList.contains("is-visible") || input.value.trim()) {
-      return false;
-    }
-    input.value = ghostSuggestion;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    return true;
+  function syncGhostSuggestion() {
+    threadGhost?.sync?.();
+  }
+
+  function startGhostCycle() {
+    threadGhost?.startIdleCycle?.();
+  }
+
+  function stopGhostCycle() {
+    threadGhost?.stopIdleCycle?.();
   }
 
   function handleComposerKeydown(event) {
-    const input = event.target.closest("#agentic-home-input, #agentic-thread-input");
+    const input = event.target.closest("#agentic-thread-input");
     if (!input) {
       return;
     }
-    if (event.key === "Tab") {
-      if (acceptGhostSuggestion(input)) {
-        event.preventDefault();
-      }
-      return;
-    }
-    if (event.key === "Escape") {
-      const ghost = composerRoot(input)?.querySelector("[data-chat-ghost]");
-      if (ghost?.classList.contains("is-visible")) {
-        ghost.classList.remove("is-visible");
-        restorePlaceholder(input);
-        event.preventDefault();
-      }
+    if (window.KNAgentGhost?.handleKeydown?.(event)) {
       return;
     }
     // Enter submits; Shift+Enter inserts a newline (textarea default).
@@ -804,48 +761,79 @@
 
   function els() {
     return {
-      newchat: document.getElementById("agentic-home-newchat"),
       thread: document.getElementById("agentic-thread"),
+      header: document.getElementById("agentic-thread-header"),
+      empty: document.getElementById("agentic-chat-empty"),
       title: document.getElementById("agentic-thread-title"),
       messages: document.getElementById("agentic-thread-messages"),
       threadForm: document.getElementById("agentic-thread-form"),
-      threadInput: document.getElementById("agentic-thread-input"),
-      homeForm: document.getElementById("agentic-home-form"),
-      homeInput: document.getElementById("agentic-home-input")
+      threadInput: document.getElementById("agentic-thread-input")
     };
   }
 
-  function showNewChat() {
-    const { newchat, thread, messages, homeForm, homeInput, threadForm } = els();
-    if (thread) thread.hidden = true;
-    if (newchat) newchat.hidden = false;
-    if (messages) messages.innerHTML = "";
-    hideComposerValidationError(homeForm);
-    hideComposerValidationError(threadForm);
-    clearComposerFiles(composerRoot(homeForm));
-    clearComposerFiles(composerRoot(threadForm));
-    if (homeInput) {
-      homeInput.value = "";
-      autoResizeTextarea(homeInput);
-      syncComposerSubmit(composerRoot(homeForm));
+  function hasThreadMessages() {
+    return Boolean(els().messages?.querySelector(".agentic-thread-msg"));
+  }
+
+  function syncComposerPlaceholder() {
+    const input = els().threadInput;
+    if (!input) {
+      return;
     }
-    ghostIndex = Math.floor(Math.random() * GHOST_SUGGESTIONS.length);
-    ghostSuggestion = GHOST_SUGGESTIONS[ghostIndex];
-    syncGhostSuggestion();
+    const inConversation = hasThreadMessages();
+    const placeholder = inConversation
+      ? input.getAttribute("data-placeholder-followup") || "Ask a follow-up…"
+      : input.getAttribute("data-placeholder-empty") || "Ask a question...";
+    input.setAttribute("data-placeholder", placeholder);
+    if (!input.value.trim()) {
+      input.placeholder = placeholder;
+    }
+  }
+
+  function enterEmptyState() {
+    const { empty, header, messages, threadForm, threadInput } = els();
+    if (empty) {
+      empty.hidden = false;
+    }
+    if (header) {
+      header.hidden = true;
+    }
+    if (messages) {
+      messages.innerHTML = "";
+      messages.hidden = true;
+    }
+    hideComposerValidationError(threadForm);
+    clearComposerFiles(composerRoot(threadForm));
+    if (threadInput) {
+      threadInput.value = "";
+      autoResizeTextarea(threadInput);
+      syncComposerSubmit(composerRoot(threadForm));
+    }
+    syncComposerPlaceholder();
+    renderCards();
+    syncGreeting();
+    threadGhost?.refresh?.();
     startGhostCycle();
     window.KNAgenticSpark?.setState?.("empty");
     window.requestAnimationFrame(() => {
       const page = document.getElementById("agentic-broker-page");
       if (page && !page.hidden) {
-        homeInput?.focus({ preventScroll: true });
+        threadInput?.focus({ preventScroll: true });
       }
     });
   }
 
-  function showThread(title) {
-    const { newchat, thread, threadForm, threadInput } = els();
-    if (newchat) newchat.hidden = true;
-    if (thread) thread.hidden = false;
+  function enterConversationMode(title) {
+    const { empty, header, messages, threadForm, threadInput } = els();
+    if (empty) {
+      empty.hidden = true;
+    }
+    if (header) {
+      header.hidden = false;
+    }
+    if (messages) {
+      messages.hidden = false;
+    }
     if (!lockedHeaderThreadId || lockedHeaderThreadId !== activeThreadId) {
       lockThreadHeaderTitle(title);
     } else {
@@ -855,16 +843,30 @@
     if (threadInput && !threadInput.value) {
       autoResizeTextarea(threadInput);
     }
+    syncComposerPlaceholder();
+    stopGhostCycle();
     syncGhostSuggestion();
-    startGhostCycle();
+  }
+
+  function showNewChat() {
+    enterEmptyState();
+  }
+
+  function showThread(title) {
+    enterConversationMode(title);
   }
 
   function assistantMessageHtml(innerHtml, id, footerHtml, { loading = false, traces = "" } = {}) {
     const idAttr = id ? ` id="${id}" data-message-id="${id}"` : "";
     const loadingClass = loading ? " ai-msg--loading is-loading" : "";
+    const leadingClass = loading ? " is-rotating" : "";
     return `<div class="agentic-thread-msg agentic-thread-msg--assistant">
-      <span class="agentic-thread-msg__avatar" aria-hidden="true"><img class="klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="14" height="14" /></span>
-      <article class="ai-msg ai-msg--assistant kn-chat-msg kn-chat-msg--other${loadingClass}" data-kn-component="chat-message"${idAttr}><div class="ai-msg__stack">${traces}<div class="ai-msg__body type-body-sm kn-chat-msg__bubble">${innerHtml}</div><div class="ai-msg__footer kn-chat-msg__actions">${footerHtml || ""}</div></div></article>
+      <article class="ai-msg ai-msg--assistant kn-chat-msg kn-chat-msg--other${loadingClass}" data-kn-component="chat-message"${idAttr}>
+        <div class="kn-chat-msg__row ai-msg__row">
+          <span class="kn-chat-msg__leading ai-msg__leading agentic-thread-msg__avatar${leadingClass}" aria-hidden="true"><svg class="klear-assistant-mark" viewBox="0 0 24 24" width="14" height="14" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg></span>
+          <div class="ai-msg__stack">${traces}<div class="ai-msg__body type-body-md kn-chat-msg__bubble">${innerHtml}</div><div class="ai-msg__footer kn-chat-msg__actions">${footerHtml || ""}</div></div>
+        </div>
+      </article>
     </div>`;
   }
 
@@ -895,7 +897,7 @@
          <div class="kn-chat-msg__actions"><button type="button" class="kn-btn kn-btn--tertiary kn-btn--small btn btn--tertiary btn--sm type-ui-sm" data-agentic-retry="${escapeHtml(meta.id || "")}">Retry</button></div>`
       : "";
     return `<div class="agentic-thread-msg agentic-thread-msg--user">
-      <article class="ai-msg ai-msg--user kn-chat-msg kn-chat-msg--self${isError ? " is-error" : ""}" data-kn-component="chat-message"${id}><div class="ai-msg__body type-body-sm kn-chat-msg__bubble">${copy}${fileList}</div>${error}</article>
+      <article class="ai-msg ai-msg--user kn-chat-msg kn-chat-msg--self${isError ? " is-error" : ""}" data-kn-component="chat-message"${id}><div class="ai-msg__body type-body-md kn-chat-msg__bubble">${copy}${fileList}</div>${error}</article>
     </div>`;
   }
 
@@ -1013,15 +1015,102 @@
       : "";
   }
 
+  const TRACE_SPINNER =
+    '<span class="kn-spinner kn-spinner--accent" role="progressbar" aria-label="Loading"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path class="kn-spinner__track" d="M24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12ZM3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12Z" fill="currentColor"/><path d="M24 12C24 13.8937 23.5518 15.7606 22.6921 17.4479C21.8324 19.1352 20.5855 20.5951 19.0534 21.7082C17.5214 22.8213 15.7476 23.556 13.8772 23.8523C12.0068 24.1485 10.0928 23.9979 8.29181 23.4127L9.21886 20.5595C10.5696 20.9984 12.0051 21.1114 13.4079 20.8892C14.8107 20.667 16.141 20.116 17.2901 19.2812C18.4391 18.4463 19.3743 17.3514 20.0191 16.0859C20.6639 14.8204 21 13.4203 21 12H24Z" fill="currentColor"/></svg></span>';
+
+  function thinkingTraceListHtml(steps, activeIndex) {
+    return (steps || [])
+      .map((step, index) => {
+        const isLast = index === steps.length - 1;
+        let status = "is-pending";
+        if (index < activeIndex) {
+          status = "is-complete";
+        } else if (index === activeIndex) {
+          status = "is-active";
+        }
+        const railInner =
+          status === "is-active"
+            ? `<span class="ai-msg__trace-active-icon">${TRACE_SPINNER}</span>`
+            : `<span class="ai-msg__trace-dot" aria-hidden="true"></span>`;
+        return `<li class="${status}">
+          <span class="ai-msg__trace-rail" aria-hidden="true">
+            ${railInner}
+            ${isLast ? "" : '<span class="ai-msg__trace-connector"></span>'}
+          </span>
+          <p class="ai-msg__trace-label type-caption-sm">${escapeHtml(step)}</p>
+        </li>`;
+      })
+      .join("");
+  }
+
+  async function animateThinkingTracesComplete(node, steps, reduceMotion) {
+    const items = (steps || THINKING_STEPS).filter(Boolean);
+    if (!items.length || !node) {
+      return;
+    }
+    const stack = node.querySelector(".ai-msg__stack");
+    const bodyEl = node.querySelector(".ai-msg__body");
+    if (!stack || !bodyEl) {
+      return;
+    }
+    const traceId = `agentic-trace-${Date.now()}`;
+    stack.querySelectorAll(":scope > .ai-msg__thinking-panel, :scope > .kn-chat-msg__traces").forEach((el) => el.remove());
+    bodyEl.insertAdjacentHTML(
+      "beforebegin",
+      `<div class="ai-msg__thinking-panel kn-collapsible kn-chat-msg__traces" data-reasoning-status="loading">
+        <button type="button" class="ai-msg__thinking-toggle kn-collapsible__trigger type-caption-sm" aria-expanded="true" aria-controls="${traceId}">
+          ${TRACE_SPINNER}
+          <span class="ai-msg__thinking-toggle-label">Exploring…</span>
+        </button>
+        <div class="ai-msg__thinking-trace kn-collapsible__body" id="${traceId}">
+          <ol class="ai-msg__thinking-list type-caption-sm">${thinkingTraceListHtml(items, 0)}</ol>
+        </div>
+      </div>`
+    );
+    scrollThreadMessages();
+    if (reduceMotion) {
+      const panel = stack.querySelector(".ai-msg__thinking-panel");
+      const completeHtml = window.KNAssistant?.thinkingPanel?.(items, true, { status: "complete" }) || "";
+      if (panel && completeHtml) {
+        panel.outerHTML = completeHtml;
+      }
+      window.KNChatMessage?.hydrate(node);
+      return;
+    }
+    const stepDelay = 520;
+    for (let i = 0; i < items.length; i += 1) {
+      if (i > 0) {
+        await delay(stepDelay);
+      }
+      const list = stack.querySelector(".ai-msg__thinking-list");
+      if (!list) {
+        break;
+      }
+      list.innerHTML = thinkingTraceListHtml(items, i);
+      scrollThreadMessages();
+    }
+    await delay(stepDelay);
+    const panel = stack.querySelector(".ai-msg__thinking-panel");
+    const completeHtml = window.KNAssistant?.thinkingPanel?.(items, true, { status: "complete" }) || "";
+    if (panel && completeHtml) {
+      panel.outerHTML = completeHtml;
+    }
+    window.KNChatMessage?.hydrate(node);
+  }
+
   function resultBodyHtml(result, context) {
-    const renderText = (text) => (window.KNAssistant?.renderText ? window.KNAssistant.renderText(text, context) : `<p>${escapeHtml(text)}</p>`);
-    if (STRUCTURED_MODES.includes(result?.mode)) {
+    const schema = structuredSchema(result);
+    if (schema?.components?.length) {
       return `<div class="kn-genui" data-kn-genui></div>`;
     }
+    const renderText = (text) => (window.KNAssistant?.renderText ? window.KNAssistant.renderText(text, context) : `<p>${escapeHtml(text)}</p>`);
     return `${renderText(result?.text || "I could not process that request right now. Please try again.")}`;
   }
 
-  function fillAssistantMessage(node, { traces = "", body = "", related = "", actions = "", schema = null, animate = true } = {}) {
+  function fillAssistantMessage(
+    node,
+    { traces = "", body = "", related = "", actions = "", schema = null, animate = true, skipGenUIMount = false, keepTraces = false } = {}
+  ) {
     if (!node) {
       return;
     }
@@ -1030,7 +1119,7 @@
     node.classList.remove("ai-msg--loading", "is-loading");
     if (bodyEl && body != null) {
       bodyEl.innerHTML = body;
-      if (schema && window.KNGenUI?.mount) {
+      if (schema && window.KNGenUI?.mount && !skipGenUIMount) {
         window.KNGenUI.mount(bodyEl.querySelector("[data-kn-genui]"), schema, { animate });
       }
       if (!prefersReducedMotion()) {
@@ -1045,8 +1134,13 @@
       }
     }
     if (stack) {
-      stack.querySelectorAll(":scope > .ai-msg__thinking-panel, :scope > .kn-chat-msg__traces, :scope > .ai-msg__related").forEach((el) => el.remove());
-      if (traces && bodyEl) {
+      if (!keepTraces) {
+        stack.querySelectorAll(":scope > .ai-msg__thinking-panel, :scope > .kn-chat-msg__traces, :scope > .ai-msg__related").forEach((el) => el.remove());
+        if (traces && bodyEl) {
+          bodyEl.insertAdjacentHTML("beforebegin", traces);
+        }
+      } else if (traces && bodyEl) {
+        stack.querySelectorAll(":scope > .ai-msg__thinking-panel, :scope > .kn-chat-msg__traces").forEach((el) => el.remove());
         bodyEl.insertAdjacentHTML("beforebegin", traces);
       }
       let footer = stack.querySelector(":scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
@@ -1073,10 +1167,13 @@
   let streamAbort = null;
 
   function structuredSchema(result) {
-    if (!STRUCTURED_MODES.includes(result?.mode) && !result?.schema) {
+    if (!result) {
       return null;
     }
-    return window.KNGenUI?.schemaFromResult ? window.KNGenUI.schemaFromResult(result) : result?.schema || null;
+    if (result.schema?.components?.length) {
+      return result.schema;
+    }
+    return window.KNGenUI?.schemaFromResult ? window.KNGenUI.schemaFromResult(result) : null;
   }
 
   async function streamGenUI(node, schema, animate) {
@@ -1097,7 +1194,11 @@
         await window.KNGenUI.stream(host, schema, {
           animate,
           signal: streamAbort.signal,
-          onChunk: followScroll
+          onChunk: followScroll,
+          interval: animate ? 48 : 28,
+          preStreamDelay: animate ? 420 : 0,
+          preRevealDelay: animate ? 320 : 0,
+          skeletonUntilComplete: true
         });
       } else {
         window.KNGenUI?.mount(host, schema, { animate });
@@ -1198,12 +1299,15 @@
     const attachments = Array.isArray(files) ? files.slice() : [];
     if ((!text && !attachments.length) || isAsking) return;
     isAsking = true;
+    if (text) {
+      threadGhost?.recordSubmitted?.(text);
+    }
     const titleSource = text || attachments[0]?.name || "Conversation";
     const derivedTitle = deriveThreadTitle(titleSource);
     const userId = opts.userMessageId || `msg-user-${Date.now()}`;
-    if (els().thread.hidden) {
+    if (!hasThreadMessages()) {
       ensureLiveThread(derivedTitle);
-      showThread(derivedTitle);
+      enterConversationMode(derivedTitle);
     }
     if (opts.userMessageId) {
       document.querySelector(`[data-message-id="${CSS.escape(userId)}"]`)?.closest(".agentic-thread-msg")?.remove();
@@ -1264,14 +1368,30 @@
       const context = { kind: "agentic-broker" };
       const schema = structuredSchema(result);
       lastStreamSchema = schema;
-      fillAssistantMessage(document.getElementById(thinkingId), {
-        traces: reasoningTracesHtml(result),
+      const thinkingNode = document.getElementById(thinkingId);
+      thinkingNode?.classList.remove("ai-msg--loading", "is-loading");
+      const thinkingSteps = result?.thinking?.length ? result.thinking : THINKING_STEPS;
+      await animateThinkingTracesComplete(thinkingNode, thinkingSteps, reduceMotion);
+      if (genId !== generation) {
+        isAsking = false;
+        return;
+      }
+      await delay(reduceMotion ? 50 : 580);
+      if (genId !== generation) {
+        isAsking = false;
+        return;
+      }
+      fillAssistantMessage(thinkingNode, {
         body: resultBodyHtml(result, context),
         related: followUpChipsHtml(result?.followUps),
         actions: messageActionsHtml(),
+        keepTraces: true,
+        skipGenUIMount: Boolean(schema),
         animate: false
       });
-      await streamGenUI(document.getElementById(thinkingId), schema, !reduceMotion);
+      if (schema) {
+        await streamGenUI(thinkingNode, schema, !reduceMotion);
+      }
       if (genId !== generation) {
         return;
       }
@@ -1321,6 +1441,70 @@
     item?.setAttribute("aria-current", "true");
   }
 
+  function consumeExpandHandoff() {
+    const key = storeApi()?.EXPAND_HANDOFF_KEY || "kn-assist-expand-handoff";
+    try {
+      const raw = window.sessionStorage.getItem(key);
+      if (!raw) {
+        return null;
+      }
+      window.sessionStorage.removeItem(key);
+      return JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function openExpandedPanelThread(handoff, thread) {
+    generation += 1;
+    streamAbort?.abort();
+    streamAbort = null;
+    isAsking = false;
+    pendingThinkingId = null;
+    lastStreamSchema = null;
+    setThreadGenerating(false);
+
+    activeThreadId = handoff?.threadId || thread?.id || readActiveThreadId();
+    writeActiveThreadId(activeThreadId);
+    clearThreadHeaderLock();
+
+    const { messages, threadInput, threadForm } = els();
+    if (messages) {
+      messages.innerHTML = "";
+    }
+    if (threadInput) {
+      threadInput.value = "";
+      autoResizeTextarea(threadInput);
+      clearComposerFiles(composerRoot(threadForm));
+    }
+
+    const ctx = handoff?.context || thread?.contextMeta || {};
+    const displayTitle = handoff?.title || ctx.headline || ctx.title || thread?.title || "Conversation";
+    showThread(displayTitle);
+
+    const schema =
+      window.KNAssistCore?.contextConnectionSchema?.(ctx, { expanded: true }) ||
+      window.KNGenUI?.textSchema?.(
+        "Your side-panel conversation continues here with more room.",
+        window.KNAssistCore?.lookingAtLine?.(ctx) || displayTitle
+      ) ||
+      null;
+    const msgId = `ctx-${Date.now()}`;
+    appendMessages(assistantMessageHtml(`<div class="kn-genui" data-kn-genui></div>`, msgId, messageActionsHtml()), {
+      animate: false,
+      scroll: false
+    });
+    if (schema) {
+      window.KNGenUI?.mount(document.getElementById(msgId)?.querySelector("[data-kn-genui]"), schema, {
+        animate: !prefersReducedMotion()
+      });
+    }
+    scrollThreadMessages({ force: true });
+    announceThread(displayTitle);
+    window.KNAgenticSpark?.setState?.("idle");
+    highlightSidebarChat(activeThreadId);
+  }
+
   function restoreThread(thread) {
     if (!thread) {
       return false;
@@ -1345,7 +1529,10 @@
         });
         return;
       }
-      const body = msg.schema
+      const schema =
+        msg.schema ||
+        (msg.text && window.KNGenUI?.schemaFromResult ? window.KNGenUI.schemaFromResult({ mode: "text", text: msg.text }) : null);
+      const body = schema?.components?.length
         ? `<div class="kn-genui" data-kn-genui></div>`
         : window.KNAssistant?.renderText
           ? window.KNAssistant.renderText(msg.text, { kind: "agentic-broker" })
@@ -1354,8 +1541,10 @@
         ? window.KNAssistant?.thinkingPanel?.(msg.thinking, false, { status: "complete" }) || ""
         : "";
       appendMessages(assistantMessageHtml(body, msg.id, messageActionsHtml(), { traces }), { animate: false, scroll: false });
-      if (msg.schema) {
-        window.KNGenUI?.mount(document.getElementById(msg.id)?.querySelector("[data-kn-genui]"), msg.schema, { animate: false });
+      if (schema?.components?.length) {
+        window.KNGenUI?.mount(document.getElementById(msg.id)?.querySelector("[data-kn-genui]"), schema, {
+          animate: !prefersReducedMotion()
+        });
       }
     });
     scrollThreadMessages({ force: true });
@@ -1375,46 +1564,70 @@
     setThreadGenerating(false);
     const store = readThreadStore();
     const live = findThread(store, chatId);
+    const seededEntry = CHAT_HISTORY[chatId];
+
+    const finishRestore = (thread, entry) => {
+      const session = thread.session || sessionForSeededChat(chatId, entry || {});
+      const ensureBroker = () => {
+        const path = (location.hash || "").split("?")[0];
+        if (path === "#agentic-broker" || path === "#/agentic-broker") {
+          return Promise.resolve();
+        }
+        if (typeof window.setRouteHash === "function") {
+          return window.KNAgentSession?.restore?.({ routeHash: "#agentic-broker" }, { navigate: true }) || Promise.resolve();
+        }
+        location.hash = "#agentic-broker";
+        return Promise.resolve();
+      };
+      ensureBroker().then(() => {
+        const restore = window.KNAgentSession?.restore?.(session, { chatId, navigate: false }) || Promise.resolve();
+        return restore;
+      }).then(() => {
+        if (session.contextMeta) {
+          thread.contextMeta = session.contextMeta;
+        }
+        activeThreadId = thread.id;
+        writeActiveThreadId(activeThreadId);
+        restoreThread(thread);
+        renderChatGroups();
+        highlightSidebarChat(thread.id);
+      });
+    };
+
     if (live) {
-      activeThreadId = live.id;
-      writeActiveThreadId(activeThreadId);
-      restoreThread(live);
+      finishRestore(live, seededEntry);
       return;
     }
-    const entry = CHAT_HISTORY[chatId];
-    if (!entry) {
+    if (!seededEntry) {
       showKnToast?.({ content: "That conversation could not be found.", color: "notice" });
       return;
     }
     const persisted = {
       id: chatId,
-      title: entry.title,
+      title: seededEntry.title,
       userId: brokerUserId(),
-      createdAt: Date.now() - entry.daysAgo * 86400000,
-      updatedAt: Date.now() - entry.daysAgo * 86400000,
+      createdAt: Date.now() - seededEntry.daysAgo * 86400000,
+      updatedAt: Date.now() - seededEntry.daysAgo * 86400000,
+      session: sessionForSeededChat(chatId, seededEntry),
       messages: [
         {
           id: `${chatId}-user`,
           senderType: "self",
-          text: entry.question,
-          timestamp: Date.now() - entry.daysAgo * 86400000,
+          text: seededEntry.question,
+          timestamp: Date.now() - seededEntry.daysAgo * 86400000,
           status: "sent"
         },
         {
           id: `${chatId}-assistant`,
           senderType: "other",
-          text: entry.answer,
-          timestamp: Date.now() - entry.daysAgo * 86400000,
+          text: seededEntry.answer,
+          timestamp: Date.now() - seededEntry.daysAgo * 86400000,
           status: "sent"
         }
       ]
     };
     persistThread(persisted, { touchUpdatedAt: false });
-    activeThreadId = chatId;
-    writeActiveThreadId(chatId);
-    restoreThread(persisted);
-    renderChatGroups();
-    highlightSidebarChat(chatId);
+    finishRestore(persisted, seededEntry);
   }
 
   function downloadStubHtml(filename) {
@@ -1432,8 +1645,8 @@
 
   function ensureRecipeThread() {
     const { messages } = els();
-    if (els().thread.hidden) {
-      showThread("Spark preview");
+    if (!hasThreadMessages()) {
+      enterConversationMode("Spark preview");
     }
     if (messages && !messages.querySelector(".agentic-thread-msg--user")) {
       appendMessages(userMessageHtml(RECIPE_PROMPT));
@@ -1616,12 +1829,6 @@
       feedbackBtn.setAttribute("aria-pressed", wasPressed ? "false" : "true");
       return;
     }
-    const nav = event.target.closest("[data-agentic-home-nav]");
-    if (nav) {
-      event.preventDefault();
-      setRouteHash(nav.getAttribute("data-agentic-home-nav"));
-      return;
-    }
     const retryBtn = event.target.closest("[data-agentic-retry]");
     if (retryBtn) {
       event.preventDefault();
@@ -1634,10 +1841,15 @@
       }
       return;
     }
-    const prompt = event.target.closest("[data-agentic-home-prompt], [data-agentic-thread-prompt]");
+    if (window.KNNextActions?.handleClick?.(event, {
+      onPrompt: (query) => askInline(query)
+    })) {
+      return;
+    }
+    const prompt = event.target.closest("[data-agentic-thread-prompt]");
     if (prompt) {
       event.preventDefault();
-      askInline(prompt.getAttribute("data-agentic-home-prompt") || prompt.getAttribute("data-agentic-thread-prompt"));
+      askInline(prompt.getAttribute("data-agentic-thread-prompt"));
       return;
     }
     const unavailable = event.target.closest("[data-agentic-home-unavailable]");
@@ -1690,18 +1902,17 @@
   }
 
   function handleSubmit(event) {
-    const homeForm = event.target.closest("#agentic-home-form");
     const threadForm = event.target.closest("#agentic-thread-form");
-    if (!homeForm && !threadForm) {
+    if (!threadForm) {
       return;
     }
     event.preventDefault();
     if (isAsking) {
       return;
     }
-    const form = homeForm || threadForm;
+    const form = threadForm;
     const root = composerRoot(form);
-    const input = homeForm ? document.getElementById("agentic-home-input") : document.getElementById("agentic-thread-input");
+    const input = document.getElementById("agentic-thread-input");
     const question = (input?.value || "").trim();
     const files = composerState(root).files.slice();
     if (isComposerSubmitDisabled(root)) {
@@ -1722,9 +1933,7 @@
     }
     const readyFiles = files.filter((file) => file.status === "success");
     clearComposerFiles(root);
-    if (input?.id === "agentic-home-input" || input?.id === "agentic-thread-input") {
-      syncGhostSuggestion();
-    }
+    syncGhostSuggestion();
     askInline(question, readyFiles);
   }
 
@@ -1740,7 +1949,7 @@
   }
 
   function handleInput(event) {
-    const input = event.target.closest("#agentic-home-input, #agentic-thread-input");
+    const input = event.target.closest("#agentic-thread-input");
     if (!input) {
       return;
     }
@@ -1762,7 +1971,7 @@
   }
 
   function handleComposerPaste(event) {
-    const field = event.target.closest("#agentic-home-input, #agentic-thread-input");
+    const field = event.target.closest("#agentic-thread-input");
     if (!field) {
       return;
     }
@@ -1810,6 +2019,7 @@
   function init() {
     renderCards();
     renderChatGroups();
+    initThreadGhost();
     window.addEventListener("kn-thread-store-change", () => {
       activeThreadId = readActiveThreadId();
       renderChatGroups();
@@ -1833,8 +2043,25 @@
 
   function sync() {
     syncGreeting();
+    renderCards();
     window.KNAgenticSpark?.sync?.(true);
     if (!wasOnPage) {
+      activeThreadId = readActiveThreadId();
+      const handoff = consumeExpandHandoff();
+      if (handoff?.threadId) {
+        activeThreadId = handoff.threadId;
+        writeActiveThreadId(activeThreadId);
+        const store = readThreadStore();
+        const thread = findThread(store, handoff.threadId);
+        if (thread?.messages?.length) {
+          restoreThread(thread);
+        } else {
+          openExpandedPanelThread(handoff, thread);
+        }
+        renderChatGroups();
+        wasOnPage = true;
+        return;
+      }
       const store = readThreadStore();
       const live = activeThreadId ? findThread(store, activeThreadId) : null;
       if (live?.messages?.length) {
@@ -1857,5 +2084,5 @@
     window.KNAgenticSpark?.sync?.(false);
   }
 
-  window.KNAgenticBroker = { init, sync, suspend, newChat, openHistoryChat, playRecipe: playSparkRecipe };
+  window.KNAgenticBroker = { init, sync, suspend, newChat, openHistoryChat, playRecipe: playSparkRecipe, historyEntries };
 })();

@@ -83,12 +83,6 @@
   function toast(content, color = "positive") {
     if (typeof window.showKnToast === "function") window.showKnToast({ content, color });
   }
-  function iconCopy() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`;
-  }
-  function iconTrash() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`;
-  }
   function statusBadge(label, tone) {
     return window.KNAdminUX.tmStatusBadge(label, tone);
   }
@@ -287,21 +281,12 @@
     return window.KNAdminUX.select({ ...opts, open: state.selectOpen });
   }
 
-  function rowActions(id, label, prefix) {
-    const ux = window.KNAdminUX;
-    return `<div class="user-row-actions">
-      <button class="icon-btn" type="button" data-${prefix}-copy="${escapeHtml(id)}" aria-label="Copy ${escapeHtml(label)}" data-tooltip="Copy">${iconCopy()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-delete="${escapeHtml(id)}" aria-label="Delete ${escapeHtml(label)}" data-tooltip="Delete">${iconTrash()}</button>
-      ${ux.moreMenu({ id, open: state.menuOpen === id, items: [{ label: "View history", attr: `data-${prefix}-history="${escapeHtml(id)}"` }] })}
-    </div>`;
-  }
-
   function skeletonTable(cols, label) {
     const ux = window.KNAdminUX;
-    const heads = Array.from({ length: cols }, (_, i) => `<th scope="col">${i === cols - 1 ? "Actions" : "…"}</th>`).join("");
-    return `<div class="vis-table-wrap role-table-card" aria-busy="true">
+    const heads = Array.from({ length: cols }, (_, i) => (i === 0 ? ux.actionsColHeader() : `<th scope="col">…</th>`)).join("");
+    return `<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table" aria-label="${escapeHtml(label)}">
+        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="${escapeHtml(label)}">
           <thead><tr class="vis-table__labels">${heads}</tr></thead>
           <tbody>${ux.tableSkeletonRows({ cols, rows: 8 })}</tbody>
         </table>
@@ -325,6 +310,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-ftz-id="${escapeHtml(row.id)}" tabindex="0">
+          <td>${ux.tmAdminRowActions({ id: row.id, label: row.transactionId, prefix: "ftz", menuOpen: state.menuOpen === row.id })}</td>
           <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-ftz-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.zoneId)}">${escapeHtml(row.zoneId)}</span></td>
@@ -337,16 +323,16 @@
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.hbl)}">${escapeHtml(row.hbl)}</span></td>
           <td class="type-body-sm" title="${escapeHtml(row.countryExport)}">${escapeHtml(row.countryExport)}</td>
           <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(row.filingDate)}</td>
-          <td>${rowActions(row.id, row.transactionId, "ftz")}</td>
         </tr>`
           )
           .join("")
-      : `<tr class="role-empty-row"><td colspan="13">${ux.emptyState({
+      : ux.tmTableEmptyRow({
+          colspan: 13,
           title: "No FTZ filings found matching your search",
           description: "Clear filters or switch status chips to see zone admissions.",
           secondaryLabel: "Clear filters",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
     return `${ux.toolbar({
       chips: [
         { id: "all", label: "All", count: counts.all, selected: chip === "all" },
@@ -357,11 +343,12 @@
       ],
       results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}.`
     })}
-    <div class="vis-table-wrap role-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table" aria-label="US FTZ transactions">
+        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="US FTZ transactions">
           <thead>
             <tr class="vis-table__labels">
+              ${ux.actionsColHeader()}
               ${sortHeader("transactionId", "Transaction ID", "data-ftz-sort")}
               ${sortHeader("companyName", "Company Name", "data-ftz-sort")}
               ${sortHeader("zoneId", "Zone ID", "data-ftz-sort")}
@@ -374,9 +361,9 @@
               ${sortHeader("hbl", "HBL", "data-ftz-sort")}
               ${sortHeader("countryExport", "Country of Export", "data-ftz-sort")}
               ${sortHeader("filingDate", "Filing Date", "data-ftz-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
+              ${ux.emptyColFilter()}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "zoneId", value: state.txn.filters.zoneId, label: "zone ID" })}
@@ -415,7 +402,6 @@
               ${ux.colFilter({ attr: "data-ftz-filter", key: "hbl", value: state.txn.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "countryExport", value: state.txn.filters.countryExport, label: "country of export" })}
               ${ux.colFilter({ attr: "data-ftz-filter", key: "filingDate", value: state.txn.filters.filingDate, label: "filing date" })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -462,6 +448,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-ftz-ship-id="${escapeHtml(row.id)}" tabindex="0">
+          <td>${ux.tmAdminRowActions({ id: row.id, label: row.shipmentId, prefix: "ftz-ship", menuOpen: state.menuOpen === row.id })}</td>
           <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-ftz-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="admin-table-nowrap">${statusBadge(row.shipmentState, row.stateTone)}</td>
@@ -470,16 +457,16 @@
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.mbl)}">${escapeHtml(row.mbl)}</span></td>
           <td class="type-body-sm"><span class="code" title="${escapeHtml(row.hbl)}">${escapeHtml(row.hbl)}</span></td>
           <td class="type-body-sm" title="${escapeHtml(row.countryExport)}">${escapeHtml(row.countryExport)}</td>
-          <td>${rowActions(row.id, row.shipmentId, "ftz-ship")}</td>
         </tr>`
           )
           .join("")
-      : `<tr class="role-empty-row"><td colspan="9">${ux.emptyState({
+      : ux.tmTableEmptyRow({
+          colspan: 9,
           title: "No FTZ shipments found matching your search",
           description: "Clear filters or switch status chips to see shipments.",
           secondaryLabel: "Clear filters",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
     return `${ux.toolbar({
       chips: [
         { id: "allActive", label: "All Active", count: counts.allActive, selected: chip === "allActive" },
@@ -489,11 +476,12 @@
       ],
       results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}.`
     })}
-    <div class="vis-table-wrap role-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table" aria-label="US FTZ shipments">
+        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="US FTZ shipments">
           <thead>
             <tr class="vis-table__labels">
+              ${ux.actionsColHeader()}
               ${sortHeader("shipmentId", "Shipment ID", "data-ftz-ship-sort")}
               ${sortHeader("companyName", "Company Name", "data-ftz-ship-sort")}
               ${sortHeader("shipmentState", "Shipment State", "data-ftz-ship-sort")}
@@ -502,9 +490,9 @@
               ${sortHeader("mbl", "MBL", "data-ftz-ship-sort")}
               ${sortHeader("hbl", "HBL", "data-ftz-ship-sort")}
               ${sortHeader("countryExport", "Country of Export", "data-ftz-ship-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
+              ${ux.emptyColFilter()}
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
               ${ux.colKnSelect({
@@ -538,7 +526,6 @@
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "mbl", value: state.ship.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "hbl", value: state.ship.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-ftz-ship-filter", key: "countryExport", value: state.ship.filters.countryExport, label: "country of export" })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>

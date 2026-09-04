@@ -64,6 +64,13 @@
     return `Updated ${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)}`;
   }
 
+  function coverageSummary(selected, total) {
+    const count = Array.isArray(selected) ? selected.length : selected?.size || 0;
+    const max = Math.max(1, total || 0);
+    const pct = Math.round((count / max) * 100);
+    return `${count}/${max} permissions (${pct}%)`;
+  }
+
   function coverage(selected, total) {
     const count = Array.isArray(selected) ? selected.length : selected?.size || 0;
     const max = Math.max(1, total || 0);
@@ -186,6 +193,127 @@
     return `<th scope="col" aria-hidden="true"></th>`;
   }
 
+  /** TM tables: Actions column header (always first column). */
+  function actionsColHeader() {
+    return `<th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>`;
+  }
+
+  /**
+   * Klear360 Table — shared TM row-action icons (same SVG for same use case everywhere).
+   * Mirrors packages/klear360 Table hoverActions + IconButton patterns.
+   */
+  const tmTableIcons = {
+    eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    createTxn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>`,
+    doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>`,
+    intake: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a4 4 0 0 1 4 4v7"/></svg>`,
+    list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="6" r="1"/><path d="M9 6h11"/><circle cx="4" cy="12" r="1"/><path d="M9 12h11"/><circle cx="4" cy="18" r="1"/><path d="M9 18h11"/></svg>`,
+    pencil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
+    refresh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>`,
+    do: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 12h8"/><path d="M8 16h6"/></svg>`,
+    copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`,
+    delete: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`
+  };
+
+  const TM_ACTION_DEFS = {
+    viewShipment: { icon: "eye", suffix: "view", tooltip: "View Shipment", aria: (label) => `View shipment ${label}` },
+    createTransaction: { icon: "createTxn", suffix: "create", tooltip: "Create Transaction", aria: (label) => `Create transaction for ${label}` },
+    viewDocuments: { icon: "doc", suffix: "document", tooltip: "View Documents", aria: (label) => `View documents for ${label}` },
+    moveToIntake: { icon: "intake", suffix: "intake", tooltip: "Move Back to Intake", aria: (label) => `Move ${label} back to intake` },
+    moveToInbox: { icon: "intake", suffix: "inbox", tooltip: "Move back to Inbox", aria: (label) => `Move ${label} back to inbox` },
+    viewTransaction: { icon: "eye", suffix: "history", tooltip: "View Transaction", aria: (label) => `View transaction ${label}` },
+    editTransaction: { icon: "pencil", suffix: "open", tooltip: "Edit Transaction", aria: (label) => `Edit transaction ${label}` },
+    updateStatus: { icon: "refresh", suffix: "refresh", tooltip: "Update Transaction Status", aria: (label) => `Update transaction status for ${label}` },
+    changeStatus: { icon: "refresh", suffix: "status", tooltip: "Change Status", aria: (label) => `Change status for ${label}` },
+    viewDO: { icon: "do", suffix: "do", tooltip: "View DO", aria: (label) => `View DO for ${label}` },
+    copy: { icon: "copy", suffix: "copy", tooltip: "Copy", aria: (label) => `Copy ${label}` },
+    delete: { icon: "delete", suffix: "delete", tooltip: "Delete", aria: (label) => `Delete ${label}` }
+  };
+
+  function tmActionButton({ id, label, prefix, actionKey }) {
+    const def = TM_ACTION_DEFS[actionKey];
+    if (!def) {
+      return "";
+    }
+    const safeId = escapeHtml(id);
+    const safeLabel = escapeHtml(label);
+    return `<button class="icon-btn icon-btn--on-surface" type="button" data-${prefix}-${def.suffix}="${safeId}" aria-label="${escapeHtml(def.aria(label))}" data-tooltip="${def.tooltip}">${tmTableIcons[def.icon]}</button>`;
+  }
+
+  /** Standard TM row-actions cell — actions always first column, icons always visible. */
+  function tmRowActionsCell({ id, label, prefix, actions = [], moreMenu: menuOpts } = {}) {
+    const buttons = actions.map((key) => tmActionButton({ id, label, prefix, actionKey: key })).join("");
+    const menu = menuOpts ? moreMenu(menuOpts) : "";
+    return `<div class="user-row-actions tm-row-actions">${buttons}${menu}</div>`;
+  }
+
+  /** Shipment tab: View / Create / Docs / Intake (ISF, In-Bond, etc.). */
+  function tmShipRowActions({ id, label, prefix }) {
+    return tmRowActionsCell({
+      id,
+      label,
+      prefix,
+      actions: ["viewShipment", "createTransaction", "viewDocuments", "moveToIntake"]
+    });
+  }
+
+  /** Transaction tab: optional View DO, then View / Edit / Docs, optional Update Status. */
+  function tmTxnRowActions({ id, label, prefix, viewDO = false, statusUpdate = false } = {}) {
+    const actions = [];
+    if (viewDO) actions.push("viewDO");
+    actions.push("viewTransaction", "editTransaction", "viewDocuments");
+    if (statusUpdate) actions.push("updateStatus");
+    return tmRowActionsCell({ id, label, prefix, actions });
+  }
+
+  /** Shipment tab with document-only action (Entry, PSC ship tables). */
+  function tmDocOnlyRowActions({ id, label, prefix }) {
+    return tmRowActionsCell({ id, label, prefix, actions: ["viewDocuments"] });
+  }
+
+  /** Admin-style row actions: Copy / Delete / kebab (FTZ, DO, Shipments). */
+  function tmAdminRowActions({ id, label, prefix, menuOpen = false, historyLabel = "View history" } = {}) {
+    return tmRowActionsCell({
+      id,
+      label,
+      prefix,
+      actions: ["copy", "delete"],
+      moreMenu: {
+        id,
+        open: menuOpen,
+        items: [{ label: historyLabel, attr: `data-${prefix}-history="${escapeHtml(id)}"` }]
+      }
+    });
+  }
+
+  /**
+   * Klear360 Table class list for TM pages.
+   * @param {object} opts
+   * @param {boolean} [opts.stickyCompany] — sticky col 3 when Company Name is column 3
+   * @param {1|3|4|5} [opts.actionCount] — sticky actions column width preset
+   * @param {string} [opts.extra] — page-specific class (e.g. isf-table, entry-table)
+   */
+  function tmTableClasses({ stickyCompany = false, actionCount = 3, extra = "" } = {}) {
+    const parts = ["vis-table", "vis-table--admin", "tm-table"];
+    if (stickyCompany) parts.push("tm-table--sticky-company");
+    if (actionCount) parts.push(`tm-table--actions-${actionCount}`);
+    if (extra) parts.push(extra);
+    return parts.filter(Boolean).join(" ");
+  }
+
+  /** Standard TM table shell (toolbar lives outside; pass thead/tbody HTML). */
+  function tmTableShell({ ariaLabel, tableClass, thead = "", tbody = "", busy = false, cardClass = "" } = {}) {
+    const cardCls = ["vis-table-wrap", "role-table-card", "kn-table-surface", cardClass].filter(Boolean).join(" ");
+    return `<div class="${cardCls}"${busy ? ' aria-busy="true"' : ""}>
+      <div class="vis-table-scroll kn-table-scroll">
+        <table class="${tableClass}" aria-label="${escapeHtml(ariaLabel)}">
+          ${thead}
+          ${tbody}
+        </table>
+      </div>
+    </div>`;
+  }
+
   const TM_COL_FILTER_ATTRS = [
     "data-user-filter",
     "data-role-filter",
@@ -196,6 +324,8 @@
     "data-inb-ship-filter",
     "data-entry-filter",
     "data-entry-ship-filter",
+    "data-export-filter",
+    "data-export-ship-filter",
     "data-ftz-filter",
     "data-ftz-ship-filter",
     "data-psc-filter",
@@ -279,7 +409,9 @@
     if (!resolved) {
       if (/accepted|replace accepted|completed|complete|filed|intranet|published|doc generated|positive/i.test(text)) {
         resolved = "positive";
-      } else if (/pending|in process|in progress|hold|not created|fin bill|notice/i.test(text)) {
+      } else if (/^sent$|^new$|^ready$/i.test(text)) {
+        resolved = "information";
+      } else if (/pending|in process|in progress|hold|not created|fin bill|no bill|success|notice/i.test(text)) {
         resolved = "notice";
       } else if (/error|reject|negative/i.test(text)) {
         resolved = "negative";
@@ -397,19 +529,90 @@
     </div>`;
   }
 
-  function moreMenu({ id, open, items }) {
+  function moreMenu({ id, open, items, align = "end" }) {
     const dots =
       '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="8" cy="13" r="1.25"/></svg>';
-    return `<div class="vis-menu vis-menu--end kn-dropdown admin-more">
+    const alignClass = align === "start" ? "" : " vis-menu--end";
+    return `<div class="vis-menu kn-dropdown admin-more${alignClass}">
       <button class="icon-btn" type="button" data-admin-more-toggle="${escapeHtml(id)}" aria-haspopup="menu" aria-expanded="${open}" aria-label="More actions">${dots}</button>
       <div class="menu-overlay vis-menu__list kn-dropdown__overlay" ${open ? "" : "hidden"} role="menu">
         ${(items || [])
           .map(
             (item) => `<button class="kn-action-list__item action-list-item type-ui-sm${item.tone === "negative" ? " is-negative" : ""}" type="button" role="menuitem" ${item.attr}>
-              <span>${escapeHtml(item.label)}</span>
+              ${item.icon ? `<span class="action-list-item__icon kn-action-list__leading" aria-hidden="true">${item.icon}</span>` : ""}
+              <span${item.icon ? ' class="action-list-item__copy kn-action-list__copy"' : ""}>${escapeHtml(item.label)}</span>
             </button>`
           )
           .join("")}
+      </div>
+    </div>`;
+  }
+
+  /** Entry transaction row — inline icons (Change Status, View DO, View Transaction, Edit, Docs). */
+  function tmEntryTxnRowActions({ id, label, prefix = "entry" }) {
+    return tmRowActionsCell({
+      id,
+      label,
+      prefix,
+      actions: ["changeStatus", "viewDO", "viewTransaction", "editTransaction", "viewDocuments"]
+    });
+  }
+
+  /** Entry shipment row — inline icons (View Shipment, View Documents, Move back to Inbox). */
+  function tmEntryShipRowActions({ id, label, prefix = "entry-ship" }) {
+    return tmRowActionsCell({
+      id,
+      label,
+      prefix,
+      actions: ["viewShipment", "viewDocuments", "moveToInbox"]
+    });
+  }
+
+  /** PSC shipment row — inline icons (View Shipment, Create Transaction, View Documents). */
+  function tmPscShipRowActions({ id, label, prefix = "psc-ship" }) {
+    return tmRowActionsCell({
+      id,
+      label,
+      prefix,
+      actions: ["viewShipment", "createTransaction", "viewDocuments"]
+    });
+  }
+
+  /** Delivery Order shipment row — inline icons (View Shipment, View DO, View Documents). */
+  function tmDoShipRowActions({ id, label, prefix = "do-ship" }) {
+    return tmRowActionsCell({
+      id,
+      label,
+      prefix,
+      actions: ["viewShipment", "viewDO", "viewDocuments"]
+    });
+  }
+
+  function chevronDownIcon() {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>`;
+  }
+
+  /**
+   * Klear360 Dropdown + DropdownButton + ActionList — bulk actions toolbar control.
+   * Primary trigger with chevron so users know a menu opens on click.
+   */
+  function tmBulkActionsDropdown({ id, label = "Bulk Actions", open = false, items = [], align = "end" } = {}) {
+    const alignClass = align === "start" ? "" : " kn-dropdown--end vis-menu--end";
+    const menuItems = (items || [])
+      .map(
+        (item) => `<button class="kn-action-list__item action-list-item type-ui-sm${item.tone === "negative" ? " is-negative" : ""}" type="button" role="menuitem" ${item.attr}>
+          ${item.icon ? `<span class="action-list-item__icon kn-action-list__leading" aria-hidden="true">${item.icon}</span>` : ""}
+          <span${item.icon ? ' class="action-list-item__copy kn-action-list__copy"' : ""}>${escapeHtml(item.label)}</span>
+        </button>`
+      )
+      .join("");
+    return `<div class="vis-menu kn-dropdown tm-bulk-dropdown${alignClass}">
+      <button class="btn btn--primary btn--sm type-ui-sm kn-btn kn-dropdown-btn" type="button" data-tm-bulk-toggle="${escapeHtml(id)}" aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}" aria-controls="${escapeHtml(id)}-menu">
+        <span class="kn-dropdown-btn__label">${escapeHtml(label)}</span>
+        <span class="kn-btn__icon kn-dropdown-btn__chevron" aria-hidden="true">${chevronDownIcon()}</span>
+      </button>
+      <div class="menu-overlay vis-menu__list kn-dropdown__overlay" id="${escapeHtml(id)}-menu" ${open ? "" : "hidden"} role="menu">
+        ${menuItems}
       </div>
     </div>`;
   }
@@ -424,6 +627,22 @@
       return true;
     }
     if (event.target.closest(".admin-more .vis-menu__list")) {
+      setOpen("");
+      return false;
+    }
+    return false;
+  }
+
+  function handleBulkActionsClick(event, { open, setOpen }) {
+    const toggle = event.target.closest("[data-tm-bulk-toggle]");
+    if (toggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = toggle.getAttribute("data-tm-bulk-toggle") || "";
+      setOpen(open === key ? "" : key);
+      return true;
+    }
+    if (event.target.closest(".tm-bulk-dropdown .vis-menu__list")) {
       setOpen("");
       return false;
     }
@@ -715,17 +934,34 @@
     return disabled ? `disabled aria-disabled="true"` : `aria-disabled="false"`;
   }
 
+  function roleMetaPreview({ items } = {}) {
+    const visible = (items || []).filter((item) => item?.value);
+    if (!visible.length) {
+      return "";
+    }
+    return `<p class="role-meta__preview type-caption-sm">${visible
+      .map((item, index) => {
+        const sep =
+          index > 0 ? `<span class="role-meta__preview-sep" aria-hidden="true">·</span>` : "";
+        return `${sep}<span class="role-meta__preview-item"><span class="role-meta__preview-label">${escapeHtml(item.label)}</span><span class="role-meta__preview-value">${escapeHtml(item.value)}</span></span>`;
+      })
+      .join("")}</p>`;
+  }
+
   function roleMetaLine({
     detailsOpen,
     detailsId,
     detailsHtml,
-    toggleAttr
+    toggleAttr,
+    previewItems
   }) {
-    // Owner / updated / people / coverage live in the Details panel — avoid a dense always-on meta strip.
+    // Preview hint only when collapsed — expanded panel repeats owner / updated / coverage.
     const open = Boolean(detailsOpen);
     const panelId = detailsId || "role-meta-details";
-    return `<div class="role-meta">
+    const previewHtml = open ? "" : roleMetaPreview({ items: previewItems });
+    return `<div class="role-meta${open ? " is-details-open" : ""}">
       <div class="role-meta__bar">
+        ${previewHtml}
         <button class="kn-link type-caption-sm role-meta__details-btn" type="button" ${toggleAttr || "data-admin-details-toggle"} aria-expanded="${open}" aria-controls="${escapeHtml(panelId)}">${open ? "Hide details" : "Details"}</button>
       </div>
       <div class="role-meta__panel" id="${escapeHtml(panelId)}" ${open ? "" : "hidden"}>
@@ -885,7 +1121,7 @@
   }
 
   function permFilters({ query, selectedOnly, aiDescribe, aiLoading, aiNoMatch, aiAttr, totalCount, selectedCount, placeholder, prompts, inputMode = "describe" }) {
-    const assistantMark = `<img class="ai-describe-icon klear-assistant-mark" src="./assets/klear-assistant-mark.png" alt="" width="18" height="18" aria-hidden="true" />`;
+    const assistantMark = `<svg class="ai-describe-icon klear-assistant-mark" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`;
     const searchIcon = `<svg class="search-input__svg-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15"><circle cx="6.5" cy="6.5" r="4"/><path d="M10.5 10.5 L14 14"/></svg>`;
     const attr = escapeHtml(aiAttr || "role");
     const searchOpen = inputMode === "search";
@@ -1274,6 +1510,19 @@
     </div>`;
   }
 
+  function permBrowserColumnHead(actionLabels = {}) {
+    const order = ["create", "update", "delete", "read"];
+    const fallback = { create: "Create", update: "Update", delete: "Delete", read: "Read" };
+    return `<div class="role-perm-browser__head" aria-hidden="true">
+      <span class="role-perm-browser__head-label type-caption-sm">Permission</span>
+      <div class="role-perm-browser__head-actions">
+        ${order
+          .map((key) => `<span class="type-caption-sm">${escapeHtml(actionLabels[key] || fallback[key] || key)}</span>`)
+          .join("")}
+      </div>
+    </div>`;
+  }
+
   function unusedCategoriesBlock({ count, open, body, suffix = "role", label }) {
     const panelId = `kn-acc-unused-${escapeHtml(suffix)}`;
     const btnId = `${panelId}-btn`;
@@ -1538,7 +1787,37 @@
     return `<span class="type-body-sm admin-multi-value" data-tooltip="${escapeHtml(list.join(", "))}">${escapeHtml(visible.join(", "))}, <span class="admin-multi-value__more">+${hidden}</span></span>`;
   }
 
-  function emptyState({ title, description, primaryLabel, primaryHref, primaryAttr, secondaryLabel, secondaryAttr }) {
+  /**
+   * Klear360 EmptyState — canonical HTML (packages/klear360/src/components/EmptyState).
+   * Sizes: small | medium | large | xlarge (default medium).
+   * Table contexts use size "small" via tmTableEmptyRow / emptyState.
+   */
+  function knEmptyAssetIcon(type = "search") {
+    const icons = {
+      search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
+      list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="6" r="1"/><path d="M9 6h11"/><circle cx="4" cy="12" r="1"/><path d="M9 12h11"/><circle cx="4" cy="18" r="1"/><path d="M9 18h11"/></svg>`,
+      noData: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>`
+    };
+    const svg = icons[type] || icons.search;
+    return `<div class="kn-empty__asset" aria-hidden="true">${svg}</div>`;
+  }
+
+  function knEmptyState({
+    title,
+    description,
+    size = "medium",
+    asset,
+    assetIcon,
+    showAsset = true,
+    primaryLabel,
+    primaryHref,
+    primaryAttr,
+    secondaryLabel,
+    secondaryAttr,
+    className = ""
+  } = {}) {
+    const sizeClass = size ? `kn-empty--${size}` : "";
+    const assetHtml = asset || (showAsset && assetIcon !== false ? knEmptyAssetIcon(assetIcon || "search") : "");
     const secondary = secondaryLabel
       ? `<button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" ${secondaryAttr || ""}>${escapeHtml(secondaryLabel)}</button>`
       : "";
@@ -1547,13 +1826,70 @@
         ? `<a class="btn btn--primary btn--md type-ui-md kn-btn" href="${escapeHtml(primaryHref)}" ${primaryAttr || ""}>${escapeHtml(primaryLabel)}</a>`
         : `<button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" ${primaryAttr || ""}>${escapeHtml(primaryLabel)}</button>`
       : "";
-    return `<div class="empty-state role-empty kn-empty">
-      <div class="kn-empty__copy">
-      <h2 class="kn-empty__title type-heading-h5 type-weight-semibold">${escapeHtml(title)}</h2>
-      <p class="kn-empty__desc type-body-sm">${escapeHtml(description)}</p>
-      </div>
-      <div class="kn-empty__actions empty-state__actions">${secondary}${primary}</div>
-    </div>`;
+    const actions = secondary || primary
+      ? `<div class="kn-empty__actions empty-state__actions">${secondary}${primary}</div>`
+      : "";
+    const titleHtml = title
+      ? `<h2 class="kn-empty__title type-heading-sm type-weight-semibold">${escapeHtml(title)}</h2>`
+      : "";
+    const descHtml = description
+      ? `<p class="kn-empty__desc type-body-sm">${escapeHtml(description)}</p>`
+      : "";
+    const copy = titleHtml || descHtml ? `<div class="kn-empty__copy">${titleHtml}${descHtml}</div>` : "";
+    return `<div class="kn-empty empty-state ${sizeClass} role-empty ${className}" role="status">${assetHtml}${copy}${actions}</div>`;
+  }
+
+  /** @deprecated Prefer knEmptyState — kept for admin list tables (user/role management). */
+  function emptyState(opts = {}) {
+    return knEmptyState({
+      size: "small",
+      assetIcon: opts.primaryLabel ? "list" : "search",
+      ...opts
+    });
+  }
+
+  /** Klear360 Table inline empty — muted copy when dataset has zero rows (surface.text.gray.subtle). */
+  function tableNoResults(message = "No results found") {
+    return `<span class="type-body-sm kn-table-no-results">${escapeHtml(message)}</span>`;
+  }
+
+  /**
+   * Universal TM / admin table empty row.
+   * mode "inline" — zero-row table body (left-aligned "No results found").
+   * mode "empty-state" — filtered/chip search returned zero rows (Klear360 EmptyState small, centered).
+   */
+  function tmTableEmptyRow({
+    colspan,
+    mode = "empty-state",
+    title,
+    description,
+    message = "No results found",
+    size = "small",
+    assetIcon = "search",
+    primaryLabel,
+    primaryHref,
+    primaryAttr,
+    secondaryLabel,
+    secondaryAttr
+  } = {}) {
+    if (mode === "inline") {
+      return `<tr class="role-empty-row role-empty-row--table" aria-live="polite">
+        <td colspan="${colspan}">${tableNoResults(message)}</td>
+      </tr>`;
+    }
+    return `<tr class="role-empty-row" aria-live="polite">
+      <td colspan="${colspan}">${knEmptyState({
+        title,
+        description,
+        size,
+        assetIcon,
+        primaryLabel,
+        primaryHref,
+        primaryAttr,
+        secondaryLabel,
+        secondaryAttr
+      })}</td>
+    </tr>`;
   }
 
   let navigationLock = 0;
@@ -1588,7 +1924,10 @@
     if (navigationLock > 0) {
       return true;
     }
-    const current = (location.hash || "#dashboard").split("?")[0];
+    const current =
+      typeof window.getHashPath === "function"
+        ? window.getHashPath()
+        : (location.hash || "#dashboard").split("?")[0];
     const next = String(nextHash || "").split("?")[0];
     if (!next || next === current) {
       return true;
@@ -2080,6 +2419,7 @@
     relativeTime,
     formatMetaDate,
     coverage,
+    coverageSummary,
     search,
     chips,
     insight,
@@ -2088,6 +2428,16 @@
     colSelect,
     colKnSelect,
     emptyColFilter,
+    actionsColHeader,
+    tmTableIcons,
+    tmActionButton,
+    tmRowActionsCell,
+    tmShipRowActions,
+    tmTxnRowActions,
+    tmDocOnlyRowActions,
+    tmAdminRowActions,
+    tmTableClasses,
+    tmTableShell,
     captureColFilterFocus,
     restoreColFilterFocus,
     personCell,
@@ -2099,6 +2449,10 @@
     confirmModal,
     modalShell,
     emptyState,
+    knEmptyState,
+    knEmptyAssetIcon,
+    tableNoResults,
+    tmTableEmptyRow,
     statusBadge,
     tmStatusBadge,
     ellipsisCell,
@@ -2107,9 +2461,16 @@
     pagination,
     moreMenu,
     handleMoreClick,
+    tmBulkActionsDropdown,
+    handleBulkActionsClick,
+    tmEntryTxnRowActions,
+    tmEntryShipRowActions,
+    tmPscShipRowActions,
+    tmDoShipRowActions,
     sortHeader,
     multiSelect,
     accordionItem,
+    permBrowserColumnHead,
     unusedCategoriesBlock,
     resolvePermHeaderControl,
     handleAccordionClick,
@@ -2136,6 +2497,7 @@
     isRoleFormDirty,
     submitButtonAttrs,
     roleMetaLine,
+    roleMetaPreview,
     roleViewEditToggle,
     isHeavyRole,
     aiRoleAssist,

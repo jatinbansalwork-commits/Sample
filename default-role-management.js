@@ -672,8 +672,18 @@
     return `def-role-${Date.now().toString(36)}`;
   }
 
-  function parseRoute(hash = location.hash) {
-    const path = (hash || "#dashboard").split("?")[0];
+  function routeHash(hash) {
+    if (hash != null && hash !== "") {
+      return String(hash).split("?")[0];
+    }
+    if (typeof window.getHashPath === "function") {
+      return window.getHashPath();
+    }
+    return (location.hash || "#dashboard").split("?")[0];
+  }
+
+  function parseRoute(hash) {
+    const path = routeHash(hash);
     if (path === "#default-role-management/add") {
       return { view: "form", id: "", preferEdit: true };
     }
@@ -889,15 +899,17 @@
           </td>
         </tr>`)
           .join("")
-      : `<tr class="role-empty-row"><td colspan="7">${window.KNAdminUX.emptyState({
+      : window.KNAdminUX.tableEmptyRow({
+          colspan: 7,
           title: hasListFilters() ? "No default roles match this view" : "No templates yet",
           description: hasListFilters() ? "Clear filters to see every template, or add a new one." : "Add a template so customers and brokers inherit access.",
+          assetIcon: hasListFilters() ? "search" : "list",
           primaryLabel: "Add Role",
           primaryHref: "#default-role-management/add",
           primaryAttr: 'data-drole-nav="add"',
           secondaryLabel: hasListFilters() ? "Clear filters" : "",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
 
     const all = loadRoles();
     const ux = window.KNAdminUX;
@@ -1060,8 +1072,8 @@
     state.unusedOpen = false;
     state.aiFieldMeta = {
       ...state.aiFieldMeta,
-      ...(nameApplied ? { name: draft.nameReason || "Prefill from Klear Assistant draft" } : {}),
-      ...(partiesCategoryApplied ? { partiesCategory: "Prefill from Klear Assistant draft" } : {})
+      ...(nameApplied ? { name: draft.nameReason || "Prefill from Klear Agent draft" } : {}),
+      ...(partiesCategoryApplied ? { partiesCategory: "Prefill from Klear Agent draft" } : {})
     };
     state.formSnapshot = snapshotForm(state.form);
     state.dirty = isFormDataDirty(state.form);
@@ -1283,7 +1295,6 @@
       open,
       modules: group.modules,
       includesLabel: "Includes:",
-      // Coverage tone stays on the count badge only — not the whole row (avoids peach/notice chrome).
       trailing: `<span class="badge badge--${countTone} type-caption-sm type-weight-medium role-perm__count kn-badge">${selected}/${keys.length}</span>`,
       body: `
         <div class="role-perm__row role-perm__row--head">
@@ -1609,7 +1620,8 @@
               detailsOpen: state.detailsOpen,
               detailsId: "kn-drole-meta-details",
               detailsHtml: renderDetailsGrid(role, inherited),
-              toggleAttr: "data-admin-details-toggle"
+              toggleAttr: "data-admin-details-toggle",
+              previewItems: [{ label: "Created by", value: role.createdBy }].filter((item) => item.value),
             })}
             ${editing ? "" : `<p class="role-access-summary type-body-sm">${escapeHtml(summary)}</p>`}
             ${editing ? "" : renderAccessReadonly(form)}

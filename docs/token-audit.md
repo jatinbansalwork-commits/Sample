@@ -18,7 +18,7 @@ Palette values were **not** changed. This audit corrects **which existing token*
 | Elevation | low / mid / high | |
 | Borders | none / thinner / thin / thick / thicker | No `--theme-border-width-default` |
 | Focus | `--kn-focus-ring` (2px information `#005d7b`) | Box-shadow value, not an `outline` shorthand |
-| AI purple | 50/100/200/400/500/600 | Product decision: keep purple on Klear Assistant / AI-assist. `#6c5dd3` on white = **5.07:1** (AA pass) |
+| AI purple | 50/100/200/400/500/600 | Product decision: keep purple on Klear Agent / AI-assist. `#6c5dd3` on white = **5.07:1** (AA pass) |
 
 ### Ad-hoc in tokens (not KlearNow)
 
@@ -94,7 +94,7 @@ Contrast ratios below are relative-luminance estimates from hex in `tokens.css`.
 | I1 | Side nav, drawers, tables | Inline stroke SVG 24×24 @ 1.75; 16×16 @ 1.5; some `stroke-width="2"` (menu, profile) | One stroke + size scale | Medium | **Flagged for confirmation** before unifying stroke 2 → 1.75 globally |
 | I2 | Quick actions | `assets/quick-actions/*.svg` **filled** raster-style assets vs stroke line-icons elsewhere | Mixed libraries | Medium | **Flagged for confirmation** |
 | I3 | Visibility filter chevron | Data-URI stroke `#6b7280` (not in KN palette) | Palette gray `--kn-primitive-surface-600` `#64748b` | Medium | **Fixed** |
-| I4 | Klear Assistant mark | PNG 18×18 vs SVG 16/20 elsewhere | Confirm AI mark size | Low | **Needs KlearNow clarification** |
+| I4 | Klear Agent mark | PNG 18×18 vs SVG 16/20 elsewhere | Confirm AI mark size | Low | **Needs KlearNow clarification** |
 | I5 | `.vis-mot-cell svg` | `1rem` raw | `--theme-spacing-5` | Low | **Fixed** |
 
 ---
@@ -211,7 +211,7 @@ Scope: `.agentic-home__composer` (landing + thread follow-up, both render the `-
 | AB1 | `.agentic-home__composer:focus-within` box-shadow glow (`0 0 0 3px` purple 22%) | **Fixed** — converted to the outline mechanism: `outline: 4px solid var(--ai-assistant-accent-border); outline-offset: 1px`. Drop-shadow retained, glow ring removed. |
 | AB2 | `.icon-btn.agentic-home__attach`, `.icon-btn.agentic-home__send`, `.agentic-home__error-dismiss`, `.agentic-home-pill`, `.agentic-msg-action` `:focus-visible` — 2px outline (`--kn-border-thicker`), inconsistent 0/1px/2px offsets | **Fixed** — normalized to `outline: 4px solid var(--ai-assistant-accent-border); outline-offset: 1px` on all five. |
 | AB3 | `.agentic-home__composer--lg` / `.agentic-home__composer--lg .agentic-home__input` — toolbar clearance carved out of the textarea's own lopsided bottom padding (`4px`/`0`/`20px`) instead of the container `gap` | **Fixed** — textarea padding now uniform top/bottom (`4px`/`4px`); container `gap` (`4px`→`20px`) now carries the full field-to-toolbar spacing. Structural only — verified pixel-identical rendering via live inline-style A/B toggle (screenshots + `getBoundingClientRect`), both landing and thread composer instances. |
-| AB4 | `.agentic-thread-msg__avatar img` (13px Klear Assistant mark inside a 26px decorative circle) vs KlearNow `Avatar`'s 20px floor | **No change** — documented exempt: decorative glyph, no identity/sender-switching role, not the same semantic component as KlearNow `Avatar`. Comment added at the CSS rule. |
+| AB4 | `.agentic-thread-msg__avatar img` (13px Klear Agent mark inside a 26px decorative circle) vs KlearNow `Avatar`'s 20px floor | **No change** — documented exempt: decorative glyph, no identity/sender-switching role, not the same semantic component as KlearNow `Avatar`. Comment added at the CSS rule. |
 | AB5 | Ghost-suggestion cycle interval — `3200ms` | **Fixed** — `4000ms` (`agentic-broker.js`). |
 | AB6 | `.agentic-home__input` `max-height: 10rem` (160px) | **Fixed** — `12.5rem` (200px). |
 | AB7 | `.agentic-home__ghost-badge` ("Tab to accept" pill) — `1px/7px` padding, `3px` icon-gap, no explicit height | **Fixed** — rebuilt to KlearNow Badge tokens: `height: 16px`, `padding: 0 4px`, `gap: 2px`. |

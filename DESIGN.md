@@ -2,6 +2,8 @@
 
 KlearNow’s product UI is built from a single token set in `tokens.css`, mirrored for JavaScript in `theme.js` and `token-utils.js`. Component CSS uses semantic tokens (`--kn-color-*`, `--theme-spacing-*`, type utilities). Color primitives (`--kn-primitive-*`) are not for component styles.
 
+**Klear Agent product vision, personas, and agent non-negotiables:** [`docs/klear-agent-product.md`](docs/klear-agent-product.md).
+
 Reusable component structure (Accordion through FormGroup, including DatePicker–EmptyState and Fade–FormGroup) lives in `components.css`. Slots, variants, and existing mappings: `docs/components.md`.
 
 ## Color
@@ -16,7 +18,7 @@ Brand hex values are unchanged. Each chromatic family is a 50–1000 shade scale
 | Red | `#fff5f5` 50, `#ffd0ce` 200, `#ff3d32` 500, `#d9342b` 600 | Negative / danger |
 | Green | `#22c55e` 500, `#1da750` 600 | Positive |
 | Gold | `#fef4e6` 50, `#fcddb0` 200, `#e08300` 600 | Notice / warning |
-| Purple | `#f3f1fb` 50 through `#5648b8` 600 | Klear Assistant |
+| Purple | `#f3f1fb` 50 through `#5648b8` 600 | Klear Agent |
 | Bluegray | `#33657c` 400, `#556376` 500 | Muted primary borders / gray-blue chrome |
 | Information | `#d0e1fd` 100 | Information washes |
 | Sea | `#e6ecef` 50 | Sea / on-dark subtle text |
@@ -103,6 +105,10 @@ base 0 · xs 320 · s 480 · m 768 · l 1024 · xl 1200. Mobile is below `m`; de
 - `theme.js` — KlearNow Theme (`applyKnThemeToDocument` / `KNTheme`: attributes + rem scale sync; skips display family and type sizes)
 - `token-utils.js` — `makeSpace`, `makeSize`, `makeTypographySize`, `makeBorderSize`, `makeMotionTime`, `makeLetterSpacing`, `getMediaQuery`
 - `breakpoints.js` — Theme platform matching (`data-matched-breakpoint` / `data-matched-device-type`)
+
+## Scrollbars (product rule)
+
+**Never show native scrollbar sliders.** Product-wide CSS hides scrollbar chrome while preserving overflow scroll (`scrollbar-width: none`, `-ms-overflow-style: none`, `::-webkit-scrollbar { display: none }` on `*` in `styles.css`). Users scroll via wheel, touch, or trackpad only. Do not add visible scrollbar styling, `scrollbar-width: thin`, custom `::-webkit-scrollbar-thumb`, or `scrollbar-gutter: stable` anywhere in the product.
 
 ## Spark empty Assist (locked)
 

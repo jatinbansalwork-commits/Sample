@@ -29,6 +29,19 @@ http.createServer((req, res) => {
   }
   fs.readFile(filePath, (err, data) => {
     if (err) {
+      const isSpaRoute = !path.extname(urlPath);
+      if (isSpaRoute) {
+        fs.readFile(path.join(root, 'index.html'), (indexErr, indexData) => {
+          if (indexErr) {
+            res.writeHead(404);
+            res.end('Not found');
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': types['.html'], 'Cache-Control': 'no-store' });
+          res.end(indexData);
+        });
+        return;
+      }
       res.writeHead(404);
       res.end('Not found');
       return;

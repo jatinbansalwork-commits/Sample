@@ -334,17 +334,19 @@ function badgeClass(tone) {
 }
 
 function renderVisEmpty() {
-    return `
-    <div class="empty-state vis-empty-state kn-empty">
-      <div class="kn-empty__copy">
-      <h2 class="kn-empty__title type-heading-h5 type-weight-semibold">No shipments match</h2>
-      <p class="kn-empty__desc type-body-sm">Try another MOT, direction, or search term — or reset filters to see the live list.</p>
-      </div>
-      <div class="kn-empty__actions">
-      <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-vis-reset>Reset filters</button>
-      </div>
-    </div>
-  `;
+  const ux = window.KNAdminUX;
+  if (!ux?.knEmptyState) {
+    return "";
+  }
+  return ux.knEmptyState({
+    title: "No shipments match",
+    description: "Try another MOT, direction, or search term — or reset filters to see the live list.",
+    size: "small",
+    assetIcon: "search",
+    secondaryLabel: "Reset filters",
+    secondaryAttr: "data-vis-reset",
+    className: "vis-empty-state"
+  });
 }
 
 function renderVisCard(item) {
@@ -1499,5 +1501,7 @@ document.addEventListener("click", (event) => {
 });
 
 syncVisFilterLabels();
-renderVisibilityPage({ keepPage: true });
-setVisTab(getInitialVisView(), { persist: false });
+if (!window.KNPageReload?.shouldDeferInitialRender?.()) {
+  renderVisibilityPage({ keepPage: true });
+  setVisTab(getInitialVisView(), { persist: false });
+}

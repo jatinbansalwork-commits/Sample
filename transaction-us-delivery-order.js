@@ -4,15 +4,25 @@
   let lastUpdatedIso = (() => { const d = new Date(); d.setMinutes(d.getMinutes() - 1); return d.toISOString(); })();
   let refreshTimer = null;
 
-  const COMPANIES = ["SAFRAN CABIN CANADA CO","SAFRAN CABIN INC - MARYSVILLE","ICHOR SYSTEMS INC","JOBY AERO, INC","HURST JAWS OF LIFE INC - SMALL","UNITED MACHINING NORTH AMERICA LLC","CAMERON INTERNATIONAL CORPORATION (SUB QC)","ACUITY BRANDS","GLOBAL-PAK","ILLUMINATE USA LLC"];
-  const CARRIERS = ["DHL AIR LIMITED, DO","CARGOJET AIRWAYS LTD.","FXFC","SWISS INTERNATIONAL AIR LINES LTD","STARLUX","FEDEX, FX","CATHAY PACIFIC AIRWAYS LTD., CX"];
-  const ID_MID = ["07BI","07HA","07KC","08LM","09NP","0AQR","0BST","0CUV","0DWX","0EYZ"];
+  const SHIP_SEED_TOTAL = 99;
+  const TXN_SEED_TOTAL = 337;
+  const DO_SHIP_COMPANIES = ["TEST US COMPANY 4", "ENGINE-KN-SHIP-NEILMA-JISWAL032", "SAFRAN CABIN CANADA CO", "ICHOR SYSTEMS INC", "GLOBAL-PAK"];
+  const DO_TXN_COMPANIES = ["PSPD TESTING 9.3", "US COMPANY 1", "TEST US COMPANY 4", "ENGINE-KN-SHIP-NEILMA-JISWAL032", "SAFRAN CABIN CANADA CO", "ICHOR SYSTEMS INC", "GLOBAL-PAK", "ILLUMINATE USA LLC"];
+  const DO_SHIP_STATES = [
+    { chip: "new", label: "NEW", tone: "information" },
+    { chip: "inProgress", label: "IN PROGRESS", tone: "notice" },
+    { chip: "docGenerated", label: "DOC GENERATED", tone: "information" },
+    { chip: "doPublished", label: "DO PUBLISHED", tone: "positive" }
+  ];
+  const OCEAN_CARRIERS = ["CHICAGO EXPRESS", "EVER ELITE", "MAERSK SEALAND", "COSCO SHIPPING", "CMA CGM"];
+  const AIR_CARRIERS = ["CX", "FEDEX, FX", "CATHAY PACIFIC AIRWAYS LTD., CX", "DHL AIR LIMITED, DO", "UNITED PARCEL SERVICE"];
+  const ID_MID = ["608M", "01TU", "058Y", "07BI", "07HA", "07KC", "08LM", "09NP", "0AQR", "0BST", "0CUV", "0DWX"];
 
-  const emptyTxnFilters = () => ({ chip: "recent", transactionId: "", entryNumber: "", companyName: "", shipments: "", mot: "", mbl: "", hbl: "", carrier: "" });
-  const emptyShipFilters = () => ({ chip: "all", shipmentId: "", companyName: "", mbol: "", hbol: "", mot: "" });
+  const emptyTxnFilters = () => ({ chip: "all", transactionId: "", entryNumber: "", companyName: "", shipments: "", mot: "", mbl: "", hbl: "", carrier: "" });
+  const emptyShipFilters = () => ({ chip: "all", shipmentId: "", companyName: "", shipmentState: "", mbol: "", hbol: "", mot: "" });
 
   const state = {
-    view: "transaction",
+    view: "shipment",
     menuOpen: "",
     selectOpen: "",
     booting: false,
@@ -28,8 +38,6 @@
   function escapeHtml(v) { return window.KNAdminUX.escapeHtml(v); }
   function pad(n, w) { return String(n).padStart(w, "0"); }
   function toast(content, color = "positive") { if (typeof window.showKnToast === "function") window.showKnToast({ content, color }); }
-  function iconCopy() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`; }
-  function iconTrash() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`; }
 
   function chipForIndex(i) {
     const r = i % 11;
@@ -40,54 +48,210 @@
     return "active";
   }
 
+  function qatDoTxnBase(overrides = {}) {
+    const mot = overrides.mot || "OCEAN";
+    const isAir = mot === "AIR";
+    return {
+      companyName: "PSPD TESTING 9.3",
+      shipments: "KX-608M-12",
+      mot,
+      mbl: isAir ? "18012345678" : "KAJAB123414",
+      hbl: isAir ? "7845123456" : "H8650121248",
+      carrier: isAir ? "CX" : "CHICAGO EXPRESS",
+      statusChip: "recent",
+      ...overrides
+    };
+  }
+
+  function curatedTxnRows() {
+    return [
+      qatDoTxnBase({
+        id: "do-txn-1",
+        transactionId: "KN-608M-1",
+        entryNumber: "217-01000788",
+        companyName: "PSPD TESTING 9.3",
+        shipments: "KX-608M-12",
+        mot: "OCEAN",
+        mbl: "KAJAB123414",
+        hbl: "H8650121248",
+        carrier: "CHICAGO EXPRESS",
+        statusChip: "recent"
+      }),
+      qatDoTxnBase({
+        id: "do-txn-2",
+        transactionId: "KN-01TU-9",
+        entryNumber: "217-01000789",
+        companyName: "US COMPANY 1",
+        shipments: "NA",
+        mot: "AIR",
+        mbl: "18098765432",
+        hbl: "7845987654",
+        carrier: "CX",
+        statusChip: "active"
+      }),
+      qatDoTxnBase({
+        id: "do-txn-3",
+        transactionId: "KN-058Y-2",
+        entryNumber: "217-01000790",
+        companyName: "TEST US COMPANY 4",
+        shipments: "KX-058Y-105",
+        mot: "OCEAN",
+        mbl: "KAJAB123415",
+        hbl: "H8650121250",
+        carrier: "EVER ELITE",
+        statusChip: "active"
+      }),
+      qatDoTxnBase({
+        id: "do-txn-4",
+        transactionId: "KN-07BI-3",
+        entryNumber: "217-01000791",
+        companyName: "ENGINE-KN-SHIP-NEILMA-JISWAL032",
+        shipments: "KX-07BI-44",
+        mot: "OCEAN",
+        carrier: "MAERSK SEALAND",
+        statusChip: "complete"
+      })
+    ];
+  }
+
+  function generatedTxnRow(i, statusChip) {
+    const mid = ID_MID[i % ID_MID.length];
+    const mot = i % 5 === 0 ? "AIR" : "OCEAN";
+    const isAir = mot === "AIR";
+    const carriers = isAir ? AIR_CARRIERS : OCEAN_CARRIERS;
+    return qatDoTxnBase({
+      id: `do-txn-${i + 1}`,
+      transactionId: `KN-${mid}-${1 + (i % 900)}`,
+      entryNumber: `217-${pad(1000788 + i, 8)}`,
+      companyName: DO_TXN_COMPANIES[i % DO_TXN_COMPANIES.length],
+      shipments: i % 7 === 0 ? "NA" : `KX-${mid}-${12 + (i % 180)}`,
+      mot,
+      mbl: isAir ? String(18012345678 + i * 17) : `KAJAB${pad(123414 + i, 6)}`,
+      hbl: i % 9 === 0 ? "" : (isAir ? String(7845123456 + i * 11) : `H${pad(8650121248 + i * 13, 10)}`),
+      carrier: carriers[i % carriers.length],
+      statusChip
+    });
+  }
+
   function buildSeed() {
     if (seedCache) return seedCache;
-    const rows = [];
-    for (let i = 0; i < 91; i += 1) {
-      const mid = ID_MID[i % ID_MID.length];
-      const mot = i % 3 === 0 ? "TRUCK" : "AIR";
-      rows.push({
-        id: `do-${i + 1}`,
-        transactionId: `KN-${mid}-${100 + (i % 900)}`,
-        entryNumber: `BII-${15043235 + i}`,
-        companyName: COMPANIES[i % COMPANIES.length],
-        shipments: `KX-${mid}-${120 + (i % 80)}`,
-        mot,
-        mbl: String(48963004981 + i * 13),
-        hbl: String(2549434635 + i * 7),
-        carrier: CARRIERS[i % CARRIERS.length],
-        statusChip: chipForIndex(i)
-      });
+    const rows = curatedTxnRows();
+    const counts = { all: rows.length, active: 0, recent: 0, reject: 0, hold: 0, complete: 0 };
+    rows.forEach((row) => { counts[row.statusChip] = (counts[row.statusChip] || 0) + 1; });
+    let i = rows.length;
+    while (rows.length < TXN_SEED_TOTAL) {
+      const statusChip = chipForIndex(i);
+      rows.push(generatedTxnRow(i, statusChip));
+      counts[statusChip] = (counts[statusChip] || 0) + 1;
+      i += 1;
     }
-    Object.assign(rows[0], { transactionId: "KN-07BI-117", entryNumber: "BII-15043235", companyName: "SAFRAN CABIN CANADA CO", shipments: "KX-07BI-132", mot: "AIR", mbl: "48963004981", hbl: "2549434635", carrier: "DHL AIR LIMITED, DO", statusChip: "recent" });
     seedCache = rows;
     return rows;
   }
 
+  function statusBadge(label, tone) {
+    return window.KNAdminUX.tmStatusBadge(label, tone);
+  }
+
+  function shipStateMeta(chip) {
+    return DO_SHIP_STATES.find((item) => item.chip === chip) || DO_SHIP_STATES[0];
+  }
+
   function shipChipForIndex(i) {
-    if (i < 80) return "new";
-    if (i < 160) return "inProgress";
-    if (i < 230) return "docGenerated";
+    if (i < 25) return "new";
+    if (i < 50) return "inProgress";
+    if (i < 75) return "docGenerated";
     return "doPublished";
+  }
+
+  function qatDoShipBase(overrides = {}) {
+    const chip = overrides.statusChip || "new";
+    const meta = shipStateMeta(chip);
+    return {
+      companyName: "TEST US COMPANY 4",
+      shipmentState: meta.label,
+      statusChip: chip,
+      stateTone: meta.tone,
+      mbol: "KAJAB123414",
+      hbol: "8521B6J4MQB",
+      mot: "OCEAN",
+      ...overrides
+    };
+  }
+
+  function curatedShipRows() {
+    return [
+      qatDoShipBase({
+        id: "do-ship-1",
+        shipmentId: "KN-058Y-105",
+        companyName: "TEST US COMPANY 4",
+        statusChip: "docGenerated",
+        shipmentState: "DOC GENERATED",
+        stateTone: "information",
+        mbol: "KAJAB123414",
+        hbol: "H8650121248"
+      }),
+      qatDoShipBase({
+        id: "do-ship-2",
+        shipmentId: "KN-058Y-104",
+        companyName: "ENGINE-KN-SHIP-NEILMA-JISWAL032",
+        statusChip: "new",
+        shipmentState: "NEW",
+        stateTone: "information",
+        mbol: "KAJAB123415",
+        hbol: "H8650121250"
+      }),
+      qatDoShipBase({
+        id: "do-ship-3",
+        shipmentId: "KN-058Y-103",
+        companyName: "TEST US COMPANY 4",
+        statusChip: "doPublished",
+        shipmentState: "DO PUBLISHED",
+        stateTone: "positive",
+        mbol: "KAJAB123416"
+      }),
+      qatDoShipBase({
+        id: "do-ship-4",
+        shipmentId: "KN-058Y-102",
+        companyName: "ENGINE-KN-SHIP-NEILMA-JISWAL032",
+        statusChip: "inProgress",
+        shipmentState: "IN PROGRESS",
+        stateTone: "notice",
+        mbol: "KAJAB123417"
+      })
+    ];
+  }
+
+  function generatedShipRow(i, statusChip) {
+    const meta = shipStateMeta(statusChip);
+    const company = i % 5 === 0 ? DO_SHIP_COMPANIES[i % DO_SHIP_COMPANIES.length] : "TEST US COMPANY 4";
+    return qatDoShipBase({
+      id: `do-ship-${i + 1}`,
+      shipmentId: `KN-058Y-${105 - (i % 900)}`,
+      companyName: company,
+      statusChip,
+      shipmentState: meta.label,
+      stateTone: meta.tone,
+      mbol: `KAJAB${pad(123414 + i, 6)}`,
+      hbol: i % 4 === 0 ? "" : `H${pad(8650121248 + i * 13, 10)}`,
+      mot: i % 6 === 0 ? "AIR" : "OCEAN"
+    });
   }
 
   function buildShipSeed() {
     if (shipSeedCache) return shipSeedCache;
-    const rows = [];
-    for (let i = 0; i < 303; i += 1) {
-      const mid = ID_MID[i % ID_MID.length];
-      const chip = shipChipForIndex(i);
-      rows.push({
-        id: `do-ship-${i + 1}`,
-        shipmentId: `KN-${mid}-${10 + (i % 90)}`,
-        companyName: COMPANIES[i % COMPANIES.length],
-        mbol: String(40624604451 + i * 19),
-        hbol: `${pad((i * 6287) % 1e8, 8)}${String.fromCharCode(65 + (i % 26))}`.slice(0, 11),
-        mot: i % 4 === 0 ? "OCEAN" : "AIR",
-        statusChip: chip
-      });
-    }
-    Object.assign(rows[0], { shipmentId: "KN-07BI-12", companyName: "SAFRAN CABIN CANADA CO", mbol: "40624604451", hbol: "8521B6J4MQB", mot: "AIR", statusChip: "new" });
+    const rows = curatedShipRows();
+    const counts = { new: 0, inProgress: 0, docGenerated: 0, doPublished: 0 };
+    rows.forEach((row) => { counts[row.statusChip] += 1; });
+    let i = rows.length;
+    DO_SHIP_STATES.forEach(({ chip }) => {
+      const target = chip === "new" ? 25 : chip === "inProgress" ? 25 : chip === "docGenerated" ? 25 : 24;
+      while (counts[chip] < target) {
+        rows.push(generatedShipRow(i, chip));
+        counts[chip] += 1;
+        i += 1;
+      }
+    });
     shipSeedCache = rows;
     return rows;
   }
@@ -133,6 +297,7 @@
       return [
         [f.shipmentId, row.shipmentId],
         [f.companyName, row.companyName],
+        [f.shipmentState, row.shipmentState],
         [f.mbol, row.mbol],
         [f.hbol, row.hbol],
         [f.mot, row.mot]
@@ -171,19 +336,10 @@
 
   function adminSelect(opts) { return window.KNAdminUX.select({ ...opts, open: state.selectOpen }); }
 
-  function rowActions(id, label, prefix) {
-    const ux = window.KNAdminUX;
-    return `<div class="user-row-actions">
-      <button class="icon-btn" type="button" data-${prefix}-copy="${escapeHtml(id)}" aria-label="Copy ${escapeHtml(label)}" data-tooltip="Copy">${iconCopy()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-delete="${escapeHtml(id)}" aria-label="Delete ${escapeHtml(label)}" data-tooltip="Delete">${iconTrash()}</button>
-      ${ux.moreMenu({ id, open: state.menuOpen === id, items: [{ label: "View history", attr: `data-${prefix}-history="${escapeHtml(id)}"` }] })}
-    </div>`;
-  }
-
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-txn-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 8, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -195,16 +351,21 @@
     const body = pageRows.length
       ? pageRows.map((row) => `<tr data-do-id="${escapeHtml(row.id)}" tabindex="0">
           <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-do-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span></a></td>
-          <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.entryNumber)}</span></td>
+          <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.shipments)}</span></td>
           <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.mbl)}</span></td>
-          <td class="type-body-sm"><span class="code">${escapeHtml(row.hbl)}</span></td>
+          <td class="type-body-sm"><span class="code">${escapeHtml(ux.emptyDisplay(row.hbl))}</span></td>
           <td class="type-body-sm" title="${escapeHtml(row.carrier)}">${escapeHtml(row.carrier)}</td>
-          <td>${rowActions(row.id, row.transactionId, "do")}</td>
         </tr>`).join("")
-      : `<tr class="role-empty-row"><td colspan="9">${ux.emptyState({ title: "No delivery orders found matching your search", description: "Clear filters or switch status chips to see filings.", secondaryLabel: "Clear filters", secondaryAttr: "data-admin-clear-filters" })}</td></tr>`;
+      : ux.tmTableEmptyRow({
+          colspan: 8,
+          title: "No delivery orders found matching your search",
+          description: "Clear filters or switch status chips to see filings.",
+          secondaryLabel: "Clear filters",
+          secondaryAttr: "data-admin-clear-filters"
+        });
     return `${ux.toolbar({
       chips: [
         { id: "all", label: "All", count: counts.all, selected: chip === "all" },
@@ -214,33 +375,31 @@
         { id: "hold", label: "Hold", count: counts.hold, selected: chip === "hold" },
         { id: "complete", label: "Complete", count: counts.complete, selected: chip === "complete" }
       ],
-      results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}.`
+      results: `Showing ${pageRows.length ? start + 1 : 0} to ${start + pageRows.length} of ${rows.length} records`
     })}
-    <div class="vis-table-wrap role-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface do-txn-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table" aria-label="US Delivery Order transactions">
+        <table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-txn-table" })}" aria-label="US Delivery Order transactions">
           <thead>
             <tr class="vis-table__labels">
               ${sortHeader("transactionId", "Transaction ID", "data-do-sort")}
-              ${sortHeader("companyName", "Company Name", "data-do-sort")}
               ${sortHeader("entryNumber", "Entry number", "data-do-sort")}
-              ${sortHeader("shipments", "Shipments", "data-do-sort")}
-              ${sortHeader("mot", "MoT", "data-do-sort")}
-              ${sortHeader("mbl", "MBL/MAWB/PAPS", "data-do-sort")}
+              ${sortHeader("companyName", "Company Name", "data-do-sort")}
+              ${sortHeader("shipments", "Shipment ID", "data-do-sort")}
+              ${sortHeader("mot", "MOT", "data-do-sort")}
+              ${sortHeader("mbl", "MBL/MAWB/PRO#", "data-do-sort")}
               ${sortHeader("hbl", "HBL/HAWB", "data-do-sort")}
               ${sortHeader("carrier", "Vessel/Carrier Name", "data-do-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-do-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
-              ${ux.colFilter({ attr: "data-do-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "entryNumber", value: state.txn.filters.entryNumber, label: "entry number" })}
-              ${ux.colFilter({ attr: "data-do-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments" })}
-              ${ux.colKnSelect({ attr: "data-do-filter", key: "mot", value: state.txn.filters.mot, label: "MoT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "TRUCK", label: "TRUCK" }, { value: "OCEAN", label: "OCEAN" }] })}
+              ${ux.colFilter({ attr: "data-do-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name" })}
+              ${ux.colFilter({ attr: "data-do-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipment ID" })}
+              ${ux.colKnSelect({ attr: "data-do-filter", key: "mot", value: state.txn.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "OCEAN", label: "OCEAN" }, { value: "AIR", label: "AIR" }] })}
               ${ux.colFilter({ attr: "data-do-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "hbl", value: state.txn.filters.hbl, label: "HBL" })}
               ${ux.colFilter({ attr: "data-do-filter", key: "carrier", value: state.txn.filters.carrier, label: "carrier" })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -253,7 +412,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "ALL", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-ship-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 6, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -266,12 +425,18 @@
       ? pageRows.map((row) => `<tr data-do-ship-id="${escapeHtml(row.id)}" tabindex="0">
           <td class="admin-table-nowrap"><a class="kn-link admin-name-link" href="${ROUTE}" data-do-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}"><span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span></a></td>
           <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
+          <td class="admin-table-nowrap">${statusBadge(row.shipmentState, row.stateTone)}</td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.mbol)}</span></td>
           <td class="type-body-sm"><span class="code">${escapeHtml(row.hbol)}</span></td>
           <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
-          <td>${rowActions(row.id, row.shipmentId, "do-ship")}</td>
         </tr>`).join("")
-      : `<tr class="role-empty-row"><td colspan="6">${ux.emptyState({ title: "No delivery order shipments found matching your search", description: "Clear filters or switch status chips to see shipments.", secondaryLabel: "Clear filters", secondaryAttr: "data-admin-clear-filters" })}</td></tr>`;
+      : ux.tmTableEmptyRow({
+          colspan: 6,
+          title: "No delivery order shipments found matching your search",
+          description: "Clear filters or switch status chips to see shipments.",
+          secondaryLabel: "Clear filters",
+          secondaryAttr: "data-admin-clear-filters"
+        });
     return `${ux.toolbar({
       chips: [
         { id: "all", label: "ALL", count: counts.all, selected: chip === "all" },
@@ -280,27 +445,27 @@
         { id: "docGenerated", label: "DOC GENERATED", count: counts.docGenerated, selected: chip === "docGenerated" },
         { id: "doPublished", label: "DO PUBLISHED", count: counts.doPublished, selected: chip === "doPublished" }
       ],
-      results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}.`
+      results: `Showing ${pageRows.length ? start + 1 : 0} to ${start + pageRows.length} of ${rows.length} records`
     })}
-    <div class="vis-table-wrap role-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface do-ship-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table" aria-label="US Delivery Order shipments">
+        <table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-ship-table" })}" aria-label="US Delivery Order shipments">
           <thead>
             <tr class="vis-table__labels">
               ${sortHeader("shipmentId", "Shipment ID", "data-do-ship-sort")}
               ${sortHeader("companyName", "Company Name", "data-do-ship-sort")}
+              ${sortHeader("shipmentState", "Shipment State", "data-do-ship-sort")}
               ${sortHeader("mbol", "MBOL", "data-do-ship-sort")}
               ${sortHeader("hbol", "HBOL", "data-do-ship-sort")}
               ${sortHeader("mot", "MOT", "data-do-ship-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
+              ${ux.colKnSelect({ attr: "data-do-ship-filter", key: "shipmentState", value: state.ship.filters.shipmentState, label: "shipment state", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "NEW", label: "NEW" }, { value: "IN PROGRESS", label: "IN PROGRESS" }, { value: "DOC GENERATED", label: "DOC GENERATED" }, { value: "DO PUBLISHED", label: "DO PUBLISHED" }] })}
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "mbol", value: state.ship.filters.mbol, label: "MBOL" })}
               ${ux.colFilter({ attr: "data-do-ship-filter", key: "hbol", value: state.ship.filters.hbol, label: "HBOL" })}
-              ${ux.colKnSelect({ attr: "data-do-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "AIR", label: "AIR" }, { value: "OCEAN", label: "OCEAN" }] })}
-              ${ux.emptyColFilter()}
+              ${ux.colKnSelect({ attr: "data-do-ship-filter", key: "mot", value: state.ship.filters.mot, label: "MOT", open: state.selectOpen, placeholder: "Select", emptyLabel: "Select", options: [{ value: "OCEAN", label: "OCEAN" }, { value: "AIR", label: "AIR" }] })}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -370,7 +535,6 @@
         if (Number.isFinite(next) && next >= 1) { view.page = next; state.menuOpen = ""; render(); }
         return;
       }
-      if (window.KNAdminUX.handleMoreClick(event, { open: state.menuOpen, setOpen: (n) => { state.menuOpen = n; render(); } })) return;
       if (window.KNAdminUX.handleSelectClick(event, {
         open: state.selectOpen,
         setOpen: (n) => { state.selectOpen = n; render(); },
@@ -385,31 +549,6 @@
       if (open) { event.preventDefault(); const row = findTxnRow(open.getAttribute("data-do-open")); if (row) { location.hash = `#transaction-us-delivery-order/history/${encodeURIComponent(row.id)}`; } return; }
       const shipOpen = event.target.closest("[data-do-ship-open]");
       if (shipOpen) { event.preventDefault(); const row = findShipRow(shipOpen.getAttribute("data-do-ship-open")); if (row) { location.hash = `#transaction-us-delivery-order/history/${encodeURIComponent(row.id)}`; } return; }
-      const copy = event.target.closest("[data-do-copy], [data-do-ship-copy]");
-      if (copy) {
-        event.preventDefault();
-        const isShip = copy.hasAttribute("data-do-ship-copy");
-        const row = isShip ? findShipRow(copy.getAttribute("data-do-ship-copy")) : findTxnRow(copy.getAttribute("data-do-copy"));
-        const text = isShip ? row?.shipmentId || "" : row?.transactionId || "";
-        if (text && navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => toast(`Copied ${text}.`), () => toast(`Copy ${text} from the table.`, "notice"));
-        else toast(text ? `ID ${text}` : "Nothing to copy.", "notice");
-        return;
-      }
-      const history = event.target.closest("[data-do-history], [data-do-ship-history]");
-      if (history) {
-        event.preventDefault();
-        const isShip = history.hasAttribute("data-do-ship-history");
-        const row = isShip ? findShipRow(history.getAttribute("data-do-ship-history")) : findTxnRow(history.getAttribute("data-do-history"));
-        toast(`History for ${(isShip ? row?.shipmentId : row?.transactionId) || "record"} is not available in this sample.`, "notice");
-        return;
-      }
-      const del = event.target.closest("[data-do-delete], [data-do-ship-delete]");
-      if (del) {
-        event.preventDefault();
-        const isShip = del.hasAttribute("data-do-ship-delete");
-        const row = isShip ? findShipRow(del.getAttribute("data-do-ship-delete")) : findTxnRow(del.getAttribute("data-do-delete"));
-        toast(`Delete is disabled in this sample (${(isShip ? row?.shipmentId : row?.transactionId) || "record"}).`, "notice");
-      }
     });
     page.addEventListener("input", (event) => {
       const input = event.target.closest("[data-do-filter], [data-do-ship-filter]");

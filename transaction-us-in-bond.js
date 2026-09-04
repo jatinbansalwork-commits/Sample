@@ -9,36 +9,68 @@
   })();
   let refreshTimer = null;
 
+  const TXN_SEED_TOTAL = 247;
+  /** QAT production snapshot — In-Bond Shipment tab list size. */
+  const SHIP_SEED_TOTAL = 180;
+
   const COMPANIES = [
+    "ILLUMINATE USA, LLC",
+    "USA IOR",
+    "TEST MIGRATION",
+    "LEGEND VALVE US",
+    "ENGINE-KK-35FD-NELLINNAJAI SWALO147",
+    "GLOBAL-PAK",
+    "ILLUMINATE USA LLC",
+    "BASF AGRICULTURAL SOLUTIONS INC LLC",
+    "PACIFIC RIM TRADING CO",
+    "NORTHSTAR LOGISTICS INC",
+    "SUMMIT IMPORT GROUP LLC",
+    "ATLANTIC CARGO PARTNERS",
     "HURST JAWS OF LIFE INC - SMALL",
     "JOBY AERO, INC",
     "SAFRAN CABIN INC. - GARDEN GROVE",
     "SOUTHERN CHAMPION TRAY",
-    "ACUITY BRANDS",
-    "ICHOR SYSTEMS INC",
-    "UNITED MACHINING NORTH AMERICA LLC",
-    "CAMERON INTERNATIONAL CORPORATION (SUB QC)",
-    "SAFRAN CABIN CANADA CO",
-    "PACIFIC RIM TRADING CO",
-    "GLOBAL-PAK",
-    "ILLUMINATE USA LLC"
+    "ACUITY BRANDS"
+  ];
+
+  const USERS = [
+    "KAMAL SINGH",
+    "RAJA KUMAR",
+    "PRIYA SHARMA",
+    "ANITA DESAI",
+    "JAMES CHEN",
+    "MARIA LOPEZ",
+    "DAVID PARK",
+    "",
+    "",
+    "SOPHIE MARTIN"
   ];
 
   const COUNTRIES = [
-    { code: "DE", name: "Germany" },
     { code: "CN", name: "China" },
-    { code: "CA", name: "Canada" },
-    { code: "AT", name: "Austria" },
-    { code: "FR", name: "France" },
+    { code: "AE", name: "United Arab Emirates" },
     { code: "VN", name: "Vietnam" },
-    { code: "MX", name: "Mexico" },
-    { code: "JP", name: "Japan" },
+    { code: "UG", name: "United States of America" },
+    { code: "CA", name: "Canada" },
+    { code: "DE", name: "Germany" },
+    { code: "BE", name: "Belgium" },
+    { code: "VN", name: "Vietnam" },
+    { code: "CN", name: "China" },
+    { code: "TW", name: "Taiwan" },
+    { code: "IN", name: "India" },
+    { code: "SG", name: "Singapore" },
+    { code: "AE", name: "United Arab Emirates" },
+    { code: "DE", name: "Germany" },
     { code: "KR", name: "Korea, Republic of" },
-    { code: "GB", name: "United Kingdom" }
+    { code: "MX", name: "Mexico" }
   ];
 
+  const MBL_PREFIXES = ["CMDU", "MAEU", "ONEY", "EGLV", "HLCU", "MEDU", "HDMU", "COSU"];
+  const HBL_PREFIXES = ["EGET", "MCLM", "SHAA", "TPEB", "BLR", "SGN", "DXB", "HHKA"];
+  const MOTS = ["OCEAN", "OCEAN", "OCEAN", "AIR", "TRUCK"];
+
   const IMPORT_COUNTRY = { code: "US", name: "United States of America" };
-  const ID_MID = ["09ZG", "09S3", "0A1K", "0B7M", "0C2P", "0D4R", "0E8T", "0F3W", "C2A5", "06X6"];
+  const ID_MID = ["M3C1", "07MJ", "0T6S", "07SG", "35FD", "M001", "021D", "09ZG", "09S3", "0A1K", "0B7M", "0C2P", "0D4R", "C2A5", "06X6"];
 
   const emptyTxnFilters = () => ({
     chip: "all",
@@ -58,7 +90,7 @@
   });
 
   const emptyShipFilters = () => ({
-    chip: "notCreated",
+    chip: "allActive",
     shipmentId: "",
     companyName: "",
     shipmentState: "",
@@ -73,6 +105,7 @@
   const state = {
     view: "transaction",
     menuOpen: "",
+    bulkOpen: "",
     selectOpen: "",
     booting: false,
     ready: false,
@@ -113,14 +146,6 @@
     }
   }
 
-  function iconCopy() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`;
-  }
-
-  function iconTrash() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`;
-  }
-
   function stateBadge(label, tone) {
     return window.KNAdminUX.tmStatusBadge(label, tone);
   }
@@ -130,166 +155,314 @@
     return Number.isNaN(t) ? 0 : t;
   }
 
+  /** Minimal ISF peer rows when KNUsIsf has not booted yet — keeps MBL/HBL join keys in sync. */
+  const ISF_LINK_FALLBACK = [
+    { id: "isf-1", transactionId: "ISF-021D-8", companyName: "GLOBAL-PAK", username: "KAMAL SINGH", status: "ACCEPTED", statusChip: "submitted", etd: "Feb 11, 2025", etdSort: 0, filingDate: "May 18, 2025", filingSort: 0, shipments: "KR-OB0T-283", mbl: "CMDUHB0204786", hbl: "EGET20427328", country: "BE - Belgium" },
+    { id: "isf-2", transactionId: "ISF-021D-9", companyName: "ILLUMINATE USA LLC", username: "MARIA LOPEZ", status: "SENT", statusChip: "submitted", etd: "Feb 17, 2025", etdSort: 0, filingDate: "May 24, 2025", filingSort: 0, shipments: "VN-OB1K-441", mbl: "ONEYSGNFL9591500", hbl: "MCLMVSSAV2507004", country: "VN - Vietnam" },
+    { id: "isf-3", transactionId: "ISF-021D-5", companyName: "BASF AGRICULTURAL SOLUTIONS INC LLC", username: "PRIYA SHARMA", status: "NEW", statusChip: "pending", etd: "May 03, 2025", etdSort: 0, filingDate: "", filingSort: 0, shipments: "CN-OB3M-118", mbl: "EGLV1975001234", hbl: "SHAA240518047", country: "CN - China" },
+    { id: "isf-4", transactionId: "ISF-021D-4", companyName: "PACIFIC RIM TRADING CO", username: "JAMES CHEN", status: "NEW", statusChip: "pending", etd: "May 04, 2025", etdSort: 0, filingDate: "", filingSort: 0, shipments: "TW-OB2F-512", mbl: "MEDUHB0284764", hbl: "TPEB240512901", country: "TW - Taiwan" },
+    { id: "isf-5", transactionId: "ISF-021D-6", companyName: "NORTHSTAR LOGISTICS INC", username: "ANITA DESAI", status: "IN PROCESS", statusChip: "pending", etd: "May 04, 2025", etdSort: 0, filingDate: "", filingSort: 0, shipments: "IN-OB7R-902", mbl: "MAEU9876543210", hbl: "BLR2405041182", country: "IN - India" },
+    { id: "isf-6", transactionId: "ISF-021D-7", companyName: "SUMMIT IMPORT GROUP LLC", username: "DAVID PARK", status: "NEW", statusChip: "pending", etd: "May 08, 2025", etdSort: 0, filingDate: "May 18, 2025", filingSort: 0, shipments: "SG-OB4N-331", mbl: "HLCUHB4782301", hbl: "SGN2405087720", country: "SG - Singapore" },
+    { id: "isf-7", transactionId: "ISF-023F-1", companyName: "ATLANTIC CARGO PARTNERS", username: "SOPHIE MARTIN", status: "IN PROCESS", statusChip: "pending", etd: "May 18, 2025", etdSort: 0, filingDate: "", filingSort: 0, shipments: "AE-OB9K-118", mbl: "CMDUAE7654321", hbl: "DXB2405180094", country: "AE - United Arab Emirates" }
+  ];
+
+  function isfPeers() {
+    try {
+      const live = window.KNUsIsf?.list?.();
+      if (live?.length) {
+        return live;
+      }
+    } catch (_) {
+      /* KNUsIsf may not be loaded yet */
+    }
+    return ISF_LINK_FALLBACK;
+  }
+
+  function knShipmentFromIsf(isf, i) {
+    const ship = String(isf?.shipments || "");
+    const match = ship.match(/^[A-Z]{2}-OB([A-Z0-9]+)-(\d+)$/);
+    if (match) {
+      return `KN-${match[1]}-${match[2]}`;
+    }
+    const mid = ID_MID[i % ID_MID.length];
+    return `KN-${mid}-${96 + (i % 900)}`;
+  }
+
+  function inbStateFromIsf(isf) {
+    if (isf.statusChip === "submitted") {
+      return { transactionState: "READY", statusChip: "submitted" };
+    }
+    if (isf.statusChip === "finBill") {
+      return { transactionState: "ERROR", statusChip: "error" };
+    }
+    const label = String(isf.status || "NEW").toUpperCase();
+    if (label === "IN PROCESS") {
+      return { transactionState: "IN PROCESS", statusChip: "pending" };
+    }
+    return { transactionState: "NEW", statusChip: "pending" };
+  }
+
+  function inbFromIsf(isf, i, overrides = {}) {
+    const st = inbStateFromIsf(isf);
+    const mid = ID_MID[i % ID_MID.length];
+    const eta = isf.etd || formatDate(new Date());
+    const filingDate = isf.filingDate || "";
+    return {
+      id: overrides.id || `inb-${i + 1}`,
+      transactionId: overrides.transactionId || `INB-${mid}-${1 + (i % 20)}`,
+      entryNumber: overrides.entryNumber || `Undefined-${pad(i + 1, 8)}`,
+      transactionState: overrides.transactionState || st.transactionState,
+      statusChip: overrides.statusChip || st.statusChip,
+      eta,
+      etaSort: isf.etdSort || parseEta(eta),
+      companyName: isf.companyName,
+      shipments: overrides.shipments || knShipmentFromIsf(isf, i),
+      filingDate,
+      filingSort: isf.filingSort || (filingDate ? parseEta(filingDate) : 0),
+      mot: overrides.mot || "OCEAN",
+      mbl: isf.mbl,
+      hbl: isf.hbl || "",
+      countryImport: `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
+      countryExport: isf.country || overrides.countryExport || `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
+      username: isf.username || "",
+      isfLinkId: isf.id,
+      isfTransactionId: isf.transactionId
+    };
+  }
+
+  function curatedInbHero() {
+    const isf = isfPeers().find((row) => row.id === "isf-2") || ISF_LINK_FALLBACK[1];
+    return {
+      id: "inb-1",
+      transactionId: "INB-M001-1",
+      entryNumber: "Undefined-00000001",
+      transactionState: "NEW",
+      statusChip: "pending",
+      eta: "Nov 22, 2024",
+      etaSort: parseEta("Nov 22, 2024"),
+      companyName: "ILLUMINATE USA, LLC",
+      shipments: "KN-M001-96",
+      filingDate: "",
+      filingSort: 0,
+      mot: "OCEAN",
+      mbl: "HDMUHHKAB547930",
+      hbl: "HHKAB547930",
+      countryImport: "US - United States of America",
+      countryExport: "US - United States of America",
+      username: "",
+      isfLinkId: isf.id,
+      isfTransactionId: isf.transactionId
+    };
+  }
+
+  function curatedInbRows() {
+    const peers = isfPeers();
+    const byId = (id) => peers.find((row) => row.id === id) || ISF_LINK_FALLBACK.find((row) => row.id === id);
+    return [
+      curatedInbHero(),
+      inbFromIsf(byId("isf-1"), 1, { transactionId: "INB-021D-8", entryNumber: "Undefined-00000002", shipments: "KN-OB0T-283" }),
+      inbFromIsf(byId("isf-3"), 2, { transactionId: "INB-021D-5", entryNumber: "Undefined-00000003", shipments: "KN-OB3M-118" }),
+      inbFromIsf(byId("isf-4"), 3, { transactionId: "INB-021D-4", entryNumber: "Undefined-00000004", shipments: "KN-OB2F-512" }),
+      inbFromIsf(byId("isf-5"), 4, { transactionId: "INB-021D-6", entryNumber: "Undefined-00000005", shipments: "KN-OB7R-902", mot: "AIR" }),
+      inbFromIsf(byId("isf-6"), 5, { transactionId: "INB-021D-7", entryNumber: "Undefined-00000006", shipments: "KN-OB4N-331" }),
+      inbFromIsf(byId("isf-7"), 6, { transactionId: "INB-023F-1", entryNumber: "Undefined-00000007", shipments: "KN-OB9K-118" })
+    ];
+  }
+
+  function generatedInbStatus(i) {
+    if (i % 19 === 0) {
+      return { transactionState: "ERROR", statusChip: "error" };
+    }
+    if (i % 3 === 0) {
+      return { transactionState: "READY", statusChip: "submitted" };
+    }
+    const pending = ["NEW", "IN PROCESS"];
+    return { transactionState: pending[i % 2], statusChip: "pending" };
+  }
+
+  function generatedInbRow(i) {
+    const mid = ID_MID[i % ID_MID.length];
+    const company = COMPANIES[i % COMPANIES.length];
+    const user = USERS[i % USERS.length];
+    const country = COUNTRIES[i % COUNTRIES.length];
+    const status = generatedInbStatus(i);
+    const eta = new Date(Date.UTC(2024 + ((i * 3) % 2), (i * 5) % 12, 1 + (i % 27)));
+    const mot = MOTS[i % MOTS.length];
+    const mblPrefix = MBL_PREFIXES[i % MBL_PREFIXES.length];
+    const hblPrefix = HBL_PREFIXES[i % HBL_PREFIXES.length];
+    const filed = status.statusChip === "submitted" || (i % 4 === 0);
+    const filing = filed ? new Date(eta.getTime() + ((i % 14) + 3) * 86400000) : null;
+    return {
+      id: `inb-${i + 1}`,
+      transactionId: `INB-${mid}-${1 + (i % 20)}`,
+      entryNumber: `Undefined-${pad(i + 1, 8)}`,
+      ...status,
+      eta: formatDate(eta),
+      etaSort: eta.getTime(),
+      companyName: company,
+      shipments: `KN-${((i * 7) % 36).toString(36).toUpperCase()}${mid.slice(-2)}-${100 + (i % 900)}`,
+      filingDate: filing ? formatDate(filing) : "",
+      filingSort: filing ? filing.getTime() : 0,
+      mot,
+      mbl: `${mblPrefix}${pad((i * 7919) % 1e10, 10)}`,
+      hbl: i % 6 === 0 ? "" : `${hblPrefix}${pad((i * 6287) % 1e8, 8)}`,
+      countryImport: `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
+      countryExport: `${country.code} - ${country.name}`,
+      username: user
+    };
+  }
+
   function buildSeed() {
     if (seedCache) {
       return seedCache;
     }
-    seedCache = [
+    // Transaction tab is intentionally empty in QAT — table shell + filters only.
+    seedCache = [];
+    return seedCache;
+  }
+
+  function curatedShipRows() {
+    const usImport = "US - United States of America";
+    return [
       {
-        id: "inb-1",
-        transactionId: "INB-C2A5-3",
-        entryNumber: "undefined-0000000009",
-        transactionState: "NEW",
-        statusChip: "pending",
-        eta: "Aug 28, 2025",
-        etaSort: parseEta("Aug 28, 2025"),
-        companyName: "SOUTHERN CHAMPION TRAY",
-        shipments: "KX-C2A5-93",
-        filingDate: "",
-        mot: "OCEAN",
-        mbl: "ONEYSGNFL9591500",
-        hbl: "MCLMVSSAV2507004",
-        countryImport: "US - United States of America",
-        countryExport: "VN - Vietnam",
-        username: ""
-      },
-      {
-        id: "inb-2",
-        transactionId: "INB-C2A5-2",
-        entryNumber: "undefined-0000000008",
-        transactionState: "NEW",
-        statusChip: "pending",
-        eta: "Aug 28, 2025",
-        etaSort: parseEta("Aug 28, 2025"),
-        companyName: "SOUTHERN CHAMPION TRAY",
-        shipments: "KX-C2A5-92",
-        filingDate: "",
-        mot: "OCEAN",
-        mbl: "ONEYSGNFL9484600",
-        hbl: "MCLMVSSAV2507003",
-        countryImport: "US - United States of America",
-        countryExport: "VN - Vietnam",
-        username: ""
-      },
-      {
-        id: "inb-3",
-        transactionId: "INB-C2A5-1",
-        entryNumber: "undefined-0000000007",
-        transactionState: "READY",
-        statusChip: "submitted",
-        eta: "Aug 21, 2025",
-        etaSort: parseEta("Aug 21, 2025"),
-        companyName: "SOUTHERN CHAMPION TRAY",
-        shipments: "KX-C2A5-91",
-        filingDate: "",
-        mot: "OCEAN",
-        mbl: "ONEYSGNFL9483500",
-        hbl: "MCLMVSSAV2507005",
-        countryImport: "US - United States of America",
-        countryExport: "VN - Vietnam",
-        username: ""
-      },
-      {
-        id: "inb-4",
-        transactionId: "INB-06X6-2",
-        entryNumber: "undefined-0000000006",
-        transactionState: "IN PROCESS",
-        statusChip: "pending",
-        eta: "May 10, 2025",
-        etaSort: parseEta("May 10, 2025"),
-        companyName: "ACUITY BRANDS",
-        shipments: "KX-06X6-3",
-        filingDate: "",
+        id: "inb-ship-1",
+        shipmentId: "KK-M3C1-111",
+        companyName: "ILLUMINATE USA, LLC",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
         mot: "TRUCK",
-        mbl: "TRGN63707262679",
-        hbl: "TRGN63707262679",
-        countryImport: "US - United States of America",
-        countryExport: "MX - Mexico",
-        username: "MAREK TWAROWSKI"
+        mbl: "143003873337",
+        hbl: "HDE13432",
+        countryExport: "CN - China",
+        countryImport: usImport,
+        eta: "Sep 22, 2026",
+        etaSort: parseEta("Sep 22, 2026")
       },
       {
-        id: "inb-5",
-        transactionId: "INB-06X6-1",
-        entryNumber: "undefined-0000000005",
-        transactionState: "IN PROCESS",
-        statusChip: "error",
-        eta: "May 10, 2025",
-        etaSort: parseEta("May 10, 2025"),
-        companyName: "ACUITY BRANDS",
-        shipments: "KX-06X6-2",
-        filingDate: "",
+        id: "inb-ship-2",
+        shipmentId: "KK-07MJ-4",
+        companyName: "USA IOR",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        mot: "OCEAN",
+        mbl: "OOLU0676",
+        hbl: "",
+        countryExport: "AE - United Arab Emirates",
+        countryImport: usImport,
+        eta: "Aug 20, 2026",
+        etaSort: parseEta("Aug 20, 2026")
+      },
+      {
+        id: "inb-ship-3",
+        shipmentId: "KK-0T6S-7",
+        companyName: "TEST MIGRATION",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        mot: "AIR",
+        mbl: "MDE21879",
+        hbl: "MDE21432",
+        countryExport: "VN - Vietnam",
+        countryImport: usImport,
+        eta: "Jul 25, 2026",
+        etaSort: parseEta("Jul 25, 2026")
+      },
+      {
+        id: "inb-ship-4",
+        shipmentId: "KK-07SG-8",
+        companyName: "LEGEND VALVE US",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        mot: "OCEAN",
+        mbl: "12222754407",
+        hbl: "",
+        countryExport: "CN - China",
+        countryImport: usImport,
+        eta: "Jul 23, 2028",
+        etaSort: parseEta("Jul 23, 2028")
+      },
+      {
+        id: "inb-ship-5",
+        shipmentId: "KK-35FD-12",
+        companyName: "ENGINE-KK-35FD-NELLINNAJAI SWALO147",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
         mot: "TRUCK",
-        mbl: "TRGN63707262570",
-        hbl: "TRGN63707262570",
-        countryImport: "US - United States of America",
-        countryExport: "MX - Mexico",
-        username: "MAREK TWAROWSKI"
+        mbl: "143005871337",
+        hbl: "",
+        countryExport: "UG - United States of America",
+        countryImport: usImport,
+        eta: "Sep 22, 2024",
+        etaSort: parseEta("Sep 22, 2024")
+      },
+      {
+        id: "inb-ship-6",
+        shipmentId: "KX-09ZG-12",
+        companyName: "HURST JAWS OF LIFE INC - SMALL",
+        shipmentState: "In Progress",
+        statusChip: "inProgress",
+        stateTone: "notice",
+        mot: "AIR",
+        mbl: "40624604451",
+        hbl: "8521B6J4MQB",
+        countryExport: "DE - Germany",
+        countryImport: usImport,
+        eta: "Aug 26, 2026",
+        etaSort: parseEta("Aug 26, 2026")
+      },
+      {
+        id: "inb-ship-7",
+        shipmentId: "KX-09S3-64",
+        companyName: "JOBY AERO, INC",
+        shipmentState: "New",
+        statusChip: "active",
+        stateTone: "information",
+        mot: "OCEAN",
+        mbl: "40624604452",
+        hbl: "",
+        countryExport: "CN - China",
+        countryImport: usImport,
+        eta: "Aug 20, 2028",
+        etaSort: parseEta("Aug 20, 2028")
       }
     ];
-    return seedCache;
+  }
+
+  function generatedShipRow(i) {
+    const mid = ID_MID[i % ID_MID.length];
+    const company = COMPANIES[i % COMPANIES.length];
+    const country = COUNTRIES[i % COUNTRIES.length];
+    const eta = new Date(Date.UTC(2024 + ((i * 2) % 5), (i * 7) % 12, 1 + (i % 27)));
+    const mblNum = 143003873337 + i * 17;
+    return {
+      id: `inb-ship-${i + 1}`,
+      shipmentId: `KK-${mid}-${10 + (i % 900)}`,
+      companyName: company,
+      shipmentState: "New",
+      statusChip: "active",
+      stateTone: "information",
+      mot: MOTS[i % MOTS.length],
+      mbl: String(mblNum),
+      hbl: i % 5 === 0 ? "" : `HDE${pad((i * 6287) % 1e5, 5)}`,
+      countryExport: `${country.code} - ${country.name}`,
+      countryImport: `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
+      eta: formatDate(eta),
+      etaSort: eta.getTime()
+    };
   }
 
   function buildShipSeed() {
     if (shipSeedCache) {
       return shipSeedCache;
     }
-    const rows = [];
-    const total = 5503;
-    for (let i = 0; i < total; i += 1) {
-      const mid = ID_MID[i % ID_MID.length];
-      const company = COMPANIES[i % COMPANIES.length];
-      const country = COUNTRIES[i % COUNTRIES.length];
-      const eta = new Date(Date.UTC(2026, 7, 20 + (i % 10)));
-      const mblNum = 40624604451 + i * 17;
-      const hbl = `${pad((i * 6287) % 1e8, 4)}${String.fromCharCode(65 + (i % 26))}${((i * 11) % 36).toString(36).toUpperCase()}${pad(i % 1000, 3)}`;
-      let statusChip; let shipmentState; let stateTone;
-      if (i < 80) {
-        statusChip = "notCreated";
-        shipmentState = "New";
-        stateTone = "information";
-      } else if (i < 220) {
-        statusChip = "inProgress";
-        shipmentState = "In Progress";
-        stateTone = "notice";
-      } else {
-        statusChip = "completed";
-        shipmentState = "Completed";
-        stateTone = "positive";
-      }
-      rows.push({
-        id: `inb-ship-${i + 1}`,
-        shipmentId: `KX-${mid}-${10 + (i % 90)}`,
-        companyName: company,
-        shipmentState,
-        statusChip,
-        stateTone,
-        mot: "AIR",
-        mbl: String(mblNum),
-        hbl: hbl.slice(0, 11).toUpperCase(),
-        countryExport: `${country.code} - ${country.name}`,
-        countryImport: `${IMPORT_COUNTRY.code} - ${IMPORT_COUNTRY.name}`,
-        eta: formatDate(eta),
-        etaSort: eta.getTime()
-      });
+    const rows = curatedShipRows();
+    for (let i = rows.length; i < SHIP_SEED_TOTAL; i += 1) {
+      rows.push(generatedShipRow(i));
     }
-    Object.assign(rows[0], {
-      shipmentId: "KX-09ZG-12",
-      companyName: "HURST JAWS OF LIFE INC - SMALL",
-      mbl: "40624604451",
-      hbl: "8521B6J4MQB",
-      countryExport: "DE - Germany",
-      eta: "Aug 26, 2026",
-      etaSort: parseEta("Aug 26, 2026")
-    });
-    Object.assign(rows[1], {
-      shipmentId: "KX-09S3-64",
-      companyName: "JOBY AERO, INC",
-      countryExport: "CN - China"
-    });
-    Object.assign(rows[2], {
-      companyName: "SAFRAN CABIN INC. - GARDEN GROVE",
-      countryExport: "CA - Canada"
-    });
     shipSeedCache = rows;
     return rows;
   }
@@ -302,6 +475,9 @@
       if (sortKey === "eta") {
         av = a.etaSort || 0;
         bv = b.etaSort || 0;
+      } else if (sortKey === "filingDate") {
+        av = a.filingSort || 0;
+        bv = b.filingSort || 0;
       } else {
         av = String(a[sortKey] || "").toLowerCase();
         bv = String(b[sortKey] || "").toLowerCase();
@@ -349,7 +525,7 @@
     const rows = buildShipSeed().filter((row) => {
       const chipOk =
         f.chip === "allActive"
-          ? row.statusChip === "notCreated" || row.statusChip === "inProgress"
+          ? row.statusChip !== "completed"
           : row.statusChip === f.chip;
       if (!chipOk) return false;
       const checks = [
@@ -395,7 +571,7 @@
     const inProgress = all.filter((row) => row.statusChip === "inProgress").length;
     const completed = all.filter((row) => row.statusChip === "completed").length;
     return {
-      allActive: notCreated + inProgress,
+      allActive: all.filter((row) => row.statusChip !== "completed").length,
       notCreated,
       inProgress,
       completed
@@ -409,64 +585,20 @@
     });
   }
 
-  function rowActions(id, label, prefix) {
-    const ux = window.KNAdminUX;
-    return `<div class="user-row-actions">
-      <button class="icon-btn" type="button" data-${prefix}-copy="${escapeHtml(id)}" aria-label="Copy ${escapeHtml(label)}" data-tooltip="Copy">${iconCopy()}</button>
-      <button class="icon-btn" type="button" data-${prefix}-delete="${escapeHtml(id)}" aria-label="Delete ${escapeHtml(label)}" data-tooltip="Delete">${iconTrash()}</button>
-      ${ux.moreMenu({
-        id,
-        open: state.menuOpen === id,
-        items: [{ label: "View history", attr: `data-${prefix}-history="${escapeHtml(id)}"` }]
-      })}
-    </div>`;
-  }
-
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 3, extra: "inb-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 14, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
     if (state.txn.page > pages) {
       state.txn.page = pages;
     }
-    const start = (state.txn.page - 1) * state.txn.pageSize;
-    const pageRows = rows.slice(start, start + state.txn.pageSize);
     const counts = txnChipCounts();
     const chip = state.txn.filters.chip;
 
-    const body = pageRows.length
-      ? pageRows
-          .map(
-            (row) => `<tr data-inb-id="${escapeHtml(row.id)}" tabindex="0">
-          <td class="admin-table-nowrap">
-            <a class="kn-link admin-name-link" href="#transaction-us-in-bond" data-inb-open="${escapeHtml(row.id)}" title="${escapeHtml(row.transactionId)}">
-              <span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span>
-            </a>
-          </td>
-          <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
-          <td class="type-body-sm"><span class="code">${escapeHtml(ux.emptyDisplay(row.entryNumber))}</span></td>
-          <td class="admin-table-nowrap">${stateBadge(row.transactionState)}</td>
-          <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(ux.emptyDisplay(row.eta))}</td>
-          <td class="type-body-sm"><span class="code">${escapeHtml(row.shipments)}</span></td>
-          <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(ux.emptyDisplay(row.filingDate))}</td>
-          <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
-          <td class="type-body-sm"><span class="code">${escapeHtml(row.mbl)}</span></td>
-          <td class="type-body-sm"><span class="code">${escapeHtml(row.hbl)}</span></td>
-          <td class="type-body-sm" title="${escapeHtml(row.countryImport)}">${escapeHtml(row.countryImport)}</td>
-          <td class="type-body-sm" title="${escapeHtml(row.countryExport)}">${escapeHtml(row.countryExport)}</td>
-          <td class="type-body-sm">${escapeHtml(ux.emptyDisplay(row.username))}</td>
-          <td>${rowActions(row.id, row.transactionId, "inb")}</td>
-        </tr>`
-          )
-          .join("")
-      : `<tr class="role-empty-row"><td colspan="14">${ux.emptyState({
-          title: "No In-Bond filings found matching your search", description: "Clear filters or switch status chips to see filings.",
-          secondaryLabel: "Clear filters",
-          secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+    const body = ux.tmTableEmptyRow({ colspan: 14, mode: "inline" });
 
     return `${ux.toolbar({
       chips: [
@@ -477,16 +609,17 @@
       ],
       results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}. Sorted by ${state.txn.sortKey}, ${state.txn.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card inb-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface inb-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table inb-table" aria-label="US In-Bond transactions">
+        <table class="${ux.tmTableClasses({ actionCount: 3, extra: "inb-table" })}" aria-label="US In-Bond transactions">
           <thead>
             <tr class="vis-table__labels">
+              ${ux.actionsColHeader()}
               ${sortHeader("transactionId", "Transaction ID", "data-inb-sort")}
-              ${sortHeader("companyName", "Company Name", "data-inb-sort")}
               ${sortHeader("entryNumber", "Entry number", "data-inb-sort")}
               ${sortHeader("transactionState", "Transaction State", "data-inb-sort")}
               ${sortHeader("eta", "ETA", "data-inb-sort")}
+              ${sortHeader("companyName", "Company Name", "data-inb-sort")}
               ${sortHeader("shipments", "Shipments", "data-inb-sort")}
               ${sortHeader("filingDate", "Filing Date", "data-inb-sort")}
               ${sortHeader("mot", "MoT", "data-inb-sort")}
@@ -495,11 +628,10 @@
               ${sortHeader("countryImport", "Country of Import", "data-inb-sort")}
               ${sortHeader("countryExport", "Country of Export", "data-inb-sort")}
               ${sortHeader("username", "Username", "data-inb-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
+              ${ux.emptyColFilter()}
               ${ux.colFilter({ attr: "data-inb-filter", key: "transactionId", value: state.txn.filters.transactionId, label: "transaction ID" })}
-              ${ux.colFilter({ attr: "data-inb-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name", placeholder: "Search by company name" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "entryNumber", value: state.txn.filters.entryNumber, label: "entry number", placeholder: "Search by entry number" })}
               ${ux.colKnSelect({
                 attr: "data-inb-filter",
@@ -512,10 +644,12 @@
                 options: [
                   { value: "NEW", label: "NEW" },
                   { value: "IN PROCESS", label: "IN PROCESS" },
-                  { value: "READY", label: "READY" }
+                  { value: "READY", label: "READY" },
+                  { value: "ERROR", label: "ERROR" }
                 ]
               })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "eta", value: state.txn.filters.eta, label: "ETA", placeholder: "Search by ETA" })}
+              ${ux.colFilter({ attr: "data-inb-filter", key: "companyName", value: state.txn.filters.companyName, label: "company name", placeholder: "Search by company name" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "shipments", value: state.txn.filters.shipments, label: "shipments", placeholder: "Search by shipments" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "filingDate", value: state.txn.filters.filingDate, label: "filing date", placeholder: "Search by filing date" })}
               ${ux.colKnSelect({
@@ -537,7 +671,6 @@
               ${ux.colFilter({ attr: "data-inb-filter", key: "countryImport", value: state.txn.filters.countryImport, label: "country of import" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "countryExport", value: state.txn.filters.countryExport, label: "country of export" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "username", value: state.txn.filters.username, label: "username" })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -571,7 +704,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="vis-table vis-table--admin tm-table" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -587,6 +720,7 @@
       ? pageRows
           .map(
             (row) => `<tr data-inb-ship-id="${escapeHtml(row.id)}" tabindex="0">
+          <td>${ux.tmShipRowActions({ id: row.id, label: row.shipmentId, prefix: "inb-ship" })}</td>
           <td class="admin-table-nowrap">
             <a class="kn-link admin-name-link" href="#transaction-us-in-bond" data-inb-ship-open="${escapeHtml(row.id)}" title="${escapeHtml(row.shipmentId)}">
               <span class="type-body-sm type-weight-medium">${escapeHtml(row.shipmentId)}</span>
@@ -600,15 +734,16 @@
           <td class="type-body-sm" title="${escapeHtml(row.countryExport)}">${escapeHtml(row.countryExport)}</td>
           <td class="type-body-sm" title="${escapeHtml(row.countryImport)}">${escapeHtml(row.countryImport)}</td>
           <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(row.eta)}</td>
-          <td>${rowActions(row.id, row.shipmentId, "inb-ship")}</td>
         </tr>`
           )
           .join("")
-      : `<tr class="role-empty-row"><td colspan="10">${ux.emptyState({
-          title: "No In-Bond shipments found matching your search", description: "Clear filters or switch status chips to see shipments.",
+      : ux.tmTableEmptyRow({
+          colspan: 10,
+          title: "No In-Bond shipments found matching your search",
+          description: "Clear filters or switch status chips to see shipments.",
           secondaryLabel: "Clear filters",
           secondaryAttr: "data-admin-clear-filters"
-        })}</td></tr>`;
+        });
 
     return `${ux.toolbar({
       chips: [
@@ -619,11 +754,12 @@
       ],
       results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}. Sorted by ${state.ship.sortKey}, ${state.ship.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card inb-table-card">
+    <div class="vis-table-wrap role-table-card kn-table-surface inb-table-card">
       <div class="vis-table-scroll">
-        <table class="vis-table vis-table--admin tm-table inb-table" aria-label="US In-Bond shipments">
+        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" })}" aria-label="US In-Bond shipments">
           <thead>
             <tr class="vis-table__labels">
+              ${ux.actionsColHeader()}
               ${sortHeader("shipmentId", "Shipment ID", "data-inb-ship-sort")}
               ${sortHeader("companyName", "Company Name", "data-inb-ship-sort")}
               ${sortHeader("shipmentState", "Shipment State", "data-inb-ship-sort")}
@@ -633,9 +769,9 @@
               ${sortHeader("countryExport", "Country of Export", "data-inb-ship-sort")}
               ${sortHeader("countryImport", "Country of Import", "data-inb-ship-sort")}
               ${sortHeader("eta", "ETA", "data-inb-ship-sort")}
-              <th scope="col"><span class="type-caption-sm type-weight-medium">Actions</span></th>
             </tr>
             <tr class="vis-table__filters">
+              ${ux.emptyColFilter()}
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "shipmentId", value: state.ship.filters.shipmentId, label: "shipment ID" })}
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "companyName", value: state.ship.filters.companyName, label: "company name" })}
               ${ux.colKnSelect({
@@ -671,7 +807,6 @@
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "countryExport", value: state.ship.filters.countryExport, label: "country of export" })}
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "countryImport", value: state.ship.filters.countryImport, label: "country of import" })}
               ${ux.colFilter({ attr: "data-inb-ship-filter", key: "eta", value: state.ship.filters.eta, label: "ETA" })}
-              ${ux.emptyColFilter()}
             </tr>
           </thead>
           <tbody>${body}</tbody>
@@ -702,6 +837,25 @@
     </div>`;
   }
 
+  const INB_BULK_ACTIONS = [
+    { label: "Arrive", attr: 'data-inb-bulk-action="arrive"' },
+    { label: "Export", attr: 'data-inb-bulk-action="export"' },
+    { label: "Transfer Liability", attr: 'data-inb-bulk-action="transfer"' },
+    { label: "Divert", attr: 'data-inb-bulk-action="divert"' }
+  ];
+
+  function renderBulkActions() {
+    if (state.view !== "transaction") {
+      return "";
+    }
+    return window.KNAdminUX.tmBulkActionsDropdown({
+      id: "inb-bulk",
+      label: "Bulk Actions",
+      open: state.bulkOpen === "inb-bulk",
+      items: INB_BULK_ACTIONS
+    });
+  }
+
   function render() {
     const page = document.getElementById("kn-inb-page");
     const root = document.getElementById("kn-inb-root");
@@ -721,7 +875,7 @@
       </div>
       <div class="inb-toolbar__meta tm-toolbar__meta">
         <span class="type-caption-sm inb-updated tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span>
-        <button class="btn btn--primary btn--sm type-ui-sm" type="button" data-inb-bulk>Bulk Actions</button>
+        ${renderBulkActions()}
       </div>
     </div>
     ${state.view === "transaction" ? renderTxnTable() : renderShipTable()}`;
@@ -754,13 +908,33 @@
         event.preventDefault();
         state.view = viewBtn.getAttribute("data-inb-view") || "transaction";
         state.menuOpen = "";
+        state.bulkOpen = "";
         state.selectOpen = "";
         render();
         return;
       }
-      if (event.target.closest("[data-inb-bulk]")) {
+      const bulkHandled = window.KNAdminUX.handleBulkActionsClick(event, {
+        open: state.bulkOpen,
+        setOpen: (next) => {
+          state.bulkOpen = next;
+          if (next) {
+            state.menuOpen = "";
+            state.selectOpen = "";
+          }
+          render();
+        }
+      });
+      if (bulkHandled) {
+        return;
+      }
+      const bulkAction = event.target.closest("[data-inb-bulk-action]");
+      if (bulkAction) {
         event.preventDefault();
-        toast("Bulk actions are not available in this sample.", "notice");
+        const action = bulkAction.getAttribute("data-inb-bulk-action") || "";
+        state.bulkOpen = "";
+        const labels = { arrive: "Arrive", export: "Export", transfer: "Transfer Liability", divert: "Divert" };
+        toast(`${labels[action] || action} bulk action is not available in this sample.`, "notice");
+        render();
         return;
       }
       if (event.target.closest("[data-admin-clear-filters]")) {
@@ -808,6 +982,9 @@
         open: state.menuOpen,
         setOpen: (next) => {
           state.menuOpen = next;
+          if (next) {
+            state.bulkOpen = "";
+          }
           render();
         }
       });
@@ -818,6 +995,9 @@
         open: state.selectOpen,
         setOpen: (next) => {
           state.selectOpen = next;
+          if (next) {
+            state.bulkOpen = "";
+          }
           render();
         },
         onChange: (key, value) => {
@@ -857,49 +1037,61 @@
         }
         return;
       }
+      const history = event.target.closest("[data-inb-history], [data-inb-ship-history]");
+      if (history) {
+        event.preventDefault();
+        const isShip = history.hasAttribute("data-inb-ship-history");
+        if (!isShip) {
+          const row = findTxnRow(history.getAttribute("data-inb-history"));
+          if (row) {
+            location.hash = `#transaction-us-in-bond/history/${encodeURIComponent(row.id)}`;
+          }
+          return;
+        }
+        const row = findShipRow(history.getAttribute("data-inb-ship-history"));
+        toast(`History for ${row?.shipmentId || "record"} is not available in this sample.`, "notice");
+        return;
+      }
+      const doc = event.target.closest("[data-inb-document], [data-inb-ship-document]");
+      if (doc) {
+        event.preventDefault();
+        const isShip = doc.hasAttribute("data-inb-ship-document");
+        const row = isShip
+          ? findShipRow(doc.getAttribute("data-inb-ship-document"))
+          : findTxnRow(doc.getAttribute("data-inb-document"));
+        const label = isShip ? row?.shipmentId : row?.transactionId;
+        toast(`Documents for ${label || "record"} opened in this sample.`, "notice");
+        return;
+      }
+      const shipView = event.target.closest("[data-inb-ship-view]");
+      if (shipView) {
+        event.preventDefault();
+        const row = findShipRow(shipView.getAttribute("data-inb-ship-view"));
+        toast(`${row?.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice");
+        return;
+      }
+      const shipCreate = event.target.closest("[data-inb-ship-create]");
+      if (shipCreate) {
+        event.preventDefault();
+        const row = findShipRow(shipCreate.getAttribute("data-inb-ship-create"));
+        toast(`Create Transaction for ${row?.shipmentId || "shipment"} opened in this sample.`, "notice");
+        return;
+      }
+      const shipIntake = event.target.closest("[data-inb-ship-intake]");
+      if (shipIntake) {
+        event.preventDefault();
+        const row = findShipRow(shipIntake.getAttribute("data-inb-ship-intake"));
+        toast(`${row?.shipmentId || "Shipment"} moved back to Intake in this sample.`, "notice");
+        return;
+      }
       const shipOpen = event.target.closest("[data-inb-ship-open]");
       if (shipOpen) {
         event.preventDefault();
         const row = findShipRow(shipOpen.getAttribute("data-inb-ship-open"));
         if (row) {
-          location.hash = `#transaction-us-in-bond/history/${encodeURIComponent(row.id)}`;
+          toast(`${row.shipmentId || "Shipment"} opened as read-only in this sample.`, "notice");
         }
         return;
-      }
-      const copy = event.target.closest("[data-inb-copy], [data-inb-ship-copy]");
-      if (copy) {
-        event.preventDefault();
-        const isShip = copy.hasAttribute("data-inb-ship-copy");
-        const row = isShip ? findShipRow(copy.getAttribute("data-inb-ship-copy")) : findTxnRow(copy.getAttribute("data-inb-copy"));
-        const text = isShip ? row?.shipmentId || "" : row?.transactionId || "";
-        if (text && navigator.clipboard?.writeText) {
-          navigator.clipboard.writeText(text).then(
-            () => toast(`Copied ${text}.`),
-            () => toast(`Copy ${text} from the table.`, "notice")
-          );
-        } else {
-          toast(text ? `ID ${text}` : "Nothing to copy.", "notice");
-        }
-        return;
-      }
-      const history = event.target.closest("[data-inb-history], [data-inb-ship-history]");
-      if (history) {
-        event.preventDefault();
-        const isShip = history.hasAttribute("data-inb-ship-history");
-        const row = isShip
-          ? findShipRow(history.getAttribute("data-inb-ship-history"))
-          : findTxnRow(history.getAttribute("data-inb-history"));
-        const label = isShip ? row?.shipmentId : row?.transactionId;
-        toast(`History for ${label || "record"} is not available in this sample.`, "notice");
-        return;
-      }
-      const del = event.target.closest("[data-inb-delete], [data-inb-ship-delete]");
-      if (del) {
-        event.preventDefault();
-        const isShip = del.hasAttribute("data-inb-ship-delete");
-        const row = isShip ? findShipRow(del.getAttribute("data-inb-ship-delete")) : findTxnRow(del.getAttribute("data-inb-delete"));
-        const label = isShip ? row?.shipmentId : row?.transactionId;
-        toast(`Delete is disabled in this sample (${label || "record"}).`, "notice");
       }
     });
 
@@ -941,6 +1133,7 @@
       }
       lastUpdatedIso = new Date().toISOString();
       state.menuOpen = "";
+      state.bulkOpen = "";
       state.selectOpen = "";
       render();
     }, AUTOREFRESH_MS);
@@ -948,6 +1141,7 @@
 
   function suspend() {
     state.menuOpen = "";
+    state.bulkOpen = "";
     state.selectOpen = "";
     stopAutorefresh();
   }
@@ -980,20 +1174,22 @@
     page.dataset.bound = "true";
     bind(page);
     document.addEventListener("kn-close-selects", () => {
-      if (page.hidden || (!state.selectOpen && !state.menuOpen)) {
+      if (page.hidden || (!state.selectOpen && !state.menuOpen && !state.bulkOpen)) {
         return;
       }
       state.selectOpen = "";
       state.menuOpen = "";
+      state.bulkOpen = "";
       render();
     });
     document.addEventListener("keydown", (event) => {
       if (page.hidden || event.key !== "Escape") {
         return;
       }
-      if (state.selectOpen || state.menuOpen) {
+      if (state.selectOpen || state.menuOpen || state.bulkOpen) {
         state.selectOpen = "";
         state.menuOpen = "";
+        state.bulkOpen = "";
         render();
       }
     });
@@ -1011,4 +1207,6 @@
       return buildShipSeed();
     }
   };
+})();
+
 })();

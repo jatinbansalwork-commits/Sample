@@ -183,7 +183,7 @@ admin-ux.js  (shared helpers + chrome)
 | --- | --- | --- |
 | Shipment References (`shipment-detail.js`) | Per-field catalog; JSON dirty | Low — key-scoped |
 | Visibility / map filters | Page UI state | Out of scope |
-| Klear Assistant drafts | `KNAiSuggest.consumeDraft` | Medium if draft apply overwrote without merge — Role uses `.add` on keys, not replace |
+| Klear Agent drafts | `KNAiSuggest.consumeDraft` | Medium if draft apply overwrote without merge — Role uses `.add` on keys, not replace |
 
 ### Full-object reinitialization vs scoped updates
 

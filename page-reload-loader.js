@@ -193,6 +193,11 @@
       return false;
     }
     reloadHandled = true;
+    // Detail/sub-routes render their own skeleton — skip the list/table placeholder.
+    if (kind === "module") {
+      refresh?.();
+      return false;
+    }
     beginReload({ page, root, kind, cols, rows });
 
     window.setTimeout(() => {

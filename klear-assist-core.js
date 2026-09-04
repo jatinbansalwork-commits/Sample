@@ -1101,21 +1101,21 @@
     const looking = `Looking at ${route.noun} ${label}`;
     return enrichContext(
       contextOf({
-        kind: route.kind,
-        area: route.noun,
-        title: label,
-        headline: looking,
-        summary: `${looking}. I can explain status, documents, and next steps on this record. I cannot file or edit it from here.`,
-        hint: "Ask about status, documents, or what to do next. I cannot change this filing.",
-        details: [
-          row?.companyName ? `Importer: ${row.companyName}.` : "",
-          row?.status || row?.transactionState ? `Status: ${row.status || row.transactionState}.` : "",
-          row?.entryNumber ? `Entry: ${row.entryNumber}.` : ""
-        ].filter(Boolean),
+      kind: route.kind,
+      area: route.noun,
+      title: label,
+      headline: looking,
+      summary: `${looking}. I can explain status, documents, and next steps on this record. I cannot file or edit it from here.`,
+      hint: "Ask about status, documents, or what to do next. I cannot change this filing.",
+      details: [
+        row?.companyName ? `Importer: ${row.companyName}.` : "",
+        row?.status || row?.transactionState ? `Status: ${row.status || row.transactionState}.` : "",
+        row?.entryNumber ? `Entry: ${row.entryNumber}.` : ""
+      ].filter(Boolean),
         prompts: [],
-        manualPath: `Transactions → US → ${route.noun} → ${label}`,
-        facts: { recordId: route.id, label, row, route: route.base },
-        scopeKey: `${route.base}/${route.segment}/${route.id}`
+      manualPath: `Transactions → US → ${route.noun} → ${label}`,
+      facts: { recordId: route.id, label, row, route: route.base },
+      scopeKey: `${route.base}/${route.segment}/${route.id}`
       })
     );
   }
@@ -1129,20 +1129,20 @@
     const looking = `Looking at Shipment ${detailId}`;
     return enrichContext(
       contextOf({
-        kind: "visibility-detail",
-        area: "Visibility",
-        title: detailId,
-        headline: looking,
-        summary: `${looking}. I can explain the status on this record; I cannot clear holds or edit milestones.`,
-        hint: "Ask about status, holds, or where to take action. I cannot update this shipment.",
-        details: [
-          row?.status ? `Status: ${row.status}.` : "",
-          row?.container ? `Container: ${row.container}.` : ""
-        ].filter(Boolean),
+      kind: "visibility-detail",
+      area: "Visibility",
+      title: detailId,
+      headline: looking,
+      summary: `${looking}. I can explain the status on this record; I cannot clear holds or edit milestones.`,
+      hint: "Ask about status, holds, or where to take action. I cannot update this shipment.",
+      details: [
+        row?.status ? `Status: ${row.status}.` : "",
+        row?.container ? `Container: ${row.container}.` : ""
+      ].filter(Boolean),
         prompts: [],
-        manualPath: "KlearHub → Visibility → open shipment",
-        facts: { detailId, row },
-        scopeKey: `#klearhub-visibility?id=${detailId}`
+      manualPath: "KlearHub → Visibility → open shipment",
+      facts: { detailId, row },
+      scopeKey: `#klearhub-visibility?id=${detailId}`
       })
     );
   }
@@ -1156,17 +1156,17 @@
     const region = parsed.region === "ca" ? "Canada" : "US";
     return enrichContext(
       contextOf({
-        kind: "statement-detail",
-        area: `${region} Statements`,
-        title: parsed.id,
-        headline: looking,
-        summary: `${looking}. I can explain ACH timing and unpaid lines. I cannot authorize a debit from here.`,
-        hint: "Ask about ACH, unpaid lines, or where to pay. I cannot change the statement.",
-        details: [`Region: ${region}.`],
+      kind: "statement-detail",
+      area: `${region} Statements`,
+      title: parsed.id,
+      headline: looking,
+      summary: `${looking}. I can explain ACH timing and unpaid lines. I cannot authorize a debit from here.`,
+      hint: "Ask about ACH, unpaid lines, or where to pay. I cannot change the statement.",
+      details: [`Region: ${region}.`],
         prompts: [],
-        manualPath: `Payment → ${region} Statements → ${parsed.id}`,
-        facts: { statementId: parsed.id, region: parsed.region },
-        scopeKey: `#payment-${parsed.region}-statements/detail/${parsed.id}`
+      manualPath: `Payment → ${region} Statements → ${parsed.id}`,
+      facts: { statementId: parsed.id, region: parsed.region },
+      scopeKey: `#payment-${parsed.region}-statements/detail/${parsed.id}`
       })
     );
   }
@@ -1270,6 +1270,23 @@
     return { components };
   }
 
+  /**
+   * Single source of truth for the Klear AI ray mark.
+   * Symbol: #klear-assist-ray (defined once in index.html / home.html).
+   * Do not use ✦ or other sparkle glyphs — call this helper instead.
+   */
+  function aiMarkHtml({ size = 14, spin = false, suggest = false, className = "" } = {}) {
+    const classes = [
+      "klear-assistant-mark",
+      spin ? "klear-assistant-mark--spin" : "",
+      suggest ? "ai-suggest-mark" : "",
+      className
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return `<svg class="${classes}" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`;
+  }
+
   window.KNAssistCore = {
     RENAME_SEEN_KEY,
     SHORTCUT_LABEL,
@@ -1291,6 +1308,7 @@
     syncTriggerVisibility,
     isAssistShortcut,
     parseTxnRecord,
+    aiMarkHtml,
     nestedListHash(path = hashPath()) {
       for (const route of TXN_ROUTES) {
         if (path.startsWith(`${route.base}/`) || path === route.base) {

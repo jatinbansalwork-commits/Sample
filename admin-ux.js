@@ -836,7 +836,7 @@
       ? `<a class="ai-ops-flag__link kn-link type-caption-sm" href="${escapeHtml(href)}">${escapeHtml(hrefLabel || "Open")}</a>`
       : "";
     const icon = observe
-      ? `<span class="ai-ops-flag__icon" aria-hidden="true">✦</span>`
+      ? `<span class="ai-ops-flag__icon" aria-hidden="true">${window.KNAssistCore?.aiMarkHtml?.({ size: 16, suggest: true }) || ""}</span>`
       : `<span class="ai-ops-flag__icon ai-ops-flag__icon--notice" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg>
         </span>`;
@@ -1121,7 +1121,8 @@
   }
 
   function permFilters({ query, selectedOnly, aiDescribe, aiLoading, aiNoMatch, aiAttr, totalCount, selectedCount, placeholder, prompts, inputMode = "describe" }) {
-    const assistantMark = `<svg class="ai-describe-icon klear-assistant-mark" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`;
+    const assistantMark = window.KNAssistCore?.aiMarkHtml?.({ size: 18, className: "ai-describe-icon" })
+      || `<svg class="ai-describe-icon klear-assistant-mark" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`;
     const searchIcon = `<svg class="search-input__svg-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15"><circle cx="6.5" cy="6.5" r="4"/><path d="M10.5 10.5 L14 14"/></svg>`;
     const attr = escapeHtml(aiAttr || "role");
     const searchOpen = inputMode === "search";
@@ -1235,7 +1236,9 @@
     open,
     compact,
     includeEmpty = false,
-    emptyLabel = "All"
+    emptyLabel = "All",
+    hideTriggerLabel = false,
+    triggerAriaLabel = ""
   }) {
     const selected = options.find((item) => item.id === value);
     const isOpen = open === openKey;
@@ -1249,10 +1252,15 @@
           <span>${escapeHtml(emptyLabel)}</span>
         </button>`
       : "";
-    return `<div class="vis-menu kn-dropdown kn-select${compact ? " kn-select--compact" : ""}">
+    const triggerLabel = hideTriggerLabel
+      ? ""
+      : `<span class="${selected ? "" : "kn-select__placeholder"}">${escapeHtml(selected?.label || placeholder)}</span>`;
+    const ariaLabelAttr =
+      triggerAriaLabel && !labelledBy ? ` aria-label="${escapeHtml(triggerAriaLabel)}"` : "";
+    return `<div class="vis-menu kn-dropdown kn-select${compact ? " kn-select--compact" : ""}${hideTriggerLabel ? " kn-select--icon-trigger" : ""}">
       <input type="hidden" id="${escapeHtml(id)}" name="${escapeHtml(name || id)}" value="${escapeHtml(value)}" />
-      <button class="${compact ? "vis-th-filter" : "kn-field__control"} kn-select__trigger ${compact ? "type-caption-sm" : "type-body-sm"}" type="button" data-admin-select-toggle="${escapeHtml(openKey)}" aria-haspopup="listbox" aria-expanded="${isOpen}" aria-controls="${escapeHtml(id)}-menu"${labelledBy ? ` aria-labelledby="${escapeHtml(labelledBy)}"` : ""}>
-        <span class="${selected ? "" : "kn-select__placeholder"}">${escapeHtml(selected?.label || placeholder)}</span>
+      <button class="${compact ? "vis-th-filter" : "kn-field__control"} kn-select__trigger ${compact ? "type-caption-sm" : "type-body-sm"}" type="button" data-admin-select-toggle="${escapeHtml(openKey)}" aria-haspopup="listbox" aria-expanded="${isOpen}" aria-controls="${escapeHtml(id)}-menu"${labelledBy ? ` aria-labelledby="${escapeHtml(labelledBy)}"` : ""}${ariaLabelAttr}>
+        ${triggerLabel}
         ${chevron}
       </button>
       <div class="menu-overlay vis-menu__list kn-dropdown__overlay kn-select__menu" id="${escapeHtml(id)}-menu" ${isOpen ? "" : "hidden"} role="listbox">
@@ -1426,7 +1434,7 @@
             const label = escapeHtml(chip.label);
             const aiClass = chip.aiSuggested ? " is-ai-suggested" : "";
             const sparkle = chip.aiSuggested
-              ? '<span class="ai-suggest-mark" aria-hidden="true">✦</span>'
+              ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
               : "";
             const tip = chip.aiSuggested && (chip.title || chip.reason)
               ? ` title="${escapeHtml(chip.title || chip.reason)}"`
@@ -1461,10 +1469,13 @@
               ? options
                   .map((item) => {
                     const on = Boolean(item.checked);
+                    const aiMark = item.aiSuggested
+                      ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
+                      : "";
                     return `<label class="kn-checkbox kn-check kn-select__option ${on ? "is-selected" : ""}">
                       <input type="checkbox" ${item.attr} ${on ? "checked" : ""} />
                       <span class="kn-check__box" aria-hidden="true"></span>
-                      <span class="type-body-sm">${escapeHtml(item.label)}</span>
+                      <span class="type-body-sm kn-select__option-label">${aiMark}${escapeHtml(item.label)}</span>
                     </label>`;
                   })
                   .join("")

@@ -884,11 +884,30 @@ function getBreadcrumbTrail() {
   }
 
   if (l3Current) {
+    const path = getHashPath();
+    const isfDoc = path.match(/^#transaction-us-isf\/documents\/([^/?#]+)/);
+    const isfHistory = path.match(/^#transaction-us-isf\/history\/([^/]+)$/);
+    const isfSubRoute = Boolean(isfDoc || isfHistory);
     items.push({
-      href: l3Current.getAttribute("href"),
+      href: isfSubRoute ? window.KNUsIsf?.listReturnHash?.() || l3Current.getAttribute("href") : l3Current.getAttribute("href"),
       label: getNavTitle(l3Current),
-      isCurrentPage: true,
+      isCurrentPage: !isfSubRoute
     });
+    if (isfDoc) {
+      const rowId = decodeURIComponent(isfDoc[1]);
+      items.push({
+        href: withHashQuery(path),
+        label: window.KNUsIsf?.documentBreadcrumbLabel?.(rowId) || rowId,
+        isCurrentPage: true
+      });
+    } else if (isfHistory) {
+      const rowId = decodeURIComponent(isfHistory[1]);
+      items.push({
+        href: path,
+        label: window.KNUsIsf?.historyBreadcrumbLabel?.(rowId) || rowId,
+        isCurrentPage: true
+      });
+    }
   }
 
   return items;
@@ -1031,6 +1050,24 @@ function getCurrentPageTitle() {
       return label;
     }
   }
+  const isfDoc = path.match(/^#transaction-us-isf\/documents\/([^/?#]+)/);
+  if (isfDoc) {
+    const rowId = decodeURIComponent(isfDoc[1]);
+    const route = window.KNIsfDocViewer?.parseRoute?.();
+    const row = window.KNUsIsf?.list?.().find((item) => item.id === rowId);
+    if (row && route) {
+      const detail = window.KNIsfDetail?.buildDetail?.(row);
+      const cat = route.cat || "EML";
+      const index = route.index || 0;
+      if (detail) {
+        return window.KNIsfDetail.productionDocId(row, cat, index);
+      }
+    }
+    const label = window.KNUsIsf?.transactionLabel?.(rowId);
+    if (label) {
+      return label;
+    }
+  }
   const stmtApproval = path.match(/^#payment-us-statements\/approval\/([^/]+)$/);
   if (stmtApproval) {
     return decodeURIComponent(stmtApproval[1]);
@@ -1124,12 +1161,24 @@ function normalizeHashPath(hash = location.hash) {
   return `#${raw.replace(/^#\/?/, "")}`;
 }
 
+function hashQuerySuffix(hash = location.hash) {
+  const raw = String(hash || "");
+  const idx = raw.indexOf("?");
+  return idx >= 0 ? raw.slice(idx) : "";
+}
+
+function withHashQuery(path, hash = location.hash) {
+  const query = hashQuerySuffix(hash);
+  return query ? `${path}${query}` : path;
+}
+
 function getHashPath(hash = location.hash) {
   return normalizeHashPath(hash);
 }
 
 window.getHashPath = getHashPath;
 window.hashFromPathname = hashFromPathname;
+window.withHashQuery = withHashQuery;
 
 function syncDocumentRoute() {
   if (!document.getElementById("agentic-broker-page")) {
@@ -1338,10 +1387,12 @@ function syncPageView() {
     });
   }
   if (isUsIsf) {
+    const isfPath = getHashPath();
+    const isfSubRoute = /^#transaction-us-isf\/(documents|history)\//.test(isfPath);
     bootActivePage({
       page: isfPage,
       root: document.getElementById("kn-isf-root"),
-      kind: "tm-table",
+      kind: isfSubRoute ? "module" : "tm-table",
       init: () => window.KNUsIsf?.init?.(),
       sync: () => window.KNUsIsf?.sync?.()
     });
@@ -4733,7 +4784,7 @@ window.KNPersona?.bootstrap?.();
     Boolean(pathnameRoute && (!rawHashPath || rawHashPath === "#")) ||
     Boolean(rawHashPath && normalizeHashPath(rawHashPath) !== path);
   if (shouldCanonicalize) {
-    history.replaceState(null, "", `${path}${location.search || ""}`);
+    history.replaceState(null, "", `${withHashQuery(path)}${location.search || ""}`);
     window.dispatchEvent(new CustomEvent("kn-route-change", { detail: { hash: path } }));
   }
   const { navHash, link } = findNavLinkForHash(path);
@@ -4744,7 +4795,7 @@ window.KNPersona?.bootstrap?.();
     renderBreadcrumb();
   }
   if (navHash !== path) {
-    history.replaceState(null, "", path);
+    history.replaceState(null, "", withHashQuery(path));
     adminModuleApi(navHash)?.sync?.();
   }
 }
@@ -4756,13 +4807,15 @@ window.addEventListener("hashchange", (event) => {
     const newHash = event.newURL ? getHashPath(new URL(event.newURL).hash) : getHashPath();
     const oldApi = window.KNAdminUX.adminApiForHash(oldHash);
     if (oldApi?.isDirty?.()) {
-      history.replaceState(null, "", oldHash);
+      const oldFullHash = event.oldURL ? new URL(event.oldURL).hash : location.hash;
+      history.replaceState(null, "", withHashQuery(oldHash, oldFullHash));
       oldApi.requestLeave(newHash);
       oldApi.sync?.();
       return;
     }
   }
   const { path, navHash, link } = findNavLinkForHash();
+  const newFullHash = event.newURL ? new URL(event.newURL).hash : location.hash;
   const api = adminModuleApi(navHash);
   if (api) {
     const adminLink = sideNav.querySelector(`.side-nav-link[data-level="2"][href="${navHash}"]`) || link;
@@ -4770,7 +4823,7 @@ window.addEventListener("hashchange", (event) => {
       window.KNAdminUX?.beginNavigation();
       adminLink.click();
       if (path !== navHash) {
-        history.replaceState(null, "", path);
+        history.replaceState(null, "", withHashQuery(path, newFullHash));
       }
     } else {
       api.sync?.();

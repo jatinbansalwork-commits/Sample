@@ -32,9 +32,9 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./tokens.css?v=72" />
+    <link rel="stylesheet" href="./tokens.css?v=73" />
     <link rel="stylesheet" href="./components.css?v=91" />
-    <link rel="stylesheet" href="./styles.css?v=506" />
+    <link rel="stylesheet" href="./styles.css?v=560" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -2121,7 +2121,7 @@
             <div class="visually-hidden" id="ai-assistant-live" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="ai-assistant-composer">
               <div class="ai-assistant-ref" id="ai-assistant-ref" hidden>
-                <span class="ai-assistant-ref__spark" aria-hidden="true">✦</span>
+                <span class="ai-assistant-ref__spark" aria-hidden="true"><svg class="klear-assistant-mark ai-suggest-mark" viewBox="0 0 24 24" width="14" height="14" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg></span>
                 <p class="ai-assistant-ref__text type-caption-sm" id="ai-assistant-ref-text"></p>
                 <button class="ai-assistant-ref__dismiss icon-btn" type="button" id="ai-assistant-ref-dismiss" aria-label="Hide page reference" title="Hide page reference">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
@@ -2274,17 +2274,19 @@
     <script src="./shipments-data.js?v=9"></script>
     <script src="./map-ux.js?v=6"></script>
     <script src="./ais-live.js?v=5"></script>
-    <script src="./page-reload-loader.js?v=1"></script>
+    <script src="./page-reload-loader.js?v=2"></script>
+    <script src="./klear-assist-core.js?v=14"></script>
     <script src="./visibility.js?v=43"></script>
     <script src="./shipment-detail.js?v=29"></script>
-    <script src="./admin-ux.js?v=107"></script>
-    <script src="./ai-suggest.js?v=9"></script>
-    <script src="./role-management.js?v=76"></script>
+    <script src="./admin-ux.js?v=109"></script>
+    <script src="./ai-suggest.js?v=10"></script>
+    <script src="./role-management.js?v=77"></script>
     <script src="./user-management.js?v=48"></script>
-    <script src="./default-role-management.js?v=78"></script>
+    <script src="./default-role-management.js?v=79"></script>
     <script src="./contract-management.js?v=2"></script>
-    <script src="./transaction-us-isf-detail.js?v=6"></script>
-    <script src="./transaction-us-isf.js?v=15"></script>
+    <script src="./transaction-us-isf-detail.js?v=35"></script>
+    <script src="./transaction-us-isf-doc-viewer.js?v=33"></script>
+    <script src="./transaction-us-isf.js?v=28"></script>
     <script src="./transaction-us-in-bond.js?v=11"></script>
     <script src="./entry-doc-extract.js?v=1"></script>
     <script src="./entry-doc-panel.js?v=1"></script>
@@ -2310,7 +2312,6 @@
     <script src="./genui.js?v=16"></script>
     <script src="./klear-sense.js?v=1"></script>
     <script src="./agentic-threads.js?v=6"></script>
-    <script src="./klear-assist-core.js?v=13"></script>
     <script src="./klear-agent-ghost-autocomplete.js?v=1"></script>
     <script src="./agentic-spark.js?v=14"></script>
     <script src="./agentic-broker.js?v=61"></script>
@@ -2331,6 +2332,6 @@
     </script>
     <script src="./persona-config.js?v=2"></script>
     <script src="./session-restore.js?v=1"></script>
-    <script src="./script.js?v=215"></script>
+    <script src="./script.js?v=219"></script>
   </body>
 </html>

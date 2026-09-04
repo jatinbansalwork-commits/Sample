@@ -1046,7 +1046,7 @@
   function check(name, value, checked, label, extras = {}) {
     const labelClass = extras.labelClass || "type-body-sm";
     const mark = extras.aiMark
-      ? `<span class="ai-suggest-mark" aria-hidden="true">✦</span>`
+      ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
       : "";
     const text = extras.hideLabel
       ? `<span class="visually-hidden">${escapeHtml(label)}</span>`

@@ -841,12 +841,19 @@
     return payload;
   }
 
+  function aiSuggestMark(size = 12) {
+    return (
+      window.KNAssistCore?.aiMarkHtml?.({ size, suggest: true }) ||
+      `<svg class="klear-assistant-mark ai-suggest-mark" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`
+    );
+  }
+
   function reasonTag(reason, { inline = false } = {}) {
     if (!reason) {
       return "";
     }
     const cls = inline ? "ai-suggest-tag ai-suggest-tag--inline type-caption-sm" : "ai-suggest-tag type-caption-sm";
-    return `<span class="${cls}" title="${escapeHtml(reason)}" aria-label="AI suggestion: ${escapeHtml(reason)}">✦ ${escapeHtml(reason)}</span>`;
+    return `<span class="${cls}" title="${escapeHtml(reason)}" aria-label="AI suggestion: ${escapeHtml(reason)}">${aiSuggestMark()} ${escapeHtml(reason)}</span>`;
   }
 
   function reviewHint(extra = "") {
@@ -883,7 +890,7 @@
     const createLabel = isUser ? "Create draft" : "Create draft";
     return `<article class="ai-draft-card" data-ai-draft-id="${escapeHtml(draft.id || "")}" data-ai-draft-type="${escapeHtml(draft.type)}">
       <header class="ai-draft-card__head">
-        <span class="ai-draft-card__mark" aria-hidden="true">✦</span>
+        <span class="ai-draft-card__mark" aria-hidden="true">${aiSuggestMark(16)}</span>
         <div>
           <p class="type-ui-sm type-weight-semibold">${escapeHtml(title)}</p>
           <p class="type-caption-sm ai-draft-card__sub">${escapeHtml(draft.reasoning || MESSAGES.draftReady)}</p>
@@ -980,7 +987,7 @@
             const on = selectedSet.has(item.name);
             const isAi = aiSet.has(item.name);
             return `<button type="button" class="ai-role-chip type-caption-sm${on ? " is-selected" : ""}${isAi ? " is-ai-suggested" : ""}" data-ai-user-role-chip="${escapeHtml(item.name)}" aria-pressed="${on}" title="${escapeHtml(item.reason)}">
-              <span class="ai-role-chip__label">✦ ${escapeHtml(item.name)}</span>
+              <span class="ai-role-chip__label">${aiSuggestMark()} ${escapeHtml(item.name)}</span>
               <span class="ai-role-chip__reason">${escapeHtml(item.reason)}</span>
             </button>`;
           })

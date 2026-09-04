@@ -251,7 +251,7 @@
   --theme-colors-surface-text-gray-muted: var(--kn-primitive-surface-700);
   --theme-colors-surface-text-gray-disabled: var(--kn-primitive-surface-500);
   --theme-colors-surface-text-primary-normal: var(--kn-primitive-indigo-500);
-  --theme-colors-surface-text-onSea-onSubtle: var(--kn-primitive-sea-50);
+  --theme-colors-surface-text-onSea-onSubtle: var(--kn-primitive-sea-700);
   --theme-colors-surface-text-onSea-onIntense: var(--kn-primitive-surface-0);
   --theme-colors-surface-text-staticWhite-normal: var(--kn-primitive-surface-0);
   --theme-colors-surface-text-staticWhite-subtle: var(--kn-primitive-sea-50);
@@ -422,7 +422,7 @@
   --theme-colors-surface-text-staticBlack-muted: var(--kn-primitive-surface-700);
   --theme-colors-surface-text-staticBlack-disabled: var(--kn-primitive-surface-500);
   --theme-colors-surface-icon-gray-disabled: var(--kn-primitive-surface-500);
-  --theme-colors-surface-icon-onSea-onSubtle: var(--kn-primitive-indigo-700);
+  --theme-colors-surface-icon-onSea-onSubtle: var(--kn-primitive-sea-600);
   --theme-colors-surface-icon-onCloud-onSubtle: var(--kn-primitive-blue-sapphire-400);
   --theme-colors-surface-icon-onCloud-onIntense: var(--kn-primitive-blue-sapphire-300);
   --theme-colors-surface-icon-staticWhite-muted: color-mix(in srgb, var(--kn-primitive-surface-0) 64%, transparent);

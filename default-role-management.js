@@ -1174,7 +1174,7 @@
   function check(name, value, checked, label, extras = {}) {
     const labelClass = extras.labelClass || "type-body-sm";
     const mark = extras.aiMark
-      ? `<span class="ai-suggest-mark" aria-hidden="true">✦</span>`
+      ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
       : "";
     const text = extras.hideLabel
       ? `<span class="visually-hidden">${escapeHtml(label)}</span>`
@@ -1496,7 +1496,8 @@
         removeAttr: `data-drole-service-remove="${escapeHtml(id)}"`
       })),
       options: options.map((item) => ({
-        label: `${aiServices.has(item.id) ? "✦ " : ""}${item.label}`,
+        label: item.label,
+        aiSuggested: aiServices.has(item.id),
         checked: selected.has(item.id),
         attr: `data-drole-service="${escapeHtml(item.id)}"${aiServices.has(item.id) ? ' data-ai-suggested="1"' : ""}`
       }))
@@ -1520,7 +1521,7 @@
     const aiApplicableIds = state.aiApplicableSuggestions || [];
     const accessAiHint =
       aiServiceIds.length || aiApplicableIds.length
-        ? `<p class="type-caption-sm ai-applicable-hint">✦ ${escapeHtml(
+        ? `<p class="type-caption-sm ai-applicable-hint">${window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""} ${escapeHtml(
             sharedAiReason([...aiServiceIds, ...aiApplicableIds], {
               ...(state.aiServiceReasons || {}),
               ...(state.aiApplicableReasons || {})

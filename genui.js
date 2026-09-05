@@ -131,7 +131,7 @@
           flushList();
           list = { tag: "ol", items: [] };
         }
-        list.items.push(`<li>${inlineMarkdown(ol[2])}</li>`);
+        list.items.push(`<li><span class="kn-genui__li-copy">${inlineMarkdown(ol[2])}</span></li>`);
         return;
       }
       if (ul) {
@@ -139,7 +139,7 @@
           flushList();
           list = { tag: "ul", items: [] };
         }
-        list.items.push(`<li>${inlineMarkdown(ul[1])}</li>`);
+        list.items.push(`<li><span class="kn-genui__li-copy">${inlineMarkdown(ul[1])}</span></li>`);
         return;
       }
       flushList();
@@ -427,8 +427,8 @@
     return `<div class="kn-alert kn-alert--${tone} kn-alert--${emphasis} kn-alert--full" role="${role}"${live}><span class="kn-alert__icon" aria-hidden="true">${alertIcon(tone)}</span><div class="kn-alert__content">${title}${desc}</div></div>`;
   }
 
-  function wrapRing(inner) {
-    if (prefersReducedMotion()) {
+  function wrapRing(inner, ctx = {}) {
+    if (prefersReducedMotion() || ctx.settledRing) {
       return `<div class="kn-genui__ring kn-genui__ring--static is-settled"><div class="kn-genui__ring-content">${inner}</div></div>`;
     }
     return `<div class="kn-genui__ring" data-kn-genui-ring><span class="kn-genui__ring-glow" aria-hidden="true"></span><div class="kn-genui__ring-content">${inner}<span class="kn-genui__ring-shade" aria-hidden="true"></span></div></div>`;
@@ -582,7 +582,7 @@
       case "CARD": {
         const kids = Array.isArray(node.children) ? node.children : [];
         if (!node.title && !node.description && !kids.length) {
-          return wrapRing(blockSkeleton());
+          return wrapRing(blockSkeleton(), ctx);
         }
         const header =
           node.title || node.description
@@ -591,12 +591,12 @@
         const body = kids.length ? kids.map((child) => renderNode(child, ctx)).join("") : blockSkeleton();
         const footer = node.footer ? `<div class="kn-card__footer"><p class="type-caption-sm">${escapeHtml(node.footer)}</p></div>` : "";
         const card = `<article class="kn-card kn-genui__card">${header}<div class="kn-card__body">${body}</div>${footer}</article>`;
-        return wrapRing(card);
+        return wrapRing(card, ctx);
       }
       case "TABLE": {
         const rows = (node.rows || []).filter((row) => Array.isArray(row) && row.length);
         if (!node.headers?.length || !rows.length) {
-          return wrapRing(blockSkeleton());
+          return wrapRing(blockSkeleton(), ctx);
         }
         const head = node.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
         const body = rows
@@ -606,7 +606,7 @@
           )
           .join("");
         const table = `<div class="kn-genui__table-wrap"><table class="kn-genui__table vis-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
-        return wrapRing(table);
+        return wrapRing(table, ctx);
       }
       default: {
         const custom = customRenderers[type];
@@ -689,7 +689,8 @@
       const ctx = {
         animate,
         streaming: Boolean(opts?.streaming),
-        skeletonUntilComplete: Boolean(opts?.skeletonUntilComplete)
+        skeletonUntilComplete: Boolean(opts?.skeletonUntilComplete),
+        settledRing: Boolean(opts?.settledRing)
       };
       el.classList.add("kn-genui");
       if (animate && components.length > 1) {
@@ -706,12 +707,43 @@
         })
         .join("");
       bind(el);
-      if (animate || el.querySelector("[data-kn-genui-ring]")) {
+      if ((animate || el.querySelector("[data-kn-genui-ring]")) && !ctx.settledRing) {
         settleRings(el);
       }
     } catch (_error) {
       el.innerHTML = `<p class="type-body-sm">This structured answer could not be rendered.</p>`;
     }
+    return el;
+  }
+
+  /** Swap skeleton placeholders in-place so text/cards already on screen do not remount. */
+  function revealSkeletonBlocks(el, schema) {
+    if (!el) {
+      return el;
+    }
+    const components = schemaComponents(schema).filter((component) => component && !isPartialTypeName(component.component));
+    const items = el.querySelectorAll(":scope > .kn-genui__item");
+    const ctx = {
+      animate: false,
+      streaming: false,
+      skeletonUntilComplete: false,
+      settledRing: true
+    };
+    components.forEach((component, index) => {
+      const item = items[index];
+      if (!item?.querySelector(".kn-genui__skeleton")) {
+        return;
+      }
+      const html = renderNode(component, ctx);
+      if (!html) {
+        return;
+      }
+      const mod = itemModifier(components[index - 1], component);
+      item.className = `kn-genui__item ${mod}`.trim();
+      item.innerHTML = html;
+      item.classList.add("is-revealed");
+    });
+    bind(el);
     return el;
   }
 
@@ -755,6 +787,15 @@
         await delay(chunkInterval);
         opts.onChunk?.(null);
       }
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      if (!reduce) {
+        await delay(opts.preRevealDelay ?? opts.settleDelay ?? 140);
+      }
+      revealSkeletonBlocks(el, { components });
+      opts.onDone?.(components);
+      return el;
     } else {
       const step = Math.max(36, Math.ceil(payload.length / 48));
       for (let i = step; i < payload.length; i += step) {
@@ -802,7 +843,36 @@
     }
     const rate = node.dutyRate ? badgeHtml(node.dutyRate, "information") : "";
     const conf = node.confidence ? badgeHtml(String(node.confidence), node.confidence === "high" ? "positive" : "notice") : "";
-    return `<article class="kn-card kn-genui__card">
+    const chapter99 = node.chapter99?.code
+      ? `<div class="info-item"><dt>Chapter 99 overlay</dt><dd><span class="kn-badge kn-badge--small kn-badge--notice">${escapeHtml(node.chapter99.code)}</span> <span class="type-caption-sm">${escapeHtml(node.chapter99.note || "")}</span></dd></div>`
+      : "";
+    const alternatives = Array.isArray(node.alternatives) && node.alternatives.length
+      ? `<div class="kn-classification-alts">
+          <p class="type-caption-sm type-weight-semibold">Alternatives considered</p>
+          <ul class="kn-classification-alts__list">
+            ${node.alternatives
+              .map(
+                (alt) =>
+                  `<li class="type-caption-sm"><strong>${escapeHtml(alt.hts)}</strong> — ${escapeHtml(alt.reason || "Rejected")}</li>`
+              )
+              .join("")}
+          </ul>
+        </div>`
+      : "";
+    const crossRulings = Array.isArray(node.crossRulings) && node.crossRulings.length
+      ? `<div class="kn-classification-cross">
+          <p class="type-caption-sm type-weight-semibold">CROSS ruling references</p>
+          <ul class="kn-classification-cross__list">
+            ${node.crossRulings
+              .map((ruling) => `<li class="type-caption-sm"><strong>${escapeHtml(ruling.id)}</strong> — ${escapeHtml(ruling.summary || "")}</li>`)
+              .join("")}
+          </ul>
+        </div>`
+      : "";
+    const trace = node.trace?.length && window.KNClassificationAssistant?.renderTraceHtml
+      ? window.KNClassificationAssistant.renderTraceHtml(node.trace, node.traceId || "trace")
+      : "";
+    return `<article class="kn-card kn-genui__card kn-classification-card">
       <div class="kn-card__header"><div class="kn-card__copy">
         <p class="kn-card__title type-ui-md type-weight-semibold">${escapeHtml(node.hts)}</p>
         <p class="kn-card__subtitle type-caption-sm">${escapeHtml(node.description || "Classification")}</p>
@@ -813,7 +883,11 @@
           ${node.preference ? `<div class="info-item"><dt>Preference</dt><dd>${escapeHtml(node.preference)}</dd></div>` : ""}
           ${rate ? `<div class="info-item"><dt>Duty rate</dt><dd>${rate}</dd></div>` : ""}
           ${conf ? `<div class="info-item"><dt>Confidence</dt><dd>${conf}</dd></div>` : ""}
+          ${chapter99}
         </dl>
+        ${alternatives}
+        ${crossRulings}
+        ${trace}
       </div>
       ${node.action ? `<div class="kn-card__footer">${actionButton(node.action)}</div>` : ""}
     </article>`;
@@ -911,6 +985,11 @@
         origin: result.origin,
         preference: result.preference,
         confidence: result.confidence,
+        chapter99: result.chapter99,
+        alternatives: result.alternatives,
+        crossRulings: result.crossRulings,
+        trace: result.trace,
+        traceId: result.traceId,
         action: result.action
       });
     } else if (result.mode === "duty") {

@@ -33,8 +33,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./tokens.css?v=73" />
-    <link rel="stylesheet" href="./components.css?v=91" />
-    <link rel="stylesheet" href="./styles.css?v=560" />
+    <link rel="stylesheet" href="./components.css?v=93" />
+    <link rel="stylesheet" href="./styles.css?v=566" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -993,6 +993,81 @@
                 </button>
               </div>
             </div>
+
+            <section class="panel card dash-widget dash-ai-copilot kn-card" data-widget="ai-insights" aria-labelledby="dash-ai-insights-title">
+              <header class="dash-ai-copilot__chrome">
+                <div class="dash-ai-copilot__leading">
+                  <span class="dash-ai-copilot__mark" id="dash-ai-insights-mark" aria-hidden="true">
+                    <svg class="klear-assistant-mark" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+                  </span>
+                  <div class="dash-ai-copilot__copy">
+                    <h2 class="dash-ai-copilot__title type-heading-h5 type-weight-semibold" id="dash-ai-insights-title">Klear insights</h2>
+                    <p class="dash-ai-copilot__subtitle type-caption-sm">AI copilot briefing on your live queue</p>
+                  </div>
+                </div>
+                <div class="dash-ai-copilot__chrome-actions">
+                  <span class="dash-ai-copilot__model-badge type-caption-sm" aria-label="Model">Klear Agent</span>
+                  <button class="icon-btn dash-ai-copilot__refresh" type="button" id="dash-ai-insights-refresh" aria-label="Refresh insights" data-tooltip="Refresh insights">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <path d="M21 3v6h-6" />
+                    </svg>
+                  </button>
+                </div>
+              </header>
+              <div class="dash-ai-copilot__panel">
+                <div class="dash-ai-copilot__thread" id="dash-ai-insights-thread" aria-live="polite">
+                  <article class="ai-msg ai-msg--assistant kn-chat-msg kn-chat-msg--other" id="dash-ai-insights-msg">
+                    <div class="ai-msg__stack kn-chat-msg__stack">
+                      <div class="kn-chat-msg__row">
+                        <span class="kn-chat-msg__leading dash-ai-copilot__avatar" aria-hidden="true">
+                          <svg class="klear-assistant-mark" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+                        </span>
+                        <div class="ai-msg__body kn-chat-msg__bubble">
+                          <div class="dash-ai-copilot__discussion">
+                            <div class="dash-ai-copilot__genui-host" id="dash-ai-insights-genui" data-kn-genui-provider role="region" aria-label="AI insights"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <div class="dash-ai-copilot__suggestions" role="group" aria-label="Suggested prompts" id="dash-ai-insights-suggestions">
+                  <button class="kn-chip kn-chip--small dash-ai-copilot__suggestion" type="button" data-dash-ai-prompt="All items due today">All items due today</button>
+                  <button class="kn-chip kn-chip--small dash-ai-copilot__suggestion" type="button" data-dash-ai-prompt="What's in my queue today?">What's in my queue today?</button>
+                  <button class="kn-chip kn-chip--small dash-ai-copilot__suggestion" type="button" data-dash-ai-prompt="Show demurrage risk">Show demurrage risk</button>
+                </div>
+                <div class="dash-ai-copilot__composer">
+                  <div class="kn-chat-input" id="dash-ai-insights-input" data-kn-component="chat-input">
+                    <form class="kn-chat-input__card" id="dash-ai-insights-form">
+                      <label class="visually-hidden" for="dash-ai-insights-text">Ask about your dashboard</label>
+                      <div class="kn-chat-input__field">
+                        <textarea
+                          class="kn-chat-input__control type-body-md"
+                          id="dash-ai-insights-text"
+                          rows="2"
+                          maxlength="500"
+                          placeholder="Ask about holds, delays, filings, or statements…"
+                          autocomplete="off"
+                          aria-multiline="true"
+                        ></textarea>
+                      </div>
+                      <div class="kn-chat-input__actions">
+                        <button class="kn-chat-input__submit" id="dash-ai-insights-send" type="submit" disabled aria-label="Submit">
+                          <svg class="kn-chat-input__icon kn-chat-input__icon--send" viewBox="0 0 24 24" fill="none" aria-hidden="true" width="16" height="16">
+                            <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                          <svg class="kn-chat-input__icon kn-chat-input__icon--stop" viewBox="0 0 24 24" fill="none" aria-hidden="true" width="16" height="16" hidden>
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
+                            <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <section class="panel card dash-widget kn-card" data-widget="alerts">
               <div class="card-header">
@@ -2287,29 +2362,33 @@
     <script src="./transaction-us-isf-detail.js?v=35"></script>
     <script src="./transaction-us-isf-doc-viewer.js?v=33"></script>
     <script src="./transaction-us-isf.js?v=28"></script>
-    <script src="./transaction-us-in-bond.js?v=11"></script>
+    <script src="./transaction-us-in-bond-detail.js?v=4"></script>
+    <script src="./transaction-us-in-bond-doc-viewer.js?v=2"></script>
+    <script src="./transaction-us-in-bond.js?v=14"></script>
     <script src="./entry-doc-extract.js?v=1"></script>
     <script src="./entry-doc-panel.js?v=1"></script>
     <script src="./entry-validation.js?v=1"></script>
     <script src="./entry-outlier-checks.js?v=1"></script>
     <script src="./entry-agent-trace.js?v=2"></script>
     <script src="./entry-status-detail.js?v=1"></script>
-    <script src="./kn-next-actions.js?v=1"></script>
+    <script src="./kn-next-actions.js?v=4"></script>
     <script src="./entry-form-state.js?v=1"></script>
     <script src="./entry-broker-memory.js?v=1"></script>
     <script src="./entry-agent-stream.js?v=1"></script>
     <script src="./entry-journey-tab.js?v=1"></script>
     <script src="./entry-agent-patch-flash.js?v=1"></script>
-    <script src="./transaction-us-entry-filing.js?v=21"></script>
+    <script src="./transaction-us-entry-filing.js?v=24"></script>
     <script src="./transaction-us-entry.js?v=16"></script>
     <script src="./transaction-us-export.js?v=1"></script>
     <script src="./transaction-us-ftz.js?v=4"></script>
     <script src="./transaction-us-psc.js?v=9"></script>
     <script src="./transaction-us-delivery-order.js?v=8"></script>
     <script src="./transaction-us-shipments.js?v=9"></script>
-    <script src="./knowledge-expert.js?v=1"></script>
-    <script src="./payment-us-statements.js?v=1"></script>
-    <script src="./genui.js?v=16"></script>
+    <script src="./classification-assistant.js?v=1"></script>
+    <script src="./knowledge-expert.js?v=3"></script>
+    <script src="./payment-us-statements.js?v=3"></script>
+    <script src="./genui.js?v=19"></script>
+    <script src="./dash-ai-copilot.js?v=2"></script>
     <script src="./klear-sense.js?v=1"></script>
     <script src="./agentic-threads.js?v=6"></script>
     <script src="./klear-agent-ghost-autocomplete.js?v=1"></script>
@@ -2332,6 +2411,6 @@
     </script>
     <script src="./persona-config.js?v=2"></script>
     <script src="./session-restore.js?v=1"></script>
-    <script src="./script.js?v=219"></script>
+    <script src="./script.js?v=224"></script>
   </body>
 </html>

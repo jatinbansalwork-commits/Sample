@@ -21,8 +21,8 @@
     { key: "dashboard", icon: "dashboard", label: "Personal dashboard", kind: "prompt", prompt: "Show my personal dashboard" },
     { key: "queue", icon: "queue", label: "Recent entries in my queue", kind: "prompt", prompt: "Recent entries in my queue" },
     { key: "statements", icon: "statements", label: "Today's statements", kind: "prompt", prompt: "Today's Statements" },
-    { key: "hts", icon: "queue", label: "HTS classification", kind: "prompt", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" },
-    { key: "catair", icon: "corrections", label: "CATAIR code 398", kind: "prompt", prompt: "What does CATAIR code 398 mean and how do I fix it?" },
+    { key: "hts", icon: "queue", label: "HTS classification", kind: "prompt", prompt: "Classify this product" },
+    { key: "catair", icon: "corrections", label: "CATAIR code 398", kind: "prompt", prompt: "CATAIR code 398" },
     { key: "shipments", icon: "shipments", label: "Recent shipments", kind: "prompt", prompt: "Recent shipments in operations" },
     { key: "dueToday", icon: "dueToday", label: "Items due today", kind: "prompt", prompt: "All items due today" },
     { key: "corrections", icon: "corrections", label: "Post summary corrections", kind: "prompt", prompt: "Post Summary Corrections" },
@@ -1997,12 +1997,29 @@
   document.addEventListener("kn-genui-action", (event) => {
     const detail = event.detail || {};
     const hts = detail.data?.hts;
+    if (detail.type === "apply-hts-confirm" && detail.data && event.target?.closest?.("#agentic-broker-page")) {
+      const data = detail.data;
+      const confirmed = window.confirm(
+        `Apply HS ${data.hts} to line ${data.lineNum || ""} on entry ${data.entryNumber || data.entryId}?\n\nThis writes an agent_draft patch — you still review it on the entry form before filing.`
+      );
+      if (!confirmed) {
+        return;
+      }
+      const result = window.KNClassificationAssistant?.applyConfirmedClassification?.(data);
+      showKnToast?.({
+        content: result?.ok
+          ? `HS ${data.hts} applied as agent_draft on line ${data.lineNum}. Review the purple flag on the entry form.`
+          : result?.error || "Could not apply classification.",
+        color: result?.ok ? "positive" : "negative"
+      });
+      return;
+    }
     if ((detail.type === "apply-hts" || hts) && event.target?.closest?.("#agentic-broker-page")) {
       showKnToast?.({
         content: hts
-          ? `HS ${hts} is noted on this thread. Filing still happens on the entry form.`
-          : "Classification noted. Filing still happens on the entry form.",
-        color: "positive"
+          ? `HS ${hts} is noted on this thread. Open an entry to apply with confirmation.`
+          : "Classification noted. Apply from an open entry form.",
+        color: "notice"
       });
       return;
     }

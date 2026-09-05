@@ -631,6 +631,14 @@
     utilityResults: [],
     utilitySelectedId: "",
     utilitySearchQuery: "",
+    utilityQueueSyncKey: "",
+    utilityShowStatements: false,
+    utilityStatementCards: [],
+    utilitySelectedStatementKey: "",
+    activeStatementId: "",
+    activeStatementLineId: "",
+    statementSyncKey: "",
+    statementApproveModalOpen: false,
     docsJustUploaded: false,
     invoiceTab: "1",
     editFocus: null,
@@ -2593,6 +2601,7 @@
     const disabled = submitAceDisabled();
     const api = docPanelApi();
     return `<div class="entry-filing-panel entry-filing-panel--record">
+      ${renderStatementDetailsSection(row)}
       <header class="entry-filing-panel__header entry-filing-panel__header--record">
         <div class="entry-record-panel__title-row">
           <h2 class="type-heading-h6 type-weight-semibold">Entry Summary</h2>
@@ -2772,9 +2781,6 @@
   }
 
   function resolveUtilityContextKey() {
-    if (state.utilityShowResults) {
-      return "queue";
-    }
     const fields = Object.values(state.fields || {});
     if (fields.some((field) => field.status === "error")) {
       return "cbp-error";
@@ -2853,6 +2859,242 @@
     };
   }
 
+  function statementsApi() {
+    return window.KNPaymentUsStatements;
+  }
+
+  function parseFilingHashParams() {
+    const hash = String(location.hash || "");
+    const qs = hash.includes("?") ? hash.split("?")[1].split("#")[0] : "";
+    return qs ? new URLSearchParams(qs) : new URLSearchParams();
+  }
+
+  function buildFilingHref(entryId, { statement = "", stmtEntry = "", queue = "" } = {}) {
+    const params = new URLSearchParams();
+    if (statement) {
+      params.set("statement", statement);
+    }
+    if (stmtEntry) {
+      params.set("stmtEntry", stmtEntry);
+    }
+    if (queue) {
+      params.set("queue", queue);
+    }
+    const qs = params.toString();
+    return `#transaction-us-entry/filing/${encodeURIComponent(entryId)}${qs ? `?${qs}` : ""}`;
+  }
+
+  function statementCardKey(card) {
+    return `${card.statementId}:${card.lineId}`;
+  }
+
+  function renderUtilityStatementCards(cards, selectedKey) {
+    const api = statementsApi();
+    if (!cards.length) {
+      return `<p class="type-body-sm entry-utility__empty">No pending statements matched.</p>`;
+    }
+    return `<div class="ai-shipment-list entry-utility-chat__cards" role="list">
+      ${cards
+        .map((card) => {
+          const key = statementCardKey(card);
+          const isSelected = selectedKey ? key === selectedKey : false;
+          return `<button type="button" class="ai-shipment-card ai-statement-card${isSelected ? " is-selected" : ""}" role="listitem" data-entry-utility-stmt="${escapeHtml(key)}">
+            <span class="ai-shipment-card__row">
+              <span class="ai-shipment-card__name type-ui-sm type-weight-semibold">${escapeHtml(card.entryNumber)}</span>
+              ${isSelected ? `<span class="ai-shipment-card__badge type-caption-sm">✓ Selected</span>` : ""}
+            </span>
+            <span class="type-caption-sm ai-statement-card__company">${escapeHtml(card.company)}</span>
+            <span class="ai-shipment-card__meta type-caption-sm">Due: ${escapeHtml(api?.money?.(card.totalDue) || card.totalDue)} · Duty ${escapeHtml(api?.money?.(card.duty) || card.duty)} · MPF ${escapeHtml(api?.money?.(card.mpf) || card.mpf)} · HMF ${escapeHtml(api?.money?.(card.hmf) || card.hmf)}</span>
+            <span class="type-caption-sm ai-statement-card__stmt">Statement ${escapeHtml(card.statementId)} · ${escapeHtml(card.paymentMethod)}</span>
+          </button>`;
+        })
+        .join("")}
+    </div>`;
+  }
+
+  function applyUtilityStatementSearch(helpers, row, { autoSelect = true } = {}) {
+    const cards = statementsApi()?.listEntryCards?.() || [];
+    state.utilityShowStatements = true;
+    state.utilityShowResults = false;
+    state.utilityStatementCards = cards;
+    const first = cards[0];
+    state.utilitySelectedStatementKey = first ? statementCardKey(first) : "";
+    if (autoSelect && first) {
+      selectUtilityStatement(first, helpers, row);
+      return;
+    }
+    helpers?.rerender?.();
+  }
+
+  function selectUtilityStatement(card, helpers, row) {
+    if (!card) {
+      return;
+    }
+    const key = statementCardKey(card);
+    state.utilitySelectedStatementKey = key;
+    state.activeStatementId = card.statementId;
+    state.activeStatementLineId = card.lineId;
+    state.utilityShowStatements = true;
+    const targetEntry = card.entryId || row.id;
+    const href = buildFilingHref(targetEntry, {
+      statement: card.statementId,
+      stmtEntry: card.lineId,
+      queue: parseFilingHashQueue()
+    });
+    if (helpers?.goto) {
+      helpers.goto(href);
+      return;
+    }
+    helpers?.rerender?.();
+  }
+
+  function utilityStatementsBrief() {
+    const count = state.utilityStatementCards.length;
+    if (!count) {
+      return "No pending periodic daily statements posted today.";
+    }
+    return `${count} entry ${count === 1 ? "line" : "lines"} on pending statements. Select one to review details above the entry form — approval requires your explicit click.`;
+  }
+
+  function renderStatementDetailsSection(row) {
+    const api = statementsApi();
+    const statement = api?.find?.(state.activeStatementId);
+    if (!statement) {
+      return "";
+    }
+    const totals = api.statementTotals?.(statement) || {};
+    const line = statement.entries.find((entry) => entry.id === state.activeStatementLineId);
+    const entryLine = line ? api.entryLine?.(statement, line) : null;
+    const paymentMethod = api.paymentMethodLabel?.(statement) || "—";
+    return `<section class="entry-statement-details" aria-labelledby="entry-statement-details-title">
+      <div class="entry-statement-details__head">
+        <div class="entry-statement-details__copy">
+          <h2 class="type-heading-h6 type-weight-semibold" id="entry-statement-details-title">Statement Details</h2>
+          <p class="type-caption-sm entry-statement-details__note">Klear Agent surfaces this for review — only you can approve (INT-09).</p>
+        </div>
+        ${entryLine ? `<span class="kn-badge kn-badge--small kn-badge--information">${escapeHtml(line.entryNumber)}</span>` : ""}
+      </div>
+      <dl class="entry-statement-details__grid">
+        <div><dt class="type-caption-sm">Statement Number</dt><dd class="type-body-sm type-weight-semibold">${escapeHtml(statement.id)}</dd></div>
+        <div><dt class="type-caption-sm">Date</dt><dd class="type-body-sm">${escapeHtml(statement.statementDate)}</dd></div>
+        <div><dt class="type-caption-sm">Duty</dt><dd class="type-body-sm">${escapeHtml(api.money?.(totals.duty) || totals.duty)}</dd></div>
+        <div><dt class="type-caption-sm">MPF</dt><dd class="type-body-sm">${escapeHtml(api.money?.(totals.mpf) || totals.mpf)}</dd></div>
+        <div><dt class="type-caption-sm">HMF</dt><dd class="type-body-sm">${escapeHtml(api.money?.(totals.hmf) || totals.hmf)}</dd></div>
+        <div><dt class="type-caption-sm">Total Due</dt><dd class="type-body-sm type-weight-semibold">${escapeHtml(api.money?.(totals.totalDue) || totals.totalDue)}</dd></div>
+        <div class="entry-statement-details__payment"><dt class="type-caption-sm">Payment method</dt><dd class="type-body-sm">${escapeHtml(paymentMethod)}</dd></div>
+      </dl>
+      ${
+        entryLine
+          ? `<p class="type-caption-sm entry-statement-details__line">Selected entry line · Duty ${escapeHtml(api.money(entryLine.duty))} · MPF ${escapeHtml(api.money(entryLine.mpf))} · HMF ${escapeHtml(api.money(entryLine.hmf))}</p>`
+          : ""
+      }
+      ${
+        statement.achStatus === "missing"
+          ? `<div class="kn-alert kn-alert--notice kn-alert--subtle entry-statement-details__alert" role="status">
+              <p class="type-body-sm"><strong>ACH authorization missing.</strong> CBP will still debit this statement — a failed pull becomes a bond claim.</p>
+            </div>`
+          : ""
+      }
+      <div class="entry-statement-details__actions">
+        <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-entry-stmt-update>Update</button>
+        <button class="btn btn--primary btn--sm type-ui-sm kn-btn" type="button" data-entry-stmt-approve>Approve</button>
+      </div>
+    </section>`;
+  }
+
+  function renderStatementApproveModal(row) {
+    const api = statementsApi();
+    const statement = api?.find?.(state.activeStatementId);
+    if (!state.statementApproveModalOpen || !statement) {
+      return "";
+    }
+    const totals = api.statementTotals?.(statement) || {};
+    const bodyHtml = `<p class="type-body-md">Approve statement <strong>${escapeHtml(statement.id)}</strong> for <strong>${escapeHtml(api.money?.(totals.totalDue) || totals.totalDue)}</strong>?</p>
+      <p class="type-body-sm">This posts approval to the finance backend (INT-09) for ${escapeHtml(statement.company)}. ACH debit is scheduled for ${escapeHtml(statement.debitDate)} unless ACH is missing on file.</p>
+      <p class="type-body-sm statement-approval-modal__disclaimer">Klear Agent cannot perform this action for you — regardless of Agent Interaction Mode.</p>`;
+    const footerHtml = `
+      <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-entry-stmt-approve-dismiss>Cancel</button>
+      <button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" data-entry-stmt-approve-confirm>Confirm approval</button>`;
+    return ux().modalShell?.({
+      open: true,
+      id: "kn-entry-stmt-approve-modal",
+      titleId: "kn-entry-stmt-approve-title",
+      title: "Approve statement",
+      dismissAttr: "data-entry-stmt-approve-dismiss",
+      bodyHtml,
+      footerHtml
+    }) || "";
+  }
+
+  function parseFilingHashQueue() {
+    return parseFilingHashParams().get("queue") || "";
+  }
+
+  function parseFilingHashStatement() {
+    return {
+      statementId: parseFilingHashParams().get("statement") || "",
+      lineId: parseFilingHashParams().get("stmtEntry") || ""
+    };
+  }
+
+  function syncStatementFromHash(row, helpers) {
+    const { statementId, lineId } = parseFilingHashStatement();
+    if (!statementId) {
+      return;
+    }
+    const syncKey = `${row.id}:${statementId}:${lineId}:${location.hash}`;
+    if (state.statementSyncKey === syncKey) {
+      return;
+    }
+    const statement = statementsApi()?.find?.(statementId);
+    if (!statement) {
+      return;
+    }
+    state.statementSyncKey = syncKey;
+    state.activeStatementId = statementId;
+    state.activeStatementLineId = lineId || statement.entries[0]?.id || "";
+    state.utilityShowStatements = true;
+    state.utilityStatementCards = statementsApi()?.listEntryCards?.() || [];
+    state.utilitySelectedStatementKey = lineId ? `${statementId}:${lineId}` : "";
+    state.utilityTab = "chat";
+    helpers?.rerender?.();
+  }
+
+  function utilityResultsBrief() {
+    const count = state.utilityResults.length;
+    const filterLabel =
+      QUEUE_FILTER_CHIPS.find((chip) => chip.id === state.utilityQueueFilter)?.label || "Queue";
+    if (!count) {
+      return `No entries matched ${filterLabel.toLowerCase()}. Try another filter or search by BOL.`;
+    }
+    return `${count} ${count === 1 ? "entry" : "entries"} in ${filterLabel.toLowerCase()}. The first result is selected in the center panel — click another card to switch.`;
+  }
+
+  function syncQueueFromHash(row, helpers) {
+    const queue = parseFilingHashQueue();
+    if (!queue) {
+      return;
+    }
+    const syncKey = `${row.id}:${queue}:${location.hash}`;
+    if (state.utilityQueueSyncKey === syncKey) {
+      return;
+    }
+    const filterMap = {
+      recent: "recent",
+      working: "working",
+      rejected: "rejected",
+      hold: "hold",
+      completed: "completed"
+    };
+    const filter = filterMap[queue];
+    if (!filter) {
+      return;
+    }
+    state.utilityQueueSyncKey = syncKey;
+    state.utilityTab = "chat";
+    applyUtilityQueueSearch("", { filter, helpers, row, autoSelect: true });
+  }
+
   function renderUtilityFilterChips() {
     return `<div class="entry-utility-chat__filters kn-chip-group kn-chip-group--small" role="radiogroup" aria-label="Queue filters">
       ${QUEUE_FILTER_CHIPS.map((chip) => {
@@ -2895,7 +3137,13 @@
     const selected = autoSelect ? cards[0]?.entryId || "" : state.utilitySelectedId;
     state.utilitySelectedId = selected;
     if (autoSelect && selected && selected !== row.id && helpers?.goto) {
-      helpers.goto(`#transaction-us-entry/filing/${encodeURIComponent(selected)}`);
+      helpers.goto(
+        buildFilingHref(selected, {
+          queue: state.utilityQueueFilter,
+          statement: state.activeStatementId,
+          stmtEntry: state.activeStatementLineId
+        })
+      );
       return;
     }
     helpers?.rerender?.();
@@ -2907,7 +3155,13 @@
     }
     state.utilitySelectedId = entryId;
     if (entryId !== row.id && helpers?.goto) {
-      helpers.goto(`#transaction-us-entry/filing/${encodeURIComponent(entryId)}`);
+      helpers.goto(
+        buildFilingHref(entryId, {
+          queue: state.utilityQueueFilter,
+          statement: state.activeStatementId,
+          stmtEntry: state.activeStatementLineId
+        })
+      );
       return;
     }
     helpers?.rerender?.();
@@ -2915,6 +3169,12 @@
 
   const QUEUE_QUERY_PATTERN =
     /\b(find\s+entry|recent(ly)?(\s+added)?(\s+entries?)?(\s+in|\s+to)?\s+my\s+queue|my\s+working\s+list|working\s*list|cbp\s*reject|on\s+hold|completed\s+entries?|items?\s+due\s+today|all\s+items?\s+due\s+today)\b/i;
+
+  const STATEMENT_QUERY_PATTERN = /today.?s?\s*statements?|pending\s+statements?/i;
+
+  function isStatementQuery(query = "") {
+    return STATEMENT_QUERY_PATTERN.test(String(query || "").trim());
+  }
 
   function isQueueQuery(query = "") {
     return QUEUE_QUERY_PATTERN.test(String(query || "").trim());
@@ -3125,9 +3385,24 @@
       helpers?.rerender?.();
       return;
     }
+    if (isStatementQuery(text)) {
+      applyUtilityStatementSearch(helpers, row);
+      return;
+    }
     if (isQueueQuery(text)) {
       const resolved = resolveUtilityQuery(text);
       applyUtilityQueueSearch(resolved.query || text, { filter: resolved.filter, helpers, row });
+      return;
+    }
+    if (/fill the entry using uploaded documents/i.test(text)) {
+      if (state.documents?.length) {
+        runDocumentPipeline(row, helpers);
+        setAgentReplyStreaming("Reviewing uploaded documents and filling fields on the entry form.", helpers);
+      } else {
+        state.docUploadOpen = true;
+        toast("Upload documents first — I'll fill the entry once they're on file.", "notice");
+      }
+      helpers.rerender();
       return;
     }
     state.utilitySearchQuery = text;
@@ -3159,8 +3434,20 @@
           </div>`).join("")}
         </div>`
       : "";
-    const resultsBlock = state.utilityShowResults
+    const resultsBlock = state.utilityShowStatements
       ? `<div class="entry-utility-chat__results">
+          <div class="entry-utility-chat__agent-brief" role="status">
+            <p class="type-ui-sm type-weight-semibold">Klear Agent</p>
+            <p class="type-body-sm">${escapeHtml(utilityStatementsBrief())}</p>
+          </div>
+          ${renderUtilityStatementCards(state.utilityStatementCards, state.utilitySelectedStatementKey)}
+        </div>`
+      : state.utilityShowResults
+      ? `<div class="entry-utility-chat__results">
+          <div class="entry-utility-chat__agent-brief" role="status">
+            <p class="type-ui-sm type-weight-semibold">Klear Agent</p>
+            <p class="type-body-sm">${escapeHtml(utilityResultsBrief())}</p>
+          </div>
           ${renderUtilityFilterChips()}
           ${renderUtilityShipmentCards(state.utilityResults, state.utilitySelectedId || row.id)}
         </div>`
@@ -3325,7 +3612,8 @@
       ${renderUtilityPanel(row)}
     </div>
     ${renderAceModal(row)}
-    ${renderTransmitModal(row)}`;
+    ${renderTransmitModal(row)}
+    ${renderStatementApproveModal(row)}`;
   }
 
   // ---------------------------------------------------------------------
@@ -3552,6 +3840,61 @@
       event.preventDefault();
       state.invoiceTab = invoiceTabBtn.getAttribute("data-entry-invoice-tab") || "1";
       helpers.rerender();
+      return true;
+    }
+    const utilityStmtSelect = event.target.closest("[data-entry-utility-stmt]");
+    if (utilityStmtSelect) {
+      event.preventDefault();
+      const key = utilityStmtSelect.getAttribute("data-entry-utility-stmt") || "";
+      const card = state.utilityStatementCards.find((item) => statementCardKey(item) === key);
+      if (card) {
+        selectUtilityStatement(card, helpers, row);
+      }
+      return true;
+    }
+    const stmtUpdate = event.target.closest("[data-entry-stmt-update]");
+    if (stmtUpdate) {
+      event.preventDefault();
+      const api = statementsApi();
+      const statement = api?.find?.(state.activeStatementId);
+      if (statement) {
+        api.applyUpdates?.(statement);
+        helpers.rerender();
+      }
+      return true;
+    }
+    const stmtApprove = event.target.closest("[data-entry-stmt-approve]");
+    if (stmtApprove) {
+      event.preventDefault();
+      if (statementsApi()?.find?.(state.activeStatementId)) {
+        state.statementApproveModalOpen = true;
+        helpers.rerender();
+      }
+      return true;
+    }
+    const stmtApproveDismiss = event.target.closest("[data-entry-stmt-approve-dismiss]");
+    if (stmtApproveDismiss) {
+      event.preventDefault();
+      state.statementApproveModalOpen = false;
+      helpers.rerender();
+      return true;
+    }
+    const stmtApproveConfirm = event.target.closest("[data-entry-stmt-approve-confirm]");
+    if (stmtApproveConfirm) {
+      event.preventDefault();
+      const api = statementsApi();
+      const statement = api?.find?.(state.activeStatementId);
+      if (statement) {
+        const result = api.approveViaInt09?.(statement);
+        state.statementApproveModalOpen = false;
+        if (result?.ok) {
+          state.activeStatementId = "";
+          state.activeStatementLineId = "";
+          state.utilityShowStatements = false;
+          state.utilityStatementCards = api.listEntryCards?.() || [];
+        }
+        helpers.rerender();
+      }
       return true;
     }
     const utilityFilter = event.target.closest("[data-entry-utility-filter]");
@@ -3837,7 +4180,7 @@
       if (!query) {
         return;
       }
-      const filingMatch = String(location.hash || "").match(/^#transaction-us-entry\/filing\/([^/]+)$/);
+      const filingMatch = String(location.hash || "").match(/^#transaction-us-entry\/filing\/([^/?#]+)/);
       if (!filingMatch) {
         return;
       }
@@ -3902,6 +4245,8 @@
     handleUtilityPrompt,
     startDocumentUpload,
     queueDocumentUpload,
+    syncQueueFromHash,
+    syncStatementFromHash,
     consumePendingUpload,
     runValidationOnEntry: runValidationFromPalette,
     getBrokerLookAtKey,

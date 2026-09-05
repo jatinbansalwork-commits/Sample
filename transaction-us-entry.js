@@ -953,6 +953,8 @@
       root.innerHTML = window.KNEntryFiling.render(row, {});
       window.KNEntryFiling.syncOverlay?.();
       window.KNEntryFiling.consumePendingUpload?.(row, filingHelpers());
+      window.KNEntryFiling.syncQueueFromHash?.(row, filingHelpers());
+      window.KNEntryFiling.syncStatementFromHash?.(row, filingHelpers());
       return;
     }
     const filterFocus = window.KNAdminUX.captureColFilterFocus(root);
@@ -1004,7 +1006,7 @@
   }
 
   function filingRouteId() {
-    const match = String(location.hash || "").match(/^#transaction-us-entry\/filing\/([^/]+)$/);
+    const match = String(location.hash || "").match(/^#transaction-us-entry\/filing\/([^/?#]+)/);
     return match ? decodeURIComponent(match[1]) : "";
   }
 

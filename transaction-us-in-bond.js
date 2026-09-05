@@ -8,6 +8,12 @@
     return d.toISOString();
   })();
   let refreshTimer = null;
+  let keepDetailTabOnNextRender = false;
+  let docViewerLoadedRowId = "";
+  let detailLoadToken = 0;
+  let detailLoadTimer = null;
+  let lastInbPath = "";
+  const LIST_STATE_KEY = "kn-inb-list-state-v1";
 
   const TXN_SEED_TOTAL = 247;
   /** QAT production snapshot — In-Bond Shipment tab list size. */
@@ -234,19 +240,19 @@
     const isf = isfPeers().find((row) => row.id === "isf-2") || ISF_LINK_FALLBACK[1];
     return {
       id: "inb-1",
-      transactionId: "INB-M001-1",
-      entryNumber: "Undefined-00000001",
+      transactionId: "ISB-94301-1",
+      entryNumber: "undefined-0002030091",
       transactionState: "NEW",
       statusChip: "pending",
-      eta: "Nov 22, 2024",
-      etaSort: parseEta("Nov 22, 2024"),
+      eta: "Nov 23, 2024",
+      etaSort: parseEta("Nov 23, 2024"),
       companyName: "ILLUMINATE USA, LLC",
-      shipments: "KN-M001-96",
+      shipments: "XX-MSCU-69",
       filingDate: "",
       filingSort: 0,
       mot: "OCEAN",
-      mbl: "HDMUHHKAB547930",
-      hbl: "HHKAB547930",
+      mbl: "HDMUHHK43547833",
+      hbl: "HMU43547833",
       countryImport: "US - United States of America",
       countryExport: "US - United States of America",
       username: "",
@@ -316,8 +322,11 @@
     if (seedCache) {
       return seedCache;
     }
-    // Transaction tab is intentionally empty in QAT — table shell + filters only.
-    seedCache = [];
+    const rows = curatedInbRows();
+    for (let i = rows.length; i < TXN_SEED_TOTAL; i += 1) {
+      rows.push(generatedInbRow(i));
+    }
+    seedCache = rows;
     return seedCache;
   }
 
@@ -595,10 +604,41 @@
     if (state.txn.page > pages) {
       state.txn.page = pages;
     }
+    const start = (state.txn.page - 1) * state.txn.pageSize;
+    const pageRows = rows.slice(start, start + state.txn.pageSize);
     const counts = txnChipCounts();
     const chip = state.txn.filters.chip;
 
-    const body = ux.tmTableEmptyRow({ colspan: 14, mode: "inline" });
+    const body = pageRows.length
+      ? pageRows
+          .map(
+            (row) => `<tr data-inb-id="${escapeHtml(row.id)}" tabindex="0">
+          <td>${ux.tmTxnRowActions({ id: row.id, label: row.transactionId, prefix: "inb" })}</td>
+          <td class="admin-table-nowrap" title="${escapeHtml(row.transactionId)}">
+            <span class="type-body-sm type-weight-medium">${escapeHtml(row.transactionId)}</span>
+          </td>
+          <td class="type-body-sm admin-table-nowrap"><span class="code">${escapeHtml(row.entryNumber)}</span></td>
+          <td class="admin-table-nowrap">${stateBadge(row.transactionState)}</td>
+          <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(row.eta)}</td>
+          <td class="type-body-sm" title="${escapeHtml(row.companyName)}">${escapeHtml(row.companyName)}</td>
+          <td class="type-body-sm"><span class="code">${escapeHtml(row.shipments)}</span></td>
+          <td class="type-body-sm vis-table__date admin-table-nowrap">${escapeHtml(ux.emptyDisplay(row.filingDate))}</td>
+          <td class="type-body-sm admin-table-nowrap">${escapeHtml(row.mot)}</td>
+          <td class="type-body-sm"><span class="code">${escapeHtml(row.mbl)}</span></td>
+          <td class="type-body-sm"><span class="code">${escapeHtml(ux.emptyDisplay(row.hbl))}</span></td>
+          <td class="type-body-sm" title="${escapeHtml(row.countryImport)}">${escapeHtml(row.countryImport)}</td>
+          <td class="type-body-sm" title="${escapeHtml(row.countryExport)}">${escapeHtml(row.countryExport)}</td>
+          <td class="type-body-sm">${escapeHtml(ux.emptyDisplay(row.username))}</td>
+        </tr>`
+          )
+          .join("")
+      : ux.tmTableEmptyRow({
+          colspan: 14,
+          title: "No In-Bond transactions found matching your search",
+          description: "Clear filters or switch status chips to see transactions.",
+          secondaryLabel: "Clear filters",
+          secondaryAttr: "data-admin-clear-filters"
+        });
 
     return `${ux.toolbar({
       chips: [
@@ -623,7 +663,7 @@
               ${sortHeader("shipments", "Shipments", "data-inb-sort")}
               ${sortHeader("filingDate", "Filing Date", "data-inb-sort")}
               ${sortHeader("mot", "MoT", "data-inb-sort")}
-              ${sortHeader("mbl", "MBL/MAWB/PAPS", "data-inb-sort")}
+              ${sortHeader("mbl", "MBL/HBL/MAWB/HAWB", "data-inb-sort")}
               ${sortHeader("hbl", "HBL/HAWB", "data-inb-sort")}
               ${sortHeader("countryImport", "Country of Import", "data-inb-sort")}
               ${sortHeader("countryExport", "Country of Export", "data-inb-sort")}
@@ -666,7 +706,7 @@
                   { value: "AIR", label: "AIR" }
                 ]
               })}
-              ${ux.colFilter({ attr: "data-inb-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL/MAWB/PAPS" })}
+              ${ux.colFilter({ attr: "data-inb-filter", key: "mbl", value: state.txn.filters.mbl, label: "MBL/HBL/MAWB/HAWB" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "hbl", value: state.txn.filters.hbl, label: "HBL/HAWB" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "countryImport", value: state.txn.filters.countryImport, label: "country of import" })}
               ${ux.colFilter({ attr: "data-inb-filter", key: "countryExport", value: state.txn.filters.countryExport, label: "country of export" })}
@@ -844,6 +884,130 @@
     { label: "Divert", attr: 'data-inb-bulk-action="divert"' }
   ];
 
+  function captureListState() {
+    try {
+      sessionStorage.setItem(
+        LIST_STATE_KEY,
+        JSON.stringify({
+          view: state.view,
+          txn: {
+            page: state.txn.page,
+            pageSize: state.txn.pageSize,
+            sortKey: state.txn.sortKey,
+            sortDir: state.txn.sortDir,
+            filters: { ...state.txn.filters }
+          },
+          ship: {
+            page: state.ship.page,
+            pageSize: state.ship.pageSize,
+            sortKey: state.ship.sortKey,
+            sortDir: state.ship.sortDir,
+            filters: { ...state.ship.filters }
+          }
+        })
+      );
+    } catch (error) {
+      /* ignore quota / privacy mode */
+    }
+  }
+
+  function restoreListState() {
+    try {
+      const raw = sessionStorage.getItem(LIST_STATE_KEY);
+      if (!raw) {
+        return false;
+      }
+      const saved = JSON.parse(raw);
+      if (saved.view === "shipment" || saved.view === "transaction") {
+        state.view = saved.view;
+      }
+      if (saved.txn) {
+        Object.assign(state.txn, saved.txn);
+        state.txn.filters = { ...emptyTxnFilters(), ...(saved.txn.filters || {}) };
+      }
+      if (saved.ship) {
+        Object.assign(state.ship, saved.ship);
+        state.ship.filters = { ...emptyShipFilters(), ...(saved.ship.filters || {}) };
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function inbRoutePath() {
+    return typeof window.getHashPath === "function" ? window.getHashPath() : String(location.hash || "");
+  }
+
+  function goto(hash) {
+    if (inbRoutePath() === hash) {
+      render();
+      return;
+    }
+    location.hash = hash;
+  }
+
+  function historyRouteId() {
+    const match = inbRoutePath().match(/^#transaction-us-in-bond\/history\/([^/]+)$/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function documentsRouteId() {
+    const match = inbRoutePath().match(/^#transaction-us-in-bond\/documents\/([^/?#]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function noteRouteChange() {
+    const current = inbRoutePath();
+    const prev = lastInbPath;
+    if (prev && prev !== current) {
+      const wasList = prev === ROUTE || prev === `${ROUTE}/`;
+      const isSub = /^#transaction-us-in-bond\/(documents|history)\//.test(current);
+      if (wasList && isSub) {
+        captureListState();
+      }
+      const wasSub = /^#transaction-us-in-bond\/(documents|history)\//.test(prev);
+      const isList = current === ROUTE || current === `${ROUTE}/`;
+      if (wasSub && isList) {
+        restoreListState();
+      }
+    }
+    lastInbPath = current;
+  }
+
+  function transactionLabel(id) {
+    return findTxnRow(id)?.transactionId || "";
+  }
+
+  function listReturnHash() {
+    return ROUTE;
+  }
+
+  function documentBreadcrumbLabel(rowId) {
+    const row = findTxnRow(rowId);
+    if (!row) {
+      return rowId;
+    }
+    if (window.KNInbDetail?.viewerRecordId) {
+      return window.KNInbDetail.viewerRecordId(row);
+    }
+    return transactionLabel(rowId) || rowId;
+  }
+
+  function historyBreadcrumbLabel(rowId) {
+    return transactionLabel(rowId) || rowId;
+  }
+
+  function adjacentTxnId(id, direction) {
+    const rows = filteredTxnRows();
+    const index = rows.findIndex((row) => row.id === id);
+    if (index === -1) {
+      return "";
+    }
+    const next = rows[index + direction];
+    return next ? next.id : "";
+  }
+
   function renderBulkActions() {
     if (state.view !== "transaction") {
       return "";
@@ -857,11 +1021,80 @@
   }
 
   function render() {
+    noteRouteChange();
     const page = document.getElementById("kn-inb-page");
     const root = document.getElementById("kn-inb-root");
     if (!page || !root || page.hidden) {
       return;
     }
+    const documentsId = documentsRouteId();
+    if (documentsId) {
+      const row = findTxnRow(documentsId);
+      if (!row) {
+        toast("That In-Bond transaction is no longer available.", "notice");
+        goto(ROUTE);
+        return;
+      }
+      const isNewRow = row.id !== docViewerLoadedRowId;
+      const keepTab = keepDetailTabOnNextRender;
+      keepDetailTabOnNextRender = false;
+      const revealViewer = () => {
+        docViewerLoadedRowId = row.id;
+        const active = document.activeElement;
+        const activeAttr =
+          active && root.contains(active) && active.hasAttribute("data-isf-add-doc-search")
+            ? "data-isf-add-doc-search"
+            : active && root.contains(active) && active.hasAttribute("data-isf-doc-preview-search")
+              ? "data-isf-doc-preview-search"
+              : "";
+        const searchFocus = activeAttr
+          ? { attr: activeAttr, start: active.selectionStart, end: active.selectionEnd }
+          : null;
+        root.innerHTML = window.KNInbDocViewer.render(row, {
+          hasPrev: Boolean(adjacentTxnId(row.id, -1)),
+          hasNext: Boolean(adjacentTxnId(row.id, 1)),
+          keepTab
+        });
+        window.KNInbDocViewer.hydratePreview?.(root, { rerender: render });
+        window.KNInbDocViewer.hydrateSearch?.(root);
+        window.KNFileUpload?.hydrate(root);
+        window.KNSearchInput?.hydrate?.(root);
+        if (searchFocus) {
+          const el = root.querySelector(`[${searchFocus.attr}]`);
+          if (el) {
+            el.focus();
+            el.setSelectionRange(searchFocus.start, searchFocus.end);
+          }
+        }
+      };
+      if (isNewRow && !prefersReducedMotion() && typeof window.KNInbDocViewer?.renderSkeleton === "function") {
+        const token = ++detailLoadToken;
+        window.clearTimeout(detailLoadTimer);
+        root.innerHTML = window.KNInbDocViewer.renderSkeleton();
+        detailLoadTimer = window.setTimeout(() => {
+          if (token !== detailLoadToken) {
+            return;
+          }
+          revealViewer();
+        }, 400);
+        return;
+      }
+      revealViewer();
+      return;
+    }
+    docViewerLoadedRowId = "";
+    const historyId = historyRouteId();
+    if (historyId) {
+      const row = findTxnRow(historyId);
+      if (!row) {
+        toast("That In-Bond transaction is no longer available.", "notice");
+        goto(ROUTE);
+        return;
+      }
+      goto(`${ROUTE}/documents/${encodeURIComponent(row.id)}?cat=EML&doc=0&view=edit`);
+      return;
+    }
+    window.clearTimeout(detailLoadTimer);
     const filterFocus = window.KNAdminUX.captureColFilterFocus(root);
     const updatedLabel = (() => {
       const raw = window.KNAdminUX.relativeTime(lastUpdatedIso);
@@ -903,6 +1136,28 @@
 
   function bind(page) {
     page.addEventListener("click", (event) => {
+      const documentsId = documentsRouteId();
+      if (documentsId) {
+        const row = findTxnRow(documentsId);
+        if (row) {
+          const handled = window.KNInbDocViewer?.handleClick(event, row, {
+            rerender: render,
+            adjacentTxnId,
+            goto,
+            keepDetailTab: () => {
+              keepDetailTabOnNextRender = true;
+            }
+          });
+          if (handled) {
+            return;
+          }
+        }
+        return;
+      }
+      const historyId = historyRouteId();
+      if (historyId) {
+        return;
+      }
       const viewBtn = event.target.closest("[data-inb-view]");
       if (viewBtn) {
         event.preventDefault();
@@ -1033,7 +1288,7 @@
         event.preventDefault();
         const row = findTxnRow(open.getAttribute("data-inb-open"));
         if (row) {
-          location.hash = `#transaction-us-in-bond/history/${encodeURIComponent(row.id)}`;
+          goto(`${ROUTE}/documents/${encodeURIComponent(row.id)}?cat=EML&doc=0&view=edit`);
         }
         return;
       }
@@ -1044,7 +1299,7 @@
         if (!isShip) {
           const row = findTxnRow(history.getAttribute("data-inb-history"));
           if (row) {
-            location.hash = `#transaction-us-in-bond/history/${encodeURIComponent(row.id)}`;
+            goto(`${ROUTE}/documents/${encodeURIComponent(row.id)}?cat=EML&doc=0&view=transaction`);
           }
           return;
         }
@@ -1059,6 +1314,10 @@
         const row = isShip
           ? findShipRow(doc.getAttribute("data-inb-ship-document"))
           : findTxnRow(doc.getAttribute("data-inb-document"));
+        if (row && !isShip) {
+          goto(`${ROUTE}/documents/${encodeURIComponent(row.id)}?cat=EML&doc=0`);
+          return;
+        }
         const label = isShip ? row?.shipmentId : row?.transactionId;
         toast(`Documents for ${label || "record"} opened in this sample.`, "notice");
         return;
@@ -1096,6 +1355,18 @@
     });
 
     page.addEventListener("input", (event) => {
+      const documentsId = documentsRouteId();
+      if (documentsId) {
+        const row = findTxnRow(documentsId);
+        if (row) {
+          window.KNInbDocViewer?.handleInput(event, row, { rerender: render });
+        }
+        return;
+      }
+      const historyId = historyRouteId();
+      if (historyId) {
+        return;
+      }
       const input = event.target.closest("[data-inb-filter], [data-inb-ship-filter]");
       if (!input || input.tagName === "SELECT") {
         return;
@@ -1113,6 +1384,41 @@
         state.txn.page = 1;
       }
       render();
+    });
+
+    page.addEventListener("change", (event) => {
+      const documentsId = documentsRouteId();
+      if (documentsId) {
+        const row = findTxnRow(documentsId);
+        if (row && window.KNInbDocViewer?.handleChange?.(event, row, { rerender: render })) {
+          return;
+        }
+      }
+      const historyId = historyRouteId();
+      if (historyId) {
+        return;
+      }
+      const select = event.target.closest("select[data-inb-ship-filter]");
+      if (!select) {
+        return;
+      }
+      const key = select.getAttribute("data-inb-ship-filter");
+      if (!key || !(key in state.ship.filters)) {
+        return;
+      }
+      state.ship.filters[key] = select.value;
+      state.ship.page = 1;
+      render();
+    });
+
+    page.addEventListener("drop", (event) => {
+      const documentsId = documentsRouteId();
+      if (documentsId) {
+        const row = findTxnRow(documentsId);
+        if (row && window.KNInbDocViewer?.handleDrop?.(event, row, { rerender: render })) {
+          return;
+        }
+      }
     });
   }
 
@@ -1174,7 +1480,16 @@
     page.dataset.bound = "true";
     bind(page);
     document.addEventListener("kn-close-selects", () => {
-      if (page.hidden || (!state.selectOpen && !state.menuOpen && !state.bulkOpen)) {
+      if (page.hidden) {
+        return;
+      }
+      if (documentsRouteId()) {
+        if (window.KNInbDocViewer?.closeSelects?.()) {
+          render();
+        }
+        return;
+      }
+      if (!state.selectOpen && !state.menuOpen && !state.bulkOpen) {
         return;
       }
       state.selectOpen = "";
@@ -1183,7 +1498,24 @@
       render();
     });
     document.addEventListener("keydown", (event) => {
-      if (page.hidden || event.key !== "Escape") {
+      if (page.hidden) {
+        return;
+      }
+      const documentsId = documentsRouteId();
+      if (documentsId) {
+        const row = findTxnRow(documentsId);
+        if (row && event.key === "Escape") {
+          if (window.KNInbDocViewer?.closeOverlays?.()) {
+            render();
+          }
+        }
+        return;
+      }
+      const historyId = historyRouteId();
+      if (historyId) {
+        return;
+      }
+      if (event.key !== "Escape") {
         return;
       }
       if (state.selectOpen || state.menuOpen || state.bulkOpen) {
@@ -1205,8 +1537,10 @@
     },
     listShipments() {
       return buildShipSeed();
-    }
+    },
+    transactionLabel,
+    listReturnHash,
+    documentBreadcrumbLabel,
+    historyBreadcrumbLabel
   };
-})();
-
 })();

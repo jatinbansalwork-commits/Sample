@@ -1353,10 +1353,33 @@
   --kn-admin-coverage-min: var(--theme-size-120);
   --kn-admin-chips-col: var(--theme-size-240);
 
-  --kn-color-ai-accent: var(--kn-primitive-purple-500);
-  --kn-color-ai-accent-text: var(--kn-primitive-purple-600);
-  --kn-color-ai-accent-subtle: var(--kn-primitive-purple-100);
-  --kn-color-ai-accent-border: var(--kn-primitive-purple-200);
+  /* AI palette — assistant / model / discussion (purple only; not product primary) */
+  --ai-assistant-accent: var(--kn-primitive-purple-500);
+  --ai-assistant-accent-text: var(--kn-primitive-purple-600);
+  --ai-assistant-brand: var(--kn-primitive-purple-600);
+  --ai-assistant-background-subtle: var(--kn-primitive-purple-50);
+  --ai-assistant-background-moderate: var(--kn-primitive-purple-100);
+  --ai-model-accent: var(--kn-primitive-purple-500);
+  --ai-model-accent-text: var(--kn-primitive-purple-600);
+  --ai-model-background-subtle: var(--kn-primitive-purple-50);
+  --ai-model-background-moderate: var(--kn-primitive-purple-100);
+  --ai-model-border-subtle: var(--kn-primitive-purple-100);
+  --ai-model-border-normal: var(--kn-primitive-purple-500);
+  --ai-model-text-normal: var(--kn-primitive-purple-600);
+  --ai-model-text-muted: var(--kn-primitive-purple-500);
+  --ai-discussion-accent: var(--kn-primitive-purple-500);
+  --ai-discussion-accent-text: var(--kn-primitive-purple-600);
+  --ai-discussion-background-subtle: var(--kn-primitive-purple-50);
+  --ai-discussion-background-moderate: var(--kn-primitive-purple-100);
+  --ai-discussion-border-subtle: var(--kn-primitive-purple-200);
+  --ai-discussion-border-normal: var(--kn-primitive-purple-500);
+  --ai-discussion-text-normal: var(--kn-primitive-purple-600);
+  --ai-discussion-text-muted: var(--kn-primitive-purple-400);
+
+  --kn-color-ai-accent: var(--ai-assistant-accent);
+  --kn-color-ai-accent-text: var(--ai-assistant-accent-text);
+  --kn-color-ai-accent-subtle: var(--ai-discussion-background-moderate);
+  --kn-color-ai-accent-border: var(--ai-discussion-border-subtle);
   --kn-color-ai-accent-strong: color-mix(in srgb, var(--kn-color-ai-accent) 22%, transparent);
 
   /* z-index — sticky chrome vs overlay */

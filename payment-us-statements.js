@@ -338,13 +338,30 @@
     statement.hmf = totals.hmf;
     statement.totalDue = totals.totalDue;
     toast(`Statement ${statement.id} updated.`, "positive");
-    render();
+    const page = document.getElementById("kn-statement-page");
+    if (page && !page.hidden) {
+      render();
+    }
+    return { ok: true, totals };
+  }
+
+  /** INT-09 — finance backend periodic daily statement approval (sample mock). */
+  function approveViaInt09(statement) {
+    if (!statement || statement.status !== "pending") {
+      return { ok: false, error: "Statement is not pending approval." };
+    }
+    readFormEdits(statement);
+    statement.status = "approved";
+    toast(`Statement ${statement.id} approved for ${money(statementTotals(statement).totalDue)} via INT-09.`, "positive");
+    return { ok: true, statementId: statement.id, totalDue: statementTotals(statement).totalDue };
   }
 
   function approveStatement(statement) {
-    statement.status = "approved";
+    const result = approveViaInt09(statement);
+    if (!result.ok) {
+      return result;
+    }
     state.approveModalOpen = false;
-    toast(`Statement ${statement.id} approved for ${money(statementTotals(statement).totalDue)}.`, "positive");
     const next = pendingStatements()[0];
     if (next) {
       navigateToStatement(next.id);
@@ -353,6 +370,63 @@
       location.hash = ROUTE;
     }
     render();
+    return result;
+  }
+
+  function resolveEntryRowId(entryNumber) {
+    const needle = String(entryNumber || "").trim();
+    const entries = window.KNUsEntry?.list?.() || [];
+    const direct = entries.find((row) => String(row.entryNumber || "").trim() === needle);
+    if (direct) {
+      return direct.id;
+    }
+    const demoMap = {
+      "74-8823019": "entry-1",
+      "217-01302402": "entry-2",
+      "217-01302401": "entry-1",
+      "0AF-3000693": "entry-2",
+      "217-01308333": "entry-3"
+    };
+    return demoMap[needle] || entries[0]?.id || "entry-1";
+  }
+
+  function paymentMethodLabel(statement) {
+    if (!statement) {
+      return "—";
+    }
+    if (statement.achStatus === "missing") {
+      return "ACH — not authorized on file";
+    }
+    if (statement.achStatus === "scheduled") {
+      return "ACH scheduled";
+    }
+    return String(statement.achStatus || "—");
+  }
+
+  function listEntryCards() {
+    return pendingStatements().flatMap((statement) =>
+      statement.entries.map((entry) => {
+        const line = entryLine(statement, entry);
+        const duty = Number(line.duty) || 0;
+        const mpf = Number(line.mpf) || 0;
+        const hmf = Number(line.hmf) || 0;
+        return {
+          statementId: statement.id,
+          lineId: entry.id,
+          entryNumber: entry.entryNumber,
+          company: entry.company,
+          duty,
+          mpf,
+          hmf,
+          totalDue: duty + mpf + hmf,
+          entryId: resolveEntryRowId(entry.entryNumber),
+          statementDate: statement.statementDate,
+          debitDate: statement.debitDate,
+          paymentMethod: paymentMethodLabel(statement),
+          achStatus: statement.achStatus
+        };
+      })
+    );
   }
 
   function bind(page) {
@@ -464,6 +538,17 @@
     route: ROUTE,
     find: findStatement,
     list: pendingStatements,
-    all: () => PENDING.slice()
+    all: () => PENDING.slice(),
+    money,
+    entryLine,
+    statementTotals,
+    lineEdits,
+    readFormEdits,
+    applyUpdates,
+    approveViaInt09,
+    approve: approveStatement,
+    resolveEntryRowId,
+    paymentMethodLabel,
+    listEntryCards
   };
 })();

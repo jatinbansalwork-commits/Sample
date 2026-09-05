@@ -14,9 +14,27 @@ const types = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.pdf': 'application/pdf',
+  '.eml': 'message/rfc822',
+  '.msg': 'application/vnd.ms-outlook',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
   '.mp4': 'video/mp4',
   '.ico': 'image/x-icon',
 };
+
+function responseHeaders(ext) {
+  const type = types[ext] || 'application/octet-stream';
+  const headers = { 'Content-Type': type, 'Cache-Control': 'no-store' };
+  // Keep PDFs inline in iframe/object previews — octet-stream triggers a download.
+  if (ext === '.pdf') {
+    headers['Content-Disposition'] = 'inline';
+  }
+  return headers;
+}
 
 http.createServer((req, res) => {
   let urlPath = decodeURIComponent(req.url.split('?')[0]);
@@ -46,8 +64,8 @@ http.createServer((req, res) => {
       res.end('Not found');
       return;
     }
-    const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    const ext = path.extname(filePath).toLowerCase();
+    res.writeHead(200, responseHeaders(ext));
     res.end(data);
   });
 }).listen(port, () => {

@@ -31,8 +31,8 @@
     { key: "dueToday", icon: "dueToday", label: "Items due today", query: "All items due today", rank: 96 },
     { key: "dashboard", icon: "dashboard", label: "Personal dashboard", query: "Show my personal dashboard", rank: 88 },
     { key: "statements", icon: "statements", label: "Today's statements", query: "Today's Statements", rank: 84 },
-    { key: "hts", icon: "queue", label: "HTS classification", query: "What HTS classification applies to stamped steel auto body brackets from Mexico?", rank: 72 },
-    { key: "catair", icon: "corrections", label: "CATAIR code 398", query: "What does CATAIR code 398 mean and how do I fix it?", rank: 70 },
+    { key: "hts", icon: "queue", label: "HTS classification", query: "Classify this product", rank: 72 },
+    { key: "catair", icon: "corrections", label: "CATAIR code 398", query: "CATAIR code 398", rank: 70 },
     { key: "shipments", icon: "shipments", label: "Recent shipments", query: "Recent shipments in operations", rank: 66 },
     { key: "corrections", icon: "corrections", label: "Post summary corrections", query: "Post Summary Corrections", rank: 62 },
     { key: "isf", icon: "isf", label: "ISF dashboard", query: "ISF Dashboard", rank: 58 }
@@ -45,18 +45,21 @@
       { label: "Find entry by number", query: "Find entry S1F01000405", rank: 80, icon: "shipments" }
     ],
     idle: [
+      { label: "Fill the entry using uploaded documents", query: "Fill the entry using uploaded documents", rank: 100, icon: "corrections" },
+      { label: "Today's statements", query: "Today's Statements", rank: 94, icon: "statements" },
       { label: "Search my queue", query: "Recent entries in my queue", rank: 90, icon: "queue" },
       { label: "Items due today", query: "All items due today", rank: 86, icon: "dueToday" },
       { label: "Find entry S1F01000405", query: "Find entry S1F01000405", rank: 78, icon: "shipments" }
     ],
     "docs-uploaded": [
-      { label: "Extract from invoice", query: "Fill header fields from the commercial invoice", rank: 100, icon: "corrections" },
+      { label: "Fill the entry using uploaded documents", query: "Fill the entry using uploaded documents", rank: 100, icon: "corrections" },
       { label: "Validate documents", query: "Are all required documents received?", rank: 88, icon: "validate" },
       { label: "Classify line 1 HTS", query: "Suggest HTS for line 1 from the invoice", rank: 82, icon: "isf" }
     ],
     "partially-filled": [
-      { label: "What's still empty?", query: "Which required fields are still empty on this entry?", rank: 100, icon: "validate" },
-      { label: "Review agent drafts", query: "Show fields pending my review", rank: 94, icon: "corrections" },
+      { label: "Validate entry", query: "Run pre-submit validation on this entry", rank: 100, icon: "validate" },
+      { label: "What's still empty?", query: "Which required fields are still empty on this entry?", rank: 94, icon: "validate" },
+      { label: "Review agent drafts", query: "Show fields pending my review", rank: 88, icon: "corrections" },
       { label: "Estimate duty", query: "Estimate total duty on this entry", rank: 76, icon: "statements" }
     ],
     "cbp-error": [

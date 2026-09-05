@@ -13,7 +13,9 @@
     398: {
       code: "398",
       title: "HTS Number / Country of Origin combination invalid",
-      ref: "CATAIR Ch. 3B, Reject 398"
+      ref: "CATAIR Ch. 3B, Reject 398",
+      definition:
+        "The HTS number and country of origin code combination for this entry line is invalid under the HTS schedule country notes, or the country of origin is missing or not permitted for the reported HTS number."
     },
     601: {
       code: "601",

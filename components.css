@@ -262,6 +262,15 @@ details.kn-accordion__item {
   line-height: var(--kn-type-body-md-line);
 }
 
+/* display:flex above wins over the [hidden] presentational hint — keep collapsed
+   accordion panels (Parties tab, Role Management perm rows) actually hidden. */
+.kn-accordion__body[hidden],
+.kh-accordion__body[hidden],
+.role-perm__body[hidden],
+.role-perm__unused-body[hidden] {
+  display: none !important;
+}
+
 .kn-accordion--medium .kn-accordion__body {
   font-size: var(--kn-type-body-sm-size);
   line-height: var(--kn-type-body-sm-line);
@@ -9348,6 +9357,11 @@ textarea.kn-field__control,
   align-items: flex-start;
   gap: var(--theme-spacing-4);
   color: var(--kn-color-text-surface-gray-muted);
+}
+
+.kn-genui__li-copy {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .kn-genui__text ol {

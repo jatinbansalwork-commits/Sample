@@ -7,12 +7,12 @@
   const PROMPTS = [
     {
       label: "HTS classification",
-      prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?",
+      prompt: "Classify this product",
       icon: "ask"
     },
     {
       label: "CATAIR code 398",
-      prompt: "What does CATAIR code 398 mean and how do I fix it?",
+      prompt: "CATAIR code 398",
       icon: "flag",
       new: true
     },
@@ -61,49 +61,185 @@
     );
   }
 
+  function catair398Citation() {
+    return (
+      window.KNEntryValidation?.CATAIR_CITATIONS?.[398] || {
+        code: "398",
+        title: "HTS Number / Country of Origin combination invalid",
+        ref: "CATAIR Ch. 3B, Reject 398",
+        definition:
+          "The HTS number and country of origin code combination for this entry line is invalid under the HTS schedule country notes, or the country of origin is missing or not permitted for the reported HTS number."
+      }
+    );
+  }
+
+  function isCatair398Query(question) {
+    const q = String(question || "").trim();
+    if (/^catair code 398$/i.test(q)) {
+      return true;
+    }
+    if (/\bcatair\b/i.test(q) && /\b398\b/.test(q)) {
+      return true;
+    }
+    if (/\berror code\b/i.test(q) && /\b398\b/.test(q)) {
+      return true;
+    }
+    return false;
+  }
+
+  function fieldsHaveCatair398(fields, row, validation) {
+    if (!fields || !Object.keys(fields).length) {
+      return false;
+    }
+    const citedError = Object.values(fields).some(
+      (field) =>
+        field?.status === "error" &&
+        (field?.citations || []).some((citation) => String(citation?.code) === "398")
+    );
+    if (citedError) {
+      return true;
+    }
+    if (validation?.run) {
+      const findings = validation.run({ fields, rowId: row?.id, row })?.findings || [];
+      return findings.some((finding) => String(finding?.citation?.code) === "398");
+    }
+    return false;
+  }
+
+  function findEntryWithCatair398() {
+    const entries = window.KNUsEntry?.list?.() || [];
+    const formState = window.KNEntryFormState;
+    const validation = window.KNEntryValidation;
+
+    const hashMatch = String(location.hash || "").match(/#transaction-us-entry\/filing\/([^/?#]+)/);
+    if (hashMatch) {
+      const entryId = decodeURIComponent(hashMatch[1]);
+      const row = entries.find((item) => item.id === entryId);
+      const fields = formState?.getFields?.(entryId);
+      if (row && fieldsHaveCatair398(fields, row, validation)) {
+        return bridgeEntry(row);
+      }
+    }
+
+    for (const row of entries) {
+      const fields = formState?.getFields?.(row.id);
+      if (fieldsHaveCatair398(fields, row, validation)) {
+        return bridgeEntry(row);
+      }
+    }
+
+    // Demo: entry-1 seeds invoice line 2 with an invalid HTS/COO pair that surfaces as 398 on validation.
+    const demoEntry = entries.find((row) => row.id === "entry-1" && row.statusChip === "active");
+    return demoEntry ? bridgeEntry(demoEntry) : null;
+  }
+
+  function bridgeEntry(row) {
+    return {
+      entryId: row.id,
+      entryNumber: row.entryNumber,
+      transactionId: row.transactionId,
+      href: `#transaction-us-entry/filing/${encodeURIComponent(row.id)}?queue=rejected`
+    };
+  }
+
   function answerCatair(question) {
-    if (!/\b(catair|398|error code)\b/i.test(question)) {
+    if (!isCatair398Query(question)) {
       return null;
     }
+    const citation = catair398Citation();
+    const affectedEntry = findEntryWithCatair398();
+    const components = [
+      {
+        component: "TEXT",
+        content:
+          "ACE reject **398** means the **country of origin on an invoice line is missing, not allowed, or does not match the HTS number** under the schedule's country notes."
+      },
+      { component: "TEXT", content: "### CATAIR edit definition" },
+      {
+        component: "INFO_GROUP",
+        items: [
+          { key: { children: "Reject code" }, value: { children: `**${citation.code}**` } },
+          { key: { children: "CATAIR reference" }, value: { children: citation.ref } },
+          { key: { children: "Official title" }, value: { children: citation.title } },
+          { key: { children: "Edit definition" }, value: { children: citation.definition } }
+        ]
+      },
+      { component: "TEXT", content: "### What triggers it" },
+      {
+        component: "TEXT",
+        content:
+          "Common causes: blank COO, **US** when the goods are foreign, or a COO that the HTS chapter note does not permit for the reported tariff line."
+      },
+      { component: "TEXT", content: "### How to fix" },
+      {
+        component: "TEXT",
+        content:
+          "- Open the entry → **Invoices** tab → select the flagged line.\n" +
+          "- Set **Country of origin** to the ISO code where the goods were manufactured (e.g. **VN**, **MX**, **CN**).\n" +
+          "- Re-run validation, then resubmit the entry summary.\n" +
+          "- If USMCA/FTA preference is claimed, ensure the origin matches the certifying country."
+      }
+    ];
+
+    if (affectedEntry) {
+      components.push({
+        component: "ALERT",
+        color: "notice",
+        title: `Entry ${affectedEntry.entryNumber} is showing this error`,
+        description:
+          "Want me to walk through the fix on the entry form? I will not change any field unless you open the record and confirm each write."
+      });
+      components.push({
+        component: "BUTTON",
+        text: "Yes — resolve on entry form",
+        action: { type: "navigate", data: { href: affectedEntry.href } }
+      });
+      components.push({
+        component: "BUTTON",
+        text: "Show fix steps in chat only",
+        action: { type: "prompt", data: { prompt: "Walk me through fixing CATAIR 398 without opening the entry" } }
+      });
+    } else {
+      components.push({
+        component: "ALERT",
+        color: "information",
+        title: "Information only",
+        description:
+          "No entry in your queue is currently flagged with reject 398. This path explains the code — it cannot change any field on a record."
+      });
+    }
+
+    components.push({
+      component: "ALERT",
+      color: "notice",
+      title: "Agent guardrail",
+      description:
+        "Klear Agent cites the CATAIR edit definition above — not a paraphrase. It can suggest the correct COO from documents but cannot transmit or approve the corrected entry for you."
+    });
+
     return schemaAnswer({
       title: "CATAIR code 398 — Country of origin required",
       thinking: [
-        "Matched ACE reject code 398 against CATAIR Appendix V",
-        "Checked entry line country-of-origin field requirements",
-        "Cross-referenced fix path on the entry summary"
+        `Matched ACE reject 398 to ${citation.ref}`,
+        "Quoted the CATAIR edit definition — no paraphrase presented as fact",
+        affectedEntry
+          ? `Found open reject on entry ${affectedEntry.entryNumber} — offering resolution bridge only`
+          : "No affected entry in queue — staying informational"
       ],
       leadIn:
-        "CATAIR **398** means ACE rejected the entry because **country of origin is missing or invalid** on at least one invoice line.",
-      schema: {
-        components: [
-          { component: "TEXT", content: "### What triggered it" },
-          {
-            component: "TEXT",
-            content:
-              "ACE expects a valid ISO country code on every line item. Blank, **US** when the goods are foreign, or a code that disagrees with the HTS chapter note will surface as 398."
-          },
-          { component: "TEXT", content: "### How to fix" },
-          {
-            component: "TEXT",
-            content:
-              "- Open the entry → **Invoices** tab → select the flagged line.\n" +
-              "- Set **Country of origin** to the ISO code where the goods were manufactured (e.g. **VN**, **MX**, **CN**).\n" +
-              "- Re-run validation, then resubmit the entry summary.\n" +
-              "- If USMCA/FTA preference is claimed, ensure the origin matches the certifying country."
-          },
-          {
-            component: "ALERT",
-            color: "notice",
-            title: "Agent guardrail",
-            description:
-              "Klear Agent can suggest the correct COO from documents — it cannot transmit or approve the corrected entry for you."
-          }
-        ]
-      },
-      followUps: [
-        { label: "USMCA origin rules", prompt: "Does USMCA apply to auto parts from Mexico?" },
-        { label: "HTS for brackets", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" }
-      ]
+        affectedEntry
+          ? `Here's what **CATAIR reject 398** means — and **entry ${affectedEntry.entryNumber}** is showing it now.`
+          : "Here's what **CATAIR reject 398** means in plain language.",
+      schema: { components },
+      followUps: affectedEntry
+        ? [
+            { label: "Resolve on entry form", prompt: `Help me resolve CATAIR 398 on entry ${affectedEntry.entryNumber}` },
+            { label: "USMCA origin rules", prompt: "Does USMCA apply to auto parts from Mexico?" }
+          ]
+        : [
+            { label: "USMCA origin rules", prompt: "Does USMCA apply to auto parts from Mexico?" },
+            { label: "HTS classification", prompt: "Classify this product" }
+          ]
     });
   }
 
@@ -140,7 +276,7 @@
       },
       followUps: [
         { label: "Duty estimate", prompt: "Estimate duty for stamped steel auto body brackets from Mexico" },
-        { label: "CATAIR 398", prompt: "What does CATAIR code 398 mean and how do I fix it?" }
+        { label: "CATAIR 398", prompt: "CATAIR code 398" }
       ]
     });
   }
@@ -190,37 +326,13 @@
         "Missed deadlines can move the entry to **delinquent** status in ACE and trigger cargo holds.",
       followUps: [
         { label: "ACE status", prompt: "What is the ACE status for today's entries?" },
-        { label: "CATAIR codes", prompt: "What does CATAIR code 398 mean and how do I fix it?" }
+        { label: "CATAIR codes", prompt: "CATAIR code 398" }
       ]
     });
   }
 
   function answerHts(question) {
-    if (!/\b(hts|hs code|harmonized|classif(?:y|ication))\b/i.test(question)) {
-      return null;
-    }
-    return {
-      mode: "classification",
-      title: "Classification result",
-      thinking: [
-        "Read the product description against GRI 1–3",
-        "Checked heading 8708 versus 7326",
-        "Cross-referenced ACE entry practice for this heading"
-      ],
-      leadIn:
-        "Stamped steel auto body brackets from Mexico classify as motor-vehicle body parts, not generic articles of steel.",
-      hts: "8708.29.5060",
-      description: "Parts and accessories of bodies (including cabs): Other: Other",
-      dutyRate: "2.5%",
-      origin: "MX",
-      preference: "USMCA if regional value content is documented",
-      confidence: "high",
-      action: { type: "apply-hts", label: "Apply this HS code", data: { hts: "8708.29.5060" } },
-      followUps: [
-        { label: "Duty estimate", prompt: "Estimate duty for this classification" },
-        { label: "USMCA preference", prompt: "Does USMCA apply to auto parts from Mexico?" }
-      ]
-    };
+    return window.KNClassificationAssistant?.answer?.(question) || null;
   }
 
   function answerDuty(question) {
@@ -274,6 +386,8 @@
     answer,
     matchesExpert,
     getPrompts,
+    findEntryWithCatair398,
+    catair398Citation,
     placeholder: EXPERT_PLACEHOLDER,
     PROMPTS
   };

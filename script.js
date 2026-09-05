@@ -887,11 +887,16 @@ function getBreadcrumbTrail() {
     const path = getHashPath();
     const isfDoc = path.match(/^#transaction-us-isf\/documents\/([^/?#]+)/);
     const isfHistory = path.match(/^#transaction-us-isf\/history\/([^/]+)$/);
+    const inbDoc = path.match(/^#transaction-us-in-bond\/documents\/([^/?#]+)/);
+    const inbHistory = path.match(/^#transaction-us-in-bond\/history\/([^/]+)$/);
     const isfSubRoute = Boolean(isfDoc || isfHistory);
+    const inbSubRoute = Boolean(inbDoc || inbHistory);
+    const subRoute = isfSubRoute || inbSubRoute;
+    const txnApi = isfSubRoute ? window.KNUsIsf : inbSubRoute ? window.KNUsInBond : null;
     items.push({
-      href: isfSubRoute ? window.KNUsIsf?.listReturnHash?.() || l3Current.getAttribute("href") : l3Current.getAttribute("href"),
+      href: subRoute ? txnApi?.listReturnHash?.() || l3Current.getAttribute("href") : l3Current.getAttribute("href"),
       label: getNavTitle(l3Current),
-      isCurrentPage: !isfSubRoute
+      isCurrentPage: !subRoute
     });
     if (isfDoc) {
       const rowId = decodeURIComponent(isfDoc[1]);
@@ -905,6 +910,20 @@ function getBreadcrumbTrail() {
       items.push({
         href: path,
         label: window.KNUsIsf?.historyBreadcrumbLabel?.(rowId) || rowId,
+        isCurrentPage: true
+      });
+    } else if (inbDoc) {
+      const rowId = decodeURIComponent(inbDoc[1]);
+      items.push({
+        href: withHashQuery(path),
+        label: window.KNUsInBond?.documentBreadcrumbLabel?.(rowId) || rowId,
+        isCurrentPage: true
+      });
+    } else if (inbHistory) {
+      const rowId = decodeURIComponent(inbHistory[1]);
+      items.push({
+        href: path,
+        label: window.KNUsInBond?.historyBreadcrumbLabel?.(rowId) || rowId,
         isCurrentPage: true
       });
     }
@@ -1001,6 +1020,9 @@ function nestedAdminNavHash(path = getHashPath()) {
   if (path.startsWith("#transaction-us-isf")) {
     return "#transaction-us-isf";
   }
+  if (path.startsWith("#transaction-us-in-bond")) {
+    return "#transaction-us-in-bond";
+  }
   return path;
 }
 
@@ -1064,6 +1086,31 @@ function getCurrentPageTitle() {
       }
     }
     const label = window.KNUsIsf?.transactionLabel?.(rowId);
+    if (label) {
+      return label;
+    }
+  }
+  const inbHistory = path.match(/^#transaction-us-in-bond\/history\/([^/]+)$/);
+  if (inbHistory) {
+    const label = window.KNUsInBond?.transactionLabel?.(decodeURIComponent(inbHistory[1]));
+    if (label) {
+      return label;
+    }
+  }
+  const inbDoc = path.match(/^#transaction-us-in-bond\/documents\/([^/?#]+)/);
+  if (inbDoc) {
+    const rowId = decodeURIComponent(inbDoc[1]);
+    const route = window.KNInbDocViewer?.parseRoute?.();
+    const row = window.KNUsInBond?.list?.().find((item) => item.id === rowId);
+    if (row && route) {
+      const detail = window.KNInbDetail?.buildDetail?.(row);
+      const cat = route.cat || "EML";
+      const index = route.index || 0;
+      if (detail) {
+        return window.KNInbDetail.productionDocId(row, cat, index);
+      }
+    }
+    const label = window.KNUsInBond?.transactionLabel?.(rowId);
     if (label) {
       return label;
     }
@@ -1398,10 +1445,12 @@ function syncPageView() {
     });
   }
   if (isUsInBond) {
+    const inbPath = getHashPath();
+    const inbSubRoute = /^#transaction-us-in-bond\/(documents|history)\//.test(inbPath);
     bootActivePage({
       page: inbPage,
       root: document.getElementById("kn-inb-root"),
-      kind: "tm-table",
+      kind: inbSubRoute ? "module" : "tm-table",
       init: () => window.KNUsInBond?.init?.(),
       sync: () => window.KNUsInBond?.sync?.()
     });
@@ -5826,6 +5875,7 @@ function initKnTooltips() {
 
 const DASH_LAYOUT_KEY = "kn-dashboard-layout";
 const DASH_WIDGETS = [
+  { id: "ai-insights", title: "Klear insights", description: "AI copilot briefing with structured GenUI on your live queue" },
   { id: "alerts", title: "Needs attention", description: "Demurrage, delays, and holds that need a decision" },
   { id: "overview", title: "Live snapshot", description: "Active volume, stages, and the shipment map" },
   { id: "feeds", title: "Arrivals and filings", description: "Upcoming arrivals and recent filings" },
@@ -7795,6 +7845,7 @@ function hydrateDashFromVisibility() {
   }
 
   mountDashCharts(summary);
+  window.KNDashAiCopilot?.mount?.(summary, { animate: !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches });
 
   const arrivalsList = document.getElementById("dash-arrivals");
   if (arrivalsList) {
@@ -9254,8 +9305,8 @@ function initAiAssistant() {
       hint: "Knowledge Expert answers work without a record loaded. Try “CATAIR code 398” or “USMCA for auto parts from Mexico”.",
       details: ["HTS classification, duty estimates, and CATAIR codes are available on every screen.", "Past conversations are in the sidebar, grouped by Today, This week, This month, and so on."],
       prompts: [
-        { label: "CATAIR code 398", prompt: "What does CATAIR code 398 mean and how do I fix it?", icon: "flag", new: true },
-        { label: "HTS classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" },
+        { label: "CATAIR code 398", prompt: "CATAIR code 398", icon: "flag", new: true },
+        { label: "HTS classification", prompt: "Classify this product" },
         { label: "Today's Statements", prompt: "Today's Statements" }
       ],
       manualPath: "Klear Agent",
@@ -9278,7 +9329,7 @@ function initAiAssistant() {
         details: [`Company: ${stmt.company}`, `ACH: ${stmt.achStatus}`, `${stmt.entries.length} entry summaries on this statement`],
         prompts: [
           { label: "ACH timing", prompt: `When does ACH debit hit for statement ${stmt.id}?` },
-          { label: "CATAIR code 398", prompt: "What does CATAIR code 398 mean and how do I fix it?", icon: "flag", new: true },
+          { label: "CATAIR code 398", prompt: "CATAIR code 398", icon: "flag", new: true },
           { label: "Duty breakdown", prompt: `Break down duty, MPF, and HMF on statement ${stmt.id}` }
         ],
         manualPath: "Payment → US → Statements → Statement Approval",
@@ -9296,8 +9347,8 @@ function initAiAssistant() {
       details: ["Statement Approval lists pending periodic daily statements.", "Approve requires an explicit click — Klear Agent cannot approve for you."],
       prompts: [
         { label: "Today's statements", prompt: "Today's Statements" },
-        { label: "CATAIR code 398", prompt: "What does CATAIR code 398 mean and how do I fix it?", icon: "flag", new: true },
-        { label: "HTS classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" }
+        { label: "CATAIR code 398", prompt: "CATAIR code 398", icon: "flag", new: true },
+        { label: "HTS classification", prompt: "Classify this product" }
       ],
       manualPath: "Payment → US → Statements",
       facts: { listView: true, region: "us" },
@@ -10667,6 +10718,8 @@ function initAiAssistant() {
   }
 
   const PERSONAL_DASHBOARD_INTENT = /\b(show\s+my\s+(personal\s+)?dashboard|personal\s+dashboard)\b/i;
+  const QUEUE_BRIEFING_INTENT =
+    /\b(what'?s?\s+in\s+my\s+queue(\s+today)?|recent(ly)?\s*(added\s*)?entries?(\s+in|\s+to)?\s+my\s+queue|recently\s+added\s+to\s+my\s+queue|my\s+working\s+list|my\s+(working\s*)?queue)\b/i;
   const WORKING_QUEUE_INTENT =
     /\b(recent(ly)?\s*(added\s*)?entries?(\s+in|\s+to)?\s+my\s+queue|recently\s+added\s+to\s+my\s+queue|my\s+(working\s*)?queue|working\s*list|find\s*entry|entry\s*number|bol\s*number|entries?\s+for\b|cbp\s*reject|entries?\s+on\s+hold|completed\s+entries)\b/i;
   const TODAYS_STATEMENTS_INTENT = /today.?s?\s*statements?/i;
@@ -10772,14 +10825,10 @@ function initAiAssistant() {
     });
   }
 
-  function answerWorkingQueue(question) {
-    const filter = queueFilterFromQuestion(question);
-    if (!filter) {
-      return null;
-    }
+  function buildJaneQueueRows() {
     const jane = janeQueue();
     const hold = jane.hold;
-    const rows = [
+    return [
       jane.entry && {
         bucket: "working",
         added: "Today 07:14",
@@ -10789,7 +10838,7 @@ function initAiAssistant() {
         detail: jane.entry.entryNumber,
         status: jane.entry.entrySummary || "IN PROGRESS",
         color: "notice",
-        href: `#transaction-us-entry/filing/${encodeURIComponent(jane.entry.id)}`
+        href: `#transaction-us-entry/filing/${encodeURIComponent(jane.entry.id)}?queue=working`
       },
       jane.pendingIsf[0] && {
         bucket: "working",
@@ -10847,6 +10896,160 @@ function initAiAssistant() {
         href: `#transaction-us-isf/history/${jane.isf.id}`
       }
     ].filter(Boolean);
+  }
+
+  function entryWorkstationHref(entryId, queueFilter = "recent") {
+    return `#transaction-us-entry/filing/${encodeURIComponent(entryId)}?queue=${encodeURIComponent(queueFilter)}`;
+  }
+
+  function queueBriefingMetrics(rows) {
+    const inProgress = rows.filter((row) => row.bucket === "working" || row.bucket === "recent").length;
+    const cbpErrors = rows.filter((row) => row.bucket === "rejected").length;
+    const onHold = rows.filter((row) => row.bucket === "hold").length;
+    return { inProgress, cbpErrors, onHold, statementsDue: 1 };
+  }
+
+  function answerQueueBriefing(question) {
+    if (!QUEUE_BRIEFING_INTENT.test(question)) {
+      return null;
+    }
+    const rows = buildJaneQueueRows();
+    const metrics = queueBriefingMetrics(rows);
+    const jane = janeQueue();
+    const entryId = jane.entry?.id || "entry-1";
+    const rejected = rows.find((row) => row.bucket === "rejected");
+    const summaryParts = [];
+    if (metrics.inProgress) {
+      summaryParts.push(
+        `**${metrics.inProgress}** ${metrics.inProgress === 1 ? "entry" : "entries"} in progress`
+      );
+    }
+    if (metrics.cbpErrors) {
+      summaryParts.push(
+        `**${metrics.cbpErrors}** CBP ${metrics.cbpErrors === 1 ? "error needs" : "errors need"} attention`
+      );
+    }
+    if (metrics.statementsDue) {
+      summaryParts.push(`**${metrics.statementsDue}** statement due today`);
+    }
+    const countCards = [];
+    if (metrics.inProgress) {
+      countCards.push({
+        component: "CARD",
+        title: String(metrics.inProgress),
+        description: metrics.inProgress === 1 ? "Entry in progress" : "Entries in progress",
+        children: [
+          { component: "BADGE", text: "Working queue", color: "notice" },
+          genuiNav("Open working list", entryWorkstationHref(entryId, "working"))
+        ]
+      });
+    }
+    if (metrics.cbpErrors) {
+      countCards.push({
+        component: "CARD",
+        title: String(metrics.cbpErrors),
+        description: metrics.cbpErrors === 1 ? "CBP error" : "CBP errors",
+        children: [
+          { component: "BADGE", text: "Needs attention", color: "negative" },
+          rejected
+            ? genuiNav("Review reject", rejected.href)
+            : genuiNav("Open rejected queue", entryWorkstationHref(entryId, "rejected"))
+        ]
+      });
+    }
+    if (metrics.statementsDue) {
+      countCards.push({
+        component: "CARD",
+        title: String(metrics.statementsDue),
+        description: "Statement due today",
+        children: [
+          { component: "BADGE", text: "ACH review", color: "notice" },
+          genuiPrompt("View statements", "Today's Statements")
+        ]
+      });
+    }
+    if (metrics.onHold) {
+      countCards.push({
+        component: "CARD",
+        title: String(metrics.onHold),
+        description: metrics.onHold === 1 ? "Entry on hold" : "Entries on hold",
+        children: [
+          { component: "BADGE", text: "Visibility hold", color: "negative" },
+          genuiNav("Open holds", "#klearhub-visibility")
+        ]
+      });
+    }
+    const followUps = [];
+    if (metrics.cbpErrors) {
+      followUps.push({ label: "CBP Rejected", prompt: "CBP Rejected entries" });
+    }
+    if (metrics.statementsDue) {
+      followUps.push({ label: "Today's statements", prompt: "Today's Statements" });
+    }
+    followUps.push(
+      { label: "My Working List", prompt: "My Working List" },
+      { label: "Recently added", prompt: "Recently added to my queue" },
+      { label: "On hold", prompt: "Entries on hold" },
+      { label: "Completed", prompt: "Completed entries" }
+    );
+    window.KNAiSuggest?.logAudit?.({
+      action: "queue-briefing",
+      context: "assistant",
+      field: "queue",
+      origin: "ai",
+      value: question
+    });
+    return schemaAnswer({
+      title: "Queue briefing",
+      thinking: [
+        "Running search_entries against your working queue",
+        "Running get_pending_statements for today's debit cycle",
+        "Summarized counts — waiting for you to choose what to open"
+      ],
+      schema: {
+        components: [
+          { component: "TEXT", content: "# Your queue" },
+          {
+            component: "TEXT",
+            content:
+              summaryParts.length > 0
+                ? `${summaryParts.join(" · ")}.`
+                : "Your queue is clear this morning."
+          },
+          countCards.length
+            ? {
+                component: "GRID",
+                columns: Math.min(3, countCards.length),
+                gap: "small",
+                children: countCards
+              }
+            : { component: "SPACER", size: "small" },
+          {
+            component: "ALERT",
+            color: metrics.cbpErrors ? "notice" : "information",
+            title: "You choose what's next",
+            description:
+              metrics.cbpErrors && rejected
+                ? `${rejected.id} has an open ACE reject. Cards open the record — Klear Agent will not auto-navigate for you.`
+                : "Each card opens a record or filtered workstation view. Nothing is filed from this chat until you act on the form."
+          }
+        ]
+      },
+      followUps
+    });
+  }
+
+  function answerWorkingQueue(question) {
+    if (QUEUE_BRIEFING_INTENT.test(question)) {
+      return null;
+    }
+    const filter = queueFilterFromQuestion(question);
+    if (!filter) {
+      return null;
+    }
+    const jane = janeQueue();
+    const hold = jane.hold;
+    const rows = buildJaneQueueRows();
     const filtered =
       filter === "all" || filter === "recent"
         ? filter === "recent"
@@ -10923,10 +11126,38 @@ function initAiAssistant() {
       return null;
     }
     const day = brokerTodayLong();
+    const stmtApi = window.KNPaymentUsStatements;
+    const entryCards = stmtApi?.listEntryCards?.() || [];
+    const cardForEntry = (card) => {
+      const href = `#transaction-us-entry/filing/${encodeURIComponent(card.entryId)}?statement=${encodeURIComponent(card.statementId)}&stmtEntry=${encodeURIComponent(card.lineId)}`;
+      return {
+        component: "CARD",
+        title: card.entryNumber,
+        description: card.company,
+        children: [
+          { component: "AMOUNT", value: card.totalDue, currency: "USD" },
+          {
+            component: "TEXT",
+            content: `Duty ${stmtApi?.money?.(card.duty) || card.duty} · MPF ${stmtApi?.money?.(card.mpf) || card.mpf} · HMF ${stmtApi?.money?.(card.hmf) || card.hmf}`
+          },
+          {
+            component: "INDICATOR",
+            value: card.achStatus === "missing" ? "ACH missing on file" : "Pending approval",
+            color: card.achStatus === "missing" ? "negative" : "notice"
+          },
+          {
+            component: "TEXT",
+            content: `Statement **${card.statementId}** · ${card.paymentMethod} · Posted ${card.statementDate}.`
+          },
+          { component: "BUTTON", text: "Review on entry form", action: { type: "navigate", data: { href } } }
+        ]
+      };
+    };
+    const statementCards = entryCards.length ? entryCards.map(cardForEntry) : [];
     return schemaAnswer({
       title: "Today's Statements",
       thinking: [
-        `Pulled the ${day} periodic daily statement cycle`,
+        `Running get_pending_statements for the ${day} periodic daily cycle`,
         "Matched each importer against ACH authorization on file",
         "Flagged ILLUMINATE USA — no ACH debit authorization"
       ],
@@ -10935,82 +11166,30 @@ function initAiAssistant() {
           { component: "TEXT", content: "# Today's statements" },
           {
             component: "TEXT",
-            content: `You have **3 periodic daily statements** posted for **${day}**. ACH debit hits tomorrow morning unless a statement is unpaid.`
+            content: `You have **${statementCards.length} entry ${statementCards.length === 1 ? "line" : "lines"}** on pending statements for **${day}**. Select a card to load the entry form with statement details above it — approval requires your explicit click.`
           },
           {
             component: "GRID",
             columns: 3,
             gap: "small",
-            children: [
-              {
-                component: "CARD",
-                title: "Statement 26-0903-A",
-                description: "GLOBAL-PAK",
-                children: [
-                  { component: "AMOUNT", value: 18240, currency: "USD" },
-                  { component: "BADGE", text: "ACH scheduled", color: "positive" },
-                  { component: "TEXT", content: "Filer 0AF · 4 entry summaries. Debit 4 Sep 2026." }
-                ]
-              },
-              {
-                component: "CARD",
-                title: "Statement 26-0903-B",
-                description: "CAMERON INTERNATIONAL CORPORATION (SUB QC)",
-                children: [
-                  { component: "AMOUNT", value: 6120, currency: "USD" },
-                  { component: "BADGE", text: "ACH scheduled", color: "positive" },
-                  { component: "TEXT", content: "Includes entry 0AF-3000693 still in progress." }
-                ]
-              },
-              {
-                component: "CARD",
-                title: "Statement 26-0903-C",
-                description: "ILLUMINATE USA LLC",
-                children: [
-                  { component: "AMOUNT", value: 42900, currency: "USD" },
-                  { component: "BADGE", text: "No ACH on file", color: "negative" },
-                  { component: "TEXT", content: "CBP will still debit. A failed pull becomes a bond claim." }
-                ]
-              }
-            ]
-          },
-          { component: "TEXT", content: "### ACH recap" },
-          {
-            component: "TABLE",
-            headers: ["Statement", "Importer", "Amount", "ACH"],
-            rows: [
-              [
-                { component: "TEXT", value: "26-0903-A" },
-                { component: "TEXT", value: "GLOBAL-PAK" },
-                { component: "AMOUNT", value: 18240, currency: "USD" },
-                { component: "BADGE", text: "Scheduled", color: "positive" }
-              ],
-              [
-                { component: "TEXT", value: "26-0903-B" },
-                { component: "TEXT", value: "CAMERON INTERNATIONAL" },
-                { component: "AMOUNT", value: 6120, currency: "USD" },
-                { component: "BADGE", text: "Scheduled", color: "positive" }
-              ],
-              [
-                { component: "TEXT", value: "26-0903-C" },
-                { component: "TEXT", value: "ILLUMINATE USA LLC" },
-                { component: "AMOUNT", value: 42900, currency: "USD" },
-                { component: "BADGE", text: "Missing", color: "negative" }
-              ]
-            ]
+            children: statementCards
           },
           {
             component: "ALERT",
             color: "notice",
-            title: "ILLUMINATE USA ACH missing",
+            title: "Approve is always explicit",
             description:
-              "Get the ACH authorization from ILLUMINATE USA before close of business. CBP debits the statement whether or not the importer authorized the pull."
+              "Klear Agent surfaces amounts and ACH risk. Update or Approve on the entry workstation posts to INT-09 — the agent cannot approve on its own."
           },
           genuiNav("Open US Statements", "#payment-us-statements"),
           genuiPrompt("All items due today", "All items due today")
         ]
       },
-      followUps: brokerHomeFollowUps("Today's Statements")
+      followUps: [
+        { label: "ILLUMINATE USA ACH", prompt: "Today's Statements" },
+        { label: "All items due today", prompt: "All items due today" },
+        { label: "Recent entries in my queue", prompt: "Recent entries in my queue" }
+      ]
     });
   }
 
@@ -11387,6 +11566,7 @@ function initAiAssistant() {
   function answerBrokerHome(question) {
     return (
       answerPersonalDashboard(question) ||
+      answerQueueBriefing(question) ||
       answerTodaysStatements(question) ||
       answerRecentOpsShipments(question) ||
       answerDueToday(question) ||
@@ -11465,29 +11645,9 @@ function initAiAssistant() {
       return expert;
     }
     const q = String(question || "").trim();
-    if (/\b(hts|hs code|harmonized|classif(?:y|ication))\b/i.test(q)) {
-      return {
-        mode: "classification",
-        title: "Classification result",
-        thinking: [
-          "Read the product description against GRI 1–3",
-          "Checked heading 8708 versus 7326",
-          "Cross-referenced ACE entry practice for this heading"
-        ],
-        leadIn:
-          "Stamped steel auto body brackets from Mexico classify as motor-vehicle body parts, not generic articles of steel.",
-        hts: "8708.29.5060",
-        description: "Parts and accessories of bodies (including cabs): Other: Other",
-        dutyRate: "2.5%",
-        origin: "MX",
-        preference: "USMCA if regional value content is documented",
-        confidence: "high",
-        action: { type: "apply-hts", label: "Apply this HS code", data: { hts: "8708.29.5060" } },
-        followUps: [
-          { label: "Duty estimate", prompt: "Estimate duty for this classification" },
-          { label: "ACE status", prompt: "What is the ACE status for today's entries?" }
-        ]
-      };
+    const classification = window.KNClassificationAssistant?.answer?.(q);
+    if (classification) {
+      return classification;
     }
     if (/\b(duty|duties|landed cost)\b/i.test(q)) {
       return {
@@ -11507,7 +11667,7 @@ function initAiAssistant() {
           { label: "HMF", amount: 105 }
         ],
         followUps: [
-          { label: "Classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" },
+          { label: "Classification", prompt: "Classify this product" },
           { label: "ACE status", prompt: "What is the ACE status for today's entries?" }
         ]
       };
@@ -11530,7 +11690,7 @@ function initAiAssistant() {
         ],
         followUps: [
           { label: "Personal dashboard", prompt: "Show my personal dashboard" },
-          { label: "Classification", prompt: "What HTS classification applies to stamped steel auto body brackets from Mexico?" }
+          { label: "Classification", prompt: "Classify this product" }
         ]
       };
     }
@@ -12622,16 +12782,39 @@ function initAiAssistant() {
   };
 
   document.addEventListener("kn-genui-action", (event) => {
-    const hts = event.detail?.data?.hts;
-    if ((event.detail?.type === "apply-hts" || hts) && event.target?.closest?.("#ai-assistant-panel")) {
+    const detail = event.detail || {};
+    const inAssistant = event.target?.closest?.("#ai-assistant-panel");
+    const inAgentic = event.target?.closest?.("#agentic-broker-page");
+    if (!inAssistant && !inAgentic) {
+      return;
+    }
+    if (detail.type === "apply-hts-confirm" && detail.data) {
+      const data = detail.data;
+      const confirmed = window.confirm(
+        `Apply HS ${data.hts} to line ${data.lineNum || ""} on entry ${data.entryNumber || data.entryId}?\n\nThis writes an agent_draft patch — you still review it on the entry form before filing.`
+      );
+      if (!confirmed) {
+        return;
+      }
+      const result = window.KNClassificationAssistant?.applyConfirmedClassification?.(data);
       showKnToast?.({
-        content: hts ? `HS ${hts} is noted. Filing still happens on the entry form.` : "Classification noted. Filing still happens on the entry form.",
-        color: "positive"
+        content: result?.ok
+          ? `HS ${data.hts} applied as agent_draft on line ${data.lineNum}. Review the purple flag on the entry form.`
+          : result?.error || "Could not apply classification.",
+        color: result?.ok ? "positive" : "negative"
       });
       return;
     }
-    const prompt = event.detail?.data?.prompt;
-    if (!prompt || !event.target?.closest?.("#ai-assistant-panel")) {
+    const hts = detail.data?.hts;
+    if ((detail.type === "apply-hts" || hts) && inAssistant) {
+      showKnToast?.({
+        content: hts ? `HS ${hts} is noted. Open an entry to apply it with confirmation.` : "Classification noted. Apply from an open entry form.",
+        color: "notice"
+      });
+      return;
+    }
+    const prompt = detail.data?.prompt;
+    if (!prompt || !inAssistant) {
       return;
     }
     window.KNAssistant.ask(prompt);

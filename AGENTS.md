@@ -18,6 +18,21 @@ That doc holds the **vision**, **personas** (Jane Cooper, David Chen, Maria Rodr
 - Component patterns: `components.css`, `docs/components.md`.
 - Full design notes: `DESIGN.md`.
 
+## Klear360 skills (Cursor)
+
+Six skills in `.cursor/skills/` — load the relevant skill before UI/token/motion/AI work; finish with **klear360-audit**:
+
+| Skill | Scope |
+| --- | --- |
+| `klear360-design-system` | Orchestrator across all layers |
+| `klear360-tokens` | Token architecture, `tokens.css` |
+| `klear360-ai-ui` | ChatInput, ChatMessage, GenUI, purple `ai.*` palette |
+| `klear360-components` | Component selection, patterns, MCP docs |
+| `klear360-motion` | Motion tokens and animation primitives |
+| `klear360-audit` | Post-change audit gate (mandatory) |
+
+MCP: `.mcp.json` → `klear360-mcp` (local Klear360 package). UI guidelines: `.agents/skills/ui-code-guidelines/`.
+
 ## Klear AI icon (single source of truth)
 
 **One mark everywhere** — the Klear AI ray (`#klear-assist-ray`), not sparkle glyphs (✦) or ad-hoc SVGs.

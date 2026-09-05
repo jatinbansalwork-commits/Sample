@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk '/^\\\\/\\\\* Form$/,/^\\\\/\\\\* Checkbox primitive/' components.css)",
+      "Bash(grep -nE \"#[0-9a-fA-F]{3,6}\\\\b|[0-9]+px|[0-9]+ms\\\\b\")",
+      "Bash(awk 'NR==395{print NR\": \"$0} /^\\\\/\\\\/ ---/ && NR>395 {print NR\": \"$0; c++; if\\(c==1\\) exit}' script.js)",
+      "Bash(grep -rl \"FilterChip\\\\|AppliedChip\" \"/Users/jatinbansal/Downloads/Sample-main\" \"/Users/jatinbansal/Desktop/blade-master 2\" 2>/dev/null | grep -v node_modules)",
+      "Bash(python3 -)"
+    ]
+  }
+}

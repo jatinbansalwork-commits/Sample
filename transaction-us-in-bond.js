@@ -597,7 +597,7 @@
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 3, extra: "inb-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 14, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 3, extra: "inb-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 14, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -649,7 +649,7 @@
       ],
       results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}. Sorted by ${state.txn.sortKey}, ${state.txn.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface inb-table-card">
+    <div class="vis-table-wrap role-table-card inb-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ actionCount: 3, extra: "inb-table" })}" aria-label="US In-Bond transactions">
           <thead>
@@ -744,7 +744,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -794,7 +794,7 @@
       ],
       results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}. Sorted by ${state.ship.sortKey}, ${state.ship.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface inb-table-card">
+    <div class="vis-table-wrap role-table-card inb-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" })}" aria-label="US In-Bond shipments">
           <thead>

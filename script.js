@@ -1196,16 +1196,36 @@ function hashFromPathname(pathname = location.pathname) {
   return `#${segments.map(decodeURIComponent).join("/")}`;
 }
 
+function applyRouteAlias(path) {
+  if (path === "#agentic") {
+    return "#agentic-broker";
+  }
+  return path;
+}
+
 function normalizeHashPath(hash = location.hash) {
   const raw = (hash || "").split("?")[0];
   if (!raw || raw === "#") {
     const fromPath = hashFromPathname();
     if (fromPath) {
-      return fromPath;
+      return applyRouteAlias(fromPath);
     }
     return "#agentic-broker";
   }
-  return `#${raw.replace(/^#\/?/, "")}`;
+  return applyRouteAlias(`#${raw.replace(/^#\/?/, "")}`);
+}
+
+function canonicalizeRouteHash() {
+  const raw = (location.hash || "").split("?")[0];
+  if (!raw || raw === "#") {
+    return;
+  }
+  const path = `#${raw.replace(/^#\/?/, "")}`;
+  const canonical = applyRouteAlias(path);
+  if (canonical !== path) {
+    history.replaceState(null, "", withHashQuery(canonical));
+    syncDocumentRoute();
+  }
 }
 
 function hashQuerySuffix(hash = location.hash) {
@@ -1270,6 +1290,7 @@ function bootActivePage({ page, root, kind = "admin-list", init, sync, cols, row
 }
 
 function syncPageView() {
+  canonicalizeRouteHash();
   syncDocumentRoute();
   const dashboardInner = document.querySelector(".dashboard-inner");
   const agenticBrokerPage = document.getElementById("agentic-broker-page");
@@ -4705,6 +4726,19 @@ function filterChatList(rawQuery) {
 window.KNAgenticNav = Object.assign(window.KNAgenticNav || {}, {
   refilterChatHistory() {
     filterChatList(sideNav.querySelector("[data-agentic-chat-search]")?.value || "");
+  },
+  openChatHistory() {
+    const trigger = sideNav.querySelector('.side-nav-link--agentic-broker[href="#agentic-broker"]');
+    if (!trigger) {
+      return;
+    }
+    if (!isMediumOrHdDesktop()) {
+      setNavOpen(true);
+      collapseL1(getNavTitle(trigger) || "Klear Agent", trigger, { animate: true });
+    } else if (!isL1Collapsed || getActiveL2Trigger() !== trigger) {
+      collapseL1(getNavTitle(trigger) || "Klear Agent", trigger, { animate: true });
+    }
+    sideNav.querySelector("[data-agentic-chat-search]")?.focus({ preventScroll: true });
   }
 });
 
@@ -5623,6 +5657,10 @@ function initShipmentMap() {
   });
 }
 
+function isDashboardEmptyState() {
+  return Boolean(document.querySelector(".dashboard-inner .dash-empty"));
+}
+
 function revealDashboard() {
   const root = document.querySelector(".dashboard-inner");
   const skeleton = document.getElementById("dash-skeleton");
@@ -5639,9 +5677,11 @@ function revealDashboard() {
   if (live) {
     live.hidden = false;
   }
-  requestAnimationFrame(() => {
-    initShipmentMap();
-  });
+  if (!isDashboardEmptyState()) {
+    requestAnimationFrame(() => {
+      initShipmentMap();
+    });
+  }
 }
 
 function initDashboardLoader() {
@@ -5651,6 +5691,11 @@ function initDashboardLoader() {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const onDashboard = typeof isDashboardRoute === "function" ? isDashboardRoute() : true;
   const reloading = window.KNPageReload?.isReload?.() && onDashboard;
+
+  if (isDashboardEmptyState()) {
+    revealDashboard();
+    return;
+  }
 
   if (!root || !onDashboard) {
     revealDashboard();
@@ -5874,9 +5919,19 @@ function initKnTooltips() {
 }
 
 const DASH_LAYOUT_KEY = "kn-dashboard-layout";
+const DASH_GRID_COLUMN = Object.freeze({
+  alerts: 1,
+  feeds: 1,
+  shipments: 1,
+  charts: 1,
+  "ai-insights": 2,
+  overview: 2,
+  finance: 2,
+  health: 2
+});
 const DASH_WIDGETS = [
-  { id: "ai-insights", title: "Klear insights", description: "AI copilot briefing with structured GenUI on your live queue" },
-  { id: "alerts", title: "Needs attention", description: "Demurrage, delays, and holds that need a decision" },
+  { id: "alerts", title: "Action queue", description: "Demurrage, delays, and holds ranked by urgency" },
+  { id: "ai-insights", title: "Morning briefing", description: "Klear Agent priorities with structured GenUI" },
   { id: "overview", title: "Live snapshot", description: "Active volume, stages, and the shipment map" },
   { id: "feeds", title: "Arrivals and filings", description: "Upcoming arrivals and recent filings" },
   { id: "charts", title: "Lane and mode mix", description: "Shipments by lane and transport mode" },
@@ -5937,12 +5992,15 @@ function applyDashboardLayout(layout, { flash = false } = {}) {
   if (!live) {
     return;
   }
+  const shellTop = live.querySelector(".dash-shell-top");
   const hero = live.querySelector(".hero");
   const next = layout || readDashboardLayout();
   const hidden = new Set(next.hidden);
   const previous = [...live.querySelectorAll("[data-widget]")].map((el) => el.getAttribute("data-widget"));
-  if (hero) {
-    live.appendChild(hero);
+  if (shellTop) {
+    live.insertBefore(shellTop, live.firstChild);
+  } else if (hero) {
+    live.insertBefore(hero, live.firstChild);
   }
   next.order.forEach((id) => {
     const widget = live.querySelector(`[data-widget="${id}"]`);
@@ -5950,6 +6008,8 @@ function applyDashboardLayout(layout, { flash = false } = {}) {
       return;
     }
     widget.hidden = hidden.has(id);
+    widget.classList.toggle("dash-col-primary", DASH_GRID_COLUMN[id] === 1);
+    widget.classList.toggle("dash-col-secondary", DASH_GRID_COLUMN[id] === 2);
     live.appendChild(widget);
   });
   if (flash) {
@@ -6165,6 +6225,30 @@ window.clearKnToasts = clearKnToasts;
 window.showKnToast = showKnToast;
 
 let setDashDatePickerOpen = () => {};
+
+function initDashCommandRail() {
+  const live = document.getElementById("dash-live");
+  if (!live || live.dataset.commandRailBound === "true") {
+    return;
+  }
+  live.dataset.commandRailBound = "true";
+  live.addEventListener("click", (event) => {
+    const scrollBtn = event.target.closest("[data-dash-scroll]");
+    if (!scrollBtn) {
+      return;
+    }
+    event.preventDefault();
+    const targetId = scrollBtn.getAttribute("data-dash-scroll");
+    const widget = live.querySelector(`[data-widget="${targetId}"]`);
+    if (!widget) {
+      return;
+    }
+    widget.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    widget.classList.remove("is-layout-updated");
+    void widget.offsetWidth;
+    widget.classList.add("is-layout-updated");
+  });
+}
 
 function initDashDatePicker() {
   const trigger = document.getElementById("dash-date-trigger");
@@ -7267,7 +7351,9 @@ function hydrateKnMenus(root = document) {
     if (!isDropdown) {
       menu.classList.add("kn-menu");
     }
-    menu.classList.add("menu-overlay");
+    if (!menu.classList.contains("agentic-thread__title-menu")) {
+      menu.classList.add("menu-overlay");
+    }
     bindKnMenuKeyboard(menu);
     if (typeof hydrateKnDividers === "function") {
       hydrateKnDividers(menu);
@@ -7729,14 +7815,29 @@ function countUpOverview() {
   });
 }
 
+function hydrateDashDateContext() {
+  const el = document.getElementById("dash-date-context");
+  if (!el) {
+    return;
+  }
+  el.textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric"
+  });
+}
+
 function hydrateDashGreeting(summary) {
   const hour = new Date().getHours();
   const greeting = hour < 5 || hour >= 21 ? "Good evening" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const title = document.getElementById("dash-greeting");
   const risk = document.getElementById("dash-risk-line");
+  const name =
+    document.querySelector(".profile-text__name")?.textContent?.trim()?.split(/\s+/)[0] || "there";
   if (title) {
-    title.textContent = `${greeting}, Jane`;
+    title.textContent = `${greeting}, ${name}`;
   }
+  hydrateDashDateContext();
   hydrateDashWelcome();
   if (!risk) {
     return;
@@ -7761,6 +7862,9 @@ function hydrateDashGreeting(summary) {
 }
 
 function hydrateDashFromVisibility() {
+  if (isDashboardEmptyState()) {
+    return;
+  }
   const summary = visSummary;
   hydrateDashGreeting(summary);
   const usd = window.knFormatUsd || ((value) => `$${value}`);
@@ -10722,7 +10826,7 @@ function initAiAssistant() {
     /\b(what'?s?\s+in\s+my\s+queue(\s+today)?|recent(ly)?\s*(added\s*)?entries?(\s+in|\s+to)?\s+my\s+queue|recently\s+added\s+to\s+my\s+queue|my\s+working\s+list|my\s+(working\s*)?queue)\b/i;
   const WORKING_QUEUE_INTENT =
     /\b(recent(ly)?\s*(added\s*)?entries?(\s+in|\s+to)?\s+my\s+queue|recently\s+added\s+to\s+my\s+queue|my\s+(working\s*)?queue|working\s*list|find\s*entry|entry\s*number|bol\s*number|entries?\s+for\b|cbp\s*reject|entries?\s+on\s+hold|completed\s+entries)\b/i;
-  const TODAYS_STATEMENTS_INTENT = /today.?s?\s*statements?/i;
+  const TODAYS_STATEMENTS_INTENT = /today.?s?\s*statements?|pending\s+statements?/i;
   const OPS_SHIPMENTS_INTENT = /recent\s+shipments\s+in\s+operations|shipments\s+in\s+operations/i;
   const DUE_TODAY_INTENT = /\ball\s*items?\s*due\s*today|items?\s*due\s*today\b/i;
   const POST_SUMMARY_CORRECTIONS_INTENT = /post\s*summary\s*correction/i;
@@ -11128,31 +11232,24 @@ function initAiAssistant() {
     const day = brokerTodayLong();
     const stmtApi = window.KNPaymentUsStatements;
     const entryCards = stmtApi?.listEntryCards?.() || [];
-    const cardForEntry = (card) => {
+    const statementTableRows = entryCards.map((card) => {
       const href = `#transaction-us-entry/filing/${encodeURIComponent(card.entryId)}?statement=${encodeURIComponent(card.statementId)}&stmtEntry=${encodeURIComponent(card.lineId)}`;
-      return {
-        component: "CARD",
-        title: card.entryNumber,
-        description: card.company,
-        children: [
-          { component: "AMOUNT", value: card.totalDue, currency: "USD" },
-          {
-            component: "TEXT",
-            content: `Duty ${stmtApi?.money?.(card.duty) || card.duty} · MPF ${stmtApi?.money?.(card.mpf) || card.mpf} · HMF ${stmtApi?.money?.(card.hmf) || card.hmf}`
-          },
-          {
-            component: "INDICATOR",
-            value: card.achStatus === "missing" ? "ACH missing on file" : "Pending approval",
-            color: card.achStatus === "missing" ? "negative" : "notice"
-          },
-          {
-            component: "TEXT",
-            content: `Statement **${card.statementId}** · ${card.paymentMethod} · Posted ${card.statementDate}.`
-          },
-          { component: "BUTTON", text: "Review on entry form", action: { type: "navigate", data: { href } } }
-        ]
-      };
-    };
+      const money = (value) => stmtApi?.money?.(value) || String(value);
+      return [
+        genuiLink(card.entryNumber, href),
+        { component: "TEXT", value: card.company },
+        { component: "AMOUNT", value: card.totalDue, currency: "USD" },
+        { component: "TEXT", value: money(card.duty) },
+        { component: "TEXT", value: money(card.mpf) },
+        { component: "TEXT", value: money(card.hmf) },
+        {
+          component: "BADGE",
+          text: card.achStatus === "missing" ? "ACH missing" : "Pending approval",
+          color: card.achStatus === "missing" ? "negative" : "notice"
+        },
+        genuiNav("Select", href)
+      ];
+    });
     const statementCards = entryCards.length ? entryCards.map(cardForEntry) : [];
     return schemaAnswer({
       title: "Today's Statements",
@@ -11166,14 +11263,15 @@ function initAiAssistant() {
           { component: "TEXT", content: "# Today's statements" },
           {
             component: "TEXT",
-            content: `You have **${statementCards.length} entry ${statementCards.length === 1 ? "line" : "lines"}** on pending statements for **${day}**. Select a card to load the entry form with statement details above it — approval requires your explicit click.`
+            content: `You have **${entryCards.length} entry ${entryCards.length === 1 ? "line" : "lines"}** on pending statements for **${day}**. Select a row to load the entry form with **Statement Details** above it — approval requires your explicit click.`
           },
-          {
-            component: "GRID",
-            columns: 3,
-            gap: "small",
-            children: statementCards
-          },
+          entryCards.length
+            ? {
+                component: "TABLE",
+                headers: ["Entry", "Company", "Total due", "Duty", "MPF", "HMF", "Status", "Select"],
+                rows: statementTableRows
+              }
+            : { component: "TEXT", content: "No pending statement entry lines posted today." },
           {
             component: "ALERT",
             color: "notice",
@@ -11194,290 +11292,19 @@ function initAiAssistant() {
   }
 
   function answerRecentOpsShipments(question) {
-    if (!OPS_SHIPMENTS_INTENT.test(question)) {
-      return null;
-    }
-    const tm = (window.KNUsShipments?.list?.() || []).slice(0, 5);
-    const vis = (visSummary.newest || visSummary.rows || []).slice(0, 4);
-    if (!tm.length && !vis.length) {
-      return null;
-    }
-    return schemaAnswer({
-      title: "Recent shipments in operations",
-      thinking: [
-        "Pulled Transaction Manager US Shipments",
-        "Cross-checked live Visibility positions",
-        "Flagged anything on hold or still NEW"
-      ],
-      schema: {
-        components: [
-          { component: "TEXT", content: "# Operations shipments" },
-          {
-            component: "TEXT",
-            content: `**${tm.length || vis.length}** recent TM shipments plus **${vis.length}** live Visibility moves. Ocean is still the bulk of Jane's board.`
-          },
-          {
-            component: "TABLE",
-            headers: ["Shipment", "Importer", "MOT", "Status"],
-            rows: (tm.length ? tm : vis).map((row) => [
-              genuiLink(row.shipmentId || row.id, row.shipmentId ? "#transaction-us-shipments" : "#klearhub-visibility"),
-              { component: "TEXT", value: row.companyName || row.company },
-              { component: "TEXT", value: row.mot === "ocean" || row.mot === "OCEAN" ? "Ocean" : row.mot === "air" || row.mot === "AIR" ? "Air" : String(row.mot || "—") },
-              { component: "BADGE", text: row.status || row.statusChip || "NEW", color: /hold|reject/i.test(row.status || "") ? "negative" : /progress|new|ready/i.test(row.status || row.statusChip || "") ? "notice" : "positive" }
-            ])
-          },
-          vis.length
-            ? {
-                component: "TEXT",
-                content: "### Visibility positions"
-              }
-            : { component: "SPACER" },
-          vis.length
-            ? {
-                component: "TABLE",
-                headers: ["ID", "Lane", "Container", "Status"],
-                rows: vis.map((row) => [
-                  genuiLink(row.id, "#klearhub-visibility"),
-                  { component: "TEXT", value: `${row.origin?.city || "—"} → ${row.dest?.city || "—"}` },
-                  { component: "TEXT", value: row.container || "—" },
-                  { component: "BADGE", text: row.status, color: row.status === "On Hold" ? "negative" : "information" }
-                ])
-              }
-            : { component: "SPACER" },
-          {
-            component: "ALERT",
-            color: "information",
-            title: "TM list vs Visibility board",
-            description:
-              "Transaction Manager is the filing queue. Visibility is the live milestone board. Open either record — this chat will not update a shipment."
-          },
-          genuiNav("Open US Shipments", "#transaction-us-shipments"),
-          genuiNav("Open Visibility", "#klearhub-visibility")
-        ]
-      },
-      followUps: brokerHomeFollowUps("Recent shipments in operations")
-    });
+    return window.KNOpsShipmentsAssistant?.answer?.(question) || null;
   }
 
   function answerDueToday(question) {
-    if (!DUE_TODAY_INTENT.test(question)) {
-      return null;
-    }
-    const jane = janeQueue();
-    const isfA = jane.pendingIsf[0];
-    const isfB = jane.pendingIsf[1];
-    const psc = jane.psc;
-    return schemaAnswer({
-      title: "All items due today",
-      thinking: [
-        "Scanned ISF filing deadlines closing today",
-        "Cross-referenced today's statement payments",
-        "Checked PSC windows closing today"
-      ],
-      schema: {
-        components: [
-          { component: "TEXT", content: "# Due today" },
-          {
-            component: "TEXT",
-            content: `Here's what's due **${brokerTodayLong()}**: **2 ISF filings**, **1 statement payment**, and **1 PSC deadline**.`
-          },
-          {
-            component: "GRID",
-            columns: 2,
-            gap: "small",
-            children: [
-              {
-                component: "CARD",
-                title: isfA ? isfA.transactionId : "ISF filing",
-                description: isfA ? isfA.companyName : "Pending ISF",
-                children: [
-                  { component: "BADGE", text: "Due today", color: "notice" },
-                  { component: "TEXT", content: isfA ? `Vessel **${isfA.vesselName}**. File before the 24-hour ISF cutoff.` : "No pending ISF." }
-                ]
-              },
-              {
-                component: "CARD",
-                title: isfB ? isfB.transactionId : "ISF filing",
-                description: isfB ? isfB.companyName : "Pending ISF",
-                children: [
-                  { component: "BADGE", text: "Due today", color: "notice" },
-                  { component: "TEXT", content: isfB ? `MBL **${isfB.mbl}**. Still PENDING SUBMISSION.` : "Second ISF already filed." }
-                ]
-              },
-              {
-                component: "CARD",
-                title: "Statement 26-0903-C",
-                description: "ILLUMINATE USA LLC",
-                children: [
-                  { component: "AMOUNT", value: 42900, currency: "USD" },
-                  { component: "BADGE", text: "ACH not authorized", color: "negative" },
-                  { component: "TEXT", content: "Periodic daily statement posts today. Debit hits tomorrow." }
-                ]
-              },
-              {
-                component: "CARD",
-                title: psc ? psc.transactionId : "PSC",
-                description: psc ? `Entry ${psc.entryNumber}` : "PSC window",
-                children: [
-                  { component: "BADGE", text: "Window closes today", color: "negative" },
-                  { component: "TEXT", content: psc ? `**${psc.companyName}** · ${psc.pscType}. 314-day window cannot be extended.` : "No PSC due." }
-                ]
-              }
-            ]
-          },
-          { component: "TEXT", content: "### Queue" },
-          {
-            component: "TABLE",
-            headers: ["Item", "Party", "Detail", "Status"],
-            rows: [
-              [
-                isfA ? genuiLink("ISF filing", `#transaction-us-isf/history/${isfA.id}`) : { component: "TEXT", value: "ISF filing" },
-                { component: "TEXT", value: isfA?.companyName || "—" },
-                { component: "TEXT", value: isfA?.vesselName || "—" },
-                { component: "BADGE", text: "Due today", color: "notice" }
-              ],
-              [
-                isfB ? genuiLink("ISF filing", `#transaction-us-isf/history/${isfB.id}`) : { component: "TEXT", value: "ISF filing" },
-                { component: "TEXT", value: isfB?.companyName || "—" },
-                { component: "TEXT", value: isfB?.mbl || "—" },
-                { component: "BADGE", text: "Due today", color: "notice" }
-              ],
-              [
-                { component: "TEXT", value: "Statement" },
-                { component: "TEXT", value: "ILLUMINATE USA LLC" },
-                { component: "AMOUNT", value: 42900, currency: "USD" },
-                { component: "BADGE", text: "No ACH", color: "negative" }
-              ],
-              [
-                psc ? genuiLink("PSC", "#transaction-us-psc") : { component: "TEXT", value: "PSC" },
-                { component: "TEXT", value: psc?.companyName || "—" },
-                { component: "TEXT", value: psc?.entryNumber || "—" },
-                { component: "BADGE", text: "Closes today", color: "negative" }
-              ]
-            ]
-          },
-          {
-            component: "ALERT",
-            color: "notice",
-            title: "Start with the PSC",
-            description: psc
-              ? `${psc.transactionId} (${psc.entryNumber}) cannot be extended. After today the correction has to go through formal protest.`
-              : "File the pending ISF records before vessel cutoff."
-          },
-          genuiPrompt("Post Summary Corrections", "Post Summary Corrections"),
-          genuiNav("Open ISF", "#transaction-us-isf")
-        ]
-      },
-      followUps: brokerHomeFollowUps("All items due today")
-    });
+    return window.KNDueTodayAssistant?.answer?.(question) || null;
   }
 
   function answerPostSummaryCorrections(question) {
-    if (!POST_SUMMARY_CORRECTIONS_INTENT.test(question)) {
-      return null;
-    }
-    const pscs = (window.KNUsPsc?.list?.() || []).slice(0, 8);
-    const due = pscs[0];
-    const valueAdj = pscs.find((row) => /in process/i.test(row.pscStatus || "")) || pscs[1];
-    const usmca = pscs.find((row) => /ready/i.test(row.pscStatus || "")) || pscs[2];
-    const origin = pscs.find((row) => /none/i.test(row.pscStatus || "") && row !== due) || pscs[3];
-    const cards = [
-      due && {
-        component: "CARD",
-        title: due.transactionId,
-        description: `${due.companyName} · ${due.entryNumber}`,
-        children: [
-          { component: "BADGE", text: "Closes today", color: "negative" },
-          { component: "TEXT", content: "HTS reclassification. 314-day window ends today — protest after that." }
-        ]
-      },
-      valueAdj && {
-        component: "CARD",
-        title: valueAdj.transactionId,
-        description: `${valueAdj.companyName} · ${valueAdj.entryNumber}`,
-        children: [
-          { component: "BADGE", text: valueAdj.pscStatus, color: "notice" },
-          { component: "TEXT", content: "Value adjustment (transfer-pricing true-up). 12 days left." }
-        ]
-      },
-      usmca && {
-        component: "CARD",
-        title: usmca.transactionId,
-        description: `${usmca.companyName} · ${usmca.entryNumber}`,
-        children: [
-          { component: "BADGE", text: usmca.pscStatus, color: "information" },
-          { component: "TEXT", content: "USMCA preference now qualifies. 45 days left." }
-        ]
-      },
-      origin && {
-        component: "CARD",
-        title: origin.transactionId,
-        description: `${origin.companyName} · ${origin.entryNumber}`,
-        children: [
-          { component: "BADGE", text: origin.pscStatus || "OPEN", color: "neutral" },
-          { component: "TEXT", content: "Country of origin correction. 61 days left." }
-        ]
-      }
-    ].filter(Boolean);
-    return schemaAnswer({
-      title: "Post Summary Corrections",
-      thinking: [
-        "Checked US PSC transactions still inside the 314-day window",
-        "Sorted by how soon each window closes",
-        "Mapped each row to a live Transaction Manager record"
-      ],
-      schema: {
-        components: [
-          { component: "TEXT", content: "# Post Summary Corrections" },
-          {
-            component: "TEXT",
-            content: `**${cards.length} entries** are inside their PSC window with a pending reason. **${due?.transactionId || "The first row"}** has to file today.`
-          },
-          { component: "GRID", columns: 2, gap: "small", children: cards },
-          {
-            component: "TABLE",
-            headers: ["Transaction", "Entry", "Importer", "Window"],
-            rows: [
-              due && [
-                genuiLink(due.transactionId, "#transaction-us-psc"),
-                { component: "TEXT", value: due.entryNumber },
-                { component: "TEXT", value: due.companyName },
-                { component: "BADGE", text: "Today", color: "negative" }
-              ],
-              valueAdj && [
-                genuiLink(valueAdj.transactionId, "#transaction-us-psc"),
-                { component: "TEXT", value: valueAdj.entryNumber },
-                { component: "TEXT", value: valueAdj.companyName },
-                { component: "BADGE", text: "12 days", color: "notice" }
-              ],
-              usmca && [
-                genuiLink(usmca.transactionId, "#transaction-us-psc"),
-                { component: "TEXT", value: usmca.entryNumber },
-                { component: "TEXT", value: usmca.companyName },
-                { component: "BADGE", text: "45 days", color: "information" }
-              ],
-              origin && [
-                genuiLink(origin.transactionId, "#transaction-us-psc"),
-                { component: "TEXT", value: origin.entryNumber },
-                { component: "TEXT", value: origin.companyName },
-                { component: "BADGE", text: "61 days", color: "neutral" }
-              ]
-            ].filter(Boolean)
-          },
-          {
-            component: "ALERT",
-            color: "notice",
-            title: "File the HTS reclass first",
-            description: due
-              ? `${due.entryNumber} on ${due.companyName} cannot be extended. After today this becomes a 19 USC 1514 protest.`
-              : "Open US PSC to continue the filing."
-          },
-          genuiNav("Open US PSC", "#transaction-us-psc"),
-          genuiPrompt("All items due today", "All items due today")
-        ]
-      },
-      followUps: brokerHomeFollowUps("Post Summary Corrections")
-    });
+    return window.KNPscAssistant?.answer?.(question) || null;
+  }
+
+  function answerIsfAgent(question) {
+    return window.KNIsfAssistant?.answer?.(question) || null;
   }
 
   function answerIsfDashboard(question) {
@@ -11511,7 +11338,7 @@ function initAiAssistant() {
               {
                 component: "CARD",
                 title: "Pending submission",
-                description: "Still on Jane's desk",
+                description: "Awaiting submission",
                 children: [
                   { component: "TEXT", content: `**${pending.length.toLocaleString()}**` },
                   { component: "BADGE", text: "Action", color: "notice" }
@@ -11553,10 +11380,17 @@ function initAiAssistant() {
             color: "notice",
             title: "24-hour rule",
             description:
-              "ISF-10 must be on file 24 hours before vessel departure. Pending submission rows are the only ones Jane can still complete from Transaction Manager today."
+              "ISF-10 must be on file 24 hours before vessel departure. Pending submission rows are the only ones you can still complete from Transaction Manager today."
           },
-          genuiNav("Open ISF Transaction Manager", "#transaction-us-isf"),
-          genuiPrompt("Recent entries in my queue", "Recent entries in my queue")
+          {
+            component: "STACK",
+            direction: "horizontal",
+            gap: "small",
+            children: [
+              genuiNav("Open ISF Transaction Manager", "#transaction-us-isf"),
+              genuiPrompt("Recent entries in my queue", "Recent entries in my queue")
+            ]
+          }
         ]
       },
       followUps: brokerHomeFollowUps("ISF Dashboard")
@@ -11571,6 +11405,7 @@ function initAiAssistant() {
       answerRecentOpsShipments(question) ||
       answerDueToday(question) ||
       answerPostSummaryCorrections(question) ||
+      answerIsfAgent(question) ||
       answerIsfDashboard(question) ||
       answerWorkingQueue(question)
     );
@@ -12788,6 +12623,20 @@ function initAiAssistant() {
     if (!inAssistant && !inAgentic) {
       return;
     }
+    if (detail.type === "file-isf-confirm" && detail.data?.isfId) {
+      const result = window.KNIsfAssistant?.fileConfirmed?.(detail.data.isfId);
+      if (result?.cancelled) {
+        showKnToast?.({ content: "ISF filing cancelled — nothing transmitted to CBP.", color: "notice" });
+        return;
+      }
+      showKnToast?.({
+        content: result?.ok
+          ? `${result.row.transactionId} ISF-10 filed to CBP — status ${result.row.status}.`
+          : result?.error || "Could not file ISF.",
+        color: result?.ok ? "positive" : "negative"
+      });
+      return;
+    }
     if (detail.type === "apply-hts-confirm" && detail.data) {
       const data = detail.data;
       const confirmed = window.confirm(
@@ -12871,6 +12720,7 @@ initKnTooltips();
 initDashboardLoader();
 initDashboardLayout();
 initHoldDrawer();
+initDashCommandRail();
 initDashDatePicker();
 initAiAssistant();
 

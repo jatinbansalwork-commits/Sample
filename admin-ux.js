@@ -303,7 +303,7 @@
 
   /** Standard TM table shell (toolbar lives outside; pass thead/tbody HTML). */
   function tmTableShell({ ariaLabel, tableClass, thead = "", tbody = "", busy = false, cardClass = "" } = {}) {
-    const cardCls = ["vis-table-wrap", "role-table-card", "kn-table-surface", cardClass].filter(Boolean).join(" ");
+    const cardCls = ["vis-table-wrap", "role-table-card", cardClass].filter(Boolean).join(" ");
     return `<div class="${cardCls}"${busy ? ' aria-busy="true"' : ""}>
       <div class="vis-table-scroll kn-table-scroll">
         <table class="${tableClass}" aria-label="${escapeHtml(ariaLabel)}">
@@ -1433,7 +1433,7 @@
           .map((chip) => {
             const label = escapeHtml(chip.label);
             const aiClass = chip.aiSuggested ? " is-ai-suggested" : "";
-            const sparkle = chip.aiSuggested
+            const aiMark = chip.aiSuggested
               ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
               : "";
             const tip = chip.aiSuggested && (chip.title || chip.reason)
@@ -1442,7 +1442,7 @@
             const closeSvg =
               '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
             return `<span class="kn-tag kn-tag--medium kn-select__chip${aiClass}"${tip}>
-              ${sparkle}<span class="kn-tag__label kn-select__chip-label type-caption-sm">${label}</span>
+              ${aiMark}<span class="kn-tag__label kn-select__chip-label type-caption-sm">${label}</span>
               <button class="kn-tag__dismiss kn-select__chip-remove" type="button" ${chip.removeAttr} aria-label="Close ${label} tag">${closeSvg}</button>
             </span>`;
           })

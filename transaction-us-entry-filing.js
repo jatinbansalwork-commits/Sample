@@ -215,8 +215,17 @@
       .reverse();
   }
 
+  function isPscActive() {
+    return Boolean(state.pscMode);
+  }
+
+  function patchMetaExtras() {
+    return isPscActive() ? { patch_type: "psc_amendment" } : {};
+  }
+
   function logPatch(entryId, legacyPatch) {
     const api = formStateApi();
+    legacyPatch = { ...legacyPatch, ...patchMetaExtras() };
     const key = legacyPatch.fieldKey;
     if (key && state.fields[key]) {
       const updates = {};
@@ -639,6 +648,9 @@
     activeStatementLineId: "",
     statementSyncKey: "",
     statementApproveModalOpen: false,
+    missingDocLabels: [],
+    docsPanelPriority: false,
+    docsPanelSyncKey: "",
     docsJustUploaded: false,
     invoiceTab: "1",
     editFocus: null,
@@ -679,6 +691,12 @@
     validationStreamActive: false,
     validationRevealedCount: 0,
     transmitModalOpen: false,
+    transmitPscStep: 0,
+    pscMode: false,
+    pscId: "",
+    pscOriginalEsStatus: "",
+    pscSyncKey: "",
+    catairResolveSyncKey: "",
     statusExtraMessages: [],
     proactiveFlags: [],
     dismissedProactiveFlagIds: [],
@@ -724,6 +742,12 @@
     streamApi()?.cancelAll?.();
     state.statusExtraMessages = [];
     state.transmitModalOpen = false;
+    state.transmitPscStep = 0;
+    state.pscMode = false;
+    state.pscId = "";
+    state.pscOriginalEsStatus = "";
+    state.pscSyncKey = "";
+    state.catairResolveSyncKey = "";
     state.proactiveFlags = [];
     state.dismissedProactiveFlagIds = [];
     state.agentTraceExpanded = {};
@@ -1478,6 +1502,12 @@
     if (state.layoutMode === "overlay" && state.docOverlayOpen) {
       classes.push("entry-filing-layout--doc-overlay-open");
     }
+    if (state.docsPanelPriority) {
+      classes.push("entry-filing-layout--docs-priority");
+    }
+    if (isPscActive()) {
+      classes.push("entry-filing-layout--psc");
+    }
     if (rubberBandEnabled() && state.rubberBandArmed) {
       classes.push("entry-filing-layout--rubber-armed");
     }
@@ -1520,7 +1550,8 @@
         actor: "jatin.bansal@klearnow.com",
         mode: getMode(),
         rationale: `Copied from ${citation}`,
-        citation: citationObj
+        citation: citationObj,
+        ...patchMetaExtras()
       }
     });
     validateField(key);
@@ -1632,6 +1663,13 @@
     const uploadBlock = state.docUploadOpen
       ? renderDocUploadZone()
       : "";
+    const missingDocAlert = state.missingDocLabels?.length
+      ? `<div class="kn-alert kn-alert--negative kn-alert--subtle entry-doc-missing-alert" role="alert">
+          <p class="type-body-sm type-weight-semibold">Missing documents on file</p>
+          <p class="type-caption-sm">${state.missingDocLabels.map((label) => escapeHtml(label)).join(" · ")}</p>
+          <p class="type-caption-sm entry-doc-missing-alert__hint">Upload below — standard ingestion will classify and extract. Klear Agent will not edit entry fields for you.</p>
+        </div>`
+      : "";
     const overlayToggle = state.layoutMode === "overlay"
       ? `<button class="btn btn--tertiary btn--sm type-ui-sm kn-btn entry-doc-overlay-toggle" type="button" data-entry-doc-overlay-toggle>${state.docOverlayOpen ? "Hide documents" : "Show documents"}</button>`
       : "";
@@ -1646,6 +1684,7 @@
         </div>
       </header>
       ${renderDocSummaryBar()}
+      ${missingDocAlert}
       ${pipelineNote}
       ${conflictNote}
       ${rubberHint}
@@ -2474,9 +2513,28 @@
 
   function renderFormToolbar(row) {
     const transmitBlocked = transmitDisabled();
+    const psc = isPscActive();
+    const transmitLabel = psc ? "Submit correction to CBP" : "Transmit to CBP";
+    const transmitTitle = transmitBlocked
+      ? "Resolve all critical validation errors before submitting"
+      : psc
+        ? "Submit post-summary correction to CBP"
+        : "Transmit entry summary to CBP";
     return `<div class="entry-form-toolbar">
       <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" type="button" data-entry-review-7501>Review 7501 PDF</button>
-      <button class="btn btn--primary btn--sm type-ui-sm kn-btn" type="button" data-entry-transmit-cbp ${transmitBlocked ? "disabled" : ""} aria-disabled="${transmitBlocked}" title="${transmitBlocked ? "Resolve all critical validation errors before transmitting" : "Transmit entry summary to CBP"}">Transmit to CBP</button>
+      <button class="btn btn--primary btn--sm type-ui-sm kn-btn" type="button" data-entry-transmit-cbp ${transmitBlocked ? "disabled" : ""} aria-disabled="${transmitBlocked}" title="${escapeHtml(transmitTitle)}">${escapeHtml(transmitLabel)}</button>
+    </div>`;
+  }
+
+  function renderPscStatusBar(row) {
+    const originalEs = state.pscOriginalEsStatus || "ACCEPTED";
+    const pscRef = state.pscId ? ` · PSC ${escapeHtml(state.pscId)}` : "";
+    return `<div class="entry-psc-status-bar" role="status" aria-live="polite">
+      <div class="entry-psc-status-bar__copy">
+        <span class="entry-psc-status-bar__label type-ui-sm type-weight-semibold">PSC — Original ES: ${escapeHtml(originalEs)}</span>
+        <span class="type-caption-sm entry-psc-status-bar__note">Post-summary correction on ${escapeHtml(row.entryNumber)}${pscRef} — not a fresh filing.</span>
+      </div>
+      <span class="badge badge--notice type-caption-sm kn-badge">PSC amendment</span>
     </div>`;
   }
 
@@ -2869,6 +2927,18 @@
     return qs ? new URLSearchParams(qs) : new URLSearchParams();
   }
 
+  function parseFilingHashDocsPanel() {
+    const params = parseFilingHashParams();
+    return {
+      panel: params.get("panel") || "",
+      upload: params.get("upload") === "1",
+      missing: (params.get("missing") || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+    };
+  }
+
   function buildFilingHref(entryId, { statement = "", stmtEntry = "", queue = "" } = {}) {
     const params = new URLSearchParams();
     if (statement) {
@@ -3026,6 +3096,62 @@
     }) || "";
   }
 
+  function parseFilingHashPsc() {
+    const params = parseFilingHashParams();
+    return {
+      mode: params.get("mode") || "",
+      pscId: params.get("pscId") || ""
+    };
+  }
+
+  function resolveOriginalEsStatus(row) {
+    const summary = String(row?.entrySummary || "").trim().toUpperCase();
+    if (summary === "FILED" || summary === "ACCEPTED") {
+      return "ACCEPTED";
+    }
+    return "ACCEPTED";
+  }
+
+  function syncPscFromHash(row, helpers) {
+    const { mode, pscId } = parseFilingHashPsc();
+    if (mode !== "psc") {
+      if (state.pscMode) {
+        state.pscMode = false;
+        state.pscId = "";
+        state.pscOriginalEsStatus = "";
+        state.pscSyncKey = "";
+        helpers?.rerender?.();
+      }
+      return;
+    }
+    const syncKey = `${row.id}:${pscId}:${location.hash}`;
+    if (state.pscSyncKey === syncKey) {
+      return;
+    }
+    state.pscSyncKey = syncKey;
+    state.pscMode = true;
+    state.pscId = pscId;
+    state.pscOriginalEsStatus = resolveOriginalEsStatus(row);
+    helpers?.rerender?.();
+  }
+
+  function syncCatairResolveFromHash(row, helpers) {
+    const focus = parseFilingHashParams().get("focus") || "";
+    if (focus !== "catair398") {
+      return;
+    }
+    const syncKey = `${row.id}:catair398:${location.hash}`;
+    if (state.catairResolveSyncKey === syncKey) {
+      return;
+    }
+    state.catairResolveSyncKey = syncKey;
+    state.utilityTab = "validation";
+    state.utilityShowResults = false;
+    state.utilityShowStatements = false;
+    runEntryValidation({ scope: "full", stream: false });
+    helpers?.rerender?.();
+  }
+
   function parseFilingHashQueue() {
     return parseFilingHashParams().get("queue") || "";
   }
@@ -3035,6 +3161,36 @@
       statementId: parseFilingHashParams().get("statement") || "",
       lineId: parseFilingHashParams().get("stmtEntry") || ""
     };
+  }
+
+  function syncDocsFromHash(row, helpers) {
+    const { panel, upload, missing } = parseFilingHashDocsPanel();
+    if (panel !== "docs") {
+      return;
+    }
+    const syncKey = `${row.id}:${panel}:${upload}:${missing.join("|")}:${location.hash}`;
+    if (state.docsPanelSyncKey === syncKey) {
+      return;
+    }
+    state.docsPanelSyncKey = syncKey;
+    state.docsPanelPriority = true;
+    state.layoutMode = "overlay";
+    state.docOverlayOpen = true;
+    state.docsPinned = true;
+    state.recordPinned = false;
+    state.docUploadOpen = upload;
+    state.missingDocLabels = missing.length
+      ? missing.map((token) => {
+          const map = {
+            commercial: "Commercial Invoice",
+            bill: "Bill of Lading",
+            packing: "Packing List",
+            arrival: "Arrival Notice"
+          };
+          return map[token] || token;
+        })
+      : window.KNOpsShipmentsAssistant?.find?.(row.shipments || row.shipmentId || "")?.missing || [];
+    helpers?.rerender?.();
   }
 
   function syncStatementFromHash(row, helpers) {
@@ -3055,7 +3211,7 @@
     state.activeStatementLineId = lineId || statement.entries[0]?.id || "";
     state.utilityShowStatements = true;
     state.utilityStatementCards = statementsApi()?.listEntryCards?.() || [];
-    state.utilitySelectedStatementKey = lineId ? `${statementId}:${lineId}` : "";
+    state.utilitySelectedStatementKey = `${statementId}:${state.activeStatementLineId}`;
     state.utilityTab = "chat";
     helpers?.rerender?.();
   }
@@ -3385,9 +3541,23 @@
       helpers?.rerender?.();
       return;
     }
+    if (/resolve.*catair.*398|help me resolve.*398|walk me through fixing catair 398/i.test(text)) {
+      runEntryValidation({ scope: "full", stream: true }, helpers);
+      state.utilityTab = "validation";
+      state.utilityShowResults = false;
+      state.utilityShowStatements = false;
+      helpers?.rerender?.();
+      return;
+    }
     if (isStatementQuery(text)) {
       applyUtilityStatementSearch(helpers, row);
       return;
+    }
+    if (window.KNClassificationAssistant?.isClassificationIntent?.(text)) {
+      if (window.KNAssistant?.ask) {
+        window.KNAssistant.ask(text);
+        return;
+      }
     }
     if (isQueueQuery(text)) {
       const resolved = resolveUtilityQuery(text);
@@ -3418,7 +3588,7 @@
     if (mode === "auto-accept") {
       return "Auto-accept-all mode: Klear Agent fills fields directly on the form. Every agent-filled field stays one click away from review — open its flag to see the rationale or correct it.";
     }
-    return "Permission-per-change mode: Klear Agent proposes values on the form (look for the purple sparkle flag) — open one to accept or reject before it's applied.";
+    return "Permission-per-change mode: Klear Agent proposes values on the form — look for the purple Klear AI flag on each field, then open it to accept or reject before it's applied.";
   }
 
   function renderChatTab(row) {
@@ -3574,6 +3744,40 @@
     if (!state.transmitModalOpen) {
       return "";
     }
+    const psc = isPscActive();
+    const step = state.transmitPscStep;
+    if (psc && step === 2) {
+      const bodyHtml = `<p class="type-body-md">You are about to submit a <strong>post-summary correction</strong> for ${escapeHtml(row.transactionId)} to CBP.</p>
+        <p class="type-body-sm entry-ace-modal__disclaimer">CBP already has the original accepted entry summary on file. This action amends that record — it cannot be treated like a first-time filing. Klear Agent cannot submit on your behalf.</p>`;
+      const footerHtml = `
+        <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-admin-modal-dismiss>Cancel</button>
+        <button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" data-entry-transmit-confirm>Submit correction to CBP</button>`;
+      return ux().modalShell({
+        open: true,
+        id: "kn-entry-transmit-modal",
+        titleId: "kn-entry-transmit-title",
+        title: "Confirm PSC submission",
+        dismissAttr: "data-admin-modal-dismiss",
+        bodyHtml,
+        footerHtml
+      });
+    }
+    if (psc) {
+      const bodyHtml = `<p class="type-body-md">Submit correction for ${escapeHtml(row.transactionId)} to CBP via ACE?</p>
+        <p class="type-body-sm entry-ace-modal__disclaimer">Original entry summary status: <strong>${escapeHtml(state.pscOriginalEsStatus || "ACCEPTED")}</strong>. Edits in this session are logged as PSC amendments in the audit trail.</p>`;
+      const footerHtml = `
+        <button class="btn btn--tertiary btn--md type-ui-md kn-btn" type="button" data-admin-modal-dismiss>Cancel</button>
+        <button class="btn btn--primary btn--md type-ui-md kn-btn" type="button" data-entry-transmit-confirm>Continue</button>`;
+      return ux().modalShell({
+        open: true,
+        id: "kn-entry-transmit-modal",
+        titleId: "kn-entry-transmit-title",
+        title: "Submit correction to CBP",
+        dismissAttr: "data-admin-modal-dismiss",
+        bodyHtml,
+        footerHtml
+      });
+    }
     const bodyHtml = `<p class="type-body-md">Transmit ${escapeHtml(row.transactionId)} to CBP via ACE?</p>
       <p class="type-body-sm entry-ace-modal__disclaimer">This sends the current entry summary to CBP. All critical validation errors must be resolved first — Klear Agent cannot transmit on your behalf.</p>`;
     const footerHtml = `
@@ -3606,7 +3810,7 @@
 
   function render(row) {
     resetIfNewRow(row);
-    return `<div class="${layoutClasses()}">
+    return `${isPscActive() ? renderPscStatusBar(row) : ""}<div class="${layoutClasses()}">
       ${renderDocPanel(row)}
       ${renderRecordPanel(row)}
       ${renderUtilityPanel(row)}
@@ -3927,6 +4131,7 @@
     if (transmitBtn) {
       event.preventDefault();
       state.transmitModalOpen = true;
+      state.transmitPscStep = isPscActive() ? 1 : 0;
       helpers.rerender();
       return true;
     }
@@ -3942,36 +4147,52 @@
       event.preventDefault();
       state.aceModalOpen = false;
       state.transmitModalOpen = false;
+      state.transmitPscStep = 0;
       helpers.rerender();
       return true;
     }
     const confirmTransmit = event.target.closest("[data-entry-transmit-confirm]");
     if (confirmTransmit) {
       event.preventDefault();
-      if (transmitDisabled()) {
-        toast("Cannot transmit — critical validation errors remain.", "notice");
-        state.transmitModalOpen = false;
+      if (isPscActive() && state.transmitPscStep === 1) {
+        state.transmitPscStep = 2;
         helpers.rerender();
         return true;
       }
+      if (transmitDisabled()) {
+        toast("Cannot transmit — critical validation errors remain.", "notice");
+        state.transmitModalOpen = false;
+        state.transmitPscStep = 0;
+        helpers.rerender();
+        return true;
+      }
+      const psc = isPscActive();
       logPatch(row.id, {
-        fieldKey: "", fieldLabel: "Entry Summary", section: "submission",
-        action: "submit-ace", previousValue: "", newValue: "Transmitted to CBP",
+        fieldKey: "", fieldLabel: psc ? "Post Summary Correction" : "Entry Summary", section: "submission",
+        action: psc ? "submit-psc" : "submit-ace",
+        previousValue: "",
+        newValue: psc ? "PSC correction submitted to CBP" : "Transmitted to CBP",
         source: "human", actor: "jatin.bansal@klearnow.com", mode: getMode(),
-        confidence: null, rationale: "", citation: null
+        confidence: null, rationale: psc ? "Human-confirmed PSC submission to CBP." : "", citation: null
       });
       appendStatusExtra({
         id: `status-transmit-${Date.now()}`,
         type: "success",
         timestamp: new Date().toISOString(),
-        description: "Entry summary transmitted to CBP via ACE.",
-        rawCode: "ACE-2000",
+        description: psc
+          ? "Post-summary correction submitted to CBP via ACE."
+          : "Entry summary transmitted to CBP via ACE.",
+        rawCode: psc ? "ACE-PSC-2000" : "ACE-2000",
         source: "transmit",
         resolvable: false
       });
       refreshStatusMessages(row);
       state.transmitModalOpen = false;
-      toast(`${row.transactionId} transmitted to CBP.`, "positive");
+      state.transmitPscStep = 0;
+      toast(
+        psc ? `${row.transactionId} PSC correction submitted to CBP.` : `${row.transactionId} transmitted to CBP.`,
+        "positive"
+      );
       helpers.rerender();
       return true;
     }
@@ -4107,6 +4328,7 @@
       if (event.key === "Escape") {
         state.aceModalOpen = false;
         state.transmitModalOpen = false;
+        state.transmitPscStep = 0;
         helpers.rerender();
       }
       return;
@@ -4247,6 +4469,9 @@
     queueDocumentUpload,
     syncQueueFromHash,
     syncStatementFromHash,
+    syncDocsFromHash,
+    syncPscFromHash,
+    syncCatairResolveFromHash,
     consumePendingUpload,
     runValidationOnEntry: runValidationFromPalette,
     getBrokerLookAtKey,

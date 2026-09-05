@@ -2,7 +2,6 @@
   "use strict";
 
   const HOST_ID = "dash-ai-insights-genui";
-  const MSG_ID = "dash-ai-insights-msg";
   let streamAbort = null;
   let wired = false;
   let generating = false;
@@ -72,105 +71,61 @@
     const hold = (stats.holdRows || [])[0];
     const demurrage = (stats.demurrageExceeded || 0) + (stats.demurrageRisk || 0);
     const health = stats.total ? Math.round((stats.ontime / stats.total) * 100) : 0;
-    const priorities = priorityRows(stats);
+    const priorities = priorityRows(stats).slice(0, 2);
     const duty = (stats.rows || []).reduce((sum, item) => sum + (stats.amounts?.[item.id] || 0), 0);
+    const dutyLabel =
+      typeof window.knFormatUsd === "function"
+        ? window.knFormatUsd(duty)
+        : `$${Math.round(duty).toLocaleString()}`;
 
-    const priorityCopy = hold
-      ? `Start with **${hold.id}** (${hold.reason?.toLowerCase() || "hold"}) on ${hold.container || "container"}, then clear filings due today.`
+    const lead = hold
+      ? `**${hold.id}** — ${hold.reason || "Exam hold"} on **${hold.container || "container"}**. Review before today's filings.`
       : demurrage
-        ? `${plural(demurrage, "container")} at demurrage risk — review terminal free time before cutoff.`
+        ? `${plural(demurrage, "container")} at demurrage risk. Open Visibility before terminal free time ends.`
         : stats.delayed
-          ? `${plural(stats.delayed, "shipment")} delayed vs original ETA. Earliest revised ETA ${stats.earliestDelayEta || "pending"}.`
-          : "All live shipments are on track. Review filings and statements due today.";
+          ? `${plural(stats.delayed, "shipment")} delayed${stats.earliestDelayEta ? ` · earliest ETA ${stats.earliestDelayEta}` : ""}.`
+          : `${health}% on track · ${dutyLabel} duty exposure (est.).`;
 
-    return {
-      components: [
-        { component: "TEXT", content: "### Today's priorities" },
-        {
-          component: "TEXT",
-          content: `**${todayLong()}** · ${plural(stats.total || 0, "active shipment")}, **${stats.hold || 0}** on hold, **${stats.delayed || 0}** delayed. ${priorityCopy}`
-        },
-        {
-          component: "GRID",
-          columns: 3,
-          gap: "small",
-          children: [
-            {
-              component: "CARD",
-              title: "Needs attention",
-              description: hold ? `${hold.id} · ${hold.reason}` : "Queue status",
-              children: [
-                {
-                  component: "BADGE",
-                  text: hold ? "Exam hold" : demurrage ? "Demurrage" : "Clear",
-                  color: hold || demurrage ? "notice" : "positive"
-                },
-                {
-                  component: "TEXT",
-                  content: hold
-                    ? `${hold.container || hold.id} at ${hold.location || "terminal"}.`
-                    : demurrage
-                      ? `${plural(demurrage, "container")} approaching terminal free time.`
-                      : "No containers on hold right now."
-                }
-              ]
-            },
-            {
-              component: "CARD",
-              title: "On-track rate",
-              description: "Active shipment health",
-              children: [
-                { component: "BADGE", text: `${health}%`, color: health >= 75 ? "positive" : "notice" },
-                {
-                  component: "TEXT",
-                  content: `${plural(stats.ontime || 0, "shipment")} on schedule · ${plural(stats.inTransit || 0, "in transit")}.`
-                }
-              ]
-            },
-            {
-              component: "CARD",
-              title: "Duty exposure",
-              description: "Estimated from live values",
-              children: [
-                { component: "AMOUNT", value: duty, currency: "USD" },
-                { component: "BADGE", text: "Estimate", color: "information" }
-              ]
-            }
-          ]
-        },
-        { component: "TEXT", content: "### Priority queue" },
-        {
-          component: "TABLE",
-          headers: ["Shipment", "Type", "Detail", "Status"],
-          rows: priorities.map((row) => [
-            genuiLink(row.id, row.href),
-            { component: "TEXT", value: row.kind },
-            { component: "TEXT", value: row.detail },
-            { component: "BADGE", text: row.kind, color: row.tone }
-          ])
-        },
-        {
-          component: "ALERT",
-          color: hold || demurrage ? "notice" : "positive",
-          title: hold ? `${hold.id} needs a broker decision` : demurrage ? "Demurrage watch" : "Queue is current",
-          description: hold
-            ? `Review the ${hold.reason?.toLowerCase() || "hold"} before filing today's ISF and statement items.`
-            : demurrage
-              ? "Terminal free time is ending on one or more containers — open Visibility to act before fees accrue."
-              : "No holds blocking release. Use Assist for filings, statements, or entry questions."
-        },
-        {
-          component: "STACK",
-          direction: "horizontal",
-          gap: "small",
-          children: [
-            genuiNav("Open Visibility", "#klearhub-visibility"),
-            genuiPrompt("All items due today", "All items due today"),
-            genuiPrompt("Ask about this queue", "What's in my queue today?")
-          ]
-        }
+    const components = [
+      { component: "TEXT", content: lead },
+      {
+        component: "STACK",
+        direction: "horizontal",
+        gap: "small",
+        children: [
+          { component: "BADGE", text: `${stats.hold || 0} hold`, color: stats.hold ? "notice" : "positive" },
+          { component: "BADGE", text: `${stats.delayed || 0} delayed`, color: stats.delayed ? "negative" : "positive" },
+          { component: "BADGE", text: `${health}% on track`, color: health >= 75 ? "positive" : "notice" }
+        ]
+      }
+    ];
+
+    if (priorities.length) {
+      components.push({
+        component: "TABLE",
+        headers: ["Next up", "Detail", "Status"],
+        rows: priorities.map((row) => [
+          genuiLink(row.id, row.href),
+          { component: "TEXT", value: row.detail },
+          { component: "BADGE", text: row.kind, color: row.tone }
+        ])
+      });
+    }
+
+    components.push({
+      component: "STACK",
+      direction: "horizontal",
+      gap: "small",
+      children: [
+        hold
+          ? genuiNav(`Open ${hold.id}`, "#klearhub-visibility")
+          : genuiNav("Open Visibility", "#klearhub-visibility"),
+        genuiPrompt("Items due today", "All items due today"),
+        genuiNav("Open Agent", "#agentic-broker")
       ]
-    };
+    });
+
+    return { components };
   }
 
   function prefersReducedMotion() {
@@ -187,18 +142,17 @@
     return {
       input: document.getElementById("dash-ai-insights-text"),
       send: document.getElementById("dash-ai-insights-send"),
-      form: document.getElementById("dash-ai-insights-form"),
-      msg: document.getElementById(MSG_ID),
-      leading: document.querySelector(".dash-ai-copilot__avatar")
+      form: document.getElementById("dash-ai-insights-form")
     };
   }
 
   function setGenerating(next) {
     generating = Boolean(next);
-    const { send, leading } = chatEls();
+    const { send } = chatEls();
     const panel = document.querySelector(".dash-ai-copilot");
     panel?.classList.toggle("is-generating", generating);
-    leading?.classList.toggle("is-rotating", generating);
+    const mark = document.querySelector(".dash-ai-copilot__mark .klear-assistant-mark, .dash-ai-copilot__ray");
+    mark?.classList.toggle("klear-assistant-mark--spin", generating);
     if (send) {
       send.disabled = generating;
       send.setAttribute("data-generating", generating ? "true" : "false");
@@ -226,6 +180,7 @@
       return;
     }
     if (detail.type === "prompt" && detail.data?.prompt) {
+      expandComposer();
       askAssist(detail.data.prompt);
     }
   }
@@ -236,6 +191,33 @@
       return;
     }
     window.KNAssistant?.ask?.(text);
+  }
+
+  function expandComposer(focus = false) {
+    const wrap = document.getElementById("dash-ai-insights-composer-wrap");
+    const toggle = document.getElementById("dash-ai-insights-ask-toggle");
+    const panel = document.querySelector(".dash-ai-copilot");
+    if (!wrap) {
+      return;
+    }
+    wrap.hidden = false;
+    panel?.classList.add("is-composer-open");
+    toggle?.setAttribute("aria-expanded", "true");
+    if (focus) {
+      chatEls().input?.focus({ preventScroll: true });
+    }
+  }
+
+  function collapseComposer() {
+    const wrap = document.getElementById("dash-ai-insights-composer-wrap");
+    const toggle = document.getElementById("dash-ai-insights-ask-toggle");
+    const panel = document.querySelector(".dash-ai-copilot");
+    if (!wrap) {
+      return;
+    }
+    wrap.hidden = true;
+    panel?.classList.remove("is-composer-open");
+    toggle?.setAttribute("aria-expanded", "false");
   }
 
   function wirePanel() {
@@ -260,7 +242,18 @@
       if (!chip) {
         return;
       }
+      expandComposer();
       askAssist(chip.getAttribute("data-dash-ai-prompt"));
+    });
+
+    document.getElementById("dash-ai-insights-ask-toggle")?.addEventListener("click", () => {
+      const wrap = document.getElementById("dash-ai-insights-composer-wrap");
+      const expanded = wrap && !wrap.hidden;
+      if (expanded) {
+        collapseComposer();
+      } else {
+        expandComposer(true);
+      }
     });
 
     const { form, input, send } = chatEls();
@@ -294,7 +287,6 @@
     }
 
     window.KNChatInput?.hydrate?.(document.getElementById("dash-ai-insights-input"));
-    window.KNChatMessage?.hydrate?.(document.getElementById(MSG_ID));
     document.querySelectorAll(".dash-ai-copilot__suggestion").forEach((chip) => window.KNChip?.hydrate?.(chip));
     syncSendEnabled();
   }
@@ -330,7 +322,6 @@
         streamAbort = null;
       }
       setGenerating(false);
-      window.KNChatMessage?.hydrate?.(document.getElementById(MSG_ID));
     }
   }
 

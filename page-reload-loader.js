@@ -121,14 +121,16 @@
     overlay.setAttribute("role", "status");
     overlay.setAttribute("aria-live", "polite");
     overlay.innerHTML = `<span class="visually-hidden">Loading Klear Agent…</span>
-      <div class="skeleton-stack agentic-reload-skeleton__hero">
-        <span class="skeleton skeleton--title" style="width: 14rem"></span>
-        <span class="skeleton skeleton--line" style="width: 20rem"></span>
-      </div>
-      <div class="agentic-reload-skeleton__pills">
-        <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 11rem"></span>
-        <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 9rem"></span>
-        <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 10.5rem"></span>
+      <div class="agentic-reload-skeleton__body">
+        <div class="skeleton-stack agentic-reload-skeleton__hero">
+          <span class="skeleton skeleton--title" style="width: 14rem"></span>
+          <span class="skeleton skeleton--line" style="width: 20rem"></span>
+        </div>
+        <div class="agentic-reload-skeleton__pills">
+          <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 11rem"></span>
+          <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 9rem"></span>
+          <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 10.5rem"></span>
+        </div>
       </div>
       <span class="skeleton skeleton--composer agentic-reload-skeleton__composer"></span>`;
     page.appendChild(overlay);

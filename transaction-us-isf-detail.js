@@ -138,6 +138,14 @@
         country: "US - United States of America",
         complete: !missingField
       };
+    }).map((party) => {
+      if (!window.KNIsfAssistant?.hasPrefill?.(row.id)) {
+        return party;
+      }
+      if (party.id === "containerStuffing" || party.id === "consolidator") {
+        return { ...party, name: "", fullName: "", complete: false };
+      }
+      return { ...party, complete: true };
     });
     // 1-4 merchandise lines and 0-3 containers — wider spread than a single row,
     // to stress-test table rendering (including the genuinely-empty case).
@@ -2109,6 +2117,10 @@
     </div>`;
   }
 
+  function invalidateDetail(rowId) {
+    detailCache.delete(rowId);
+  }
+
   window.KNIsfDetail = {
     renderTransactionSidePanel,
     prepareTransactionSidePanel,
@@ -2163,6 +2175,7 @@
     handleObsoleteModalClick,
     wrapDocArtifact,
     previewDocFormat,
-    renderScanImagePreview
+    renderScanImagePreview,
+    invalidateDetail
   };
 })();

@@ -26,6 +26,11 @@ Brand hex values are unchanged. Each chromatic family is a 50–1000 shade scale
 
 Semantic color (`--theme-colors-*` / `--kn-color-*`) maps those primitives onto surface, interactive, feedback, overlay, and elevation roles.
 
+## Agent & skills
+
+Cursor skills for agent UX and handoff: [`docs/klearnow-skills.md`](docs/klearnow-skills.md).  
+Vendored AI design patterns: [`ai-design-skills/`](ai-design-skills/) (Owl-Listener/ai-design-skills).
+
 ## Typography
 
 Families:

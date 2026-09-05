@@ -87,7 +87,7 @@
   }
 
   function isFullPageAssist(path = hashPath()) {
-    return path === "#agentic-broker";
+    return path === "#agentic-broker" || path === "#agentic";
   }
 
   function parseTmListRoute(path = hashPath()) {

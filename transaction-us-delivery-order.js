@@ -339,7 +339,7 @@
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-txn-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 8, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-txn-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 8, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -377,7 +377,7 @@
       ],
       results: `Showing ${pageRows.length ? start + 1 : 0} to ${start + pageRows.length} of ${rows.length} records`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface do-txn-table-card">
+    <div class="vis-table-wrap role-table-card do-txn-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-txn-table" })}" aria-label="US Delivery Order transactions">
           <thead>
@@ -412,7 +412,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "ALL", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-ship-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 6, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "ALL", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-ship-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 6, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -447,7 +447,7 @@
       ],
       results: `Showing ${pageRows.length ? start + 1 : 0} to ${start + pageRows.length} of ${rows.length} records`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface do-ship-table-card">
+    <div class="vis-table-wrap role-table-card do-ship-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ actionCount: 0, extra: "do-ship-table" })}" aria-label="US Delivery Order shipments">
           <thead>

@@ -1,6 +1,12 @@
 /**
  * KlearNow Engine — design tokens
  *
+ * Token tiers (never skip a layer in component CSS):
+ *   Tier 1  --kn-primitive-*     Raw palette — never in components.css
+ *   Tier 2  --theme-colors-*     Semantic roles (surface, interactive, ai.*)
+ *   Tier 3  --kn-color-*         Product aliases for CSS
+ *   Tier 4  --kn-divider-* etc.  Component-scoped aliases
+ *
  * `--theme-*` is the raw scale (spacing, type, radius, motion, semantic color).
  * `--kn-*` aliases that scale for product CSS. Component styles must use
  * semantic `--kn-color-*` / `--theme-spacing-*` / type tokens — never primitives.
@@ -240,9 +246,10 @@
   --theme-colors-surface-background-cloud-subtle: var(--kn-primitive-surface-100);
   --theme-colors-surface-background-cloud-intense: var(--kn-primitive-blue-sapphire-500);
 
-  --theme-colors-surface-border-gray-normal: var(--kn-primitive-surface-400);
-  --theme-colors-surface-border-gray-subtle: var(--kn-primitive-surface-300);
-  --theme-colors-surface-border-gray-muted: var(--kn-primitive-surface-200);
+  /* Klear360 surface.border.gray.* (light), opacity reduced 70% (30% of Klear360 alpha) */
+  --theme-colors-surface-border-gray-normal: hsla(213, 27%, 84%, 0.3);
+  --theme-colors-surface-border-gray-subtle: hsla(214, 32%, 91%, 0.3);
+  --theme-colors-surface-border-gray-muted: hsla(222, 47%, 11%, 0.038);
   --theme-colors-surface-border-primary-normal: var(--kn-primitive-blue-sapphire-500);
   --theme-colors-surface-border-primary-muted: var(--kn-primitive-bluegray-400);
 
@@ -750,6 +757,17 @@
   --kn-color-border-surface-gray-muted: var(--theme-colors-surface-border-gray-muted);
   --kn-color-border-surface-primary-normal: var(--theme-colors-surface-border-primary-normal);
   --kn-color-border-surface-primary-muted: var(--theme-colors-surface-border-primary-muted);
+
+  /* Divider — Klear360 Divider default (horizontal, solid, muted, thin) */
+  --kn-divider-width-thinner: var(--kn-border-thinner);
+  --kn-divider-width-thin: var(--kn-border-thin);
+  --kn-divider-width-thick: var(--kn-border-thick);
+  --kn-divider-width-thicker: var(--kn-border-thicker);
+  --kn-divider-width: var(--kn-divider-width-thin);
+  --kn-divider-color-normal: var(--kn-color-border-surface-gray-normal);
+  --kn-divider-color-subtle: var(--kn-color-border-surface-gray-subtle);
+  --kn-divider-color-muted: var(--kn-color-border-surface-gray-muted);
+  --kn-divider-color: var(--kn-divider-color-muted);
   --kn-color-text-surface-gray-normal: var(--theme-colors-surface-text-gray-normal);
   --kn-color-text-surface-gray-subtle: var(--theme-colors-surface-text-gray-subtle);
   --kn-color-text-surface-gray-muted: var(--theme-colors-surface-text-gray-muted);
@@ -1845,4 +1863,82 @@
 .type-code-md {
   font-size: var(--kn-type-code-md-size);
   line-height: var(--kn-type-code-md-line);
+}
+
+/* Semantic HTML baseline — klear360-typography (all pages).
+   Prefer .type-* utilities for explicit hierarchy; these defaults cover
+   unclassed markup. Class utilities win via higher specificity. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--kn-font-family-heading);
+  font-weight: var(--kn-weight-semibold);
+  letter-spacing: var(--kn-type-heading-tracking);
+}
+
+h1 {
+  font-size: var(--kn-type-heading-h1-size);
+  line-height: var(--kn-type-heading-h1-line);
+}
+
+h2 {
+  font-size: var(--kn-type-heading-h2-size);
+  line-height: var(--kn-type-heading-h2-line);
+}
+
+h3 {
+  font-size: var(--kn-type-heading-h3-size);
+  line-height: var(--kn-type-heading-h3-line);
+}
+
+h4 {
+  font-size: var(--kn-type-heading-h4-size);
+  line-height: var(--kn-type-heading-h4-line);
+}
+
+h5 {
+  font-size: var(--kn-type-heading-h5-size);
+  line-height: var(--kn-type-heading-h5-line);
+}
+
+h6 {
+  font-size: var(--kn-type-heading-h6-size);
+  line-height: var(--kn-type-heading-h6-line);
+}
+
+p {
+  font-family: var(--kn-font-family);
+  font-size: var(--kn-type-body-md-size);
+  line-height: var(--kn-type-body-md-line);
+  letter-spacing: var(--kn-type-body-md-tracking);
+  font-weight: var(--kn-weight-regular);
+}
+
+small {
+  font-family: var(--kn-font-family);
+  font-size: var(--kn-type-caption-sm-size);
+  line-height: var(--kn-type-caption-sm-line);
+  letter-spacing: var(--kn-type-caption-tracking);
+  font-weight: var(--kn-weight-regular);
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--kn-font-family-code);
+  font-size: var(--kn-type-code-md-size);
+  line-height: var(--kn-type-code-md-line);
+  letter-spacing: var(--kn-type-code-tracking);
+  font-weight: var(--kn-weight-regular);
+}
+
+pre {
+  font-family: var(--kn-font-family-code);
+  font-size: var(--kn-type-code-md-size);
+  line-height: var(--kn-type-body-md-line);
+  letter-spacing: var(--kn-type-code-tracking);
+  font-weight: var(--kn-weight-regular);
 }

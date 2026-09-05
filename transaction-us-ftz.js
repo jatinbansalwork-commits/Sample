@@ -284,7 +284,7 @@
   function skeletonTable(cols, label) {
     const ux = window.KNAdminUX;
     const heads = Array.from({ length: cols }, (_, i) => (i === 0 ? ux.actionsColHeader() : `<th scope="col">…</th>`)).join("");
-    return `<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true">
+    return `<div class="vis-table-wrap role-table-card" aria-busy="true">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="${escapeHtml(label)}">
           <thead><tr class="vis-table__labels">${heads}</tr></thead>
@@ -343,7 +343,7 @@
       ],
       results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}.`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface">
+    <div class="vis-table-wrap role-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="US FTZ transactions">
           <thead>
@@ -476,7 +476,7 @@
       ],
       results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}.`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface">
+    <div class="vis-table-wrap role-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="US FTZ shipments">
           <thead>

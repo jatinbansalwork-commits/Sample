@@ -48,14 +48,24 @@
       question: "File an ISF for the Acme Corp shipment arriving next week.",
       answer:
         "I pulled the Acme Corp shipment (ETA Apr 12) and pre-filled the ISF-10 from the commercial invoice and bill of lading already on file — importer of record, consignee, manufacturer (MID), HTS, and country of origin are all in.\n\nTwo fields need your input:\n- **Container stuffing location**\n- **Consolidator name**\n\nNeither appears in the uploaded documents. Once those are set I can file it — just say the word.",
-      daysAgo: 0
+      daysAgo: 0,
+      headerMeta: {
+        subtitle: "ISF-10 · Acme Corp shipment",
+        badge: { label: "New", color: "positive" }
+      }
     },
     "chat-02": {
       title: "ISF late-filing penalty exposure",
       question: "What's our penalty exposure for the ISF that was filed 6 hours before vessel departure instead of 24?",
       answer:
         "Filing an ISF-10 six hours before departure instead of the required 24-hour window is a **late-filing violation** under 19 CFR 149.6 — CBP's standard mitigated penalty for a first-time late filing is typically **$5,000**, though it can be reduced further if this is the importer's first violation in the past 12 months and the ISF was otherwise complete and accurate.\n\nI don't see a Liquidated Damages notice on this entry yet — CBP doesn't always issue one for a single late filing with no cargo hold. I'd recommend documenting the delay reason now in case a notice does come through.",
-      daysAgo: 0
+      daysAgo: 0,
+      headerMeta: {
+        subtitle: "Late ISF filing · 6 hours before departure",
+        badge: { label: "New", color: "positive" },
+        amount: 5000,
+        currency: "USD"
+      }
     },
     "chat-03": {
       title: "HTS classification for auto parts",
@@ -294,17 +304,120 @@
     return storeApi()?.deriveThreadTitle?.(text) || String(text || "Conversation").trim() || "Conversation";
   }
 
-  function setThreadHeaderTitle(title) {
-    const { title: titleEl } = els();
+  function isThreadFavorite(id) {
+    return storeApi()?.isFavorite?.(id) || false;
+  }
+
+  function syncHeaderVisibility(options = {}) {
+    const { header, empty } = els();
+    if (!header) {
+      return;
+    }
+    const inEmptyState = Boolean(empty && !empty.hidden);
+    const forceShow = options.forceShow === true;
+    header.hidden = inEmptyState || (!forceShow && !hasThreadMessages());
+  }
+
+  function syncThreadHeader(title, threadId = activeThreadId) {
+    const { header, title: titleEl, titleTrigger, favoriteBtn } = els();
     if (titleEl) {
       titleEl.textContent = title || "Conversation";
     }
+    if (titleTrigger) {
+      titleTrigger.setAttribute("aria-label", `Conversation options — ${titleEl?.textContent || "Conversation"}`);
+    }
+    const favorite = isThreadFavorite(threadId);
+    if (favoriteBtn) {
+      favoriteBtn.setAttribute("aria-pressed", favorite ? "true" : "false");
+      favoriteBtn.setAttribute("aria-label", favorite ? "Remove from favorites" : "Add to favorites");
+      favoriteBtn.classList.toggle("is-favorite", favorite);
+    }
+    window.KNHeader?.hydrate?.(header);
+  }
+
+  function closeTitleMenu() {
+    const { titleMenu, titleTrigger } = els();
+    if (!titleMenu || titleMenu.hidden) {
+      return;
+    }
+    titleMenu.hidden = true;
+    titleTrigger?.setAttribute("aria-expanded", "false");
+  }
+
+  function renderTitleMenu() {
+    const { titleMenu } = els();
+    if (!titleMenu) {
+      return;
+    }
+    const favorite = isThreadFavorite(activeThreadId);
+    const canMutate = Boolean(activeThreadId && findThread(readThreadStore(), activeThreadId));
+    const favoriteLabel = favorite ? "Remove from favorites" : "Favorite";
+    const favoriteClass = favorite ? " is-favorite" : "";
+    titleMenu.innerHTML = `<button type="button" class="kn-menu__item${favoriteClass}" role="menuitem" data-agentic-thread-action="favorite">
+        <span class="kn-menu__leading" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>
+        <span class="kn-menu__copy"><span class="kn-menu__title-row"><span class="kn-menu__title">${favoriteLabel}</span></span></span>
+      </button>
+      <button type="button" class="kn-menu__item" role="menuitem" data-agentic-thread-action="rename"${canMutate ? "" : ' aria-disabled="true"'}>
+        <span class="kn-menu__leading" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+        <span class="kn-menu__copy"><span class="kn-menu__title-row"><span class="kn-menu__title">Rename</span></span></span>
+      </button>
+      <div class="kn-menu__divider" role="separator"></div>
+      <button type="button" class="kn-menu__item is-negative" role="menuitem" data-agentic-thread-action="delete"${canMutate ? "" : ' aria-disabled="true"'}>
+        <span class="kn-menu__leading" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>
+        <span class="kn-menu__copy"><span class="kn-menu__title-row"><span class="kn-menu__title">Delete</span></span></span>
+      </button>`;
+    window.KNMenu?.hydrate?.(titleMenu);
+  }
+
+  function toggleTitleMenu() {
+    const { titleMenu, titleTrigger } = els();
+    if (!titleMenu || !titleTrigger) {
+      return;
+    }
+    const willOpen = titleMenu.hidden;
+    if (willOpen) {
+      renderTitleMenu();
+      titleMenu.hidden = false;
+      titleTrigger.setAttribute("aria-expanded", "true");
+      titleMenu.querySelector("[data-agentic-thread-action]")?.focus?.();
+      return;
+    }
+    closeTitleMenu();
+  }
+
+  function openChatHistoryPanel() {
+    window.KNAgenticNav?.openChatHistory?.();
+  }
+
+  function activeThreadRecord() {
+    const store = readThreadStore();
+    return findThread(store, activeThreadId) || { id: activeThreadId, title: lockedHeaderTitle, messages: [] };
+  }
+
+  function syncCompanionContext() {
+    if (!hasThreadMessages()) {
+      window.KNAgenticCompanion?.close?.();
+      return null;
+    }
+    return window.KNAgenticCompanion?.sync?.({ thread: activeThreadRecord() });
+  }
+
+  function toggleCompanionPanel() {
+    if (!hasThreadMessages()) {
+      openChatHistoryPanel();
+      return;
+    }
+    window.KNAgenticCompanion?.toggle?.({ thread: activeThreadRecord() });
+  }
+
+  function setThreadHeaderTitle(title) {
+    syncThreadHeader(title);
   }
 
   function lockThreadHeaderTitle(title) {
     lockedHeaderTitle = title || "Conversation";
     lockedHeaderThreadId = activeThreadId;
-    setThreadHeaderTitle(lockedHeaderTitle);
+    syncThreadHeader(lockedHeaderTitle, activeThreadId);
   }
 
   function clearThreadHeaderLock() {
@@ -351,13 +464,20 @@
       entry: {
         title: thread.title || "Conversation",
         daysAgo: daysSince(thread.updatedAt || thread.createdAt || Date.now()),
-        persisted: true
+        persisted: true,
+        favorite: isThreadFavorite(thread.id)
       }
     }));
     const liveIds = new Set(live.map((item) => item.id));
     const seeded = Object.keys(CHAT_HISTORY)
       .filter((id) => !liveIds.has(id))
-      .map((id) => ({ id, entry: CHAT_HISTORY[id] }));
+      .map((id) => ({
+        id,
+        entry: {
+          ...CHAT_HISTORY[id],
+          favorite: isThreadFavorite(id)
+        }
+      }));
     return live.concat(seeded);
   }
 
@@ -375,22 +495,96 @@
   function renderChatGroups() {
     const mount = document.querySelector("[data-chat-groups-mount]");
     if (!mount) return;
+    const favorites = [];
     const buckets = new Map(CHAT_BUCKETS.map((bucket) => [bucket.key, []]));
     historyEntries()
       .sort((a, b) => a.entry.daysAgo - b.entry.daysAgo)
       .forEach(({ id, entry }) => {
-        buckets.get(bucketFor(entry.daysAgo).key).push(chatRowHtml(id, entry));
+        const row = chatRowHtml(id, entry);
+        if (entry.favorite) {
+          favorites.push(row);
+          return;
+        }
+        buckets.get(bucketFor(entry.daysAgo).key).push(row);
       });
-    mount.innerHTML = CHAT_BUCKETS.filter((bucket) => buckets.get(bucket.key).length)
-      .map(
-        (bucket) => `<div class="side-nav-chat-group" data-chat-group>
+    const favoriteGroup = favorites.length
+      ? `<div class="side-nav-chat-group" data-chat-group data-chat-group-favorites>
+          <p class="side-nav-chat-group__label type-caption-sm">Favorites</p>
+          <ul class="side-nav-chat-list" data-chat-list>${favorites.join("")}</ul>
+        </div>`
+      : "";
+    mount.innerHTML =
+      favoriteGroup +
+      CHAT_BUCKETS.filter((bucket) => buckets.get(bucket.key).length)
+        .map(
+          (bucket) => `<div class="side-nav-chat-group" data-chat-group>
           <p class="side-nav-chat-group__label type-caption-sm">${bucket.label}</p>
           <ul class="side-nav-chat-list" data-chat-list>${buckets.get(bucket.key).join("")}</ul>
         </div>`
-      )
-      .join("");
+        )
+        .join("");
     window.KNShellSearchIndex?.rebuild?.();
     window.KNAgenticNav?.refilterChatHistory?.();
+    if (activeThreadId) {
+      highlightSidebarChat(activeThreadId);
+    }
+  }
+
+  function toggleFavorite(threadId) {
+    const id = threadId || activeThreadId;
+    if (!id) {
+      return false;
+    }
+    const next = storeApi()?.toggleFavorite?.(id);
+    renderChatGroups();
+    if (id === activeThreadId) {
+      syncThreadHeader(lockedHeaderTitle || els().title?.textContent || "Conversation", id);
+    }
+    return next;
+  }
+
+  function renameActiveThread() {
+    const id = activeThreadId;
+    if (!id) {
+      return;
+    }
+    const thread = findThread(readThreadStore(), id);
+    if (!thread) {
+      showKnToast?.({ content: "This conversation can't be renamed.", color: "notice" });
+      return;
+    }
+    const current = lockedHeaderTitle || els().title?.textContent || thread.title || "Conversation";
+    const next = window.prompt("Rename conversation", current);
+    if (next === null) {
+      return;
+    }
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === current) {
+      return;
+    }
+    persistThread({ ...thread, title: trimmed });
+    lockThreadHeaderTitle(trimmed);
+    renderChatGroups();
+    announceThread(`Renamed to ${trimmed}`);
+  }
+
+  function deleteActiveThread() {
+    const id = activeThreadId;
+    if (!id) {
+      return;
+    }
+    const thread = findThread(readThreadStore(), id);
+    if (!thread) {
+      showKnToast?.({ content: "This conversation can't be deleted.", color: "notice" });
+      return;
+    }
+    const title = thread.title || "Conversation";
+    if (!window.confirm(`Delete "${title}"? This can't be undone.`)) {
+      return;
+    }
+    storeApi()?.deleteThread?.(id);
+    newChat();
+    showKnToast?.({ content: "Conversation deleted.", color: "neutral" });
   }
 
   function escapeHtml(text) {
@@ -427,6 +621,8 @@
     return `Good ${period}, ${name}`;
   }
 
+  let homePromptsExpanded = false;
+
   function renderCards() {
     const grid = document.getElementById("agentic-home-cards");
     if (!grid) {
@@ -434,7 +630,9 @@
     }
     grid.innerHTML = window.KNNextActions?.render?.(window.KNNextActions.homeActions(), {
       ariaLabel: "Suggested questions",
-      align: "center"
+      align: "center",
+      maxVisible: homePromptsExpanded ? undefined : 3,
+      expanded: homePromptsExpanded
     }) || "";
   }
 
@@ -503,6 +701,9 @@
   }
 
   function handleComposerKeydown(event) {
+    if (event.key === "Escape") {
+      closeTitleMenu();
+    }
     const input = event.target.closest("#agentic-thread-input");
     if (!input) {
       return;
@@ -765,6 +966,10 @@
       header: document.getElementById("agentic-thread-header"),
       empty: document.getElementById("agentic-chat-empty"),
       title: document.getElementById("agentic-thread-title"),
+      titleTrigger: document.getElementById("agentic-thread-title-trigger"),
+      titleMenu: document.getElementById("agentic-thread-title-menu"),
+      favoriteBtn: document.getElementById("agentic-thread-favorite"),
+      sidebarToggle: document.getElementById("agentic-thread-sidebar-toggle"),
       messages: document.getElementById("agentic-thread-messages"),
       threadForm: document.getElementById("agentic-thread-form"),
       threadInput: document.getElementById("agentic-thread-input")
@@ -791,17 +996,17 @@
   }
 
   function enterEmptyState() {
-    const { empty, header, messages, threadForm, threadInput } = els();
-    if (empty) {
-      empty.hidden = false;
-    }
-    if (header) {
-      header.hidden = true;
-    }
+    closeTitleMenu();
+    clearThreadHeaderLock();
+    const { empty, messages, threadForm, threadInput } = els();
     if (messages) {
       messages.innerHTML = "";
       messages.hidden = true;
     }
+    if (empty) {
+      empty.hidden = false;
+    }
+    syncHeaderVisibility();
     hideComposerValidationError(threadForm);
     clearComposerFiles(composerRoot(threadForm));
     if (threadInput) {
@@ -810,11 +1015,13 @@
       syncComposerSubmit(composerRoot(threadForm));
     }
     syncComposerPlaceholder();
+    homePromptsExpanded = false;
     renderCards();
     syncGreeting();
     threadGhost?.refresh?.();
     startGhostCycle();
     window.KNAgenticSpark?.setState?.("empty");
+    window.KNAgenticCompanion?.close?.();
     window.requestAnimationFrame(() => {
       const page = document.getElementById("agentic-broker-page");
       if (page && !page.hidden) {
@@ -823,13 +1030,13 @@
     });
   }
 
-  function enterConversationMode(title) {
+  function enterConversationMode(title, options = {}) {
     const { empty, header, messages, threadForm, threadInput } = els();
     if (empty) {
       empty.hidden = true;
     }
     if (header) {
-      header.hidden = false;
+      syncHeaderVisibility({ forceShow: options.showHeader === true });
     }
     if (messages) {
       messages.hidden = false;
@@ -837,7 +1044,7 @@
     if (!lockedHeaderThreadId || lockedHeaderThreadId !== activeThreadId) {
       lockThreadHeaderTitle(title);
     } else {
-      setThreadHeaderTitle(lockedHeaderTitle);
+      syncThreadHeader(lockedHeaderTitle, activeThreadId);
     }
     hideComposerValidationError(threadForm);
     if (threadInput && !threadInput.value) {
@@ -852,8 +1059,8 @@
     enterEmptyState();
   }
 
-  function showThread(title) {
-    enterConversationMode(title);
+  function showThread(title, options = {}) {
+    enterConversationMode(title, options);
   }
 
   function assistantMessageHtml(innerHtml, id, footerHtml, { loading = false, traces = "" } = {}) {
@@ -933,6 +1140,60 @@
     </div>`;
   }
 
+  function deriveThreadFollowUps(thread, savedFollowUps) {
+    if (Array.isArray(savedFollowUps) && savedFollowUps.length) {
+      return savedFollowUps;
+    }
+    const messages = thread?.messages || [];
+    const lastUser = [...messages].reverse().find((item) => item.senderType === "self" && item.text);
+    const skip = String(lastUser?.text || "").toLowerCase();
+    return (window.KNNextActions?.homeActions?.() || [])
+      .map((action) => ({ label: action.label, prompt: action.query }))
+      .filter((item) => item.label && item.prompt && item.prompt.toLowerCase() !== skip)
+      .slice(0, 3);
+  }
+
+  function attachRelatedChipsToMessage(msgId, items) {
+    const related = followUpChipsHtml(items);
+    if (!related || !msgId) {
+      return;
+    }
+    const node = document.getElementById(msgId);
+    const stack = node?.querySelector(".ai-msg__stack");
+    if (!stack) {
+      return;
+    }
+    stack.querySelector(":scope > .ai-msg__related")?.remove();
+    const footer = stack.querySelector(":scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
+    if (footer) {
+      footer.insertAdjacentHTML("beforebegin", related);
+    } else {
+      stack.insertAdjacentHTML("beforeend", related);
+    }
+    window.KNChatMessage?.hydrate(node);
+  }
+
+  function attachContextInsightToMessage(msgId, ctx) {
+    const insight = window.KNAgenticCompanion?.buildInsightHtml?.(ctx);
+    if (!insight || !msgId) {
+      return;
+    }
+    const node = document.getElementById(msgId);
+    const stack = node?.querySelector(".ai-msg__stack");
+    const bodyEl = node?.querySelector(".ai-msg__body");
+    if (!stack || !bodyEl) {
+      return;
+    }
+    stack.querySelector(":scope > .ai-msg__context-insight")?.remove();
+    const insertBefore = stack.querySelector(":scope > .ai-msg__related, :scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
+    if (insertBefore) {
+      insertBefore.insertAdjacentHTML("beforebegin", insight);
+    } else {
+      bodyEl.insertAdjacentHTML("afterend", insight);
+    }
+    window.KNChatMessage?.hydrate(node);
+  }
+
   const THREAD_SCROLL_BOTTOM_THRESHOLD = 80;
 
   function isThreadNearBottom(messages) {
@@ -984,6 +1245,7 @@
       bindThreadMessageEnter(rows[i], { animate });
     }
     window.KNChatMessage?.hydrate(messages);
+    syncHeaderVisibility();
     if (scroll) {
       scrollThreadMessages({ force: forceScroll });
     }
@@ -1109,7 +1371,7 @@
 
   function fillAssistantMessage(
     node,
-    { traces = "", body = "", related = "", actions = "", schema = null, animate = true, skipGenUIMount = false, keepTraces = false } = {}
+    { traces = "", body = "", insight = "", related = "", actions = "", schema = null, animate = true, skipGenUIMount = false, keepTraces = false } = {}
   ) {
     if (!node) {
       return;
@@ -1144,6 +1406,15 @@
         bodyEl.insertAdjacentHTML("beforebegin", traces);
       }
       let footer = stack.querySelector(":scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
+      stack.querySelector(":scope > .ai-msg__context-insight")?.remove();
+      if (insight && bodyEl) {
+        const insertBefore = stack.querySelector(":scope > .ai-msg__related, :scope > .ai-msg__footer, :scope > .kn-chat-msg__actions");
+        if (insertBefore) {
+          insertBefore.insertAdjacentHTML("beforebegin", insight);
+        } else {
+          bodyEl.insertAdjacentHTML("afterend", insight);
+        }
+      }
       if (related) {
         if (footer) {
           footer.insertAdjacentHTML("beforebegin", related);
@@ -1383,6 +1654,13 @@
       }
       fillAssistantMessage(thinkingNode, {
         body: resultBodyHtml(result, context),
+        insight: window.KNAgenticCompanion?.buildInsightHtml?.(window.KNAgenticCompanion?.resolve?.({
+          title: prompt,
+          messages: [
+            { senderType: "self", text: prompt },
+            { senderType: "other", text: result?.text || "" }
+          ]
+        })),
         related: followUpChipsHtml(result?.followUps),
         actions: messageActionsHtml(),
         keepTraces: true,
@@ -1405,6 +1683,7 @@
         timestamp: Date.now(),
         status: "sent"
       });
+      syncCompanionContext();
       window.KNAgenticSpark?.setState?.("idle");
     } catch (_error) {
       if (genId !== generation) {
@@ -1480,7 +1759,7 @@
 
     const ctx = handoff?.context || thread?.contextMeta || {};
     const displayTitle = handoff?.title || ctx.headline || ctx.title || thread?.title || "Conversation";
-    showThread(displayTitle);
+    showThread(displayTitle, { showHeader: true });
 
     const schema =
       window.KNAssistCore?.contextConnectionSchema?.(ctx, { expanded: true }) ||
@@ -1520,7 +1799,8 @@
       autoResizeTextarea(threadInput);
       clearComposerFiles(composerRoot(threadForm));
     }
-    showThread(thread.title);
+    showThread(thread.title, { showHeader: true });
+    let lastAssistantId = null;
     (thread.messages || []).forEach((msg) => {
       if (msg.senderType === "self") {
         appendMessages(userMessageHtml(msg.text, msg.attachments, { id: msg.id, status: msg.status, errorText: msg.errorText }), {
@@ -1529,6 +1809,7 @@
         });
         return;
       }
+      lastAssistantId = msg.id;
       const schema =
         msg.schema ||
         (msg.text && window.KNGenUI?.schemaFromResult ? window.KNGenUI.schemaFromResult({ mode: "text", text: msg.text }) : null);
@@ -1547,10 +1828,17 @@
         });
       }
     });
+    if (lastAssistantId) {
+      const lastAssistant = (thread.messages || []).find((item) => item.id === lastAssistantId);
+      attachRelatedChipsToMessage(lastAssistantId, deriveThreadFollowUps(thread, lastAssistant?.followUps));
+      attachContextInsightToMessage(lastAssistantId, window.KNAgenticCompanion?.resolve?.(thread));
+    }
     scrollThreadMessages({ force: true });
     announceThread(thread.title);
     window.KNAgenticSpark?.setState?.("idle");
     highlightSidebarChat(thread.id);
+    syncHeaderVisibility();
+    syncCompanionContext();
     return true;
   }
 
@@ -1608,6 +1896,8 @@
       userId: brokerUserId(),
       createdAt: Date.now() - seededEntry.daysAgo * 86400000,
       updatedAt: Date.now() - seededEntry.daysAgo * 86400000,
+      favorite: isThreadFavorite(chatId),
+      headerMeta: seededEntry.headerMeta,
       session: sessionForSeededChat(chatId, seededEntry),
       messages: [
         {
@@ -1754,6 +2044,7 @@
     activeThreadId = "";
     writeActiveThreadId("");
     clearThreadHeaderLock();
+    window.KNAgenticCompanion?.close?.();
     showNewChat();
     document.querySelectorAll(".side-nav-chat-item.is-active").forEach((el) => {
       el.classList.remove("is-active");
@@ -1762,6 +2053,56 @@
   }
 
   function handleClick(event) {
+    const actionBtn = event.target.closest("[data-agentic-thread-action]");
+    if (actionBtn) {
+      event.preventDefault();
+      if (actionBtn.getAttribute("aria-disabled") === "true") {
+        return;
+      }
+      closeTitleMenu();
+      const action = actionBtn.getAttribute("data-agentic-thread-action") || "";
+      if (action === "favorite") {
+        toggleFavorite(activeThreadId);
+      } else if (action === "rename") {
+        renameActiveThread();
+      } else if (action === "delete") {
+        deleteActiveThread();
+      }
+      return;
+    }
+    const titleTrigger = event.target.closest("#agentic-thread-title-trigger");
+    if (titleTrigger) {
+      event.preventDefault();
+      toggleTitleMenu();
+      return;
+    }
+    const sidebarToggle = event.target.closest("#agentic-thread-sidebar-toggle");
+    if (sidebarToggle) {
+      event.preventDefault();
+      closeTitleMenu();
+      toggleCompanionPanel();
+      return;
+    }
+    const companionToggle = event.target.closest("[data-agentic-companion-toggle]");
+    if (companionToggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!hasThreadMessages()) {
+        return;
+      }
+      syncCompanionContext();
+      window.KNAgenticCompanion?.toggle?.({ thread: activeThreadRecord(), force: true });
+      return;
+    }
+    const favoriteBtn = event.target.closest("#agentic-thread-favorite");
+    if (favoriteBtn) {
+      event.preventDefault();
+      toggleFavorite(activeThreadId);
+      return;
+    }
+    if (!event.target.closest("#agentic-thread-title-menu")) {
+      closeTitleMenu();
+    }
     const recipeBtn = event.target.closest("[data-spark-recipe-state]");
     if (recipeBtn) {
       event.preventDefault();
@@ -1842,7 +2183,11 @@
       return;
     }
     if (window.KNNextActions?.handleClick?.(event, {
-      onPrompt: (query) => askInline(query)
+      onPrompt: (query) => askInline(query),
+      onExpandHome: () => {
+        homePromptsExpanded = true;
+        renderCards();
+      }
     })) {
       return;
     }
@@ -1919,7 +2264,7 @@
       return;
     }
     if (!question && !files.length) {
-      showComposerValidationError(form, "Please type a message or attach a file before submitting.");
+      showComposerValidationError(form, "Add a message or attach a file to continue.");
       return;
     }
     if (question && question.length < MIN_QUESTION_LENGTH && !files.length) {
@@ -1997,6 +2342,20 @@
   document.addEventListener("kn-genui-action", (event) => {
     const detail = event.detail || {};
     const hts = detail.data?.hts;
+    if (detail.type === "file-isf-confirm" && detail.data?.isfId && event.target?.closest?.("#agentic-broker-page")) {
+      const result = window.KNIsfAssistant?.fileConfirmed?.(detail.data.isfId);
+      if (result?.cancelled) {
+        showKnToast?.({ content: "ISF filing cancelled — nothing transmitted to CBP.", color: "notice" });
+        return;
+      }
+      showKnToast?.({
+        content: result?.ok
+          ? `${result.row.transactionId} ISF-10 filed to CBP — status ${result.row.status}.`
+          : result?.error || "Could not file ISF.",
+        color: result?.ok ? "positive" : "negative"
+      });
+      return;
+    }
     if (detail.type === "apply-hts-confirm" && detail.data && event.target?.closest?.("#agentic-broker-page")) {
       const data = detail.data;
       const confirmed = window.confirm(
@@ -2037,8 +2396,12 @@
     renderCards();
     renderChatGroups();
     initThreadGhost();
+    syncHeaderVisibility();
     window.addEventListener("kn-thread-store-change", () => {
-      activeThreadId = readActiveThreadId();
+      const { empty } = els();
+      if (!empty || empty.hidden) {
+        activeThreadId = readActiveThreadId();
+      }
       renderChatGroups();
     });
     if (!bound) {
@@ -2077,6 +2440,7 @@
         }
         renderChatGroups();
         wasOnPage = true;
+        syncHeaderVisibility();
         return;
       }
       const store = readThreadStore();
@@ -2084,11 +2448,12 @@
       if (live?.messages?.length) {
         restoreThread(live);
       } else {
-        showNewChat();
+        newChat();
       }
       renderChatGroups();
     }
     wasOnPage = true;
+    syncHeaderVisibility();
   }
 
   function suspend() {
@@ -2101,5 +2466,5 @@
     window.KNAgenticSpark?.sync?.(false);
   }
 
-  window.KNAgenticBroker = { init, sync, suspend, newChat, openHistoryChat, playRecipe: playSparkRecipe, historyEntries };
+  window.KNAgenticBroker = { init, sync, suspend, newChat, openHistoryChat, playRecipe: playSparkRecipe, historyEntries, toggleFavorite };
 })();

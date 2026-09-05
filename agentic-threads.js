@@ -9,6 +9,7 @@
 
   const THREADS_KEY = "kn-agentic-threads-v1";
   const ACTIVE_KEY = "kn-agentic-active-v1";
+  const FAVORITES_KEY = "kn-agentic-favorites-v1";
   const EXPAND_HANDOFF_KEY = "kn-assist-expand-handoff";
 
   function brokerUserId() {
@@ -56,6 +57,62 @@
     } catch (_error) {
       /* ignore */
     }
+  }
+
+  function readFavoritesMap() {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "null");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (_error) {
+      /* ignore */
+    }
+    return {};
+  }
+
+  function writeFavoritesMap(map) {
+    try {
+      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(map || {}));
+    } catch (_error) {
+      /* ignore */
+    }
+  }
+
+  function isFavorite(id) {
+    if (!id) {
+      return false;
+    }
+    const thread = find(read(), id);
+    if (thread?.favorite) {
+      return true;
+    }
+    return Boolean(readFavoritesMap()[id]);
+  }
+
+  function setFavorite(id, value) {
+    if (!id) {
+      return false;
+    }
+    const store = read();
+    const thread = find(store, id);
+    if (thread) {
+      persist({ ...thread, favorite: Boolean(value) });
+    } else {
+      const map = readFavoritesMap();
+      if (value) {
+        map[id] = true;
+      } else {
+        delete map[id];
+      }
+      writeFavoritesMap(map);
+      emitChange(id);
+    }
+    return Boolean(value);
+  }
+
+  function toggleFavorite(id) {
+    return setFavorite(id, !isFavorite(id));
   }
 
   function find(store, id) {
@@ -227,6 +284,45 @@
     return find(read(), id);
   }
 
+  function deleteThread(id) {
+    if (!id) {
+      return false;
+    }
+    const store = read();
+    const index = store.threads.findIndex((item) => item.id === id);
+    if (index < 0) {
+      return false;
+    }
+    store.threads.splice(index, 1);
+    write(store);
+    const map = readFavoritesMap();
+    if (map[id]) {
+      delete map[id];
+      writeFavoritesMap(map);
+    }
+    if (readActiveId() === id) {
+      writeActiveId("");
+    }
+    emitChange("");
+    return true;
+  }
+
+  function renameThread(id, title) {
+    if (!id) {
+      return null;
+    }
+    const store = read();
+    const thread = find(store, id);
+    if (!thread) {
+      return null;
+    }
+    const nextTitle = String(title || "").trim();
+    if (!nextTitle) {
+      return null;
+    }
+    return persist({ ...thread, title: nextTitle });
+  }
+
   /** Panel → full-page: keep scoped thread + page context in one handoff payload. */
   function prepareFullPageHandoff({ scopeKey, title, context } = {}) {
     const displayTitle = title || context?.headline || context?.title || "Conversation";
@@ -268,6 +364,7 @@
   window.KNThreadStore = {
     THREADS_KEY,
     ACTIVE_KEY,
+    FAVORITES_KEY,
     EXPAND_HANDOFF_KEY,
     brokerUserId,
     isSeededId,
@@ -275,6 +372,11 @@
     write,
     readActiveId,
     writeActiveId,
+    readFavoritesMap,
+    writeFavoritesMap,
+    isFavorite,
+    setFavorite,
+    toggleFavorite,
     find,
     persist,
     deriveThreadTitle,
@@ -286,6 +388,8 @@
     serializeFiles,
     appendMessage,
     patchMessage,
+    deleteThread,
+    renameThread,
     getActiveLiveThread,
     prepareFullPageHandoff
   };

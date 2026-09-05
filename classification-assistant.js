@@ -94,7 +94,7 @@
     };
   }
 
-  function readEntryLineContext() {
+  function readEntryLineContext(lineOverride) {
     const hash = String(location.hash || "");
     const match = hash.match(/#transaction-us-entry\/filing\/([^/?#]+)/);
     if (!match) {
@@ -103,10 +103,12 @@
     const entryId = decodeURIComponent(match[1]);
     const fields = window.KNEntryFormState?.getFields?.(entryId) || {};
     const lookKey = window.KNEntryFiling?.getBrokerLookAtKey?.() || "";
-    let lineNum = 1;
-    const lineMatch = lookKey.match(/invoice:\d+:line:(\d+)/);
-    if (lineMatch) {
-      lineNum = Number(lineMatch[1]) || 1;
+    let lineNum = Number(lineOverride) || 1;
+    if (!lineOverride) {
+      const lineMatch = lookKey.match(/invoice:\d+:line:(\d+)/);
+      if (lineMatch) {
+        lineNum = Number(lineMatch[1]) || 1;
+      }
     }
     const prefix = `invoice:1:line:${lineNum}`;
     const descField = fields[`${prefix}:description`];
@@ -356,24 +358,26 @@
     };
   }
 
+  function lineNeedsClassification(ctx) {
+    if (!ctx?.entryId) {
+      return false;
+    }
+    const status = ctx.htsStatus || "empty";
+    return status === "empty" || status === "error" || status === "agent_draft";
+  }
+
   function buildIntakeSchema(entryCtx) {
+    const ready = entryCtx && entryLineReady(entryCtx);
+    const needsHts = ready && lineNeedsClassification(entryCtx);
     const components = [
-      { component: "TEXT", content: "### HTS classification" },
-      {
-        component: "TEXT",
-        content:
-          "I'll classify once I have a **product description**, **country of origin**, and **material**. A lookup never writes to the entry form by itself."
-      }
+      { component: "TEXT", content: "### HTS classification" }
     ];
-    if (entryCtx && entryLineReady(entryCtx)) {
+    if (ready) {
       components.push({
         component: "TEXT",
-        content:
-          `I can read **line ${entryCtx.lineNum}** on the open entry (**${entryCtx.entryNumber}**):\n\n` +
-          `- **Description:** ${entryCtx.description}\n` +
-          `- **Origin:** ${entryCtx.origin}\n` +
-          (entryCtx.material ? `- **Material:** ${entryCtx.material}\n` : "") +
-          (entryCtx.currentHts ? `- **Current HTS:** ${entryCtx.currentHts} (${entryCtx.htsStatus})\n` : "")
+        content: needsHts
+          ? `**Line ${entryCtx.lineNum}** on entry **${entryCtx.entryNumber}** is loaded — I read the invoice line below. Click to run \`resolve_hs_code\` (lookup only; nothing writes until you confirm).`
+          : `**Line ${entryCtx.lineNum}** on entry **${entryCtx.entryNumber}** is loaded. I can re-classify from the invoice line or you can describe different merchandise.`
       });
       components.push({
         component: "BUTTON",
@@ -383,18 +387,33 @@
           data: { prompt: `Classify line ${entryCtx.lineNum} from the open entry` }
         }
       });
-    } else if (entryCtx?.description) {
       components.push({
         component: "TEXT",
-        content: `I see **line ${entryCtx.lineNum}** on the open entry but still need **country of origin** (and material if not obvious) before I call \`resolve_hs_code\`.`
+        content:
+          `- **Description:** ${entryCtx.description}\n` +
+          `- **Origin:** ${entryCtx.origin}\n` +
+          (entryCtx.material ? `- **Material:** ${entryCtx.material}\n` : "") +
+          (entryCtx.currentHts ? `- **Current HTS:** ${entryCtx.currentHts} (${entryCtx.htsStatus})\n` : `- **Current HTS:** — (${entryCtx.htsStatus || "empty"})`)
       });
     } else {
       components.push({
         component: "TEXT",
         content:
-          "Reply with the merchandise details, for example:\n\n" +
-          "*Stamped steel auto body brackets, material steel, origin Mexico*"
+          "I'll classify once I have a **product description**, **country of origin**, and **material**. A lookup never writes to the entry form by itself."
       });
+      if (entryCtx?.description) {
+        components.push({
+          component: "TEXT",
+          content: `I see **line ${entryCtx.lineNum}** on the open entry but still need **country of origin** (and material if not obvious) before I call \`resolve_hs_code\`.`
+        });
+      } else {
+        components.push({
+          component: "TEXT",
+          content:
+            "Reply with the merchandise details, for example:\n\n" +
+            "*Stamped steel auto body brackets, material steel, origin Mexico*"
+        });
+      }
     }
     components.push({
       component: "ALERT",
@@ -406,16 +425,22 @@
     return components;
   }
 
+  function parseLineNumberFromQuery(question) {
+    const match = String(question || "").match(/\bline\s+(\d+)\b/i);
+    return match ? Number(match[1]) || null : null;
+  }
+
   function answer(question) {
     const q = String(question || "").trim();
     if (!isClassificationIntent(q)) {
       return null;
     }
 
-    const entryCtx = readEntryLineContext();
+    const lineFromQuery = parseLineNumberFromQuery(q);
+    const entryCtx = readEntryLineContext(lineFromQuery);
     const parsed = parseProductInput(q);
 
-    if (/classify line \d+ from (the )?(open )?entry/i.test(q)) {
+    if (/classify line \d+ from (the )?(open )?entry|suggest hts for line \d+/i.test(q)) {
       if (entryCtx && entryLineReady(entryCtx)) {
         return buildClassificationResult(mergeInput({}, entryCtx));
       }
@@ -429,13 +454,16 @@
     }
 
     if (isBareStarter(q)) {
+      const ready = entryCtx && entryLineReady(entryCtx);
       return {
         mode: "schema",
         title: "HTS classification",
         thinking: ["Starting classification intake — no resolve_hs_code call yet"],
-        leadIn: "Tell me what we're classifying, or use the open entry line if one is loaded.",
+        leadIn: ready
+          ? `Entry **${entryCtx.entryNumber}** line **${entryCtx.lineNum}** is on screen — I read it from the form. One click to classify; applying the code still needs your confirmation.`
+          : "Tell me what we're classifying, or open an entry filing so I can read the invoice line.",
         schema: { components: buildIntakeSchema(entryCtx) },
-        followUps: entryCtx
+        followUps: ready
           ? [{ label: `Classify line ${entryCtx.lineNum}`, prompt: `Classify line ${entryCtx.lineNum} from the open entry` }]
           : [{ label: "Example product", prompt: "Stamped steel auto body brackets, steel, origin Mexico" }]
       };

@@ -4427,14 +4427,22 @@ a.btn:hover {
   text-overflow: ellipsis;
 }
 
-/* Inline completion suffix — blue-sapphire-300 per Klear Agent autocomplete spec. */
+/* Inline completion prefix — transparent so typed text shows through from the control. */
 .kn-chat-input__ghost-prefix {
   color: transparent;
 }
 
+/* Ghost suggestion copy — Klear360 ChatInputGhostSuggestion uses surface.text.gray.muted.
+   Idle Tab suggestions and crossfade layers stay muted gray. */
 .kn-chat-input__ghost-suffix,
 .kn-chat-input__ghost-text:not(:has(.kn-chat-input__ghost-suffix)) {
-  color: var(--kn-primitive-blue-sapphire-300);
+  color: var(--kn-color-text-surface-gray-muted);
+}
+
+/* Inline autocomplete completion (Klearnow extension) — AI accent purple only
+   on the untyped suffix after the user's partial input. */
+.kn-chat-input__ghost-prefix:not(:empty) + .kn-chat-input__ghost-suffix {
+  color: var(--ai-assistant-accent-text);
 }
 
 .kn-chat-input__ghost-text--out {
@@ -7332,8 +7340,8 @@ body > .kn-date-picker__panel:not([hidden]) {
   padding: var(--theme-spacing-0);
   border: var(--theme-border-width-none);
   border-bottom-style: solid;
-  border-bottom-width: var(--kn-border-thin);
-  border-bottom-color: var(--kn-color-border-surface-gray-muted);
+  border-bottom-width: var(--kn-divider-width);
+  border-bottom-color: var(--kn-divider-color);
   background: var(--theme-colors-transparent);
 }
 
@@ -7351,8 +7359,8 @@ body > .kn-date-picker__panel:not([hidden]) {
   margin: var(--theme-spacing-0);
   border-bottom-width: var(--theme-border-width-none);
   border-left-style: solid;
-  border-left-width: var(--kn-border-thin);
-  border-left-color: var(--kn-color-border-surface-gray-muted);
+  border-left-width: var(--kn-divider-width);
+  border-left-color: var(--kn-divider-color);
 }
 
 .kn-divider--dashed {
@@ -7373,51 +7381,51 @@ body > .kn-date-picker__panel:not([hidden]) {
 }
 
 .kn-divider--muted {
-  border-bottom-color: var(--kn-color-border-surface-gray-muted);
+  border-bottom-color: var(--kn-divider-color-muted);
 }
 
 .kn-divider--muted.kn-divider--vertical {
-  border-left-color: var(--kn-color-border-surface-gray-muted);
+  border-left-color: var(--kn-divider-color-muted);
 }
 
 .kn-divider--subtle {
-  border-bottom-color: var(--kn-color-border-surface-gray-subtle);
+  border-bottom-color: var(--kn-divider-color-subtle);
 }
 
 .kn-divider--subtle.kn-divider--vertical {
-  border-left-color: var(--kn-color-border-surface-gray-subtle);
+  border-left-color: var(--kn-divider-color-subtle);
 }
 
 .kn-divider--normal {
-  border-bottom-color: var(--kn-color-border-surface-gray-normal);
+  border-bottom-color: var(--kn-divider-color-normal);
 }
 
 .kn-divider--normal.kn-divider--vertical {
-  border-left-color: var(--kn-color-border-surface-gray-normal);
+  border-left-color: var(--kn-divider-color-normal);
 }
 
 .kn-divider--thinner {
-  border-bottom-width: var(--kn-border-thinner);
+  border-bottom-width: var(--kn-divider-width-thinner);
 }
 
 .kn-divider--thinner.kn-divider--vertical {
-  border-left-width: var(--kn-border-thinner);
+  border-left-width: var(--kn-divider-width-thinner);
 }
 
 .kn-divider--thick {
-  border-bottom-width: var(--kn-border-thick);
+  border-bottom-width: var(--kn-divider-width-thick);
 }
 
 .kn-divider--thick.kn-divider--vertical {
-  border-left-width: var(--kn-border-thick);
+  border-left-width: var(--kn-divider-width-thick);
 }
 
 .kn-divider--thicker {
-  border-bottom-width: var(--kn-border-thicker);
+  border-bottom-width: var(--kn-divider-width-thicker);
 }
 
 .kn-divider--thicker.kn-divider--vertical {
-  border-left-width: var(--kn-border-thicker);
+  border-left-width: var(--kn-divider-width-thicker);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -8520,14 +8528,14 @@ button.kn-filter-chip:focus-visible {
   padding: var(--theme-spacing-0);
   border: var(--theme-border-width-none);
   border-left-style: solid;
-  border-left-width: var(--kn-border-thin);
-  border-left-color: var(--kn-color-border-surface-gray-subtle);
+  border-left-width: var(--kn-divider-width);
+  border-left-color: var(--kn-divider-color-subtle);
   background: var(--theme-colors-transparent);
 }
 
 .kn-filter-chip.is-disabled .kn-filter-chip__divider,
 .kn-filter-chip[aria-disabled="true"] .kn-filter-chip__divider {
-  border-left-color: var(--kn-color-border-surface-gray-muted);
+  border-left-color: var(--kn-divider-color-muted);
 }
 
 .kn-filter-chip__clear {
@@ -9306,7 +9314,7 @@ textarea.kn-field__control,
 }
 
 .kn-genui__item--after-h3-block {
-  margin-top: var(--theme-spacing-3);
+  margin-top: var(--theme-spacing-7);
 }
 
 .kn-genui__item--after-text-block {
@@ -9314,7 +9322,11 @@ textarea.kn-field__control,
 }
 
 .kn-genui__item--after-block-action {
-  margin-top: var(--theme-spacing-7);
+  margin-top: var(--theme-spacing-4);
+}
+
+.kn-genui__item--after-action {
+  margin-top: var(--theme-spacing-2);
 }
 
 .kn-genui__text p {

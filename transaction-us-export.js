@@ -98,7 +98,7 @@
       ],
       results: paginationMeta(rows, state.txn.page, state.txn.pageSize, pageRows, start)
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface export-table-card">
+    <div class="vis-table-wrap role-table-card export-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "export-table" })}" aria-label="US Export transactions">
           <thead>
@@ -164,7 +164,7 @@
       ],
       results: paginationMeta(rows, state.ship.page, state.ship.pageSize, pageRows, start)
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface">
+    <div class="vis-table-wrap role-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "export-ship-table" })}" aria-label="US Export shipments">
           <thead>

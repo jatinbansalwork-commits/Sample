@@ -11,7 +11,8 @@
     edit: "edited",
     extract: "extracted",
     restore: "restored version",
-    "submit-ace": "submitted to ACE"
+    "submit-ace": "submitted to ACE",
+    "submit-psc": "submitted PSC correction"
   });
 
   function escapeHtml(v) {
@@ -61,6 +62,9 @@
 
   function patchActionLabel(patch) {
     const meta = patch.meta || {};
+    if (meta.patch_type === "psc_amendment" && meta.action === "edit") {
+      return "PSC amendment";
+    }
     return ACTION_LABELS[meta.action] || meta.action || "changed";
   }
 
@@ -156,6 +160,7 @@
         ${diffBlock}
         ${restoreNote}
         ${toolLine}
+        ${meta.patch_type === "psc_amendment" ? `<span class="badge badge--notice type-caption-sm kn-badge entry-journey__psc-type">PSC amendment</span>` : ""}
         ${canRestore
           ? `<button class="btn btn--tertiary btn--sm type-ui-sm kn-btn entry-journey__restore" type="button" data-entry-journey-restore="${escapeHtml(patch.patch_id)}">Restore this version</button>`
           : `<p class="type-caption-sm entry-journey__no-restore">No field snapshot — record event only.</p>`}

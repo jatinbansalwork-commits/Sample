@@ -1011,7 +1011,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading ISF filings." })}
-      <div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "isf-table" })}" aria-label="Loading US ISF transactions"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Transaction ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 13, rows: 8 })}</tbody></table></div></div>`;
+      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "isf-table" })}" aria-label="Loading US ISF transactions"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Transaction ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 13, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -1062,7 +1062,7 @@
       ],
       results: `${rows.length} transactions. Page ${state.txn.page} of ${pages}. Sorted by ${state.txn.sortKey}, ${state.txn.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface isf-table-card">
+    <div class="vis-table-wrap role-table-card isf-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "isf-table" })}" aria-label="US ISF transactions">
           <thead>
@@ -1129,7 +1129,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading ISF shipments." })}
-      <div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" })}" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
+      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" })}" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -1180,7 +1180,7 @@
       ],
       results: `${rows.length} shipments. Page ${state.ship.page} of ${pages}. Sorted by ${state.ship.sortKey}, ${state.ship.sortDir === "desc" ? "descending" : "ascending"}.`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface isf-table-card">
+    <div class="vis-table-wrap role-table-card isf-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" })}" aria-label="US ISF shipments">
           <thead>
@@ -1338,6 +1338,7 @@
             el.setSelectionRange(searchFocus.start, searchFocus.end);
           }
         }
+        window.KNIsfAssistant?.syncFromHash?.(row);
       };
       if (isNewRow && !prefersReducedMotion() && typeof window.KNIsfDocViewer?.renderSkeleton === "function") {
         const token = ++detailLoadToken;

@@ -84,6 +84,12 @@
     if (/\berror code\b/i.test(q) && /\b398\b/.test(q)) {
       return true;
     }
+    if (/\breject\s*398\b/i.test(q)) {
+      return true;
+    }
+    if (/what is catair/i.test(q) && /\b398\b/.test(q)) {
+      return true;
+    }
     return false;
   }
 
@@ -123,14 +129,15 @@
 
     for (const row of entries) {
       const fields = formState?.getFields?.(row.id);
+      if (!fields || !Object.keys(fields).length) {
+        continue;
+      }
       if (fieldsHaveCatair398(fields, row, validation)) {
         return bridgeEntry(row);
       }
     }
 
-    // Demo: entry-1 seeds invoice line 2 with an invalid HTS/COO pair that surfaces as 398 on validation.
-    const demoEntry = entries.find((row) => row.id === "entry-1" && row.statusChip === "active");
-    return demoEntry ? bridgeEntry(demoEntry) : null;
+    return null;
   }
 
   function bridgeEntry(row) {
@@ -138,7 +145,7 @@
       entryId: row.id,
       entryNumber: row.entryNumber,
       transactionId: row.transactionId,
-      href: `#transaction-us-entry/filing/${encodeURIComponent(row.id)}?queue=rejected`
+      href: `#transaction-us-entry/filing/${encodeURIComponent(row.id)}?queue=rejected&focus=catair398`
     };
   }
 
@@ -149,12 +156,8 @@
     const citation = catair398Citation();
     const affectedEntry = findEntryWithCatair398();
     const components = [
-      {
-        component: "TEXT",
-        content:
-          "ACE reject **398** means the **country of origin on an invoice line is missing, not allowed, or does not match the HTS number** under the schedule's country notes."
-      },
-      { component: "TEXT", content: "### CATAIR edit definition" },
+      { component: "TEXT", content: "# CATAIR reject 398" },
+      { component: "TEXT", content: "### CATAIR edit definition (authoritative)" },
       {
         component: "INFO_GROUP",
         items: [
@@ -164,20 +167,17 @@
           { key: { children: "Edit definition" }, value: { children: citation.definition } }
         ]
       },
-      { component: "TEXT", content: "### What triggers it" },
+      { component: "TEXT", content: "### In plain language" },
       {
         component: "TEXT",
         content:
-          "Common causes: blank COO, **US** when the goods are foreign, or a COO that the HTS chapter note does not permit for the reported tariff line."
+          "ACE is rejecting the **HTS number / country of origin pair** on an invoice line — the COO is missing, not allowed for that tariff line, or conflicts with the HTS schedule country notes. Fix the line on the entry before resubmitting."
       },
-      { component: "TEXT", content: "### How to fix" },
+      { component: "TEXT", content: "### What usually triggers it" },
       {
         component: "TEXT",
         content:
-          "- Open the entry → **Invoices** tab → select the flagged line.\n" +
-          "- Set **Country of origin** to the ISO code where the goods were manufactured (e.g. **VN**, **MX**, **CN**).\n" +
-          "- Re-run validation, then resubmit the entry summary.\n" +
-          "- If USMCA/FTA preference is claimed, ensure the origin matches the certifying country."
+          "Blank COO, **US** when the goods are foreign, or a COO the HTS chapter note does not permit for the reported line (demo seed: **6204.62.4020** with **BE**)."
       }
     ];
 
@@ -185,9 +185,8 @@
       components.push({
         component: "ALERT",
         color: "notice",
-        title: `Entry ${affectedEntry.entryNumber} is showing this error`,
-        description:
-          "Want me to walk through the fix on the entry form? I will not change any field unless you open the record and confirm each write."
+        title: `Entry ${affectedEntry.entryNumber} is showing this error right now`,
+        description: "Want me to resolve it? I'll open the validation panel — nothing changes until you edit the field and confirm."
       });
       components.push({
         component: "BUTTON",
@@ -196,8 +195,11 @@
       });
       components.push({
         component: "BUTTON",
-        text: "Show fix steps in chat only",
-        action: { type: "prompt", data: { prompt: "Walk me through fixing CATAIR 398 without opening the entry" } }
+        text: "Explain fix steps here only",
+        action: {
+          type: "prompt",
+          data: { prompt: `Walk me through fixing CATAIR 398 on entry ${affectedEntry.entryNumber} without changing fields` }
+        }
       });
     } else {
       components.push({
@@ -205,35 +207,37 @@
         color: "information",
         title: "Information only",
         description:
-          "No entry in your queue is currently flagged with reject 398. This path explains the code — it cannot change any field on a record."
+          "No entry in your queue is currently flagged with reject **398**. This path explains the code — it cannot change any field on a record."
       });
     }
 
     components.push({
       component: "ALERT",
       color: "notice",
-      title: "Agent guardrail",
+      title: "Citation guardrail (§10.1)",
       description:
-        "Klear Agent cites the CATAIR edit definition above — not a paraphrase. It can suggest the correct COO from documents but cannot transmit or approve the corrected entry for you."
+        "The edit definition above is quoted from **CATAIR** — not a paraphrase presented as fact. Klear Agent can suggest the correct COO from documents but cannot transmit or approve the corrected entry for you."
     });
 
     return schemaAnswer({
-      title: "CATAIR code 398 — Country of origin required",
+      title: "CATAIR code 398",
       thinking: [
         `Matched ACE reject 398 to ${citation.ref}`,
-        "Quoted the CATAIR edit definition — no paraphrase presented as fact",
+        "Quoted the CATAIR edit definition verbatim",
         affectedEntry
-          ? `Found open reject on entry ${affectedEntry.entryNumber} — offering resolution bridge only`
-          : "No affected entry in queue — staying informational"
+          ? `Entry ${affectedEntry.entryNumber} has reject 398 on file — offering W10 resolution bridge only`
+          : "No affected entry detected — informational response only"
       ],
-      leadIn:
-        affectedEntry
-          ? `Here's what **CATAIR reject 398** means — and **entry ${affectedEntry.entryNumber}** is showing it now.`
-          : "Here's what **CATAIR reject 398** means in plain language.",
+      leadIn: affectedEntry
+        ? `**Entry #${affectedEntry.entryNumber}** is showing CATAIR reject **398** right now — want me to resolve it?`
+        : "Here's **CATAIR reject 398** in plain language, with the authoritative edit definition cited above.",
       schema: { components },
       followUps: affectedEntry
         ? [
-            { label: "Resolve on entry form", prompt: `Help me resolve CATAIR 398 on entry ${affectedEntry.entryNumber}` },
+            {
+              label: "Resolve on entry form",
+              prompt: `Help me resolve CATAIR 398 on entry ${affectedEntry.entryNumber}`
+            },
             { label: "USMCA origin rules", prompt: "Does USMCA apply to auto parts from Mexico?" }
           ]
         : [
@@ -388,6 +392,7 @@
     getPrompts,
     findEntryWithCatair398,
     catair398Citation,
+    isCatair398Query,
     placeholder: EXPERT_PLACEHOLDER,
     PROMPTS
   };

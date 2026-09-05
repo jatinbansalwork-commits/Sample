@@ -7,7 +7,8 @@
     <script>
       (function () {
         const root = document.documentElement;
-        const route = (location.hash || "#agentic-broker").split("?")[0].replace(/^#\/?/, "") || "agentic-broker";
+        const routeRaw = (location.hash || "#agentic-broker").split("?")[0].replace(/^#\/?/, "") || "agentic-broker";
+        const route = routeRaw === "agentic" ? "agentic-broker" : routeRaw;
         root.dataset.knRoute = route;
         const width = window.innerWidth;
         const bp = width >= 1200 ? "xl" : width >= 1024 ? "l" : width >= 768 ? "m" : width >= 480 ? "s" : width >= 320 ? "xs" : "base";
@@ -20,6 +21,7 @@
       })();
     </script>
     <style>
+      /* First-paint L2 boot — see styles.css .side-nav-l2[hidden] comment */
       html[data-kn-l1="collapsed"] .hide-when-collapsed { display: none; }
       html[data-kn-l1="collapsed"] #side-nav-l2[hidden] { display: flex; }
     </style>
@@ -32,9 +34,9 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./tokens.css?v=73" />
-    <link rel="stylesheet" href="./components.css?v=93" />
-    <link rel="stylesheet" href="./styles.css?v=566" />
+    <link rel="stylesheet" href="./tokens.css?v=80" />
+    <link rel="stylesheet" href="./components.css?v=94" />
+    <link rel="stylesheet" href="./styles.css?v=572" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -664,15 +666,15 @@
                  list back under the Agentic Broker L1 item when leaving. -->
             <ul class="side-nav-level side-nav-level--chat-history" id="sidenav-level-agentic-broker" data-level="2">
               <li class="side-nav-chat-new">
-                <button class="btn btn--secondary btn--sm type-ui-sm kn-btn side-nav-chat-new__btn" type="button" data-agentic-chat-new>
-                  <span class="btn-icon-glyph kn-btn__icon side-nav-chat-new__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                <button class="btn btn--primary btn--sm type-body-sm kn-btn kn-btn--primary side-nav-chat-new__btn" type="button" data-agentic-chat-new>
+                  <span class="btn-icon-glyph kn-btn__icon side-nav-chat-new__icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9"/></svg></span>
                   <span class="kn-btn__label">New chat</span>
                 </button>
               </li>
               <li class="side-nav-chat-search">
                 <div class="search-input">
                   <span class="search-input__icon kn-autocomplete__prefix" aria-hidden="true">
-                    <img src="./assets/quick-actions/search.svg" width="16" height="16" alt="" />
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.25"/><path d="M10.5 10.5 14 14"/></svg>
                   </span>
                   <input
                     class="search-input__field type-body-sm"
@@ -715,655 +717,19 @@
             </nav>
           </div>
 
-          <section class="dashboard-inner" data-loading="true" aria-busy="true" hidden>
-            <div class="dash-skeleton" id="dash-skeleton" role="status" aria-live="polite">
-              <span class="visually-hidden">Loading dashboard</span>
-              <div class="hero">
-                <div class="skeleton-stack">
-                  <span class="skeleton skeleton--title" style="width: 18.5rem"></span>
-                  <span class="skeleton skeleton--line" style="width: 14rem"></span>
-                </div>
-                <div class="hero-actions">
-                  <span class="skeleton skeleton--btn skeleton--btn-md"></span>
-                  <span class="skeleton skeleton--btn skeleton--btn-md" style="width: 11.5rem"></span>
-                  <span class="skeleton skeleton--icon"></span>
-                </div>
+          <section class="dashboard-inner is-ready" data-loading="false" aria-labelledby="dash-empty-title">
+            <div class="dash-empty kn-empty kn-empty--page kn-empty--large" id="dash-live">
+              <span class="kn-empty__asset empty-state__asset" aria-hidden="true">
+                <svg class="klear-assistant-mark dash-empty__mark" viewBox="0 0 24 24" width="48" height="48" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+              </span>
+              <div class="kn-empty__copy">
+                <h1 class="kn-empty__title type-heading-h3 type-weight-semibold" id="dash-empty-title">Dashboard</h1>
+                <p class="kn-empty__desc type-body-sm" id="dash-empty-desc">Nothing here yet. Open Klear Agent for priorities or Visibility to track live shipments.</p>
               </div>
-              <section class="panel card kn-card">
-                <div class="card-header">
-                  <span class="skeleton skeleton--title" style="width: 16rem"></span>
-                  <span class="skeleton skeleton--badge"></span>
-                </div>
-                <div class="card-body alerts-body">
-                  <div class="skeleton-alert">
-                    <span class="skeleton skeleton--icon"></span>
-                    <div class="skeleton-stack">
-                      <span class="skeleton skeleton--title" style="width: 8rem"></span>
-                      <span class="skeleton skeleton--caption" style="width: 7rem"></span>
-                      <span class="skeleton skeleton--row"></span>
-                      <span class="skeleton skeleton--row"></span>
-                      <span class="skeleton skeleton--btn"></span>
-                    </div>
-                  </div>
-                  <div class="skeleton-alert">
-                    <span class="skeleton skeleton--icon"></span>
-                    <div class="skeleton-stack">
-                      <span class="skeleton skeleton--title" style="width: 9rem"></span>
-                      <span class="skeleton skeleton--caption" style="width: 8rem"></span>
-                      <span class="skeleton skeleton--row"></span>
-                      <span class="skeleton skeleton--row"></span>
-                      <span class="skeleton skeleton--btn"></span>
-                    </div>
-                  </div>
-                  <div class="skeleton-alert">
-                    <span class="skeleton skeleton--icon"></span>
-                    <div class="skeleton-stack">
-                      <span class="skeleton skeleton--title" style="width: 10rem"></span>
-                      <span class="skeleton skeleton--caption" style="width: 6rem"></span>
-                      <span class="skeleton skeleton--row"></span>
-                      <span class="skeleton skeleton--row"></span>
-                      <span class="skeleton skeleton--btn"></span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-              <section class="panel card kn-card">
-                <div class="card-header">
-                  <span class="skeleton skeleton--title" style="width: 11rem"></span>
-                  <span class="skeleton skeleton--btn"></span>
-                </div>
-                <div class="card-body overview-body">
-                  <div class="kpi-grid dash-skeleton-kpis">
-                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 68%"></span><span class="skeleton skeleton--value"></span></div>
-                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 74%"></span><span class="skeleton skeleton--value" style="width: 3rem"></span></div>
-                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 52%"></span><span class="skeleton skeleton--value" style="width: 2.75rem"></span></div>
-                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 80%"></span><span class="skeleton skeleton--value" style="width: 2.25rem"></span></div>
-                    <div class="kpi-stat"><span class="skeleton skeleton--caption" style="width: 62%"></span><span class="skeleton skeleton--value" style="width: 2.5rem"></span></div>
-                  </div>
-                  <span class="skeleton skeleton--map"></span>
-                </div>
-              </section>
-              <div class="split-grid">
-                <article class="panel card kn-card">
-                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 9.5rem"></span></div>
-                  <div class="skeleton-stack">
-                    <span class="skeleton skeleton--row"></span>
-                    <span class="skeleton skeleton--row"></span>
-                    <span class="skeleton skeleton--row"></span>
-                  </div>
-                </article>
-                <article class="panel card kn-card">
-                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 8rem"></span></div>
-                  <div class="skeleton-stack">
-                    <span class="skeleton skeleton--row"></span>
-                    <span class="skeleton skeleton--row"></span>
-                    <span class="skeleton skeleton--row"></span>
-                  </div>
-                </article>
+              <div class="kn-empty__actions empty-state__actions">
+                <a class="kn-btn btn btn--primary btn--md type-ui-md" href="#agentic-broker">Open Klear Agent</a>
+                <a class="kn-btn btn btn--secondary btn--md type-ui-md" href="#klearhub-visibility">Open Visibility</a>
               </div>
-              <div class="dash-chart-grid">
-                <article class="panel card kn-card">
-                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 10rem"></span></div>
-                <div class="kn-card__body card-body">
-                  <div class="kn-chart kn-chart--bar">
-                    <div class="kn-chart__plot skeleton-stack skeleton-bars">
-                      <span class="skeleton skeleton--bar" style="width: 86%"></span>
-                      <span class="skeleton skeleton--bar" style="width: 64%"></span>
-                      <span class="skeleton skeleton--bar" style="width: 52%"></span>
-                      <span class="skeleton skeleton--bar" style="width: 40%"></span>
-                      <span class="skeleton skeleton--bar" style="width: 28%"></span>
-                    </div>
-                  </div>
-                </div>
-                </article>
-                <article class="panel card kn-card">
-                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 6.5rem"></span></div>
-                <div class="kn-card__body card-body">
-                  <div class="kn-chart kn-chart--donut dash-donut-wrap">
-                    <span class="kn-chart__plot skeleton skeleton--donut"></span>
-                    <div class="kn-chart__legend kn-chart__legend--vertical skeleton-stack">
-                      <span class="skeleton skeleton--line" style="width: 7rem"></span>
-                      <span class="skeleton skeleton--line" style="width: 6.25rem"></span>
-                      <span class="skeleton skeleton--line" style="width: 5.5rem"></span>
-                      <span class="skeleton skeleton--line" style="width: 4.75rem"></span>
-                    </div>
-                  </div>
-                </div>
-                </article>
-              </div>
-              <section class="panel card kn-card">
-                <div class="card-header"><span class="skeleton skeleton--title" style="width: 9.75rem"></span></div>
-                <div class="skeleton-stack">
-                  <span class="skeleton skeleton--row"></span>
-                  <span class="skeleton skeleton--row"></span>
-                  <span class="skeleton skeleton--row"></span>
-                  <span class="skeleton skeleton--row"></span>
-                </div>
-              </section>
-              <div class="dash-stat-grid">
-                <article class="panel card dash-stat-card kn-card kn-card--metric">
-                  <span class="skeleton skeleton--caption" style="width: 8.5rem"></span>
-                  <span class="skeleton skeleton--value" style="width: 6rem"></span>
-                </article>
-                <article class="panel card dash-stat-card kn-card kn-card--metric">
-                  <span class="skeleton skeleton--caption" style="width: 7.5rem"></span>
-                  <span class="skeleton skeleton--value" style="width: 5.25rem"></span>
-                </article>
-                <article class="panel card dash-stat-card kn-card kn-card--metric">
-                  <span class="skeleton skeleton--caption" style="width: 7rem"></span>
-                  <span class="skeleton skeleton--value" style="width: 5.5rem"></span>
-                </article>
-                <article class="panel card dash-stat-card kn-card kn-card--metric">
-                  <span class="skeleton skeleton--caption" style="width: 6.25rem"></span>
-                  <span class="skeleton skeleton--value" style="width: 4.5rem"></span>
-                </article>
-              </div>
-              <div class="split-grid">
-                <article class="panel card kn-card">
-                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 8.25rem"></span></div>
-                  <div class="skeleton-stack">
-                    <span class="skeleton skeleton--line" style="width: 90%"></span>
-                    <span class="skeleton skeleton--bar" style="width: 84%"></span>
-                    <span class="skeleton skeleton--line" style="width: 70%"></span>
-                  </div>
-                </article>
-                <article class="panel card kn-card">
-                  <div class="card-header"><span class="skeleton skeleton--title" style="width: 10rem"></span></div>
-                  <div class="skeleton-stack">
-                    <span class="skeleton skeleton--row"></span>
-                    <span class="skeleton skeleton--row"></span>
-                    <span class="skeleton skeleton--row"></span>
-                  </div>
-                </article>
-              </div>
-            </div>
-            <div class="dash-live kn-stagger" id="dash-live" hidden>
-            <div class="hero">
-              <div class="hero-copy">
-                <h1 class="type-heading-h3" id="dash-greeting">Good afternoon, Jane</h1>
-                <p class="type-body-sm" id="dash-risk-line">Your shipment summary at a glance.</p>
-                <div class="kn-announcement kn-announcement--left" id="dash-welcome" hidden role="region" aria-label="Announcement">
-                  <p class="kn-announcement__message">Start with holds when something is stuck — then copy the ID into your next email.</p>
-                </div>
-              </div>
-              <div class="hero-actions">
-                <div class="quick-actions kn-dropdown">
-                  <button
-                    class="btn btn--secondary btn--md type-ui-md kn-btn"
-                    id="quick-actions-trigger"
-                    type="button"
-                    aria-haspopup="listbox"
-                    aria-expanded="false"
-                    aria-controls="quick-actions-menu"
-                  >
-                    Quick Actions
-                    <code class="code type-ui-sm">⌘K</code>
-                  </button>
-                  <div class="menu-overlay dropdown-overlay kn-dropdown__overlay shell-command-palette" id="quick-actions-menu" hidden aria-labelledby="quick-actions-title">
-                    <div class="dropdown-header kn-dropdown__header">
-                      <div class="dropdown-header__row">
-                        <span class="dropdown-header__leading" aria-hidden="true">
-                          <img src="./assets/quick-actions/bolt.svg" width="20" height="20" alt="" />
-                        </span>
-                        <p class="type-heading-h5 type-weight-semibold" id="quick-actions-title">Command palette</p>
-                        <button class="icon-btn" type="button" id="quick-actions-close" aria-label="Close">
-                          <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
-                        </button>
-                      </div>
-                      <div class="dropdown-search kn-autocomplete">
-                        <div class="search-input kn-autocomplete__field">
-                          <span class="search-input__icon kn-autocomplete__prefix" aria-hidden="true">
-                            <img src="./assets/quick-actions/search.svg" width="16" height="16" alt="" />
-                          </span>
-                          <input
-                            class="search-input__field type-body-sm kn-autocomplete__input"
-                            id="quick-actions-search"
-                            type="search"
-                            placeholder="Search entries, modules, or actions…"
-                            autocomplete="off"
-                            autocorrect="off"
-                            spellcheck="false"
-                            role="combobox"
-                            aria-label="Search entries, modules, or actions"
-                            aria-autocomplete="list"
-                            aria-expanded="false"
-                            aria-controls="quick-actions-list"
-                          />
-                          <button class="search-input__clear icon-btn" type="button" id="quick-actions-clear" hidden aria-label="Clear search">
-                            <img src="./assets/quick-actions/close.svg" width="16" height="16" alt="" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="action-list kn-action-list kn-action-list--flush" id="quick-actions-list" role="listbox" aria-label="Command palette results">
-                      <p class="action-list-empty type-body-sm kn-action-list__empty" id="quick-actions-empty" hidden>No results found</p>
-                    </div>
-                    <div class="dropdown-footer kn-dropdown__footer">
-                      <p class="type-caption-sm">Use ↑↓ to navigate, ↵ to select, esc to close</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="vis-menu vis-menu--end kn-dropdown kn-date-picker kn-date-picker--range">
-                  <button
-                    class="btn btn--secondary btn--md type-ui-md kn-btn kn-date-picker__trigger"
-                    id="dash-date-trigger"
-                    type="button"
-                    aria-haspopup="dialog"
-                    aria-expanded="false"
-                    aria-controls="dash-date-menu"
-                    aria-label="Date range, Aug 01 – Aug 31, 2026"
-                  >
-                    <svg class="kn-date-picker__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <rect x="3" y="4" width="18" height="18" rx="2" />
-                      <path d="M16 2v4M8 2v4M3 10h18" />
-                    </svg>
-                    <span class="kn-date-picker__value" id="dash-date-label">Aug 01 – Aug 31, 2026</span>
-                  </button>
-                  <div class="menu-overlay vis-menu__list kn-dropdown__overlay kn-date-picker__panel" id="dash-date-menu" hidden role="dialog" aria-labelledby="dash-date-title">
-                    <p class="kn-date-picker__title type-ui-sm type-weight-semibold" id="dash-date-title">Date range</p>
-                    <p class="kn-date-picker__caption type-caption-sm" id="dash-date-caption">Filters dashboard widgets by created date and ETA.</p>
-                    <div class="kn-date-picker__presets" role="listbox" aria-label="Presets">
-                      <button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-kn-date-preset="7" data-dash-preset="7">Last 7 days</button>
-                      <button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-kn-date-preset="30" data-dash-preset="30">Last 30 days</button>
-                      <button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-kn-date-preset="month" data-dash-preset="month">This month</button>
-                      <button class="action-list-item type-ui-sm kn-action-list__item" type="button" role="option" data-kn-date-preset="last-month" data-dash-preset="last-month">Last month</button>
-                    </div>
-                    <div class="kn-date-picker__fields">
-                      <label class="kn-field kn-date-picker__field">
-                        <span class="kn-form-label type-caption-sm">Start date</span>
-                        <input class="kn-field__control kn-date-picker__input type-body-sm" id="dash-date-start" type="date" aria-label="Start date" />
-                      </label>
-                      <label class="kn-field kn-date-picker__field">
-                        <span class="kn-form-label type-caption-sm">End date</span>
-                        <input class="kn-field__control kn-date-picker__input type-body-sm" id="dash-date-end" type="date" aria-label="End date" />
-                      </label>
-                    </div>
-                    <p class="type-caption-sm kn-date-picker__error kn-form-hint kn-form-hint--error" id="dash-date-error" hidden role="alert" aria-live="assertive">End date must be after start date</p>
-                    <div class="kn-date-picker__footer kn-btn-group kn-btn-group--loose">
-                      <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" id="dash-date-cancel" data-kn-date-cancel>Cancel</button>
-                      <button class="btn btn--primary btn--sm type-ui-sm kn-btn" type="button" id="dash-date-apply" data-kn-date-apply>Apply</button>
-                    </div>
-                  </div>
-                </div>
-                <button class="icon-btn" id="dashboard-settings" type="button" aria-label="Settings" data-tooltip="Settings" aria-haspopup="dialog" aria-controls="dash-layout-drawer" aria-expanded="false">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <section class="panel card dash-widget dash-ai-copilot kn-card" data-widget="ai-insights" aria-labelledby="dash-ai-insights-title">
-              <header class="dash-ai-copilot__chrome">
-                <div class="dash-ai-copilot__leading">
-                  <span class="dash-ai-copilot__mark" id="dash-ai-insights-mark" aria-hidden="true">
-                    <svg class="klear-assistant-mark" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
-                  </span>
-                  <div class="dash-ai-copilot__copy">
-                    <h2 class="dash-ai-copilot__title type-heading-h5 type-weight-semibold" id="dash-ai-insights-title">Klear insights</h2>
-                    <p class="dash-ai-copilot__subtitle type-caption-sm">AI copilot briefing on your live queue</p>
-                  </div>
-                </div>
-                <div class="dash-ai-copilot__chrome-actions">
-                  <span class="dash-ai-copilot__model-badge type-caption-sm" aria-label="Model">Klear Agent</span>
-                  <button class="icon-btn dash-ai-copilot__refresh" type="button" id="dash-ai-insights-refresh" aria-label="Refresh insights" data-tooltip="Refresh insights">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                      <path d="M21 3v6h-6" />
-                    </svg>
-                  </button>
-                </div>
-              </header>
-              <div class="dash-ai-copilot__panel">
-                <div class="dash-ai-copilot__thread" id="dash-ai-insights-thread" aria-live="polite">
-                  <article class="ai-msg ai-msg--assistant kn-chat-msg kn-chat-msg--other" id="dash-ai-insights-msg">
-                    <div class="ai-msg__stack kn-chat-msg__stack">
-                      <div class="kn-chat-msg__row">
-                        <span class="kn-chat-msg__leading dash-ai-copilot__avatar" aria-hidden="true">
-                          <svg class="klear-assistant-mark" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
-                        </span>
-                        <div class="ai-msg__body kn-chat-msg__bubble">
-                          <div class="dash-ai-copilot__discussion">
-                            <div class="dash-ai-copilot__genui-host" id="dash-ai-insights-genui" data-kn-genui-provider role="region" aria-label="AI insights"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                </div>
-                <div class="dash-ai-copilot__suggestions" role="group" aria-label="Suggested prompts" id="dash-ai-insights-suggestions">
-                  <button class="kn-chip kn-chip--small dash-ai-copilot__suggestion" type="button" data-dash-ai-prompt="All items due today">All items due today</button>
-                  <button class="kn-chip kn-chip--small dash-ai-copilot__suggestion" type="button" data-dash-ai-prompt="What's in my queue today?">What's in my queue today?</button>
-                  <button class="kn-chip kn-chip--small dash-ai-copilot__suggestion" type="button" data-dash-ai-prompt="Show demurrage risk">Show demurrage risk</button>
-                </div>
-                <div class="dash-ai-copilot__composer">
-                  <div class="kn-chat-input" id="dash-ai-insights-input" data-kn-component="chat-input">
-                    <form class="kn-chat-input__card" id="dash-ai-insights-form">
-                      <label class="visually-hidden" for="dash-ai-insights-text">Ask about your dashboard</label>
-                      <div class="kn-chat-input__field">
-                        <textarea
-                          class="kn-chat-input__control type-body-md"
-                          id="dash-ai-insights-text"
-                          rows="2"
-                          maxlength="500"
-                          placeholder="Ask about holds, delays, filings, or statements…"
-                          autocomplete="off"
-                          aria-multiline="true"
-                        ></textarea>
-                      </div>
-                      <div class="kn-chat-input__actions">
-                        <button class="kn-chat-input__submit" id="dash-ai-insights-send" type="submit" disabled aria-label="Submit">
-                          <svg class="kn-chat-input__icon kn-chat-input__icon--send" viewBox="0 0 24 24" fill="none" aria-hidden="true" width="16" height="16">
-                            <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          </svg>
-                          <svg class="kn-chat-input__icon kn-chat-input__icon--stop" viewBox="0 0 24 24" fill="none" aria-hidden="true" width="16" height="16" hidden>
-                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
-                            <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="panel card dash-widget kn-card" data-widget="alerts">
-              <div class="card-header">
-                <div class="card-header__leading">
-                  <h2 class="type-heading-h5 type-weight-semibold">Needs attention</h2>
-                  <span class="indicator-field" tabindex="0" data-tooltip="Hold and shipment counts refresh as new events arrive.">
-                    <span class="indicator indicator--positive" aria-hidden="true"></span>
-                    <span class="type-caption-sm">Live</span>
-                  </span>
-                </div>
-              </div>
-              <div class="card-body alerts-body" id="alerts-body">
-                <article class="kn-alert kn-alert--full kn-alert--subtle kn-alert--negative alert-card alert-negative" aria-labelledby="alert-demurrage-title" id="alert-demurrage-card">
-                  <header class="alert-card__head">
-                    <span class="kn-alert__icon alert-card__icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 8.5 12 3.5 3 8.5v7l9 5 9-5v-7Z" />
-                        <path d="M3 8.5 12 13.5 21 8.5" />
-                        <path d="M12 13.5V20.5" />
-                      </svg>
-                    </span>
-                    <div class="kn-alert__content alert-card__heading">
-                      <div class="alert-card__title-row">
-                        <h3 class="kn-alert__title type-heading-h5 type-weight-semibold" id="alert-demurrage-title">
-                          Demurrage Risk
-                          <button type="button" class="info-tip" aria-label="About demurrage" data-tooltip="Fee charged when a container stays at the terminal after free time ends.">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
-                          </button>
-                        </h3>
-                        <span class="counter counter--negative counter--intense kn-counter" data-kn="alert-demurrage-total">0</span>
-                        <a class="kn-link type-ui-sm alert-card__all" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-viewall" hidden>View all</a>
-                      </div>
-                      <p class="kn-alert__desc alert-card__lede type-caption-sm">Terminal free time is ending</p>
-                    </div>
-                  </header>
-                  <p class="visually-hidden" data-kn="demurrage-desc"></p>
-                  <div class="alert-card__list-wrap" id="alert-demurrage-wrap">
-                    <ul class="alert-card__hits" id="alert-demurrage-hits"></ul>
-                    <p class="alert-card__empty type-caption-sm" id="alert-demurrage-empty" hidden>No containers at risk of demurrage.</p>
-                  </div>
-                  <div class="kn-alert__actions alert-card__footer">
-                    <a class="btn btn--primary btn--md btn--color-negative type-ui-md kn-btn" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"arrived"}' id="alert-demurrage-cta">View demurrage risk</a>
-                  </div>
-                </article>
-                <article class="kn-alert kn-alert--full kn-alert--subtle kn-alert--notice alert-card alert-notice" aria-labelledby="alert-delay-title" id="alert-delay-card">
-                  <header class="alert-card__head">
-                    <span class="kn-alert__icon alert-card__icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="M12 7v5l3.5 2" />
-                      </svg>
-                    </span>
-                    <div class="kn-alert__content alert-card__heading">
-                      <div class="alert-card__title-row">
-                        <h3 class="kn-alert__title type-heading-h5 type-weight-semibold" id="alert-delay-title">Shipment Delays</h3>
-                        <span class="counter counter--notice counter--intense kn-counter" data-kn="alert-delay-total">0</span>
-                        <a class="kn-link type-ui-sm alert-card__all" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-viewall" hidden>View all</a>
-                      </div>
-                      <p class="kn-alert__desc alert-card__lede type-caption-sm">Schedule slipped vs original ETA</p>
-                      <p class="alert-card__meta type-caption-sm" id="alert-delay-eta-wrap" hidden>Earliest ETA <span data-kn="alert-delay-eta">—</span></p>
-                    </div>
-                  </header>
-                  <p class="visually-hidden" data-kn="delay-desc"></p>
-                  <div class="alert-card__list-wrap" id="alert-delay-wrap">
-                    <ul class="alert-card__hits" id="alert-delay-hits"></ul>
-                    <p class="alert-card__empty type-caption-sm" id="alert-delay-empty" hidden>No delayed shipments right now.</p>
-                  </div>
-                  <div class="kn-alert__actions alert-card__footer">
-                    <a class="btn btn--primary btn--md type-ui-md kn-btn" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"delayed"}' id="alert-delay-cta">View delays</a>
-                  </div>
-                </article>
-                <article class="kn-alert kn-alert--full kn-alert--subtle kn-alert--information alert-card alert-information" aria-labelledby="alert-hold-title" id="alert-hold-card">
-                  <header class="alert-card__head">
-                    <span class="kn-alert__icon alert-card__icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="5" y="11" width="14" height="10" rx="2" />
-                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                      </svg>
-                    </span>
-                    <div class="kn-alert__content alert-card__heading">
-                      <div class="alert-card__title-row">
-                        <h3 class="kn-alert__title type-heading-h5 type-weight-semibold" id="alert-hold-title">Containers on Hold</h3>
-                        <span class="counter counter--information counter--intense kn-counter" data-kn="alert-hold-total">0</span>
-                        <a class="kn-link type-ui-sm alert-card__all" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-viewall" hidden>View all</a>
-                      </div>
-                      <p class="kn-alert__desc alert-card__lede type-caption-sm">Release blocked by exam or documents</p>
-                    </div>
-                  </header>
-                  <div class="alert-card__list-wrap" id="alert-hold-wrap">
-                    <ul class="alert-card__hits" id="alert-hold-hits"></ul>
-                    <p class="alert-card__empty type-caption-sm" id="alert-hold-empty" hidden>No containers on hold.</p>
-                  </div>
-                  <div class="kn-alert__actions alert-card__footer">
-                    <a class="btn btn--primary btn--md type-ui-md kn-btn" href="#klearhub-visibility" data-vis-open='{"record":"all","risk":"hold"}' id="alert-hold-cta">View holds</a>
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            <section class="panel card dash-widget kn-card" data-widget="overview">
-              <div class="card-header">
-                <div class="card-header__leading">
-                  <span class="indicator indicator--positive" aria-hidden="true"></span>
-                  <h2 class="type-heading-h5 type-weight-semibold">Live snapshot</h2>
-                </div>
-                <div class="card-header__trailing">
-                  <a class="kn-link type-ui-sm" href="#klearhub-visibility">Documents</a>
-                  <a class="kn-link type-ui-sm" href="#klearhub-overview" data-kn-goto>By mode</a>
-                  <a class="btn btn--secondary btn--sm type-ui-sm kn-btn" href="#klearhub-visibility">Open Visibility</a>
-                </div>
-              </div>
-              <div class="card-body overview-body">
-                <div class="kpi-grid" id="kpi-grid" role="group" aria-label="Filter shipments on the map"></div>
-                <article class="map-panel" id="map-panel">
-                  <div class="map-header">
-                    <div class="map-header__leading">
-                      <h3 class="type-heading-h5 type-weight-medium">Shipment Global View</h3>
-                      <span class="indicator-field" data-ais-status tabindex="0" data-tooltip="Vessel positions update as they report in">
-                        <span class="indicator indicator--positive" aria-hidden="true"></span>
-                        <span class="type-caption-sm" data-ais-label>Live positions</span>
-                      </span>
-                    </div>
-                    <button class="btn btn--secondary btn--sm type-ui-sm kn-btn" id="map-expand" type="button">Expand Map</button>
-                  </div>
-                  <div class="map-stage">
-                    <div class="shipment-map" id="shipment-map" role="region" aria-label="Live shipment map"></div>
-                    <div class="map-basemap kn-btn-group kn-btn-group--loose kn-btn-group--small" role="group" aria-label="Map view">
-                      <button class="btn btn--tertiary btn--sm type-ui-sm kn-btn" type="button" data-map-basemap="satellite" aria-pressed="false">Satellite</button>
-                      <button class="btn btn--primary btn--sm type-ui-sm kn-btn" type="button" data-map-basemap="map" aria-pressed="true">Map</button>
-                    </div>
-                    <div class="map-zoom" role="group" aria-label="Map zoom">
-                      <button class="icon-btn" id="map-zoom-in" type="button" aria-label="Zoom in" data-tooltip="Zoom in">
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-                          <path d="M8 3.5v9M3.5 8h9" />
-                        </svg>
-                      </button>
-                      <button class="icon-btn" id="map-zoom-out" type="button" aria-label="Zoom out" data-tooltip="Zoom out">
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-                          <path d="M3.5 8h9" />
-                        </svg>
-                      </button>
-                    </div>
-                    <button class="icon-btn map-recenter" id="map-recenter" type="button" aria-label="Recenter map" data-tooltip="Recenter map">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="3" />
-                        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-                      </svg>
-                    </button>
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            <div class="split-grid dash-widget" data-widget="feeds">
-              <article class="panel card kn-card">
-                <div class="card-header">
-                  <div class="card-header__leading">
-                    <h2 class="type-heading-h5 type-weight-semibold">Upcoming Arrivals</h2>
-                  </div>
-                  <a class="kn-link type-ui-sm" href="#klearhub-visibility">View all</a>
-                </div>
-                <ul class="kn-list" id="dash-arrivals"></ul>
-              </article>
-              <article class="panel card kn-card">
-                <div class="card-header">
-                  <div class="card-header__leading">
-                    <h2 class="type-heading-h5 type-weight-semibold">Recent Filings</h2>
-                  </div>
-                  <a class="kn-link type-ui-sm" href="#klearhub-visibility">View all</a>
-                </div>
-                <ul class="kn-list" id="dash-filings"></ul>
-              </article>
-            </div>
-
-            <div class="dash-chart-grid dash-widget" data-widget="charts">
-              <article class="panel card kn-card">
-                <div class="card-header">
-                  <div class="card-header__leading">
-                    <h2 class="type-heading-h5 type-weight-semibold">Shipments by lane</h2>
-                  </div>
-                </div>
-                <div class="kn-card__body card-body">
-                  <div id="dash-lanes-genui" aria-label="Shipments by origin country"></div>
-                </div>
-              </article>
-              <article class="panel card kn-card">
-                <div class="card-header">
-                  <div class="card-header__leading">
-                    <h2 class="type-heading-h5 type-weight-semibold">Mode mix</h2>
-                  </div>
-                </div>
-                <div class="kn-card__body card-body">
-                  <div id="dash-donut-genui" aria-label="Mode mix"></div>
-                </div>
-              </article>
-            </div>
-
-            <section class="panel card dash-widget kn-card" data-widget="shipments">
-              <div class="card-header">
-                <div class="card-header__leading">
-                  <h2 class="type-heading-h5 type-weight-semibold">Recent shipments</h2>
-                </div>
-                <a class="kn-link type-ui-sm" href="#klearhub-visibility">Open Visibility</a>
-              </div>
-              <div class="vis-table-scroll">
-                <table class="vis-table dash-table">
-                  <thead>
-                    <tr>
-                      <th scope="col" class="type-caption-sm type-weight-medium">Shipment</th>
-                      <th scope="col" class="type-caption-sm type-weight-medium">Lane</th>
-                      <th scope="col" class="type-caption-sm type-weight-medium">Consignee</th>
-                      <th scope="col" class="type-caption-sm type-weight-medium">Status</th>
-                      <th scope="col" class="vis-table__num type-caption-sm type-weight-medium">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dash-recent-body"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <div class="dash-stat-grid dash-widget" data-widget="finance">
-              <article class="panel card dash-stat-card kn-card kn-card--metric">
-                <p class="type-caption-sm type-weight-medium">Duty &amp; fees this month</p>
-                <p class="type-heading-h5 type-weight-semibold kn-amount kn-amount--heading kn-amount--medium kn-amount--subtle-affix kn-amount--weight-semibold" data-kn="duty" aria-label="Total value in USD: $186,420"><span class="kn-amount__sign"></span><span class="kn-amount__currency">$</span><span class="kn-amount__integer">186,420</span><span class="kn-amount__decimal"></span><span class="kn-amount__compact"></span></p>
-                <p class="kpi-trend type-caption-sm">Estimate from live shipment values</p>
-              </article>
-              <article class="panel card dash-stat-card kn-card kn-card--metric">
-                <p class="type-caption-sm type-weight-medium">
-                  Demurrage exposure
-                  <button type="button" class="info-tip" aria-label="About demurrage exposure" data-tooltip="Estimated fees if containers stay at the terminal after free time ends.">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
-                  </button>
-                </p>
-                <p class="type-heading-h5 type-weight-semibold kn-amount kn-amount--heading kn-amount--medium kn-amount--subtle-affix kn-amount--weight-semibold kn-amount--negative" data-kn="demurrage-usd" aria-label="Total value in USD: $12,840"><span class="kn-amount__sign"></span><span class="kn-amount__currency">$</span><span class="kn-amount__integer">12,840</span><span class="kn-amount__decimal"></span><span class="kn-amount__compact"></span></p>
-                <p class="kpi-trend negative type-caption-sm" data-kn="demurrage-trend">1 container exceeded</p>
-              </article>
-              <article class="panel card dash-stat-card kn-card kn-card--metric">
-                <p class="type-caption-sm type-weight-medium">Estimated collections</p>
-                <p class="type-heading-h5 type-weight-semibold kn-amount kn-amount--heading kn-amount--medium kn-amount--subtle-affix kn-amount--weight-semibold" data-kn="collected" aria-label="Total value in USD: $94,210"><span class="kn-amount__sign"></span><span class="kn-amount__currency">$</span><span class="kn-amount__integer">94,210</span><span class="kn-amount__decimal"></span><span class="kn-amount__compact"></span></p>
-                <p class="kpi-trend type-caption-sm" data-kn="collected-trend">Estimate · on-track share</p>
-              </article>
-              <article class="panel card dash-stat-card kn-card kn-card--metric">
-                <p class="type-caption-sm type-weight-medium">Service charges</p>
-                <p class="type-heading-h5 type-weight-semibold kn-amount kn-amount--heading kn-amount--medium kn-amount--subtle-affix kn-amount--weight-semibold" data-kn="service" aria-label="Total value in USD: $6,480"><span class="kn-amount__sign"></span><span class="kn-amount__currency">$</span><span class="kn-amount__integer">6,480</span><span class="kn-amount__decimal"></span><span class="kn-amount__compact"></span></p>
-                <p class="kpi-trend type-caption-sm">Estimate · $540 per active shipment</p>
-              </article>
-            </div>
-
-            <div class="split-grid dash-widget" data-widget="health">
-              <article class="panel card dash-health kn-card">
-                <div class="card-header">
-                  <div class="card-header__leading">
-                    <h2 class="type-heading-h5 type-weight-semibold">Shipment health</h2>
-                  </div>
-                </div>
-                <p class="type-body-sm" data-kn="health-copy">75% of active shipments are on track this month.</p>
-                <div class="dash-health__metrics">
-                  <div class="progress-bar" id="dash-health-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="75" aria-label="Shipment health">
-                    <div class="progress-bar__meta">
-                      <span class="type-caption-sm">On track</span>
-                      <span class="type-caption-sm type-weight-semibold" data-kn="health-pct">75%</span>
-                    </div>
-                    <div class="progress-bar__track">
-                      <span class="progress-bar__fill" id="dash-health-fill" style="width: 75%"></span>
-                    </div>
-                  </div>
-                  <div class="info-group">
-                    <div class="info-item">
-                      <span class="info-item__key type-caption-sm">On track</span>
-                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="ontime">9</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-item__key type-caption-sm">Delayed</span>
-                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="delayed">2</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-item__key type-caption-sm">On hold</span>
-                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="on-hold">2</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-item__key type-caption-sm">Action needed</span>
-                      <span class="info-item__value type-ui-sm type-weight-semibold" data-kn="action">3</span>
-                    </div>
-                  </div>
-                </div>
-              </article>
-              <article class="panel card kn-card">
-                <div class="card-header">
-                  <div class="card-header__leading">
-                    <h2 class="type-heading-h5 type-weight-semibold">Shipment charges</h2>
-                  </div>
-                  <a class="kn-link type-ui-sm" href="#klearhub-visibility">View all</a>
-                </div>
-                <ul class="kn-list" id="dash-invoices"></ul>
-              </article>
-            </div>
             </div>
           </section>
 
@@ -2055,16 +1421,35 @@
             <div class="kn-spark__gradient" data-spark-gradient hidden></div>
             <!-- Chat Mode: empty state (greeting + cards) and active thread share one shell. -->
             <div class="agentic-thread" id="agentic-thread">
-              <header class="agentic-thread__header" id="agentic-thread-header" hidden>
-                <h2 class="agentic-thread__title" id="agentic-thread-title">Conversation</h2>
+              <header class="agentic-thread__header kn-header kn-header--medium kn-header--no-divider" id="agentic-thread-header" hidden>
+                <div class="agentic-thread__header-bar">
+                  <div class="kn-header__copy agentic-thread__header-main">
+                    <button type="button" class="icon-btn agentic-thread__favorite" id="agentic-thread-favorite" aria-label="Add to favorites" aria-pressed="false">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    </button>
+                    <button type="button" class="agentic-thread__title-trigger" id="agentic-thread-title-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="agentic-thread-title-menu">
+                      <span class="type-heading-sm type-weight-medium agentic-thread__title" id="agentic-thread-title">Conversation</span>
+                      <svg class="agentic-thread__title-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                  </div>
+                  <div class="kn-header__trailing">
+                    <button type="button" class="icon-btn agentic-thread__sidebar-toggle" id="agentic-thread-sidebar-toggle" aria-label="Open related panel" aria-expanded="false">
+                      <svg class="agentic-thread__sidebar-toggle-glyph agentic-thread__sidebar-toggle-glyph--closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+                      <svg class="agentic-thread__sidebar-toggle-glyph agentic-thread__sidebar-toggle-glyph--open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/><rect x="15.5" y="5" width="4.5" height="14" rx="1" fill="currentColor" stroke="none" opacity="0.42"/></svg>
+                    </button>
+                  </div>
+                  <div class="kn-menu agentic-thread__title-menu" id="agentic-thread-title-menu" role="menu" aria-label="Conversation actions" hidden></div>
+                </div>
               </header>
+              <div class="agentic-thread__split" id="agentic-thread-split">
+                <div class="agentic-thread__chat-col">
               <div class="agentic-thread__pane">
                 <div class="agentic-chat-empty" id="agentic-chat-empty">
                   <div class="agentic-chat-empty__main">
                     <div class="agentic-home__hero">
-                      <h1 class="type-heading-h2 type-weight-semibold agentic-home__greeting" id="agentic-home-greeting">Good morning, Jane</h1>
+                      <h1 class="type-display-sm type-weight-medium agentic-home__greeting" id="agentic-home-greeting">Good morning, Jane</h1>
                     </div>
-                    <p class="type-heading-h6 agentic-home__sub" id="agentic-home-sub">How can I help you with customs today?</p>
+                    <p class="type-body-md agentic-home__sub" id="agentic-home-sub">How can I help you with customs today?</p>
                     <div class="kn-box kn-box--flex kn-box--wrap agentic-home__pills" id="agentic-home-cards" role="group" aria-label="Suggested questions"></div>
                   </div>
                 </div>
@@ -2116,6 +1501,24 @@
                 </form>
               </div>
               <p class="type-caption-sm agentic-home__disclaimer">KlearNow can make mistakes. Always verify important information.</p>
+                </div>
+                <aside class="agentic-thread__companion" id="agentic-thread-companion" hidden aria-labelledby="agentic-thread-companion-title">
+                  <header class="agentic-thread__companion-header kn-header kn-header--medium kn-header--no-divider">
+                    <div class="agentic-thread__companion-header-bar">
+                      <div class="kn-header__copy agentic-thread__companion-header-main">
+                        <h2 class="kn-header__title type-ui-md type-weight-semibold agentic-thread__companion-title" id="agentic-thread-companion-title">Related view</h2>
+                        <p class="type-caption-sm kn-header__subtitle" id="agentic-thread-companion-subtitle">Context panel</p>
+                      </div>
+                      <div class="kn-header__trailing agentic-thread__companion-actions">
+                        <a class="icon-btn agentic-thread__companion-open" id="agentic-thread-companion-open" href="#dashboard" aria-label="Open full page">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+                        </a>
+                      </div>
+                    </div>
+                  </header>
+                  <div class="agentic-thread__companion-body" id="agentic-thread-companion-body"></div>
+                </aside>
+              </div>
             </div>
           </section>
 
@@ -2353,7 +1756,7 @@
     <script src="./klear-assist-core.js?v=14"></script>
     <script src="./visibility.js?v=43"></script>
     <script src="./shipment-detail.js?v=29"></script>
-    <script src="./admin-ux.js?v=109"></script>
+    <script src="./admin-ux.js?v=110"></script>
     <script src="./ai-suggest.js?v=10"></script>
     <script src="./role-management.js?v=77"></script>
     <script src="./user-management.js?v=48"></script>
@@ -2361,39 +1764,44 @@
     <script src="./contract-management.js?v=2"></script>
     <script src="./transaction-us-isf-detail.js?v=35"></script>
     <script src="./transaction-us-isf-doc-viewer.js?v=33"></script>
-    <script src="./transaction-us-isf.js?v=28"></script>
+    <script src="./transaction-us-isf.js?v=29"></script>
     <script src="./transaction-us-in-bond-detail.js?v=4"></script>
     <script src="./transaction-us-in-bond-doc-viewer.js?v=2"></script>
-    <script src="./transaction-us-in-bond.js?v=14"></script>
+    <script src="./transaction-us-in-bond.js?v=15"></script>
     <script src="./entry-doc-extract.js?v=1"></script>
     <script src="./entry-doc-panel.js?v=1"></script>
     <script src="./entry-validation.js?v=1"></script>
     <script src="./entry-outlier-checks.js?v=1"></script>
     <script src="./entry-agent-trace.js?v=2"></script>
     <script src="./entry-status-detail.js?v=1"></script>
-    <script src="./kn-next-actions.js?v=4"></script>
+    <script src="./kn-next-actions.js?v=5"></script>
     <script src="./entry-form-state.js?v=1"></script>
     <script src="./entry-broker-memory.js?v=1"></script>
     <script src="./entry-agent-stream.js?v=1"></script>
     <script src="./entry-journey-tab.js?v=1"></script>
     <script src="./entry-agent-patch-flash.js?v=1"></script>
     <script src="./transaction-us-entry-filing.js?v=24"></script>
-    <script src="./transaction-us-entry.js?v=16"></script>
-    <script src="./transaction-us-export.js?v=1"></script>
-    <script src="./transaction-us-ftz.js?v=4"></script>
-    <script src="./transaction-us-psc.js?v=9"></script>
-    <script src="./transaction-us-delivery-order.js?v=8"></script>
-    <script src="./transaction-us-shipments.js?v=9"></script>
+    <script src="./transaction-us-entry.js?v=17"></script>
+    <script src="./transaction-us-export.js?v=2"></script>
+    <script src="./transaction-us-ftz.js?v=5"></script>
+    <script src="./transaction-us-psc.js?v=10"></script>
+    <script src="./transaction-us-delivery-order.js?v=9"></script>
+    <script src="./transaction-us-shipments.js?v=10"></script>
     <script src="./classification-assistant.js?v=1"></script>
+    <script src="./ops-shipments-assistant.js?v=1"></script>
+    <script src="./due-today-assistant.js?v=1"></script>
+    <script src="./psc-assistant.js?v=1"></script>
+    <script src="./isf-assistant.js?v=1"></script>
     <script src="./knowledge-expert.js?v=3"></script>
     <script src="./payment-us-statements.js?v=3"></script>
     <script src="./genui.js?v=19"></script>
-    <script src="./dash-ai-copilot.js?v=2"></script>
+    <script src="./dash-ai-copilot.js?v=3"></script>
     <script src="./klear-sense.js?v=1"></script>
     <script src="./agentic-threads.js?v=6"></script>
     <script src="./klear-agent-ghost-autocomplete.js?v=1"></script>
     <script src="./agentic-spark.js?v=14"></script>
-    <script src="./agentic-broker.js?v=61"></script>
+    <script src="./agentic-companion.js?v=2"></script>
+    <script src="./agentic-broker.js?v=64"></script>
     <script src="./shell-search-index.js?v=1"></script>
     <script src="./shell-command-palette.js?v=1"></script>
     <script>
@@ -2411,6 +1819,6 @@
     </script>
     <script src="./persona-config.js?v=2"></script>
     <script src="./session-restore.js?v=1"></script>
-    <script src="./script.js?v=224"></script>
+    <script src="./script.js?v=226"></script>
   </body>
 </html>

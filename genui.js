@@ -13,6 +13,17 @@
   ];
   const BLOCK_TYPES = new Set(["CARD", "TABLE", "ENTRY_STATUS_TABLE", "DUTY_BREAKDOWN"]);
   const CARD_TABLE = new Set(["CARD", "TABLE"]);
+  const VISUAL_BLOCKS = new Set([
+    "CARD",
+    "TABLE",
+    "GRID",
+    "STACK",
+    "CHART",
+    "INFO_GROUP",
+    "ALERT",
+    "ENTRY_STATUS_TABLE",
+    "DUTY_BREAKDOWN"
+  ]);
   const ACTION_TYPES = new Set(["BUTTON", "LINK"]);
   const FEEDBACK = new Set(["information", "negative", "notice", "positive", "neutral", "primary"]);
   const BUILTIN_TYPES = new Set([
@@ -73,14 +84,22 @@
 
   function itemModifier(previous, current) {
     if (!previous?.component || !current?.component) return "";
-    if (CARD_TABLE.has(current.component) && previous.component === "TEXT") {
+    const prevType = previous.component;
+    const currType = current.component;
+    if (VISUAL_BLOCKS.has(currType) && prevType === "TEXT") {
       return endsWithH3(previous.content) ? "kn-genui__item--after-h3-block" : "kn-genui__item--after-text-block";
     }
-    if (current.component === "TEXT" && startsWithH3(current.content)) {
-      return CARD_TABLE.has(previous.component) ? "kn-genui__item--after-h3-block" : "kn-genui__item--h3";
+    if (currType === "TEXT" && startsWithH3(current.content)) {
+      return VISUAL_BLOCKS.has(prevType) ? "kn-genui__item--after-h3-block" : "kn-genui__item--h3";
     }
-    if (CARD_TABLE.has(previous.component) && ACTION_TYPES.has(current.component)) {
+    if (VISUAL_BLOCKS.has(prevType) && ACTION_TYPES.has(currType)) {
       return "kn-genui__item--after-block-action";
+    }
+    if (ACTION_TYPES.has(prevType) && ACTION_TYPES.has(currType)) {
+      return "kn-genui__item--after-action";
+    }
+    if (VISUAL_BLOCKS.has(prevType) && VISUAL_BLOCKS.has(currType)) {
+      return "kn-genui__item--after-text-block";
     }
     return "";
   }
@@ -453,8 +472,49 @@
     return true;
   }
 
-  function blockSkeleton() {
-    return `<div class="skeleton-stack kn-genui__skeleton" aria-hidden="true"><span class="skeleton skeleton--title" style="width:42%"></span><span class="skeleton skeleton--row"></span><span class="skeleton skeleton--row"></span></div>`;
+  function tableSkeleton(node, { cols: colsOverride, rows: rowsOverride } = {}) {
+    const headers = Array.isArray(node?.headers) ? node.headers : [];
+    const rowData = Array.isArray(node?.rows) ? node.rows.filter((row) => Array.isArray(row) && row.length) : [];
+    const cols = Math.max(colsOverride ?? headers.length, 2);
+    const rows = Math.max(rowsOverride ?? rowData.length, 3);
+    const head = Array.from({ length: cols }, () => '<th><span class="skeleton skeleton--caption" style="width:72%" aria-hidden="true"></span></th>').join("");
+    const body = Array.from({ length: rows }, () =>
+      `<tr class="kn-genui__skeleton-row" aria-hidden="true">${Array.from({ length: cols }, () =>
+        '<td><span class="skeleton skeleton--tm-cell" aria-hidden="true"></span></td>'
+      ).join("")}</tr>`
+    ).join("");
+    return `<div class="kn-genui__table-wrap kn-genui__skeleton" aria-hidden="true"><table class="kn-genui__table vis-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  function cardSkeleton(node) {
+    const hasHeader = Boolean(node?.title || node?.description);
+    const kids = Array.isArray(node?.children) ? node.children.length : 0;
+    const bodyRows = Math.max(kids, 2);
+    const header = hasHeader
+      ? `<div class="kn-card__header"><div class="kn-card__copy"><span class="skeleton skeleton--title" style="width:55%" aria-hidden="true"></span><span class="skeleton skeleton--caption" style="width:38%" aria-hidden="true"></span></div></div>`
+      : `<div class="kn-card__header"><div class="kn-card__copy"><span class="skeleton skeleton--title" style="width:48%" aria-hidden="true"></span></div></div>`;
+    const body = `<div class="kn-card__body"><div class="skeleton-stack">${Array.from({ length: bodyRows }, (_, index) =>
+      `<span class="skeleton skeleton--row" style="width:${Math.max(100 - index * 12, 52)}%" aria-hidden="true"></span>`
+    ).join("")}</div></div>`;
+    return `<article class="kn-card kn-genui__card kn-genui__skeleton" aria-hidden="true">${header}${body}</article>`;
+  }
+
+  function blockSkeleton(type, node) {
+    if (type === "TABLE" || type === "ENTRY_STATUS_TABLE") {
+      return tableSkeleton(node);
+    }
+    if (type === "DUTY_BREAKDOWN") {
+      return tableSkeleton(node, { cols: 2, rows: 4 });
+    }
+    if (type === "CARD") {
+      return cardSkeleton(node);
+    }
+    return `<div class="skeleton-stack kn-genui__skeleton" aria-hidden="true"><span class="skeleton skeleton--title" style="width:42%" aria-hidden="true"></span><span class="skeleton skeleton--row" aria-hidden="true"></span><span class="skeleton skeleton--row" aria-hidden="true"></span></div>`;
+  }
+
+  function skeletonForBlock(type, node, ctx) {
+    const skeleton = blockSkeleton(type, node);
+    return BLOCK_TYPES.has(type) ? wrapRing(skeleton, ctx) : skeleton;
   }
 
   function validTypeNames() {
@@ -535,7 +595,7 @@
       return "";
     }
     if ((ctx.streaming || ctx.skeletonUntilComplete) && BLOCK_TYPES.has(type) && !isBlockComplete(node)) {
-      return blockSkeleton();
+      return skeletonForBlock(type, node, ctx);
     }
     try {
       switch (type) {
@@ -559,7 +619,7 @@
         return `<button type="button" class="kn-link" data-kn-genui-action="${escapeHtml(JSON.stringify(node.action || {}))}">${escapeHtml(node.text)}</button>`;
       case "BUTTON":
         if (!node.text) return "";
-        return `<button type="button" class="btn btn--tertiary kn-btn" data-kn-genui-action="${escapeHtml(JSON.stringify(node.action || {}))}">${escapeHtml(node.text)}</button>`;
+        return `<button type="button" class="btn btn--secondary btn--sm kn-btn kn-btn--secondary kn-btn--small type-ui-sm" data-kn-genui-action="${escapeHtml(JSON.stringify(node.action || {}))}">${escapeHtml(node.text)}</button>`;
       case "ALERT":
         return alertHtml(node);
       case "SPACER":
@@ -582,13 +642,13 @@
       case "CARD": {
         const kids = Array.isArray(node.children) ? node.children : [];
         if (!node.title && !node.description && !kids.length) {
-          return wrapRing(blockSkeleton(), ctx);
+          return skeletonForBlock("CARD", node, ctx);
         }
         const header =
           node.title || node.description
             ? `<div class="kn-card__header"><div class="kn-card__copy"><p class="kn-card__title type-ui-md type-weight-semibold">${escapeHtml(node.title || "")}</p>${node.description ? `<p class="kn-card__subtitle type-caption-sm">${escapeHtml(node.description)}</p>` : ""}</div></div>`
             : "";
-        const body = kids.length ? kids.map((child) => renderNode(child, ctx)).join("") : blockSkeleton();
+        const body = kids.length ? kids.map((child) => renderNode(child, ctx)).join("") : blockSkeleton("CARD", node);
         const footer = node.footer ? `<div class="kn-card__footer"><p class="type-caption-sm">${escapeHtml(node.footer)}</p></div>` : "";
         const card = `<article class="kn-card kn-genui__card">${header}<div class="kn-card__body">${body}</div>${footer}</article>`;
         return wrapRing(card, ctx);
@@ -596,7 +656,7 @@
       case "TABLE": {
         const rows = (node.rows || []).filter((row) => Array.isArray(row) && row.length);
         if (!node.headers?.length || !rows.length) {
-          return wrapRing(blockSkeleton(), ctx);
+          return skeletonForBlock("TABLE", node, ctx);
         }
         const head = node.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
         const body = rows
@@ -617,7 +677,7 @@
       }
       }
     } catch (_error) {
-      return blockSkeleton();
+      return blockSkeleton(type, node);
     }
   }
 
@@ -839,7 +899,7 @@
 
   register("CLASSIFICATION_RESULT", (node) => {
     if (!node?.hts) {
-      return blockSkeleton();
+      return blockSkeleton("CARD", node);
     }
     const rate = node.dutyRate ? badgeHtml(node.dutyRate, "information") : "";
     const conf = node.confidence ? badgeHtml(String(node.confidence), node.confidence === "high" ? "positive" : "notice") : "";
@@ -896,7 +956,7 @@
   register("DUTY_BREAKDOWN", (node, ctx) => {
     const lines = Array.isArray(node?.lines) ? node.lines.filter((line) => line?.label) : [];
     if (!lines.length) {
-      return wrapRing(blockSkeleton());
+      return skeletonForBlock("DUTY_BREAKDOWN", node, ctx);
     }
     const rows = lines
       .map(
@@ -915,7 +975,7 @@
     const headers = Array.isArray(node?.headers) ? node.headers : [];
     const rows = Array.isArray(node?.rows) ? node.rows.filter((row) => Array.isArray(row) && row.length) : [];
     if (!headers.length || !rows.length) {
-      return wrapRing(blockSkeleton());
+      return skeletonForBlock("ENTRY_STATUS_TABLE", node, ctx);
     }
     const head = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
     const body = rows
@@ -1028,7 +1088,8 @@
     schemaFromResult,
     textSchema,
     isStructuredResult,
-    repairPartialJson
+    repairPartialJson,
+    blockSkeletonHtml: blockSkeleton
   };
   (window.__knGenUIPending || []).forEach((entry) => register(entry[0], entry[1]));
   window.__knGenUIPending = [];

@@ -1163,8 +1163,7 @@
       window.__knGenUIPending = window.__knGenUIPending || [];
       window.__knGenUIPending.push([name, renderer]);
     };
-    const skeleton = () =>
-      `<div class="skeleton-stack kn-genui__skeleton" aria-hidden="true"><span class="skeleton skeleton--title" style="width:48%"></span><span class="skeleton skeleton--row"></span><span class="skeleton skeleton--row"></span></div>`;
+    const skeleton = () => window.KNGenUI?.blockSkeletonHtml?.("CARD") || `<div class="skeleton-stack kn-genui__skeleton" aria-hidden="true"><span class="skeleton skeleton--title" style="width:48%" aria-hidden="true"></span><span class="skeleton skeleton--row" aria-hidden="true"></span><span class="skeleton skeleton--row" aria-hidden="true"></span></div>`;
     pending("KN_DRAFT", (node) => {
       const draft = node?.draft;
       if (!draft || (draft.type == null && !draft.name && !draft.title)) {

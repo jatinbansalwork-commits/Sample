@@ -32,8 +32,8 @@
     { key: "dashboard", icon: "dashboard", label: "Personal dashboard", query: "Show my personal dashboard", rank: 88 },
     { key: "statements", icon: "statements", label: "Today's statements", query: "Today's Statements", rank: 84 },
     { key: "hts", icon: "queue", label: "HTS classification", query: "Classify this product", rank: 72 },
-    { key: "catair", icon: "corrections", label: "CATAIR code 398", query: "CATAIR code 398", rank: 70 },
-    { key: "shipments", icon: "shipments", label: "Recent shipments", query: "Recent shipments in operations", rank: 66 },
+    { key: "catair", icon: "corrections", label: "CATAIR code 398", query: "CATAIR code 398", kind: "query", rank: 70 },
+    { key: "shipments", icon: "shipments", label: "Shipments in operations", query: "Recent shipments in operations", rank: 66 },
     { key: "corrections", icon: "corrections", label: "Post summary corrections", query: "Post Summary Corrections", rank: 62 },
     { key: "isf", icon: "isf", label: "ISF dashboard", query: "ISF Dashboard", rank: 58 }
   ]);
@@ -58,6 +58,7 @@
     ],
     "partially-filled": [
       { label: "Validate entry", query: "Run pre-submit validation on this entry", rank: 100, icon: "validate" },
+      { label: "HTS classification", query: "Classify this product", rank: 96, icon: "queue" },
       { label: "What's still empty?", query: "Which required fields are still empty on this entry?", rank: 94, icon: "validate" },
       { label: "Review agent drafts", query: "Show fields pending my review", rank: 88, icon: "corrections" },
       { label: "Estimate duty", query: "Estimate total duty on this entry", rank: 76, icon: "statements" }
@@ -132,7 +133,17 @@
     const ariaLabel = options.ariaLabel || "Suggested next actions";
     const modifier = options.modifier ? ` kn-next-actions--${options.modifier}` : "";
     const align = options.align ? ` kn-next-actions--${options.align}` : "";
-    return `<div class="kn-next-actions${modifier}${align}" role="group" aria-label="${escapeHtml(ariaLabel)}">${sorted.map(renderChip).join("")}</div>`;
+    const maxVisible = Number(options.maxVisible);
+    const expanded = Boolean(options.expanded);
+    const hasMore = Number.isFinite(maxVisible) && maxVisible > 0 && sorted.length > maxVisible && !expanded;
+    const visible = hasMore ? sorted.slice(0, maxVisible) : sorted;
+    const moreChip = hasMore
+      ? `<button type="button" class="kn-next-actions__chip kn-next-actions__chip--more type-ui-sm" data-kn-next-action="expand-home" aria-expanded="false" aria-label="Show more suggested prompts">
+      <span class="kn-next-actions__label">More prompts</span>
+    </button>`
+      : "";
+    const expandedClass = expanded ? " kn-next-actions--expanded" : "";
+    return `<div class="kn-next-actions${modifier}${align}${expandedClass}" role="group" aria-label="${escapeHtml(ariaLabel)}">${visible.map(renderChip).join("")}${moreChip}</div>`;
   }
 
   function homeActions() {
@@ -145,7 +156,7 @@
       label: item.label,
       query: item.query,
       icon: item.icon,
-      kind: "prompt",
+      kind: item.kind || "prompt",
       rank: item.rank,
       disabled: item.unavailable === true
     }));
@@ -261,7 +272,7 @@
     event.preventDefault();
 
     const kind = chip.getAttribute("data-kn-next-action") || "prompt";
-    if (kind === "prompt") {
+    if (kind === "prompt" || kind === "query") {
       const query = chip.getAttribute("data-kn-next-query") || chip.textContent.trim();
       handlers.onPrompt?.(query);
       return true;
@@ -280,6 +291,10 @@
     }
     if (kind === "resubmit") {
       handlers.onResubmit?.();
+      return true;
+    }
+    if (kind === "expand-home") {
+      handlers.onExpandHome?.();
       return true;
     }
     return false;

@@ -18,9 +18,11 @@ That doc holds the **vision**, **personas** (Jane Cooper, David Chen, Maria Rodr
 - Component patterns: `components.css`, `docs/components.md`.
 - Full design notes: `DESIGN.md`.
 
-## Klear360 skills (Cursor)
+## Skills (Cursor)
 
-Six skills in `.cursor/skills/` — load the relevant skill before UI/token/motion/AI work; finish with **klear360-audit**:
+Skills live in `.cursor/skills/` at repo root (shared with this sample app). Full index: [`docs/klearnow-skills.md`](../../docs/klearnow-skills.md).
+
+### Klear360 (design system)
 
 | Skill | Scope |
 | --- | --- |
@@ -31,7 +33,20 @@ Six skills in `.cursor/skills/` — load the relevant skill before UI/token/moti
 | `klear360-motion` | Motion tokens and animation primitives |
 | `klear360-audit` | Post-change audit gate (mandatory) |
 
-MCP: `.mcp.json` → `klear360-mcp` (local Klear360 package). UI guidelines: `.agents/skills/ui-code-guidelines/`.
+### Klearnow (product + agent)
+
+| Skill | Scope |
+| --- | --- |
+| `klearnow-conversational-ux` | Agent thread, GenUI, follow-ups |
+| `klearnow-interaction-patterns` | Forms, search, state machines |
+| `klearnow-visual-critique` | Pre-ship screen review |
+| `klearnow-ux-writing` | Assistant and UI copy |
+| `klearnow-design-rationale` | Locked decision documentation |
+| `klearnow-user-research` | Personas, journeys, usability |
+| `klearnow-handoff` | Developer handoff + QA |
+| `klearnow-agent-design` | Agent guardrails → `ai-design-skills/` |
+
+MCP: `.mcp.json` → `klear360-mcp`. UI guidelines: `.agents/skills/ui-code-guidelines/`.
 
 ## Klear AI icon (single source of truth)
 
@@ -48,6 +63,14 @@ MCP: `.mcp.json` → `klear360-mcp` (local Klear360 package). UI guidelines: `.a
 **Do not:** add `✦`, duplicate inline ray paths, or new AI icon variants without updating this contract.
 
 **Exception:** `iconFieldAiFinal()` checkmark-in-circle is a *status* icon (accepted AI value), not the brand mark — keep separate.
+
+## Sample app sync
+
+When editing canonical behavior in the repo root, mirror changes here:
+
+- `tokens.css`, `components.css`, `styles.css`
+- `agentic-*.js`, `genui.js`, `script.js`
+- `docs/klear-agent-product.md`
 
 ## Intent
 

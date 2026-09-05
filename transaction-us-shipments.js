@@ -135,7 +135,7 @@
 
   function renderGroupEmptyTable() {
     const ux = window.KNAdminUX;
-    return `<div class="vis-table-wrap role-table-card kn-table-surface tmship-group-table-card">
+    return `<div class="vis-table-wrap role-table-card tmship-group-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ actionCount: 0, extra: "tmship-group-table" })}" aria-label="US Shipments group view">
           <thead>
@@ -176,7 +176,7 @@
   function renderGroupModifyTable() {
     const ux = window.KNAdminUX;
     const f = state.group.form;
-    return `<div class="vis-table-wrap role-table-card kn-table-surface tmship-group-table-card tmship-group-table-card--modify">
+    return `<div class="vis-table-wrap role-table-card tmship-group-table-card tmship-group-table-card--modify">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ actionCount: 0, extra: "tmship-group-table" })}" aria-label="US Shipments group criteria">
           <thead>
@@ -310,7 +310,7 @@
     const body = ux.tmTableEmptyRow({ colspan: TXN_COL_COUNT, mode: "inline" });
 
     return `${renderViewToolbar()}
-    <div class="vis-table-wrap role-table-card kn-table-surface tmship-txn-table-card">
+    <div class="vis-table-wrap role-table-card tmship-txn-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 1, extra: "tmship-txn-table" })}" aria-label="US Shipments transactions">
           <thead>

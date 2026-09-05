@@ -742,7 +742,7 @@
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 5, extra: "entry-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 22, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 5, extra: "entry-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 22, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -794,7 +794,7 @@
       ],
       results: `Showing ${pageRows.length ? start + 1 : 0} to ${start + pageRows.length} of ${rows.length} records`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface entry-table-card">
+    <div class="vis-table-wrap role-table-card entry-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 5, extra: "entry-table" })}" aria-label="US Entry transactions">
           <thead>
@@ -857,7 +857,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card kn-table-surface" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -896,7 +896,7 @@
       ],
       results: `Showing ${pageRows.length ? start + 1 : 0} to ${start + pageRows.length} of ${rows.length} records`
     })}
-    <div class="vis-table-wrap role-table-card kn-table-surface">
+    <div class="vis-table-wrap role-table-card">
       <div class="vis-table-scroll">
         <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "" })}" aria-label="US Entry shipments">
           <thead>
@@ -955,6 +955,9 @@
       window.KNEntryFiling.consumePendingUpload?.(row, filingHelpers());
       window.KNEntryFiling.syncQueueFromHash?.(row, filingHelpers());
       window.KNEntryFiling.syncStatementFromHash?.(row, filingHelpers());
+      window.KNEntryFiling.syncDocsFromHash?.(row, filingHelpers());
+      window.KNEntryFiling.syncPscFromHash?.(row, filingHelpers());
+      window.KNEntryFiling.syncCatairResolveFromHash?.(row, filingHelpers());
       return;
     }
     const filterFocus = window.KNAdminUX.captureColFilterFocus(root);

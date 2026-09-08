@@ -385,8 +385,61 @@
     closeTitleMenu();
   }
 
-  function openChatHistoryPanel() {
-    window.KNAgenticNav?.openChatHistory?.();
+  // --- Chat-history panel ------------------------------------------------
+  // Page-level content owned by this page (#agentic-broker-page) — a
+  // permanently-visible column, never toggled and never touched by the
+  // side-nav rail's expand/collapse state (see script.js's
+  // isL1Collapsed/openL1Hover), which this panel is intentionally not wired
+  // into.
+
+  function historyPanelEls() {
+    return {
+      panel: document.getElementById("agentic-history-panel"),
+      search: document.querySelector("[data-agentic-chat-search]"),
+      clearBtn: document.querySelector("[data-agentic-chat-clear]")
+    };
+  }
+
+  function openChatHistoryPanel({ focusSearch = true } = {}) {
+    if (!focusSearch) {
+      return;
+    }
+    historyPanelEls().search?.focus({ preventScroll: true });
+  }
+
+  function filterChatList(rawQuery) {
+    const query = rawQuery.trim();
+    const { panel, clearBtn } = historyPanelEls();
+    if (!panel) {
+      return;
+    }
+    const matchIds = window.KNShellSearchIndex?.chatIdsMatching?.(query);
+    let visibleTotal = 0;
+    panel.querySelectorAll("[data-chat-group]").forEach((group) => {
+      let visibleInGroup = 0;
+      group.querySelectorAll(".side-nav-chat-row").forEach((row) => {
+        const chatId = row.getAttribute("data-chat-id") || "";
+        const label = row.querySelector(".side-nav-chat-item")?.textContent || "";
+        const matches = matchIds ? matchIds.has(chatId) : !query || label.toLowerCase().includes(query.toLowerCase());
+        row.hidden = !matches;
+        if (matches) {
+          visibleInGroup += 1;
+        }
+      });
+      group.hidden = visibleInGroup === 0;
+      visibleTotal += visibleInGroup;
+    });
+    const empty = panel.querySelector("[data-chat-empty]");
+    if (empty) {
+      empty.hidden = visibleTotal !== 0;
+    }
+    if (clearBtn) {
+      clearBtn.hidden = query.length === 0;
+    }
+  }
+
+  function refilterChatHistory() {
+    filterChatList(historyPanelEls().search?.value || "");
   }
 
   function activeThreadRecord() {
@@ -524,7 +577,7 @@
         )
         .join("");
     window.KNShellSearchIndex?.rebuild?.();
-    window.KNAgenticNav?.refilterChatHistory?.();
+    refilterChatHistory();
     if (activeThreadId) {
       highlightSidebarChat(activeThreadId);
     }
@@ -1070,7 +1123,7 @@
     return `<div class="agentic-thread-msg agentic-thread-msg--assistant">
       <article class="ai-msg ai-msg--assistant kn-chat-msg kn-chat-msg--other${loadingClass}" data-kn-component="chat-message"${idAttr}>
         <div class="kn-chat-msg__row ai-msg__row">
-          <span class="kn-chat-msg__leading ai-msg__leading agentic-thread-msg__avatar${leadingClass}" aria-hidden="true"><svg class="klear-assistant-mark" viewBox="0 0 24 24" width="14" height="14" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg></span>
+          <span class="kn-chat-msg__leading ai-msg__leading agentic-thread-msg__avatar${leadingClass}" aria-hidden="true"><svg class="klear-assistant-mark" viewBox="0 0 24 24" width="14" height="14" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg></span>
           <div class="ai-msg__stack">${traces}<div class="ai-msg__body type-body-md kn-chat-msg__bubble">${innerHtml}</div><div class="ai-msg__footer kn-chat-msg__actions">${footerHtml || ""}</div></div>
         </div>
       </article>
@@ -1272,8 +1325,8 @@
   }
 
   function reasoningTracesHtml(result) {
-    return window.KNAssistant?.thinkingPanel
-      ? window.KNAssistant.thinkingPanel(result?.thinking, false, { status: "complete" })
+    return window.KlearAgent?.thinkingPanel
+      ? window.KlearAgent.thinkingPanel(result?.thinking, false, { status: "complete" })
       : "";
   }
 
@@ -1332,7 +1385,7 @@
     scrollThreadMessages();
     if (reduceMotion) {
       const panel = stack.querySelector(".ai-msg__thinking-panel");
-      const completeHtml = window.KNAssistant?.thinkingPanel?.(items, true, { status: "complete" }) || "";
+      const completeHtml = window.KlearAgent?.thinkingPanel?.(items, true, { status: "complete" }) || "";
       if (panel && completeHtml) {
         panel.outerHTML = completeHtml;
       }
@@ -1353,7 +1406,7 @@
     }
     await delay(stepDelay);
     const panel = stack.querySelector(".ai-msg__thinking-panel");
-    const completeHtml = window.KNAssistant?.thinkingPanel?.(items, true, { status: "complete" }) || "";
+    const completeHtml = window.KlearAgent?.thinkingPanel?.(items, true, { status: "complete" }) || "";
     if (panel && completeHtml) {
       panel.outerHTML = completeHtml;
     }
@@ -1365,7 +1418,7 @@
     if (schema?.components?.length) {
       return `<div class="kn-genui" data-kn-genui></div>`;
     }
-    const renderText = (text) => (window.KNAssistant?.renderText ? window.KNAssistant.renderText(text, context) : `<p>${escapeHtml(text)}</p>`);
+    const renderText = (text) => (window.KlearAgent?.renderText ? window.KlearAgent.renderText(text, context) : `<p>${escapeHtml(text)}</p>`);
     return `${renderText(result?.text || "I could not process that request right now. Please try again.")}`;
   }
 
@@ -1619,7 +1672,7 @@
     pendingThinkingId = thinkingId;
     lastStreamSchema = null;
     const reduceMotion = prefersReducedMotion();
-    const loadingTraces = window.KNAssistant?.thinkingPanel?.(THINKING_STEPS, true, { status: "loading" }) || "";
+    const loadingTraces = window.KlearAgent?.thinkingPanel?.(THINKING_STEPS, true, { status: "loading" }) || "";
     appendMessages(
       assistantMessageHtml(reduceMotion ? thinkingDotsHtml() : rollingLoadingTextHtml(), thinkingId, "", {
         loading: true,
@@ -1635,7 +1688,11 @@
       return;
     }
     try {
-      const result = window.KNAssistant?.answer ? window.KNAssistant.answer(prompt) : null;
+      /* KlearAgent.answer now resolves through whatever responder is
+         registered (script.js KlearAgent.setResponder) before falling
+         back to the local knowledge base — always a Promise now, so this
+         has to await it same as everywhere else that calls it. */
+      const result = window.KlearAgent?.answer ? await window.KlearAgent.answer(prompt) : null;
       const context = { kind: "agentic-broker" };
       const schema = structuredSchema(result);
       lastStreamSchema = schema;
@@ -1762,10 +1819,10 @@
     showThread(displayTitle, { showHeader: true });
 
     const schema =
-      window.KNAssistCore?.contextConnectionSchema?.(ctx, { expanded: true }) ||
+      window.KlearAgentCore?.contextConnectionSchema?.(ctx, { expanded: true }) ||
       window.KNGenUI?.textSchema?.(
         "Your side-panel conversation continues here with more room.",
-        window.KNAssistCore?.lookingAtLine?.(ctx) || displayTitle
+        window.KlearAgentCore?.lookingAtLine?.(ctx) || displayTitle
       ) ||
       null;
     const msgId = `ctx-${Date.now()}`;
@@ -1815,11 +1872,11 @@
         (msg.text && window.KNGenUI?.schemaFromResult ? window.KNGenUI.schemaFromResult({ mode: "text", text: msg.text }) : null);
       const body = schema?.components?.length
         ? `<div class="kn-genui" data-kn-genui></div>`
-        : window.KNAssistant?.renderText
-          ? window.KNAssistant.renderText(msg.text, { kind: "agentic-broker" })
+        : window.KlearAgent?.renderText
+          ? window.KlearAgent.renderText(msg.text, { kind: "agentic-broker" })
           : `<p>${escapeHtml(msg.text || "")}</p>`;
       const traces = msg.thinking?.length
-        ? window.KNAssistant?.thinkingPanel?.(msg.thinking, false, { status: "complete" }) || ""
+        ? window.KlearAgent?.thinkingPanel?.(msg.thinking, false, { status: "complete" }) || ""
         : "";
       appendMessages(assistantMessageHtml(body, msg.id, messageActionsHtml(), { traces }), { animate: false, scroll: false });
       if (schema?.components?.length) {
@@ -1962,7 +2019,7 @@
     setThreadGenerating(false);
   }
 
-  function playSparkRecipe(state) {
+  async function playSparkRecipe(state) {
     // Preview-only. Default Assist must not honor recipe clicks without ?preview=spark-states.
     if (new URLSearchParams(window.location.search).get("preview") !== "spark-states") {
       return;
@@ -1999,7 +2056,8 @@
         recipeThinkingBubble();
       }
       const node = document.getElementById(pendingThinkingId) || document.getElementById(RECIPE_THINKING_ID) || els().messages?.querySelector(".agentic-thread-msg--assistant .kn-chat-msg");
-      const result = window.KNAssistant?.answer?.("Show my personal dashboard");
+      /* KlearAgent.answer is a Promise now (script.js KlearAgent.setResponder) — see the other call site above for why. */
+      const result = window.KlearAgent?.answer ? await window.KlearAgent.answer("Show my personal dashboard") : null;
       const schema = structuredSchema(result);
       if (node && schema) {
         fillAssistantMessage(node, {
@@ -2081,6 +2139,30 @@
       event.preventDefault();
       closeTitleMenu();
       toggleCompanionPanel();
+      return;
+    }
+    const chatNew = event.target.closest("[data-agentic-chat-new]");
+    if (chatNew) {
+      event.preventDefault();
+      newChat();
+      return;
+    }
+    const chatClear = event.target.closest("[data-agentic-chat-clear]");
+    if (chatClear) {
+      event.preventDefault();
+      const search = historyPanelEls().search;
+      if (search) {
+        search.value = "";
+        filterChatList("");
+        search.focus();
+      }
+      return;
+    }
+    const chatItem = event.target.closest("[data-agentic-chat-item]");
+    if (chatItem) {
+      event.preventDefault();
+      const chatId = chatItem.closest("[data-chat-id]")?.getAttribute("data-chat-id") || "";
+      openHistoryChat(chatId);
       return;
     }
     const companionToggle = event.target.closest("[data-agentic-companion-toggle]");
@@ -2294,6 +2376,11 @@
   }
 
   function handleInput(event) {
+    const chatSearch = event.target.closest("[data-agentic-chat-search]");
+    if (chatSearch) {
+      filterChatList(chatSearch.value);
+      return;
+    }
     const input = event.target.closest("#agentic-thread-input");
     if (!input) {
       return;

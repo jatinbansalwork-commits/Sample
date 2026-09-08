@@ -358,8 +358,8 @@
 
   function insightAiMark(size = 14) {
     return (
-      window.KNAssistCore?.aiMarkHtml?.({ size, suggest: true, className: "ai-msg__context-insight-mark" }) ||
-      `<svg class="klear-assistant-mark ai-suggest-mark ai-msg__context-insight-mark" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-assist-ray"></use></svg>`
+      window.KlearAgentCore?.aiMarkHtml?.({ size, suggest: true, className: "ai-msg__context-insight-mark" }) ||
+      `<svg class="klear-assistant-mark ai-suggest-mark ai-msg__context-insight-mark" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-agent-ray"></use></svg>`
     );
   }
 

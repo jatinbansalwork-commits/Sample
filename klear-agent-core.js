@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  const RENAME_SEEN_KEY = "kn-klear-assist-rename-seen";
+  const RENAME_SEEN_KEY = "kn-klear-agent-rename-seen";
   const SHORTCUT_LABEL = "Klear Agent";
 
   const TXN_ROUTES = [
@@ -1272,7 +1272,7 @@
 
   /**
    * Single source of truth for the Klear AI ray mark.
-   * Symbol: #klear-assist-ray (defined once in index.html / home.html).
+   * Symbol: #klear-agent-ray (defined once in index.html / home.html).
    * Do not use ✦ or other sparkle glyphs — call this helper instead.
    */
   function aiMarkHtml({ size = 14, spin = false, suggest = false, className = "" } = {}) {
@@ -1284,10 +1284,10 @@
     ]
       .filter(Boolean)
       .join(" ");
-    return `<svg class="${classes}" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`;
+    return `<svg class="${classes}" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>`;
   }
 
-  window.KNAssistCore = {
+  window.KlearAgentCore = {
     RENAME_SEEN_KEY,
     SHORTCUT_LABEL,
     hashPath,

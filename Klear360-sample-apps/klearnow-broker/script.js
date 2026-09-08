@@ -4852,6 +4852,10 @@ function hydrateCollapsedSideNavTooltips() {
 syncL1Classes();
 enhanceTreeGroups();
 hydrateCollapsedSideNavTooltips();
+window.addEventListener("kn-navigation-synced", () => {
+  enhanceTreeGroups();
+  hydrateCollapsedSideNavTooltips();
+});
 window.setRouteHash = setRouteHash;
 window.KNPersona?.bootstrap?.();
 

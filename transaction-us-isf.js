@@ -1011,7 +1011,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading ISF filings." })}
-      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "isf-table" })}" aria-label="Loading US ISF transactions"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Transaction ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 13, rows: 8 })}</tbody></table></div></div>`;
+      ${ux.tableSkeletonShell({ tableClass: ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "isf-table" }), cols: 13, rows: 8, ariaLabel: "Loading US ISF transactions", cardClass: "isf-table-card" })}`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -1129,7 +1129,7 @@
     const ux = window.KNAdminUX;
     if (state.booting) {
       return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading ISF shipments." })}
-      <div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" })}" aria-label="Loading US ISF shipments"><thead><tr class="vis-table__labels"><th scope="col">Actions</th><th scope="col">Shipment ID</th><th scope="col">Company Name</th><th scope="col">…</th></tr></thead><tbody>${ux.tableSkeletonRows({ cols: 11, rows: 8 })}</tbody></table></div></div>`;
+      ${ux.tableSkeletonShell({ tableClass: ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "isf-table isf-table--ship" }), cols: 11, rows: 8, ariaLabel: "Loading US ISF shipments", cardClass: "isf-table-card" })}`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -1378,8 +1378,8 @@
     })();
     root.innerHTML = `<div class="isf-toolbar tm-toolbar vis-toolbar">
       <div class="kh-tabs" role="tablist" aria-label="ISF list view">
-        <button class="btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-isf-view="shipment">Shipment</button>
-        <button class="btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-isf-view="transaction">Transaction</button>
+        <button class="kn-btn btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-isf-view="shipment">Shipment</button>
+        <button class="kn-btn btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-isf-view="transaction">Transaction</button>
       </div>
       <div class="isf-toolbar__meta tm-toolbar__meta">
         <span class="type-caption-sm isf-updated tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span>

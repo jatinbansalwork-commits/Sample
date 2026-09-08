@@ -113,7 +113,7 @@
   }
 
   function onEntryFilingRoute() {
-    return /^#transaction-us-entry\/filing\/[^/]+/.test(window.KNAssistCore?.hashPath?.() || location.hash);
+    return /^#transaction-us-entry\/filing\/[^/]+/.test(window.KlearAgentCore?.hashPath?.() || location.hash);
   }
 
   function actionRecords() {
@@ -200,7 +200,7 @@
         id: "action:klear-agent",
         kind: "action",
         label: "Open Klear Agent",
-        subtitle: window.KNAssistCore?.shortcutGlyph?.() || "⌘J",
+        subtitle: window.KlearAgentCore?.shortcutGlyph?.() || "⌘J",
         score: 310,
         href: "#agentic-broker"
       },

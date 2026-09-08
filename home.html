@@ -13,8 +13,13 @@
         const bp = width >= 1200 ? "xl" : width >= 1024 ? "l" : width >= 768 ? "m" : width >= 480 ? "s" : width >= 320 ? "xs" : "base";
         root.dataset.matchedBreakpoint = bp;
         root.dataset.matchedDeviceType = bp === "base" || bp === "xs" || bp === "s" ? "mobile" : "desktop";
-        var l1OnlyRoutes = { dashboard: 1, "notification-management": 1 };
-        if ((bp === "l" || bp === "xl") && !l1OnlyRoutes[route]) {
+        let l1Pinned = false;
+        try {
+          l1Pinned = localStorage.getItem("kn-sidenav-l1-pinned") === "1";
+        } catch (err) {
+          l1Pinned = false;
+        }
+        if ((bp === "l" || bp === "xl") && !l1Pinned) {
           root.dataset.knL1 = "collapsed";
         }
       })();
@@ -29,8 +34,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./tokens.css?v=77" />
-    <link rel="stylesheet" href="./components.css?v=93" />
-    <link rel="stylesheet" href="./styles.css?v=566" />
+    <link rel="stylesheet" href="./components.css?v=96" />
+    <link rel="stylesheet" href="./styles.css?v=588" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -42,7 +47,7 @@
     <div class="app-shell">
       <svg class="ai-assistant-tint-defs" aria-hidden="true" focusable="false" width="0" height="0">
         <defs>
-          <symbol id="klear-assist-ray" viewBox="0 0 24 24">
+          <symbol id="klear-agent-ray" viewBox="0 0 24 24">
             <path fill="currentColor" d="M3 3H7.5H9.74999L12 12L14.25 3H16.5H21V7.5V9.75L12 12L21 14.25V16.5V21H16.5H14.25L12 12L9.74999 21H7.5H3V16.5V14.25L12 12L3 9.75V7.5V3Z" />
           </symbol>
           <filter id="ai-accent-tint" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
@@ -61,7 +66,7 @@
           <p class="top-nav-mobile-title type-heading-h6" id="top-nav-mobile-title">Dashboard</p>
           <button class="ai-assistant-trigger ai-assistant-trigger--mobile type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger-mobile" aria-label="Klear Agent" aria-controls="ai-assistant-panel" aria-expanded="false" hidden>
             <span class="ai-assistant-trigger__icon" aria-hidden="true">
-              <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+              <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>
             </span>
             <span class="ai-assistant-trigger__label">Klear Agent</span>
           </button>
@@ -80,7 +85,7 @@
           <div class="top-nav-actions">
             <button class="ai-assistant-trigger type-ui-sm type-weight-semibold" type="button" id="ai-assistant-trigger" aria-label="Klear Agent" aria-controls="ai-assistant-panel" aria-expanded="false" hidden>
               <span class="ai-assistant-trigger__icon" aria-hidden="true">
-                <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+                <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>
               </span>
               <span class="ai-assistant-trigger__label">Klear Agent</span>
             </button>
@@ -124,7 +129,7 @@
           <nav class="side-nav-body sidebar-nav" aria-label="Sections">
             <ul class="side-nav-list"> <!-- kn-sidenav- Canonical-v1 -->
               <li class="l1-item-wrapper" data-nav-key="dashboard">
-                <a class="side-nav-link" href="#dashboard" data-level="1" aria-current="page">
+                <a class="side-nav-link" href="#dashboard" data-level="1" aria-label="Dashboard" aria-current="page">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
                   </span>
@@ -132,7 +137,7 @@
                 </a>
               </li>
               <li class="l1-item-wrapper" data-nav-key="administration">
-                <a class="side-nav-link" href="#kn-role-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-administration">
+                <a class="side-nav-link" href="#kn-role-management" data-level="1" aria-label="Administration" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-administration">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.25"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17.5" cy="8.5" r="2.25"/><path d="M17.5 13.5a3.6 3.6 0 0 1 3 1.7"/></svg>
                   </span>
@@ -160,7 +165,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="entity">
-                <a class="side-nav-link" href="#kn-customers" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-entity">
+                <a class="side-nav-link" href="#kn-customers" data-level="1" aria-label="Entity Management" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-entity">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="5.5" rx="1.25"/><path d="M12 8v3.5M7 11.5h10"/><rect x="2.5" y="16" width="7" height="5.5" rx="1.25"/><rect x="14.5" y="16" width="7" height="5.5" rx="1.25"/><path d="M6 16v-4.5M18 16v-4.5"/></svg>
                   </span>
@@ -183,7 +188,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="master-data">
-                <a class="side-nav-link" href="#notification-table" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-master-data">
+                <a class="side-nav-link" href="#notification-table" data-level="1" aria-label="Master Data Management" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-master-data">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v5c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 11v5c0 1.66 3.58 3 8 3s8-1.34 8-3v-5"/></svg>
                   </span>
@@ -201,7 +206,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="finance">
-                <a class="side-nav-link" href="#kn-credits-management" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-finance">
+                <a class="side-nav-link" href="#kn-credits-management" data-level="1" aria-label="Finance Management" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-finance">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/><path d="M6.5 15h4"/></svg>
                   </span>
@@ -224,7 +229,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="billing">
-                <a class="side-nav-link" href="#billing-ar-invoices" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-billing">
+                <a class="side-nav-link" href="#billing-ar-invoices" data-level="1" aria-label="Billing Management" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-billing">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.25"/><path d="M3 10h18"/></svg>
                   </span>
@@ -321,7 +326,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="klearhub">
-                <a class="side-nav-link" href="#klearhub-overview" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-klearhub">
+                <a class="side-nav-link" href="#klearhub-overview" data-level="1" aria-label="Klearhub" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-klearhub">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-7h6v7"/><path d="M4 20h16"/></svg>
                   </span>
@@ -362,7 +367,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="transaction">
-                <a class="side-nav-link" href="#transaction-gb-exports" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-transaction">
+                <a class="side-nav-link" href="#transaction-gb-exports" data-level="1" aria-label="Transaction Manager" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-transaction">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7"/></svg>
                   </span>
@@ -515,7 +520,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="drayage">
-                <a class="side-nav-link" href="#drayage" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-drayage">
+                <a class="side-nav-link" href="#drayage" data-level="1" aria-label="Drayage" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-drayage">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5V8.75A1.75 1.75 0 0 1 4.75 7H14v9.5"/><path d="M14 10h3.2L20 13.2V16.5h-6"/><circle cx="7" cy="17.5" r="1.75"/><circle cx="17" cy="17.5" r="1.75"/></svg>
                   </span>
@@ -533,7 +538,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="analytics">
-                <a class="side-nav-link" href="#analytics-klearhub-dashboard" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-analytics">
+                <a class="side-nav-link" href="#analytics-klearhub-dashboard" data-level="1" aria-label="Analytics" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-analytics">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 14l4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg>
                   </span>
@@ -566,7 +571,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="payment">
-                <a class="side-nav-link" href="#payment-us-statements" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-payment">
+                <a class="side-nav-link" href="#payment-us-statements" data-level="1" aria-label="Payment" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-payment">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.25"/><path d="M3 10h18"/></svg>
                   </span>
@@ -609,7 +614,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="einvoices">
-                <a class="side-nav-link" href="#e-invoices" data-level="1" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-einvoices">
+                <a class="side-nav-link" href="#e-invoices" data-level="1" aria-label="E-Invoices &amp; Documents" data-l2trigger="true" aria-expanded="false" aria-controls="sidenav-level-einvoices">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8.5L20 8v12.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M15.5 3.5V8H20"/><path d="M9 12h6M9 15.5h4"/></svg>
                   </span>
@@ -627,7 +632,7 @@
                 </ul>
               </li>
               <li class="l1-item-wrapper" data-nav-key="notification-mgmt">
-                <a class="side-nav-link" href="#notification-management" data-level="1">
+                <a class="side-nav-link" href="#notification-management" data-level="1" aria-label="Notification Management">
                   <span class="side-nav-link__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 20a2 2 0 0 1-3.46 0"/></svg>
                   </span>
@@ -637,13 +642,17 @@
               </li>
             </ul>
           </nav>
+          <div class="side-nav-l1__footer">
+            <button type="button" class="side-nav-link side-nav-pin-toggle" id="side-nav-pin-toggle" aria-pressed="false" aria-label="Keep navigation open">
+              <span class="side-nav-link__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              </span>
+              <span class="side-nav-link__title type-ui-md hide-when-collapsed">Keep open</span>
+            </button>
           </div>
-          <div class="side-nav-l2" id="side-nav-l2" hidden>
-            <div class="side-nav-l2__header">
-              <button class="side-nav-l2__back type-ui-sm" type="button" aria-label="Back to main menu">Back</button>
-              <p class="side-nav-l2__title type-body-lg type-weight-semibold">KlearHub</p>
-            </div>
           </div>
+          <div class="side-nav-flyout" id="side-nav-flyout" hidden></div>
+          <div class="side-nav-flyout" id="side-nav-flyout-l3" hidden></div>
         </aside>
 
         <main class="content" id="kn-side-nav-skip">
@@ -2018,7 +2027,7 @@
             <header class="ai-assistant-panel__header">
               <div class="ai-assistant-panel__title-wrap">
                 <span class="ai-assistant-mark" aria-hidden="true">
-                  <svg class="ai-assistant-mark__img klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="28" height="28" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+                  <svg class="ai-assistant-mark__img klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="28" height="28" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>
                 </span>
                 <div class="ai-assistant-panel__heading">
                   <h2 class="type-heading-h6 type-weight-semibold" id="ai-assistant-title">Klear Agent</h2>
@@ -2057,7 +2066,7 @@
             <div class="visually-hidden" id="ai-assistant-live" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="ai-assistant-composer">
               <div class="ai-assistant-ref" id="ai-assistant-ref" hidden>
-                <span class="ai-assistant-ref__spark" aria-hidden="true"><svg class="klear-assistant-mark ai-suggest-mark" viewBox="0 0 24 24" width="14" height="14" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg></span>
+                <span class="ai-assistant-ref__spark" aria-hidden="true"><svg class="klear-assistant-mark ai-suggest-mark" viewBox="0 0 24 24" width="14" height="14" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg></span>
                 <p class="ai-assistant-ref__text type-caption-sm" id="ai-assistant-ref-text"></p>
                 <button class="ai-assistant-ref__dismiss icon-btn" type="button" id="ai-assistant-ref-dismiss" aria-label="Hide page reference" title="Hide page reference">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
@@ -2211,16 +2220,16 @@
     <script src="./map-ux.js?v=6"></script>
     <script src="./ais-live.js?v=5"></script>
     <script src="./page-reload-loader.js?v=2"></script>
-    <script src="./klear-assist-core.js?v=14"></script>
+    <script src="./klear-agent-core.js?v=15"></script>
     <script src="./visibility.js?v=43"></script>
     <script src="./shipment-detail.js?v=29"></script>
-    <script src="./admin-ux.js?v=109"></script>
-    <script src="./ai-suggest.js?v=10"></script>
-    <script src="./role-management.js?v=77"></script>
+    <script src="./admin-ux.js?v=110"></script>
+    <script src="./ai-suggest.js?v=11"></script>
+    <script src="./role-management.js?v=78"></script>
     <script src="./user-management.js?v=47"></script>
-    <script src="./default-role-management.js?v=79"></script>
+    <script src="./default-role-management.js?v=80"></script>
     <script src="./contract-management.js?v=1"></script>
-    <script src="./transaction-us-isf-detail.js?v=35"></script>
+    <script src="./transaction-us-isf-detail.js?v=36"></script>
     <script src="./transaction-us-isf-doc-viewer.js?v=33"></script>
     <script src="./transaction-us-isf.js?v=28"></script>
     <script src="./transaction-us-in-bond-detail.js?v=4"></script>
@@ -2228,7 +2237,7 @@
     <script src="./transaction-us-in-bond.js?v=14"></script>
     <script src="./entry-form-state.js?v=1"></script>
     <script src="./payment-us-statements.js?v=3"></script>
-    <script src="./transaction-us-entry-filing.js?v=24"></script>
+    <script src="./transaction-us-entry-filing.js?v=25"></script>
     <script src="./transaction-us-entry.js?v=16"></script>
     <script src="./transaction-us-export.js?v=1"></script>
     <script src="./transaction-us-ftz.js?v=4"></script>
@@ -2239,7 +2248,7 @@
     <script src="./genui.js?v=19"></script>
     <script src="./agentic-threads.js?v=5"></script>
     <script src="./persona-config.js?v=1"></script>
-    <script src="./session-restore.js?v=1"></script>
-    <script src="./script.js?v=224"></script>
+    <script src="./session-restore.js?v=3"></script>
+    <script src="./script.js?v=250"></script>
   </body>
 </html>

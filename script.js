@@ -448,28 +448,155 @@ const menuToggle = document.querySelector(".menu-toggle");
 const backdrop = document.querySelector(".sidebar-backdrop");
 const sideNav = document.querySelector(".side-nav");
 const sideNavL1 = document.querySelector("#side-nav-l1");
-const sideNavL2 = document.querySelector("#side-nav-l2");
-// Guarded, not just an assumption: on every page that currently loads this
-// script (index.html, home.html), #side-nav-l2 is static markup parsed
-// well before this plain, non-deferred <script> tag, so sideNavL2 is never
-// actually null today. Optional-chained anyway so a future page without
-// that element (or a reordered script tag) degrades to a no-op here
-// instead of throwing and aborting the rest of script.js.
-const sideNavL2Title = sideNavL2?.querySelector(".side-nav-l2__title");
-const sideNavL2Back = sideNavL2?.querySelector(".side-nav-l2__back");
+/* .sidebar has overflow:hidden (it clips the rail's own width-collapse
+   transition) — that clips ANY descendant, including a position:fixed one,
+   to its own box. Relocate the flyout to <body> so it can render beside
+   the rail instead of being clipped inside it; its ID stays the same, so
+   markup/CSS elsewhere don't need to know about the move. */
+const sideNavFlyout = (() => {
+  const el = document.getElementById("side-nav-flyout");
+  if (el && el.parentElement !== document.body) {
+    document.body.appendChild(el);
+  }
+  return el;
+})();
 
-const HOVER_AGAIN_DELAY = 500;
-const L1_EXIT_HOVER_DELAY = 150;
+/* L3 flyout — a second popup, one level deeper than sideNavFlyout above,
+   for what used to be an in-place accordion inside the L2 flyout (see
+   openL3RowFlyout below for why). Same portal-to-<body> reasoning as L2's
+   own. */
+const sideNavFlyoutL3 = (() => {
+  const el = document.getElementById("side-nav-flyout-l3");
+  if (el && el.parentElement !== document.body) {
+    document.body.appendChild(el);
+  }
+  return el;
+})();
+
 const TRANSITION_CLEANUP_DELAY = 300;
+/* Sourced from packages/klear360/src/tokens/global/motion.ts's delay scale
+   (mirrored here as the --kn-motion-delay-* custom properties in
+   tokens.css, since this project has no bundler/TS import pipeline to pull
+   the .ts file in directly) via knMotionDurationMs — not re-hardcoded
+   guesses. L1 itself no longer has a hover-intent delay: it opens on click
+   now (a stable, deliberate trigger, not a timer racing against however
+   long the cursor happens to linger), so there's nothing left to debounce.
+   L2's hover-intent (used once L1 is already open — see
+   scheduleOpenRowFlyout) keeps its own delay, since it's choosing among
+   now-visible rows rather than just noticing the rail. */
+const L2_HOVER_INTENT_DELAY = knMotionDurationMs("--kn-motion-delay-moderate", 280);
+const L2_EXIT_HOVER_DELAY = knMotionDurationMs("--kn-motion-delay-moderate", 280);
+/* L1 peek's own hover-intent delays (see openL1Peek/closeL1Peek below) —
+   same token as L2's above, so a cursor passing over the collapsed rail on
+   its way elsewhere gets the same "was that deliberate?" grace period L2
+   already gives a row, rather than a second hand-tuned number to keep in
+   sync with it. */
+const L1_PEEK_OPEN_DELAY = knMotionDurationMs("--kn-motion-delay-moderate", 280);
+const L1_PEEK_CLOSE_DELAY = knMotionDurationMs("--kn-motion-delay-moderate", 280);
+/* Matches the label's own exit-fade duration (.hide-when-collapsed's
+   .is-l1-closing rule, styles.css) — see beginL1Collapse below for why
+   this needs its own JS-side timer at all. */
+const L1_LABEL_EXIT_DURATION = knMotionDurationMs("--kn-motion-duration-xquick", 160);
 
-let activeL2Trigger = null;
 let isL1Collapsed = document.documentElement.dataset.knL1 === "collapsed";
+/* Name is a holdover from when this was purely hover-driven — it now means
+   "is L1 open" full stop, regardless of what triggered it (click or
+   keyboard focus). Renaming every reference would be a much larger diff
+   for no functional gain, so the name stays; the trigger changed instead. */
 let isL1Hovered = false;
-let isHoverAgainEnabled = true;
 let isTransitioning = false;
-let hoverTimeout;
-let hoverAgainTimeout;
+/* True only once L1's own expand-width transition has actually finished
+   (via transitionend) — NOT the same instant as isL1Hovered, which flips
+   true the moment it opens. L2's hover-intent timer must gate on this, not
+   on isL1Hovered, so the two motions run in sequence (L1 finishes
+   expanding, then L2 gets its own separate hover reveal) instead of
+   overlapping. */
+let isL1ExpandSettled = false;
 let transitionTimeout;
+let labelExitTimeout;
+/* True only during the brief pre-collapse window (beginL1Collapse): the
+   label is being forced to fade out FIRST, before isL1Hovered itself flips
+   false and the rail actually starts shrinking. Deliberately separate from
+   isL1ExpandSettled, which L2 gates on and which must keep waiting for the
+   real width transitionend regardless of how fast the label itself now
+   reveals. */
+let isL1Closing = false;
+
+/* Hover-only preview of the expanded rail as a floating overlay — see the
+   .is-l1-peeking CSS comment (styles.css) and openL1Peek/closeL1Peek below.
+   Deliberately its own flag, never folded into isL1Hovered: the two states
+   drive different CSS (overlay vs. reflow) and must stay mutually
+   exclusive, which is far easier to guarantee as two booleans a shared
+   guard (canPeekL1) can reason about than as extra values on one flag. */
+let isL1Peeking = false;
+let l1PeekOpenTimeout;
+let l1PeekCloseTimeout;
+/* True only during peek's own brief pre-close window (closeL1Peek's
+   non-immediate path) — mirrors isL1Closing's job for the click path
+   (beginL1Collapse): forces the label to fade out FIRST, while the overlay
+   is still showing, so it's never seen snapping away mid-fade. A separate
+   flag from isL1Closing for the same reason isL1Peeking is separate from
+   isL1Hovered — the two closing sequences must stay independently
+   triggerable without either one's timer accidentally racing the other. */
+let isL1PeekClosing = false;
+let l1PeekLabelExitTimeout;
+
+/* User-controlled override of the "always rests icon-only" rule above:
+   pinning keeps L1 permanently expanded (labels always visible) across
+   navigation, reloads, and breakpoint changes, until explicitly unpinned.
+   Persisted so the preference survives a reload — read synchronously here
+   (module-load time) to match the head-script boot in index.html/home.html,
+   which already skips writing data-kn-l1="collapsed" under the same key so
+   the very first paint doesn't flash collapsed-then-expand. */
+const L1_PIN_STORAGE_KEY = "kn-sidenav-l1-pinned";
+function readL1PinPreference() {
+  try {
+    return localStorage.getItem(L1_PIN_STORAGE_KEY) === "1";
+  } catch (err) {
+    return false;
+  }
+}
+function writeL1PinPreference(pinned) {
+  try {
+    if (pinned) {
+      localStorage.setItem(L1_PIN_STORAGE_KEY, "1");
+    } else {
+      localStorage.removeItem(L1_PIN_STORAGE_KEY);
+    }
+  } catch (err) {
+    /* Private browsing / storage disabled — pin still works for this tab,
+       it just won't be remembered next visit. */
+  }
+}
+let isL1Pinned = readL1PinPreference();
+
+// L2 flyout (popup, not docked — see openRowFlyout/closeRowFlyout below).
+let openFlyoutTrigger = null;
+let pendingFlyoutRow = null;
+/* Enter/Space on a parent row (keyboard) requests this row's flyout open
+   the moment L1 finishes expanding — set only when that expand hasn't
+   settled yet at keypress time, consumed once in handleL1ExpandSettled.
+   Distinct from pendingFlyoutRow, which is hover-intent's own timer-backed
+   "about to open" state; this one has no timer of its own; it just waits
+   on L1's settle event, the same way hover already does. */
+let pendingKeyboardFlyoutRow = null;
+let flyoutOpenTimeout;
+let flyoutCloseTimeout;
+
+/* L3 flyout — mirrors the four above, one level deeper (see
+   openL3RowFlyout/closeL3RowFlyout). No pendingKeyboardFlyoutRow
+   equivalent: L3 has no "L1 hasn't settled yet" race to wait out, since it
+   only ever opens once L2 is already fully open. */
+let openL3FlyoutTrigger = null;
+let pendingL3FlyoutRow = null;
+let l3FlyoutOpenTimeout;
+let l3FlyoutCloseTimeout;
+let lastPointerX = 0;
+let lastPointerY = 0;
+document.addEventListener("mousemove", (event) => {
+  lastPointerX = event.clientX;
+  lastPointerY = event.clientY;
+});
 
 function isMediumOrHdDesktop() {
   const matched = document.documentElement.dataset.matchedBreakpoint;
@@ -477,6 +604,23 @@ function isMediumOrHdDesktop() {
     return matched === "l" || matched === "xl";
   }
   return window.matchMedia("(min-width: 1024px)").matches;
+}
+
+/* A touchscreen at a desktop-breakpoint width (large tablet, touch laptop)
+   has no real hover — mouseover/mouseleave never fire, so the rail needs a
+   tap-based fallback for the same peek. */
+function isTouchPrimaryPointer() {
+  return window.matchMedia("(hover: none)").matches;
+}
+
+/* Guards every entry point into L1 peek (scheduleOpenL1Peek and the
+   mouseenter listener below): touch has no real hover (isTouchPrimaryPointer
+   already covers that rail via its own tap-to-open path), pinned/expanded
+   rails have nothing left to preview, and isL1Hovered means the reflowing
+   click-path already won this row — peeking on top of it would just be two
+   states drawing the same rail at once. */
+function canPeekL1() {
+  return isMediumOrHdDesktop() && isL1Collapsed && !isL1Pinned && !isL1Hovered && !isTouchPrimaryPointer();
 }
 
 function setVisibleLevel(visibleLevel) {
@@ -502,19 +646,82 @@ function endL1Transition() {
 function syncL1Classes() {
   const desktop = isMediumOrHdDesktop();
 
+  /* Same "one funnel point" reasoning as the flyout-orphan guard below,
+     applied to peek: rather than remembering to call closeL1Peek() from
+     every path that can invalidate it (pin, resize to mobile, the
+     reflowing click-path taking over), clear it right here whenever its
+     own preconditions (canPeekL1, minus the isTouchPrimaryPointer check —
+     that one only matters for choosing whether to start a peek, not for
+     whether an existing one is still valid) no longer hold. Inlined
+     instead of calling closeL1Peek() itself, which would call back into
+     this function and recurse. */
+  if (isL1Peeking && (!desktop || !isL1Collapsed || isL1Pinned || isL1Hovered)) {
+    isL1Peeking = false;
+    isL1PeekClosing = false;
+    window.clearTimeout(l1PeekOpenTimeout);
+    window.clearTimeout(l1PeekCloseTimeout);
+    window.clearTimeout(l1PeekLabelExitTimeout);
+    l1PeekOpenTimeout = undefined;
+    l1PeekCloseTimeout = undefined;
+    l1PeekLabelExitTimeout = undefined;
+  }
+
   sideNav.classList.toggle("is-l1-collapsed", desktop && isL1Collapsed);
   sideNav.classList.toggle("is-l1-hovered", desktop && isL1Collapsed && isL1Hovered);
+  sideNav.classList.toggle("is-l1-peeking", desktop && isL1Collapsed && isL1Peeking);
+  sideNav.classList.toggle("is-l1-peek-closing", desktop && isL1Collapsed && isL1Peeking && isL1PeekClosing);
+  /* The label shows the instant is-l1-hovered is added (styles.css) — no
+     waiting on the width transition to finish. is-l1-closing is the one
+     exception: beginL1Collapse sets this to force the label hidden again
+     BEFORE isL1Hovered flips false, so it's never visible clipped against
+     the rail snapping back to its collapsed width. */
+  sideNav.classList.toggle("is-l1-closing", desktop && isL1Collapsed && isL1Closing);
   sideNav.classList.toggle("is-mobile-l2-open", !desktop && isL1Collapsed);
-  window.KNTooltips?.syncSideNavCollapsed?.();
 
-  /* Keep data-kn-l1 for first-paint collapsed chrome, but drop it while L1 is
-     hover-expanded — otherwise html[data-kn-l1=collapsed] .hide-when-collapsed
-     in index.html/styles.css wins over .is-l1-hovered and titles stay blank. */
-  if (desktop && isL1Collapsed && !isL1Hovered) {
-    document.documentElement.dataset.knL1 = "collapsed";
-  } else {
-    delete document.documentElement.dataset.knL1;
+  /* Hard invariant, enforced in the one place all of L1's hover state
+     funnels through, rather than something every individual call site that
+     might un-hover L1 has to remember to also do: the L2 flyout can never
+     legitimately outlive is-l1-hovered. It's anchored beside a row that
+     only has room to show it while L1 is hover-expanded — once L1 isn't
+     hovered, that row is back at icon width and the flyout has nothing
+     real to be anchored to. Scattered closeRowFlyout() calls at specific
+     collapse call sites have repeatedly missed some path that un-hovers
+     L1 without also closing an already-open flyout (leaving it visibly
+     orphaned, floating with no connection to any row) — this closes that
+     entire class of gaps at the source instead of chasing each one.
+     isL1Pinned is the one deliberate exception: pinned rows sit at full
+     width without ever setting is-l1-hovered (see applyL1Pinned), so the
+     row a pinned flyout is anchored to is still there and still full width
+     — nothing to be orphaned against. isL1Peeking joins isL1Hovered here
+     for the same reason: a flyout opened while peeking is anchored beside
+     a row that's only full-width because the peek overlay is showing it —
+     same "still there, still full width" case as pinned, just via a
+     different mechanism. */
+  if (desktop && !isL1Pinned && !(isL1Collapsed && (isL1Hovered || isL1Peeking)) && isFlyoutOpen()) {
+    closeRowFlyout();
   }
+
+  /* Dims the rest of the page behind whatever's floating above it — the
+     peek overlay itself, or an open L2/L3 flyout. Checked after the
+     orphan-guard above (not before) so this reflects the flyout's real,
+     final state for this sync rather than a stale one about to be closed.
+     Deliberately not gated on isL1Peeking alone: clicking a row mid-peek
+     promotes L1 into the click-docked, reflowing state (openL1Hover), but
+     its flyout is still exactly as floating as it was a moment ago — losing
+     the scrim right at that handoff read as the page's dimming randomly
+     switching off mid-interaction, not as L1 settling into place. */
+  backdrop.classList.toggle("is-l1-peek-scrim", desktop && (isL1Peeking || isFlyoutOpen()));
+
+  /* data-kn-l1 only ever mattered for the very first paint, before this
+     script had run at all (the blocking <script> in <head> sets it
+     synchronously; index.html/home.html's matching html[data-kn-l1]
+     selectors cover the gap until this function's first call). Once JS is
+     driving .is-l1-collapsed/.is-l1-hovered, those classes are
+     authoritative and this attribute must never come back — re-adding it
+     on every collapse (as this used to do) forced
+     .hide-when-collapsed's display:none the instant hover ended, before
+     its own opacity transition (styles.css) could ever be seen. */
+  delete document.documentElement.dataset.knL1;
 
   if (!desktop) {
     setVisibleLevel(shell.classList.contains("nav-open") ? (isL1Collapsed ? 2 : 1) : 0);
@@ -692,132 +899,763 @@ function getL2TriggerForLevel(level) {
   return id ? sideNav.querySelector(`[data-l2trigger][aria-controls="${id}"]`) : null;
 }
 
-function resolveL2TriggerForLink(link) {
-  if (!link) {
-    return null;
-  }
-  if (link.dataset.l2trigger === "true") {
-    return link;
-  }
-  const levelEl = link.closest('.side-nav-level[data-level="2"]');
-  return levelEl ? getL2TriggerForLevel(levelEl) : null;
-}
-
-function getActiveL2Trigger() {
-  return (
-    activeL2Trigger ||
-    sideNav.querySelector('[data-l2trigger][aria-expanded="true"]') ||
-    sideNav.querySelector('.side-nav-link[data-l2trigger][aria-current="page"]')
-  );
-}
-
-function returnL2ToTrigger() {
-  sideNav.querySelectorAll("[data-l2trigger]").forEach((trigger) => {
-    const level = getL2Level(trigger);
-    const item = trigger.closest("li");
-    if (level && item && level.parentElement !== item) {
-      item.appendChild(level);
-    }
-    if (level) {
-      level.hidden = true;
-    }
-    trigger.setAttribute("aria-expanded", "false");
-  });
-  sideNavL2.hidden = true;
-  activeL2Trigger = null;
-}
-
-function portalL2(trigger, title, { animate = true } = {}) {
-  const level = getL2Level(trigger);
-  if (!trigger || !level) {
+/* Desktop L1 no longer has a persistent "expanded" resting state — rest is
+   always icon-only collapsed (see the head-script data-kn-l1 boot + this
+   file's settleAfterNavigate/openL1Hover/closeL1Hover). expandL1() now only
+   serves the mobile drawer (L2-sub-list → L1-list, Back button, Escape). */
+function expandL1() {
+  if (isMediumOrHdDesktop()) {
     return;
   }
-  sideNav.querySelectorAll("[data-l2trigger]").forEach((item) => {
-    if (item !== trigger) {
-      item.setAttribute("aria-expanded", "false");
-      const otherLevel = getL2Level(item);
-      const otherItem = item.closest("li");
-      if (otherLevel && otherItem && otherLevel.parentElement !== otherItem) {
-        otherItem.appendChild(otherLevel);
-      }
-      if (otherLevel) {
-        otherLevel.hidden = true;
-      }
-    }
-  });
-  sideNavL2Title.textContent = title;
-  sideNavL2.appendChild(level);
-  level.hidden = false;
-  const wasHidden = sideNavL2.hidden;
-  sideNavL2.hidden = false;
-  trigger.setAttribute("aria-expanded", "true");
-  activeL2Trigger = trigger;
-  if (animate && wasHidden && !prefersReducedMotion()) {
-    sideNavL2.classList.add("is-entering");
-    void sideNavL2.offsetWidth;
-    requestAnimationFrame(() => {
-      sideNavL2.classList.remove("is-entering");
-    });
-  } else {
-    sideNavL2.classList.remove("is-entering");
-  }
-}
-
-function collapseL1(title, trigger = getActiveL2Trigger(), { animate = true } = {}) {
-  if (!isMediumOrHdDesktop()) {
-    isL1Collapsed = true;
-    portalL2(trigger, title, { animate });
-    syncL1Classes();
-    return;
-  }
-
-  if (!isL1Collapsed) {
-    isL1Collapsed = true;
-    setVisibleLevel(2);
-  }
-  portalL2(trigger, title, { animate });
+  isL1Collapsed = false;
+  isL1Hovered = false;
+  closeRowFlyout();
   syncL1Classes();
 }
 
-function expandL1() {
-  if (!isMediumOrHdDesktop()) {
-    isL1Collapsed = false;
-    isL1Hovered = false;
-    returnL2ToTrigger();
-    syncL1Classes();
+/* Opens L1 (shows labels) — triggered by a click on any row, or by
+   keyboard focus landing on one (see the click handler and the focusin
+   listener below). Deliberately NOT hover-triggered: a click/focus is a
+   single, stable, one-shot signal, not a timer racing the cursor's next
+   move, which is what made the rail's own open/close so prone to
+   orphaning an already-open L2 flyout underneath it. Widens .side-nav
+   itself (a normal grid item — see styles.css), so the page's main
+   content column reflows in step, same as any ordinary expanding
+   sidebar; no position:fixed or measured rect involved. */
+function openL1Hover() {
+  if (!isMediumOrHdDesktop() || !isL1Collapsed || isL1Hovered) {
     return;
   }
-
-  if (isL1Collapsed) {
-    isL1Collapsed = false;
-    isL1Hovered = false;
-    returnL2ToTrigger();
-    startL1Transition();
-    syncL1Classes();
+  const wasPeeking = isL1Peeking;
+  /* isL1Hovered flips true BEFORE closeL1Peek runs, not after — closeL1Peek's
+     immediate path calls syncL1Classes() itself, and that function's
+     flyout-orphan guard treats "not collapsed-and-(hovered-or-peeking)" as
+     "nothing anchors this flyout anymore, close it". Setting isL1Hovered
+     first means that guard sees isL1Peeking flip false and isL1Hovered
+     already true in the same instant — never a gap where both read false
+     at once. Doing it the other way around (isL1Peeking already false,
+     isL1Hovered not yet true) was exactly that gap: the guard fired,
+     closeRowFlyout() actually ran (re-parenting the flyout's content back,
+     hiding it), and handleL1ExpandSettled's own mouse-position check then
+     only rescheduled it through the normal hover-intent delay — a real,
+     visible close-then-reopen a few hundred ms later, not a same-frame
+     illusion. */
+  isL1Hovered = true;
+  /* A click always wins over an in-progress peek: promote it straight into
+     the real, reflowing open rather than showing both at once. immediate
+     because this is a hand-off, not an abandonment — the label should never
+     fade out only to immediately fade back in under the new state. */
+  closeL1Peek({ immediate: true });
+  /* Peek renders the rail at this exact expanded width already — just via
+     an absolutely-positioned overlay, not .side-nav's own grid-track
+     width, which never actually left its collapsed value the whole time
+     peek was open (that's what kept the page from reflowing). The instant
+     closeL1Peek above drops that overlay positioning, .side-nav-l1 falls
+     back to tracking .side-nav's real (still-collapsed) width — and it's
+     the class toggle in syncL1Classes below (driven by isL1Hovered, set
+     above) that widens .side-nav back out again. Without suppressing the
+     transition for this one swap, that's a visible narrow-then-wide flash
+     on every promotion, despite the rail having looked fully expanded a
+     frame ago. Forcing this one width change through with no transition
+     (then restoring it immediately after, once the instant value has
+     actually been committed via the forced reflow) makes it apply to the
+     already-on-screen value instead. */
+  if (wasPeeking) {
+    sideNav.style.transition = "none";
+  }
+  /* The rail's own expand is only just starting here — isL1ExpandSettled
+     flips true later, from the sideNav transitionend handler, once the
+     width transition this triggers has actually finished. L2's flyout must
+     not so much as start its own intent timer before then (see that
+     handler for the "still hovering a row?" catch-up this used to do
+     immediately, which is what caused L1 and L2 to visibly overlap). */
+  isL1ExpandSettled = false;
+  syncL1Classes();
+  if (wasPeeking) {
+    void sideNav.offsetWidth;
+    sideNav.style.transition = "";
+    /* No transition actually ran (the value never changed, only how it was
+       rendered did) — no transitionend will fire to flip this on its own,
+       so settle immediately, same as the reduced-motion case below. */
+    handleL1ExpandSettled();
+    return;
+  }
+  /* prefers-reduced-motion zeroes every --theme-motion-duration-* token
+     globally (tokens.css), including the one this width transition uses —
+     a 0ms transition never fires transitionend, so the handler below would
+     never run and isL1ExpandSettled would stay stuck false. The expand is
+     already instant for these users, so "finished" is simply "now". */
+  if (prefersReducedMotion()) {
+    handleL1ExpandSettled();
   }
 }
 
-function onLinkActiveChange({ level, isActive, isL2Trigger, isFirstRender, title, trigger }) {
-  if (level !== 1 || !isActive) {
+/* L1's own expand has now genuinely finished (or, under reduced motion,
+   never had a duration to wait out — see openL1Hover) — only from this
+   point can L2 so much as start its hover-intent timer (the label itself
+   no longer waits on this; it fades in instantly on open — see
+   .hide-when-collapsed, styles.css). If a keyboard Enter/Space request
+   came in before the expand settled, honor it now instead of leaving it
+   stranded; otherwise, if the cursor already happens to be resting on a
+   parent row (opened via keyboard focus, then the mouse never moved),
+   give that row its own hover reveal too. */
+function handleL1ExpandSettled() {
+  isL1ExpandSettled = true;
+  syncL1Classes();
+  if (pendingKeyboardFlyoutRow) {
+    const row = pendingKeyboardFlyoutRow;
+    pendingKeyboardFlyoutRow = null;
+    openRowFlyout(row);
+    focusFlyoutItem(getFlyoutFocusableItems(), 0);
     return;
   }
+  const hoveredRow = document
+    .elementFromPoint(lastPointerX, lastPointerY)
+    ?.closest?.('.side-nav-link[data-l2trigger="true"]');
+  if (hoveredRow && sideNavL1.contains(hoveredRow)) {
+    scheduleOpenRowFlyout(hoveredRow);
+  }
+}
 
-  if (isL2Trigger) {
-    collapseL1(title, trigger || getActiveL2Trigger(), { animate: !isFirstRender });
-    if (!isFirstRender) {
-      startL1Transition();
-      isL1Hovered = false;
-      isHoverAgainEnabled = false;
-      syncL1Classes();
-      window.clearTimeout(hoverAgainTimeout);
-      hoverAgainTimeout = window.setTimeout(() => {
-        isHoverAgainEnabled = true;
-      }, HOVER_AGAIN_DELAY);
-    }
+/* The rail's own width-shrink (is-l1-hovered removed) is a hard snap, not
+   an animation — reverting out of the wide grid track resolves in one
+   layout step, no in-between values. So there is no "shrinking" window to
+   hide a fading label behind; the only way to guarantee the label is never
+   visible-clipped inside the already-narrow box is to finish fading it out
+   FIRST (is-l1-closing, styles.css), while the rail is still wide, and only
+   THEN flip isL1Hovered (triggering the snap). This is the non-immediate
+   path closeL1Hover below defers to — closing L1 always plays this fade
+   now (there's no more "grace period in case the cursor comes back", since
+   nothing closes L1 just because a cursor moved away). */
+function beginL1Collapse() {
+  window.clearTimeout(labelExitTimeout);
+  isL1ExpandSettled = false;
+  isL1Closing = true;
+  syncL1Classes();
+  const finishCollapse = () => {
+    isL1Hovered = false;
+    isL1Closing = false;
+    startL1Transition();
+    syncL1Classes();
+  };
+  if (prefersReducedMotion()) {
+    finishCollapse();
     return;
   }
+  labelExitTimeout = window.setTimeout(finishCollapse, L1_LABEL_EXIT_DURATION);
+}
 
-  expandL1();
+/* Closes L1. `immediate` skips the label-fade-first sequencing above for
+   the "something else already took over" cases (Escape, a modal opening,
+   clicking outside the rail entirely) where playing a fade would just be
+   a few extra frames of a rail no one's looking at anymore; the plain path
+   is for the ordinary case (navigating via a leaf row) where the fade is
+   worth the polish. */
+function closeL1Hover({ immediate = false } = {}) {
+  if (!isL1Hovered) {
+    return;
+  }
+  if (immediate) {
+    window.clearTimeout(labelExitTimeout);
+    isL1Hovered = false;
+    isL1ExpandSettled = false;
+    isL1Closing = false;
+    startL1Transition();
+    syncL1Classes();
+    return;
+  }
+  beginL1Collapse();
+}
+
+/* -----------------------------------------------------------------------
+   L1 peek — hover-only preview of the expanded rail as a floating overlay
+   (see the .is-l1-peeking CSS comment, styles.css). Its own open/close
+   pair, deliberately not folded into openL1Hover/closeL1Hover: those drive
+   the reflowing click-path, this drives a non-reflowing overlay, and the
+   two must never run at once (canPeekL1 refuses to start a peek once
+   isL1Hovered is true; openL1Hover ends any in-progress peek before it
+   takes over).
+   ----------------------------------------------------------------------- */
+
+function openL1Peek() {
+  if (!canPeekL1() || isL1Peeking) {
+    return;
+  }
+  isL1Peeking = true;
+  syncL1Classes();
+}
+
+/* Hover-intent delay before the peek opens — same reasoning as L2's own
+   (scheduleOpenRowFlyout below): don't show the overlay just because the
+   cursor passed over the rail on its way elsewhere. */
+function scheduleOpenL1Peek() {
+  if (isL1Peeking || !canPeekL1()) {
+    return;
+  }
+  window.clearTimeout(l1PeekOpenTimeout);
+  l1PeekOpenTimeout = window.setTimeout(() => {
+    l1PeekOpenTimeout = undefined;
+    openL1Peek();
+  }, L1_PEEK_OPEN_DELAY);
+}
+
+function cancelPendingL1PeekOpen() {
+  window.clearTimeout(l1PeekOpenTimeout);
+  l1PeekOpenTimeout = undefined;
+}
+
+/* `immediate` mirrors closeL1Hover's own split, for the same reason: the
+   plain (non-immediate) path fades the label out first — worth the polish
+   when peek is simply being abandoned (the cursor wandered off, Escape,
+   navigating away). `immediate: true` is for the one case that isn't
+   abandonment: openL1Hover promoting an in-progress peek straight into the
+   real, reflowing open. That's the same rail, same visible labels, just a
+   different underlying mechanism taking over — fading out and back in
+   would read as a flicker for something that should look seamless. */
+function closeL1Peek({ immediate = false } = {}) {
+  cancelPendingL1PeekOpen();
+  window.clearTimeout(l1PeekCloseTimeout);
+  l1PeekCloseTimeout = undefined;
+  if (!isL1Peeking) {
+    return;
+  }
+  window.clearTimeout(l1PeekLabelExitTimeout);
+  if (immediate) {
+    isL1Peeking = false;
+    isL1PeekClosing = false;
+    syncL1Classes();
+    return;
+  }
+  isL1PeekClosing = true;
+  syncL1Classes();
+  const finishClose = () => {
+    isL1Peeking = false;
+    isL1PeekClosing = false;
+    syncL1Classes();
+  };
+  if (prefersReducedMotion()) {
+    finishClose();
+    return;
+  }
+  l1PeekLabelExitTimeout = window.setTimeout(finishClose, L1_LABEL_EXIT_DURATION);
+}
+
+function scheduleCloseL1Peek() {
+  if (!isL1Peeking || l1PeekCloseTimeout) {
+    return;
+  }
+  l1PeekCloseTimeout = window.setTimeout(() => {
+    l1PeekCloseTimeout = undefined;
+    closeL1Peek();
+  }, L1_PEEK_CLOSE_DELAY);
+}
+
+function cancelPendingL1PeekClose() {
+  window.clearTimeout(l1PeekCloseTimeout);
+  l1PeekCloseTimeout = undefined;
+}
+
+/* Same "safe zone" idea as isPointInFlyoutSafeZone below, for the same
+   reason: an L2 flyout opened during a peek is portaled to <body>, outside
+   sideNav's own DOM — moving the cursor into it must not read as "left the
+   rail" and close the peek out from under it (exactly the orphaning bug
+   L1's click-path was already changed once to avoid — see openL1Hover). */
+function isPointInL1PeekSafeZone(x, y) {
+  /* sideNavL1, not sideNav: sideNav's own box deliberately never widens
+     during a peek (that's what keeps the page from reflowing — see the
+     .is-l1-peeking CSS comment), so its rect only ever covers the narrow
+     collapsed-rail strip. sideNavL1 is the element peek actually widens
+     (position:absolute, width: var(--kn-layout-sidenav-expanded)), so its
+     rect is the real on-screen footprint in both states — same narrow
+     width at rest (it normally tracks its parent's width:100%), the true
+     wide one while peeking. Using sideNav here left most of the visible
+     label text outside the "safe" area: moving the cursor fast enough to
+     stay off the narrow icon column for the whole traverse (easy to do
+     moving straight up/down) read as having left the rail and closed the
+     peek mid-motion. */
+  const rect = sideNavL1.getBoundingClientRect();
+  if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+    return true;
+  }
+  return isPointInFlyoutSafeZone(x, y);
+}
+
+/* Uniform "click any L1 item" ending — leaf or parent, one function, no
+   per-item branching. Navigation itself already happened (setRouteHash) by
+   the time callers reach this; this only settles the rail/drawer chrome
+   back to its permanent resting state. */
+function settleAfterNavigate() {
+  if (!isMediumOrHdDesktop()) {
+    setNavOpen(false);
+    return;
+  }
+  closeRowFlyout();
+  closeL1Peek();
+  if (isL1Pinned) {
+    syncL1Classes();
+    return;
+  }
+  isL1Collapsed = true;
+  if (isL1Hovered) {
+    beginL1Collapse();
+  }
+  syncL1Classes();
+}
+
+/* Desktop-only: force the icon-only resting state without the click-specific
+   hover-again suppression settleAfterNavigate() adds. Used wherever JS state
+   needs to (re)sync with the always-collapsed rest state rather than react
+   to a click — first load, an unmatched first-load route, and switching
+   back to a desktop breakpoint. Pinned overrides this the same way it
+   overrides settleAfterNavigate — see applyL1Pinned. */
+function settleDesktopRailCollapsed() {
+  if (!isMediumOrHdDesktop()) {
+    return;
+  }
+  closeRowFlyout();
+  if (isL1Pinned) {
+    applyL1Pinned();
+    return;
+  }
+  isL1Collapsed = true;
+  isL1Hovered = false;
+  isL1ExpandSettled = false;
+  isL1Closing = false;
+  syncL1Classes();
+}
+
+/* Pinning replaces the "always icon-only at rest" rule with "always
+   expanded at rest" — rather than forcing is-l1-hovered permanently true,
+   isL1Collapsed itself just stays false, so the rail sits at its ordinary
+   base width (.side-nav's un-collapsed CSS, styles.css) the same way it
+   would for any reason .is-l1-collapsed wasn't applied. isL1Hovered stays
+   false throughout: nothing here is "hovering", so openL1Hover/closeL1Hover
+   both stay no-ops the whole time L1 is pinned (their own guards already
+   check isL1Collapsed / isL1Hovered), and every existing close trigger
+   (Escape, outside click, a modal opening) that funnels through
+   closeL1Hover leaves a pinned rail alone for free, without needing its own
+   isL1Pinned check. isL1ExpandSettled is forced true (not the usual
+   transitionend-driven flip) since there's no expand transition to wait
+   for — the rail was never collapsed in the first place — and L2's hover
+   handler gates on exactly this flag to know it can open. */
+function applyL1Pinned() {
+  isL1Collapsed = false;
+  isL1Hovered = false;
+  isL1ExpandSettled = true;
+  isL1Closing = false;
+  syncL1Classes();
+}
+
+function updatePinToggleUI() {
+  const btn = document.getElementById("side-nav-pin-toggle");
+  if (!btn) {
+    return;
+  }
+  btn.classList.toggle("is-pinned", isL1Pinned);
+  btn.setAttribute("aria-pressed", String(isL1Pinned));
+  const label = isL1Pinned ? "Unpin navigation — stop keeping it open" : "Keep navigation open";
+  btn.setAttribute("aria-label", label);
+  const titleEl = btn.querySelector(".side-nav-link__title");
+  if (titleEl) {
+    titleEl.textContent = isL1Pinned ? "Pinned open" : "Keep open";
+  }
+}
+
+/* Single entry point for changing the pin preference — toggled by the
+   footer button, but written as its own function (not inlined into the
+   click handler) so first-load/boot can reach the exact same "already
+   pinned" path without duplicating it (see settleDesktopRailCollapsed /
+   applyL1Pinned above, which every boot path already funnels through). */
+function setL1Pinned(pinned) {
+  if (isL1Pinned === pinned) {
+    return;
+  }
+  isL1Pinned = pinned;
+  writeL1PinPreference(pinned);
+  updatePinToggleUI();
+  if (!isMediumOrHdDesktop()) {
+    return;
+  }
+  if (pinned) {
+    closeRowFlyout();
+    applyL1Pinned();
+  } else {
+    settleDesktopRailCollapsed();
+  }
+}
+
+/* -----------------------------------------------------------------------
+   L2 flyout — a popup anchored beside a parent row, shown only while the
+   user is actively browsing that row's children. Not docked: it reserves
+   no layout width and exists only between open/close. Re-parents the same
+   .side-nav-level <ul> the old docked column used (built by kn-navigation.js
+   / static markup) into a single shared flyout shell rather than rebuilding
+   the list, exactly like the docked column's old portalL2() did.
+   ----------------------------------------------------------------------- */
+
+function getFlyoutContainer() {
+  return sideNavFlyout;
+}
+
+function isFlyoutOpen() {
+  return Boolean(openFlyoutTrigger);
+}
+
+/* Every currently-VISIBLE child row inside the open flyout, in visual
+   order — flat links, tree-branch headers, and (only once a branch is
+   expanded) its leaf children. Used for Arrow Up/Down roving focus. */
+function getFlyoutFocusableItems() {
+  const flyout = getFlyoutContainer();
+  if (!flyout) {
+    return [];
+  }
+  return Array.from(
+    flyout.querySelectorAll('a.side-nav-link[data-level="2"], a.side-nav-link[data-level="3"]')
+  ).filter((el) => {
+    const wrapper = el.closest(".side-nav-tree__animator");
+    return !wrapper || wrapper.classList.contains("is-expanded");
+  });
+}
+
+function focusFlyoutItem(items, index) {
+  const clamped = Math.max(0, Math.min(items.length - 1, index));
+  items[clamped]?.focus();
+}
+
+/* A deliberate few-pixel overlap onto the rail rather than a flush
+   edge-to-edge seam — matches --theme-spacing-4 (12px, tokens.css) — so the
+   flyout reads as layered ON TOP of L1 (its own shadow falling across the
+   rail's edge) instead of a separate panel just parked beside it. */
+const L2_FLYOUT_OVERLAP_PX = 12;
+
+function positionFlyout(flyout, row) {
+  const rowRect = row.getBoundingClientRect();
+  const railRect = sideNavL1.getBoundingClientRect();
+  flyout.style.top = `${Math.round(rowRect.top)}px`;
+  flyout.style.left = `${Math.round(railRect.right - L2_FLYOUT_OVERLAP_PX)}px`;
+}
+
+function openRowFlyout(row) {
+  window.clearTimeout(flyoutOpenTimeout);
+  pendingFlyoutRow = null;
+  if (openFlyoutTrigger === row) {
+    window.clearTimeout(flyoutCloseTimeout);
+    flyoutCloseTimeout = undefined;
+    return;
+  }
+  if (openFlyoutTrigger) {
+    closeRowFlyout();
+  }
+  const level = getL2Level(row);
+  const flyout = getFlyoutContainer();
+  if (!level || !flyout) {
+    return;
+  }
+  flyout.appendChild(level);
+  level.hidden = false;
+  flyout.hidden = false;
+  positionFlyout(flyout, row);
+  row.setAttribute("aria-expanded", "true");
+  openFlyoutTrigger = row;
+  if (prefersReducedMotion()) {
+    flyout.classList.add("is-open");
+    return;
+  }
+  flyout.classList.remove("is-open");
+  flyout.classList.add("is-entering");
+  void flyout.offsetWidth;
+  requestAnimationFrame(() => {
+    flyout.classList.remove("is-entering");
+    flyout.classList.add("is-open");
+  });
+}
+
+function closeRowFlyout() {
+  window.clearTimeout(flyoutOpenTimeout);
+  window.clearTimeout(flyoutCloseTimeout);
+  flyoutOpenTimeout = undefined;
+  flyoutCloseTimeout = undefined;
+  pendingFlyoutRow = null;
+  if (!openFlyoutTrigger) {
+    return;
+  }
+  const trigger = openFlyoutTrigger;
+  openFlyoutTrigger = null;
+  const level = getL2Level(trigger);
+  const item = trigger.closest("li");
+  if (level && item && level.parentElement !== item) {
+    item.appendChild(level);
+  }
+  if (level) {
+    level.hidden = true;
+    level.querySelectorAll('[data-tree-trigger][aria-expanded="true"]').forEach((t) => setTreeExpanded(t, false));
+  }
+  trigger.setAttribute("aria-expanded", "false");
+  const flyout = getFlyoutContainer();
+  if (flyout) {
+    flyout.hidden = true;
+    flyout.classList.remove("is-open", "is-entering");
+  }
+  /* An open L3 is anchored to a tree-trigger row that only exists while
+     L2's own content is showing — closing L2 out from under it the same
+     class of orphan the hard invariant in syncL1Classes already guards
+     against for L2 itself, just one level down, and with no equivalent
+     guard to catch it there. */
+  closeL3RowFlyout();
+}
+
+/* Hover-intent delay before the flyout opens: don't open just because the
+   cursor passed over the row on its way elsewhere, and give the user a
+   beat to actually choose among the now-visible rows rather than have one
+   flyout open every time. Only ever scheduled once
+   L1 has finished expanding (handleL1ExpandSettled) — never from the
+   moment the cursor first lands on the rail. */
+function scheduleOpenRowFlyout(row) {
+  if (openFlyoutTrigger === row) {
+    window.clearTimeout(flyoutCloseTimeout);
+    flyoutCloseTimeout = undefined;
+    return;
+  }
+  pendingFlyoutRow = row;
+  window.clearTimeout(flyoutOpenTimeout);
+  flyoutOpenTimeout = window.setTimeout(() => {
+    pendingFlyoutRow = null;
+    openRowFlyout(row);
+  }, L2_HOVER_INTENT_DELAY);
+}
+
+function cancelPendingRowFlyoutOpen(row) {
+  if (pendingFlyoutRow === row) {
+    window.clearTimeout(flyoutOpenTimeout);
+    pendingFlyoutRow = null;
+  }
+}
+
+/* Safe-area bridge between the row and the flyout: a rectangle spanning the
+   gap connecting them (union of both bounding boxes plus everything
+   between), not a literal triangle — simpler to reason about and, since the
+   flyout opens flush beside the rail, equally effective at covering a
+   diagonal path from the row into the flyout's content. */
+function isPointInFlyoutSafeZone(x, y) {
+  const flyout = getFlyoutContainer();
+  if (!openFlyoutTrigger || !flyout || flyout.hidden) {
+    return false;
+  }
+  const rowRect = openFlyoutTrigger.getBoundingClientRect();
+  const flyoutRect = flyout.getBoundingClientRect();
+  const left = Math.min(rowRect.left, flyoutRect.left);
+  const right = Math.max(rowRect.right, flyoutRect.right);
+  const top = Math.min(rowRect.top, flyoutRect.top);
+  const bottom = Math.max(rowRect.bottom, flyoutRect.bottom);
+  if (x >= left && x <= right && y >= top && y <= bottom) {
+    return true;
+  }
+  /* L3 is anchored to a row inside L2's own flyout — the cursor traveling
+     into L3's territory has to pass through L2 first, but once it's
+     actually over L3 (or the gap into it), L2 must tolerate that too, or
+     moving from the tree-trigger row into the L3 popup itself would read
+     as "left L2" and close it — orphaning L3 in exactly the way the
+     safe-zone pattern here exists to prevent. */
+  return isPointInL3FlyoutSafeZone(x, y);
+}
+
+/* -----------------------------------------------------------------------
+   L3 flyout — one level deeper than the L2 flyout above, opened from a
+   tree-trigger row (a "branch" like a country or category) once L2 is
+   already showing it. Used to be an in-place accordion (side-nav-tree__
+   animator/clip, still built by enhanceTreeGroups below and still what
+   drives the mobile drawer's own expand/collapse — that part is
+   untouched) — on desktop it now pops out as its own flyout instead,
+   mirroring L2's relationship to L1: L2 pushes nothing and floats beside
+   L1, L3 pushes nothing and floats beside L2, overlapping it by the same
+   few pixels L2 overlaps L1 by. Reuses the tree-trigger's existing
+   aria-controls target rather than needing new markup — that target is
+   the accordion's <ul class="side-nav-tree__group">, still built and still
+   wrapped in its animator/clip by enhanceTreeGroups; opening just borrows
+   the bare group out of that wrapper for as long as L3 is showing it, and
+   closing hands it back, exactly like openRowFlyout/closeRowFlyout already
+   do one level up (there, the borrowed thing is an L2 <ul>; the wrapper
+   it's borrowed from is a <li>, not an animator/clip, but the pattern is
+   identical). The animator/clip shell itself is left behind empty and
+   inert — nothing here ever collapses or expands it — so mobile's own use
+   of that same shell for its own accordion is completely unaffected.
+   ----------------------------------------------------------------------- */
+
+function getL3FlyoutContainer() {
+  return sideNavFlyoutL3;
+}
+
+function isL3FlyoutOpen() {
+  return Boolean(openL3FlyoutTrigger);
+}
+
+function getL3Group(trigger) {
+  const id = trigger?.getAttribute("aria-controls");
+  const animator = id ? document.getElementById(id) : null;
+  return animator?.querySelector(".side-nav-tree__group") || null;
+}
+
+function positionL3Flyout(flyout, row) {
+  const rowRect = row.getBoundingClientRect();
+  const l2Flyout = getFlyoutContainer();
+  const anchorRect = l2Flyout.getBoundingClientRect();
+  flyout.style.top = `${Math.round(rowRect.top)}px`;
+  flyout.style.left = `${Math.round(anchorRect.right - L2_FLYOUT_OVERLAP_PX)}px`;
+}
+
+function openL3RowFlyout(row) {
+  window.clearTimeout(l3FlyoutOpenTimeout);
+  l3FlyoutOpenTimeout = undefined;
+  pendingL3FlyoutRow = null;
+  if (openL3FlyoutTrigger === row) {
+    window.clearTimeout(l3FlyoutCloseTimeout);
+    l3FlyoutCloseTimeout = undefined;
+    return;
+  }
+  if (openL3FlyoutTrigger) {
+    closeL3RowFlyout();
+  }
+  const group = getL3Group(row);
+  const flyout = getL3FlyoutContainer();
+  if (!group || !flyout) {
+    return;
+  }
+  flyout.appendChild(group);
+  flyout.hidden = false;
+  positionL3Flyout(flyout, row);
+  row.setAttribute("aria-expanded", "true");
+  openL3FlyoutTrigger = row;
+  if (prefersReducedMotion()) {
+    flyout.classList.add("is-open");
+    return;
+  }
+  flyout.classList.remove("is-open");
+  flyout.classList.add("is-entering");
+  void flyout.offsetWidth;
+  requestAnimationFrame(() => {
+    flyout.classList.remove("is-entering");
+    flyout.classList.add("is-open");
+  });
+}
+
+function closeL3RowFlyout() {
+  window.clearTimeout(l3FlyoutOpenTimeout);
+  window.clearTimeout(l3FlyoutCloseTimeout);
+  l3FlyoutOpenTimeout = undefined;
+  l3FlyoutCloseTimeout = undefined;
+  pendingL3FlyoutRow = null;
+  if (!openL3FlyoutTrigger) {
+    return;
+  }
+  const trigger = openL3FlyoutTrigger;
+  openL3FlyoutTrigger = null;
+  const flyout = getL3FlyoutContainer();
+  const group = flyout?.querySelector(".side-nav-tree__group");
+  const id = trigger.getAttribute("aria-controls");
+  const animator = id ? document.getElementById(id) : null;
+  const clip = animator?.querySelector(".side-nav-tree__clip");
+  if (group && clip && group.parentElement !== clip) {
+    clip.appendChild(group);
+  }
+  trigger.setAttribute("aria-expanded", "false");
+  if (flyout) {
+    flyout.hidden = true;
+    flyout.classList.remove("is-open", "is-entering");
+  }
+}
+
+function scheduleOpenL3RowFlyout(row) {
+  if (openL3FlyoutTrigger === row) {
+    window.clearTimeout(l3FlyoutCloseTimeout);
+    l3FlyoutCloseTimeout = undefined;
+    return;
+  }
+  pendingL3FlyoutRow = row;
+  window.clearTimeout(l3FlyoutOpenTimeout);
+  l3FlyoutOpenTimeout = window.setTimeout(() => {
+    pendingL3FlyoutRow = null;
+    openL3RowFlyout(row);
+  }, L2_HOVER_INTENT_DELAY);
+}
+
+function cancelPendingL3RowFlyoutOpen(row) {
+  if (pendingL3FlyoutRow === row) {
+    window.clearTimeout(l3FlyoutOpenTimeout);
+    pendingL3FlyoutRow = null;
+  }
+}
+
+function isPointInL3FlyoutSafeZone(x, y) {
+  const flyout = getL3FlyoutContainer();
+  if (!openL3FlyoutTrigger || !flyout || flyout.hidden) {
+    return false;
+  }
+  const rowRect = openL3FlyoutTrigger.getBoundingClientRect();
+  const flyoutRect = flyout.getBoundingClientRect();
+  const left = Math.min(rowRect.left, flyoutRect.left);
+  const right = Math.max(rowRect.right, flyoutRect.right);
+  const top = Math.min(rowRect.top, flyoutRect.top);
+  const bottom = Math.max(rowRect.bottom, flyoutRect.bottom);
+  return x >= left && x <= right && y >= top && y <= bottom;
+}
+
+/* Governs L2's closing only — L2 opening is handled by row-level
+   mouseover; L1 no longer opens or closes on hover at all (see
+   openL1Hover/closeL1Hover), so this has nothing to do with L1 anymore.
+   Runs continuously (cheap) rather than being wired to a specific
+   element's mouseleave, because the safe zone spans both the row and the
+   flyout plus the gap between them — the flyout is portaled to <body>
+   (see sideNavFlyout above), so a plain mouseleave on the row alone would
+   fire the moment the cursor crosses into the (separate) flyout element. */
+document.addEventListener("mousemove", (event) => {
+  if (!isFlyoutOpen()) {
+    return;
+  }
+  if (isPointInFlyoutSafeZone(event.clientX, event.clientY)) {
+    window.clearTimeout(flyoutCloseTimeout);
+    flyoutCloseTimeout = undefined;
+    return;
+  }
+  if (flyoutCloseTimeout) {
+    return;
+  }
+  flyoutCloseTimeout = window.setTimeout(() => {
+    flyoutCloseTimeout = undefined;
+    closeRowFlyout();
+  }, L2_EXIT_HOVER_DELAY);
+});
+
+/* L3's own closing, same pattern as L2's above — a separate listener
+   (rather than folding into L2's) since L3 can close on its own, e.g. the
+   cursor backing out of L3 into L2 to browse a different branch, while L2
+   itself stays open. */
+document.addEventListener("mousemove", (event) => {
+  if (!isL3FlyoutOpen()) {
+    return;
+  }
+  if (isPointInL3FlyoutSafeZone(event.clientX, event.clientY)) {
+    window.clearTimeout(l3FlyoutCloseTimeout);
+    l3FlyoutCloseTimeout = undefined;
+    return;
+  }
+  if (l3FlyoutCloseTimeout) {
+    return;
+  }
+  l3FlyoutCloseTimeout = window.setTimeout(() => {
+    l3FlyoutCloseTimeout = undefined;
+    closeL3RowFlyout();
+  }, L2_EXIT_HOVER_DELAY);
+});
+
+/* Marks the flyout's trigger row (and, transitively via the caller, the
+   clicked child) current for renderBreadcrumb() — the same bookkeeping
+   activateL2Trigger() does for a direct parent-row click. */
+function markFlyoutTriggerCurrent(descendantLink) {
+  const levelEl = descendantLink.closest(".side-nav-level[data-level='2']");
+  const trigger = getL2TriggerForLevel(levelEl) || openFlyoutTrigger;
+  if (trigger) {
+    setCurrent(trigger);
+  }
 }
 
 function clearCurrent() {
@@ -1002,8 +1840,8 @@ function findNavLinkForHash(path = getHashPath()) {
 }
 
 function nestedAdminNavHash(path = getHashPath()) {
-  if (window.KNAssistCore?.nestedListHash) {
-    return window.KNAssistCore.nestedListHash(path);
+  if (window.KlearAgentCore?.nestedListHash) {
+    return window.KlearAgentCore.nestedListHash(path);
   }
   if (path.startsWith("#kn-role-management")) {
     return "#kn-role-management";
@@ -1588,10 +2426,10 @@ function syncDocumentTitle() {
 function renderBreadcrumb() {
   const items = getBreadcrumbTrail();
   const breadcrumbBar = document.querySelector(".content-breadcrumb");
-  // #side-nav-l2 (the section sub-panel) and data-l2trigger links stay "open"/"current"
-  // for the entire time a user is anywhere inside a nested section — that's the sidebar's
-  // normal, permanent state in this two-part rail+panel design, not a transient hover
-  // preview. Gating on them (the old isL2Context() check) suppressed the breadcrumb for
+  // data-l2trigger links stay "current" for the entire time a user is
+  // anywhere inside a nested section — that's the sidebar's normal,
+  // permanent state, independent of whether the L2 flyout happens to be
+  // open. Gating on them (the old isL2Context() check) suppressed the breadcrumb for
   // every non-Dashboard page; showing it whenever there's a real trail is the fix.
   // The generic "not available in this workspace yet" fallback (Agentic Broker, Drayage)
   // is a single flat page — Home / <title> only repeats what the heading and "Back to
@@ -4391,16 +5229,14 @@ window.KNChatMessage = Object.assign(window.KNChatMessage || {}, {
   hydrate: hydrateKnChatMessages
 });
 
-function activateL2Trigger(trigger, { firstRender = false } = {}) {
-  const activeTrigger = trigger || getActiveL2Trigger();
-  if (!activeTrigger) {
+function activateL2Trigger(trigger) {
+  if (!trigger) {
     return;
   }
-  const title = getNavTitle(activeTrigger);
-  const level = getL2Level(activeTrigger);
+  const level = getL2Level(trigger);
   const firstChild = firstNavigableInLevel(level);
   clearCurrent();
-  setCurrent(activeTrigger);
+  setCurrent(trigger);
   if (firstChild) {
     setCurrent(firstChild);
     if (firstChild.matches("[data-tree-trigger]")) {
@@ -4410,18 +5246,11 @@ function activateL2Trigger(trigger, { firstRender = false } = {}) {
       expandTreeAncestors(firstChild);
     }
     const href = firstChild.getAttribute("href");
-    if (href?.startsWith("#") && !firstRender) {
+    if (href?.startsWith("#")) {
       setRouteHash(href);
     }
   }
-  onLinkActiveChange({
-    level: 1,
-    isActive: true,
-    isL2Trigger: true,
-    isFirstRender: firstRender,
-    title,
-    trigger: activeTrigger
-  });
+  settleAfterNavigate();
   renderBreadcrumb();
 }
 
@@ -4429,8 +5258,6 @@ function activateNavLinkOnFirstLoad(link) {
   if (!link) {
     return;
   }
-
-  const l2Trigger = resolveL2TriggerForLink(link);
 
   if (link.dataset.l2trigger === "true") {
     const activeTrigger = link;
@@ -4461,20 +5288,10 @@ function activateNavLinkOnFirstLoad(link) {
     }
   }
 
-  /* Never expand L1 on first paint for L2-panel routes — that undoes the
-     collapsed chrome and re-inlines portaled L2 (e.g. Klear Agent history). */
-  if (l2Trigger) {
-    onLinkActiveChange({
-      level: 1,
-      isActive: true,
-      isL2Trigger: true,
-      isFirstRender: true,
-      title: getNavTitle(l2Trigger),
-      trigger: l2Trigger,
-    });
-  } else {
-    expandL1();
-  }
+  /* Resting state is always icon-only collapsed on desktop — every route,
+     no per-item/per-route exceptions (the head-script boot already paints
+     this before JS; this just keeps JS state in sync with it). */
+  settleDesktopRailCollapsed();
   renderBreadcrumb();
 }
 
@@ -4487,7 +5304,7 @@ function setNavOpen(isOpen) {
   if (!isOpen && !desktop) {
     isL1Collapsed = false;
     isL1Hovered = false;
-    returnL2ToTrigger();
+    closeRowFlyout();
   }
   syncL1Classes();
 }
@@ -4498,15 +5315,32 @@ menuToggle.addEventListener("click", () => {
 
 backdrop.addEventListener("click", () => setNavOpen(false));
 
-sideNavL2Back.addEventListener("click", () => {
-  expandL1();
-});
-
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;
   }
-  if (!isMediumOrHdDesktop() && isL1Collapsed) {
+  if (isMediumOrHdDesktop()) {
+    /* Collapsing the rail peek only hides the label span
+       (.hide-when-collapsed) — the focused link itself is untouched, so
+       focus lands back on its own icon exactly where it was, no explicit
+       refocus needed. A flyout is different: closing it re-parents (moves)
+       its list back to its home <li>, which blurs focus outright — so
+       restore it to the row that opened the flyout. This is the single
+       place Escape gets handled for the rail/flyout: it's registered
+       before any more specific listener could react, so a second handler
+       trying to add its own nuance here would always lose that race. */
+    const flyoutTrigger = openFlyoutTrigger;
+    closeRowFlyout();
+    if (flyoutTrigger) {
+      flyoutTrigger.focus();
+    }
+    if (isL1Hovered) {
+      closeL1Hover({ immediate: true });
+    }
+    closeL1Peek({ immediate: true });
+    return;
+  }
+  if (isL1Collapsed) {
     expandL1();
     return;
   }
@@ -4523,12 +5357,7 @@ const breakpointObserver = new MutationObserver(() => {
   lastNavDesktop = desktop;
   if (desktop) {
     setNavOpen(false);
-    const openTrigger = getActiveL2Trigger();
-    if (openTrigger?.getAttribute("aria-current") === "page") {
-      collapseL1(getNavTitle(openTrigger), openTrigger);
-    } else {
-      expandL1();
-    }
+    settleDesktopRailCollapsed();
   } else {
     expandL1();
   }
@@ -4539,75 +5368,91 @@ breakpointObserver.observe(document.documentElement, {
   attributeFilter: ["data-matched-device-type", "data-matched-breakpoint"],
 });
 
-function activateWithinL2Panel(link) {
-  const levelEl = link.closest(".side-nav-level[data-level='2']");
-  const trigger = getL2TriggerForLevel(levelEl) || getActiveL2Trigger();
-  if (!trigger) {
+/* Two different overlay patterns, two different ways they "open":
+   - .kn-modal-root (confirm/creation dialogs): never persistent — each
+     consumer (role-management.js, user-management.js, default-role-
+     management.js via admin-ux.js's modalShell/confirmModal/discardModal
+     template builders) only renders it into the DOM while open and omits
+     it entirely (an empty string) while closed, via a full innerHTML
+     re-render. A childList mutation (node added) means "just opened".
+   - .kn-drawer-root (slide-in form drawers — e.g. "Add Role"): the node is
+     static markup, always present; opening toggles an `is-open` class onto
+     it instead. An attribute mutation on an element matching this selector
+     means "just opened" (only if it's the one gaining, not losing, the
+     class — check the live element, not the old mutation record).
+   Watching for both is simpler and less invasive than hooking every
+   consumer's own render/open logic, and covers all of them without each
+   page needing to know about the nav rail. */
+const OVERLAY_OPEN_SELECTOR = ".kn-modal-root, .kn-drawer-root.is-open";
+const modalOpenObserver = new MutationObserver((mutations) => {
+  if (!isMediumOrHdDesktop() || (!openFlyoutTrigger && !isL1Hovered)) {
     return;
   }
-  setCurrent(trigger);
-  const triggerTitle = getNavTitle(trigger);
-  if (isL1Collapsed) {
-    portalL2(trigger, triggerTitle);
-  } else {
-    onLinkActiveChange({
-      level: 1,
-      isActive: true,
-      isL2Trigger: true,
-      isFirstRender: false,
-      title: triggerTitle,
-      trigger,
-    });
+  const opened = mutations.some((mutation) => {
+    if (mutation.type === "attributes") {
+      return mutation.target.nodeType === 1 && mutation.target.matches?.(OVERLAY_OPEN_SELECTOR);
+    }
+    return Array.from(mutation.addedNodes).some(
+      (node) =>
+        node.nodeType === 1 && (node.matches?.(OVERLAY_OPEN_SELECTOR) || node.querySelector?.(OVERLAY_OPEN_SELECTOR))
+    );
+  });
+  if (!opened) {
+    return;
   }
-}
+  closeRowFlyout();
+  closeL1Hover({ immediate: true });
+});
 
-sideNav.addEventListener("click", (event) => {
-  const chatNew = event.target.closest("[data-agentic-chat-new]");
-  if (chatNew && sideNav.contains(chatNew)) {
-    event.preventDefault();
-    sideNav.querySelectorAll(".side-nav-chat-item.is-active").forEach((el) => {
-      el.classList.remove("is-active");
-      el.removeAttribute("aria-current");
-    });
-    if (getHashPath() !== "#agentic-broker") {
-      setRouteHash("#agentic-broker");
-    }
-    window.KNAgenticBroker?.newChat?.();
-    return;
-  }
-  const chatClear = event.target.closest("[data-agentic-chat-clear]");
-  if (chatClear && sideNav.contains(chatClear)) {
-    event.preventDefault();
-    const input = sideNav.querySelector("[data-agentic-chat-search]");
-    if (input) {
-      input.value = "";
-      filterChatList("");
-      input.focus();
-    }
-    return;
-  }
-  const chatItem = event.target.closest("[data-agentic-chat-item]");
-  if (chatItem && sideNav.contains(chatItem)) {
-    event.preventDefault();
-    sideNav.querySelectorAll(".side-nav-chat-item.is-active").forEach((el) => {
-      el.classList.remove("is-active");
-      el.removeAttribute("aria-current");
-    });
-    chatItem.classList.add("is-active");
-    chatItem.setAttribute("aria-current", "true");
-    const chatId = chatItem.closest("[data-chat-id]")?.getAttribute("data-chat-id") || "";
-    window.KNAgenticBroker?.openHistoryChat?.(chatId);
-    return;
-  }
+modalOpenObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: ["class"],
+});
+
+/* document-scoped, not sideNav-scoped: the flyout is portaled to <body> (see
+   sideNavFlyout above) to escape .sidebar's overflow:hidden, so it's no
+   longer a DOM descendant of sideNav — a plain sideNav.addEventListener
+   would never see clicks on its content. Every branch below already
+   explicitly checks which element was hit, so widening the listener's
+   scope doesn't widen what it actually reacts to. */
+document.addEventListener("click", (event) => {
   const treeTrigger = event.target.closest("[data-tree-trigger]");
-  if (treeTrigger && sideNav.contains(treeTrigger)) {
+  if (treeTrigger && (sideNav.contains(treeTrigger) || sideNavFlyout.contains(treeTrigger))) {
     event.preventDefault();
+    /* Desktop: L3 is its own flyout now (see openL3RowFlyout), not the
+       in-place accordion the code below still drives for mobile's drawer
+       — a tree-trigger row here has exactly the same "menu, not a
+       destination" job the L2-trigger click handler further down already
+       gives its own rows, so it gets the same treatment: reveal, never
+       navigate. Bypasses accordionTreeTriggers/setTreeExpanded entirely
+       for this path — openL3RowFlyout sets aria-expanded itself. */
+    if (sideNavFlyout.contains(treeTrigger) && isMediumOrHdDesktop()) {
+      openL3RowFlyout(treeTrigger);
+      return;
+    }
     const willExpand = treeTrigger.getAttribute("aria-expanded") !== "true";
     if (willExpand) {
       accordionTreeTriggers(treeTrigger);
     }
     setTreeExpanded(treeTrigger, willExpand);
     if (!willExpand) {
+      return;
+    }
+    /* Inside the L2 flyout specifically, expanding a nested accordion (e.g.
+       a country under Transaction Manager) IS the destination the user
+       asked for — they're revealing more options (Entry/ISF/Inbound/...)
+       to choose FROM, not confirming a choice yet. Auto-navigating to
+       whichever leaf happens to come first in that group, and closing the
+       rail/flyout as if that were the user's actual pick, cuts them off
+       before they can reach the item they actually wanted. Only an
+       explicit click on one of the now-revealed leaves (the plain
+       .side-nav-link branch further down) should navigate and close.
+       Outside the flyout — the mobile drawer's in-place accordion, which
+       has no separate popup to strand — the existing auto-navigate-to-
+       first-leaf behavior is unaffected. */
+    if (sideNavFlyout.contains(treeTrigger)) {
       return;
     }
     const group = getTreeGroup(treeTrigger)?.querySelector(".side-nav-tree__group") || getTreeGroup(treeTrigger);
@@ -4628,18 +5473,89 @@ sideNav.addEventListener("click", (event) => {
     if (firstLeaf) {
       expandTreeAncestors(firstLeaf);
     }
-    activateWithinL2Panel(treeTrigger);
-    if (!isMediumOrHdDesktop() && firstLeaf) {
-      setNavOpen(false);
-    }
+    markFlyoutTriggerCurrent(treeTrigger);
+    closeRowFlyout();
+    settleAfterNavigate();
     renderBreadcrumb();
     return;
   }
 
   const link = event.target.closest(".side-nav-link");
-  if (!link || !sideNav.contains(link)) {
+  if (!link || !(sideNav.contains(link) || sideNavFlyout.contains(link) || sideNavFlyoutL3.contains(link))) {
     return;
   }
+  /* The pin toggle carries .side-nav-link too (for shared row styling —
+     spacing, hover, focus ring) but it's a <button> with no href, not a
+     navigable row; it has its own dedicated click listener below. Every
+     real nav row is an <a href="...">, so "no href" is a reliable, direct
+     signal this isn't one of them — unlike matching by id/class, which
+     silently breaks again the next time another non-navigating control
+     reuses .side-nav-link for its styling. Without this guard, the logic
+     below ran anyway: it has no data-level (defaults to 1) and no
+     data-l2trigger, so it fell through to the plain-navigation branch,
+     which called setCurrent(link) — wrongly stamping aria-current="page"
+     onto the pin button itself (a screen reader would announce it as the
+     current page) and left it stuck there, since nothing else was ever
+     the pin toggle to clear it back off. */
+  if (!link.hasAttribute("href")) {
+    return;
+  }
+
+  const level = Number(link.dataset.level || "1");
+  const isL2TriggerLink = link.dataset.l2trigger === "true";
+
+  /* Touch parity: hover doesn't exist on a touch-primary pointer.
+     - First tap on the collapsed rail opens the peek (Prompt 2) instead of
+       navigating.
+     - First tap on a parent row (once peeked open) opens ITS flyout instead
+       of navigating straight to the default child — the tap equivalent of
+       hover. A row's flyout is a menu, not a destination, so there's no
+       "second tap navigates" fallthrough (a stale comment here used to
+       claim one, "same as a desktop click-through" — desktop never
+       navigated from this row either, see the isL2TriggerLink guard
+       below, which now applies to touch too): a tap on an already-open
+       row's own trigger has nothing left to do and is absorbed by that
+       guard. */
+  if (level === 1 && isMediumOrHdDesktop() && isTouchPrimaryPointer()) {
+    if (isL1Collapsed && !isL1Hovered) {
+      event.preventDefault();
+      openL1Hover();
+      return;
+    }
+    /* isL1Pinned included alongside isL1Hovered: a pinned rail is already
+       "peeked open" the same as a hovered one (isL1Collapsed just never
+       goes true — see applyL1Pinned), so a tap here has the same job —
+       open this row's flyout — without a first tap having to do anything
+       first. Missing this left a pinned+touch user with no way to reach L2
+       at all, since isL1Collapsed being false meant the branch above never
+       ran, and isL1Hovered staying false meant this one didn't either. */
+    if (isL2TriggerLink && (isL1Hovered || isL1Pinned) && openFlyoutTrigger !== link) {
+      event.preventDefault();
+      openRowFlyout(link);
+      return;
+    }
+  }
+
+  /* A parent row with its own L2 flyout is a menu, not a destination — its
+     click job is only ever to open L1 (reveal every row's label) so the
+     user can see what's available; L2 itself opens by hovering (desktop)
+     or tapping (touch, handled above) the now-labeled row afterward,
+     rather than jumping straight to L2 on the same click that opened L1.
+     Applies to touch as well as desktop now — it used to exclude touch,
+     which left a tap on an already-open row's trigger falling through to
+     the activateL2Trigger call below: it auto-navigates to whichever
+     child of this row's L2 level happened to come first and then closes
+     everything (settleAfterNavigate), landing on that child's page before
+     the user had ever seen the real options — exactly what this guard
+     exists to prevent, just missing for one input method. Never touches
+     setRouteHash/href below; nothing to navigate to yet, on any pointer
+     type. */
+  if (isL2TriggerLink && level === 1 && isMediumOrHdDesktop()) {
+    event.preventDefault();
+    openL1Hover();
+    return;
+  }
+
   const href = link.getAttribute("href");
   if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
     event.preventDefault();
@@ -4649,10 +5565,6 @@ sideNav.addEventListener("click", (event) => {
   if (href?.startsWith("#")) {
     setRouteHash(href);
   }
-
-  const level = Number(link.dataset.level || "1");
-  const isL2TriggerLink = link.dataset.l2trigger === "true";
-  const title = link.querySelector(".side-nav-link__title")?.textContent?.trim() || "";
 
   if (isL2TriggerLink) {
     activateL2Trigger(link);
@@ -4667,92 +5579,49 @@ sideNav.addEventListener("click", (event) => {
 
   if (level === 3) {
     expandTreeAncestors(link);
-    activateWithinL2Panel(link);
-    if (!isMediumOrHdDesktop()) {
-      setNavOpen(false);
-    }
+    markFlyoutTriggerCurrent(link);
+    closeRowFlyout();
+    settleAfterNavigate();
     renderBreadcrumb();
     return;
   }
 
   if (level === 2) {
-    activateWithinL2Panel(link);
-    if (!isMediumOrHdDesktop()) {
-      setNavOpen(false);
-    }
+    markFlyoutTriggerCurrent(link);
+    closeRowFlyout();
+    settleAfterNavigate();
     renderBreadcrumb();
     return;
   }
 
-  onLinkActiveChange({
-    level: 1,
-    isActive: true,
-    isL2Trigger: false,
-    isFirstRender: false,
-    title,
-  });
+  /* Uniform leaf-item rule (Klear Agent, Dashboard, Notification
+     Management): navigate, then settle L1 back to icon-only — one shared
+     path, no per-item branching. */
+  settleAfterNavigate();
   renderBreadcrumb();
 });
 
-function filterChatList(rawQuery) {
-  const query = rawQuery.trim();
-  const matchIds = window.KNShellSearchIndex?.chatIdsMatching?.(query);
-  const groups = sideNav.querySelectorAll("[data-chat-group]");
-  let visibleTotal = 0;
-  groups.forEach((group) => {
-    let visibleInGroup = 0;
-    group.querySelectorAll(".side-nav-chat-row").forEach((row) => {
-      const chatId = row.getAttribute("data-chat-id") || "";
-      const label = row.querySelector(".side-nav-chat-item")?.textContent || "";
-      const matches = matchIds ? matchIds.has(chatId) : !query || label.toLowerCase().includes(query.toLowerCase());
-      row.hidden = !matches;
-      if (matches) {
-        visibleInGroup += 1;
-      }
-    });
-    group.hidden = visibleInGroup === 0;
-    visibleTotal += visibleInGroup;
-  });
-  const empty = sideNav.querySelector("[data-chat-empty]");
-  if (empty) {
-    empty.hidden = visibleTotal !== 0;
-  }
-  const clearBtn = sideNav.querySelector("[data-agentic-chat-clear]");
-  if (clearBtn) {
-    clearBtn.hidden = query.length === 0;
-  }
-}
-
-window.KNAgenticNav = Object.assign(window.KNAgenticNav || {}, {
-  refilterChatHistory() {
-    filterChatList(sideNav.querySelector("[data-agentic-chat-search]")?.value || "");
-  },
-  openChatHistory() {
-    const trigger = sideNav.querySelector('.side-nav-link--agentic-broker[href="#agentic-broker"]');
-    if (!trigger) {
-      return;
-    }
-    if (!isMediumOrHdDesktop()) {
-      setNavOpen(true);
-      collapseL1(getNavTitle(trigger) || "Klear Agent", trigger, { animate: true });
-    } else if (!isL1Collapsed || getActiveL2Trigger() !== trigger) {
-      collapseL1(getNavTitle(trigger) || "Klear Agent", trigger, { animate: true });
-    }
-    sideNav.querySelector("[data-agentic-chat-search]")?.focus({ preventScroll: true });
-  }
-});
-
-sideNav.addEventListener("input", (event) => {
-  const search = event.target.closest("[data-agentic-chat-search]");
-  if (!search) {
+document.addEventListener("click", (event) => {
+  if (
+    !isMediumOrHdDesktop() ||
+    sideNav.contains(event.target) ||
+    sideNavFlyout.contains(event.target) ||
+    sideNavFlyoutL3.contains(event.target)
+  ) {
     return;
   }
-  filterChatList(search.value);
+  closeRowFlyout();
+  if (isL1Hovered) {
+    closeL1Hover({ immediate: true });
+  }
+  closeL1Peek({ immediate: true });
 });
 
-sideNav.addEventListener("keydown", (event) => {
+/* document-scoped for the same reason as the click listener above — tree
+   triggers live inside the (now body-level) flyout while it's open. */
+document.addEventListener("keydown", (event) => {
   const treeTrigger = event.target.closest("[data-tree-trigger]");
-  if (!treeTrigger || !sideNav.contains(treeTrigger)) {
+  if (!treeTrigger || !(sideNav.contains(treeTrigger) || sideNavFlyout.contains(treeTrigger))) {
     return;
   }
   if (event.key === " " || event.key === "Enter") {
@@ -4763,95 +5632,244 @@ sideNav.addEventListener("keydown", (event) => {
   if (event.key === "ArrowRight") {
     if (treeTrigger.getAttribute("aria-expanded") !== "true") {
       event.preventDefault();
-      accordionTreeTriggers(treeTrigger);
-      setTreeExpanded(treeTrigger, true);
+      if (sideNavFlyout.contains(treeTrigger) && isMediumOrHdDesktop()) {
+        openL3RowFlyout(treeTrigger);
+      } else {
+        accordionTreeTriggers(treeTrigger);
+        setTreeExpanded(treeTrigger, true);
+      }
     }
     return;
   }
   if (event.key === "ArrowLeft") {
     if (treeTrigger.getAttribute("aria-expanded") === "true") {
       event.preventDefault();
-      setTreeExpanded(treeTrigger, false);
+      if (sideNavFlyout.contains(treeTrigger) && isMediumOrHdDesktop()) {
+        closeL3RowFlyout();
+      } else {
+        setTreeExpanded(treeTrigger, false);
+      }
     }
   }
 });
 
-sideNav.addEventListener("transitionend", onTreeAnimatorTransitionEnd);
+document.addEventListener("transitionend", onTreeAnimatorTransitionEnd);
 
 sideNav.addEventListener("focusin", (event) => {
+  if (!isMediumOrHdDesktop()) {
+    return;
+  }
   const link = event.target.closest('.side-nav-link[data-level="1"]');
   if (!link || !sideNav.contains(link)) {
     return;
   }
-  if (isL1Collapsed && isMediumOrHdDesktop() && link.matches(":focus-visible")) {
-    expandL1();
+  /* Keyboard focus is deliberate (unlike a mouse cursor passing over the
+     rail on its way elsewhere), so open immediately — no intent delay. */
+  if (link.matches(":focus-visible")) {
+    openL1Hover();
   }
 });
 
-sideNavL1.addEventListener("transitionend", (event) => {
-  if (event.target !== sideNavL1 || event.propertyName !== "width") {
+/* document-scoped: focus can move entirely within the (body-level) flyout,
+   or out of it directly, without ever touching sideNav — a sideNav-scoped
+   focusout would miss both. */
+document.addEventListener("focusout", (event) => {
+  if (!isMediumOrHdDesktop()) {
+    return;
+  }
+  const next = event.relatedTarget;
+  const flyout = getFlyoutContainer();
+  const l3Flyout = getL3FlyoutContainer();
+  const staysInFlyoutGroup =
+    openFlyoutTrigger &&
+    next &&
+    (next === openFlyoutTrigger ||
+      openFlyoutTrigger.contains?.(next) ||
+      flyout?.contains(next) ||
+      l3Flyout?.contains(next));
+  if (openFlyoutTrigger && !staysInFlyoutGroup) {
+    closeRowFlyout();
+  }
+  if (!isL1Hovered) {
+    return;
+  }
+  /* Tabbing from an L1 row into its own (body-level, portaled) flyout
+     content is still "focus inside the rail's own menu" just as much as
+     staying within sideNav is — sideNav.contains(next) alone doesn't see
+     it, since the flyout lives outside sideNav's DOM subtree. Without
+     staysInFlyoutGroup here too, tabbing forward into the flyout scheduled
+     L1 to collapse right under the flyout it was supposed to be
+     supporting, the keyboard-focus equivalent of the mouse-hover orphaned-
+     flyout bug fixed elsewhere in this file. */
+  if ((next && sideNav.contains(next)) || staysInFlyoutGroup) {
+    return;
+  }
+  closeL1Hover();
+});
+
+/* Parent-row keyboard support: Enter/Space opens the row's flyout and moves
+   focus into it; Arrow Up/Down rove through the flyout's visible children.
+   Escape is handled once, globally, above — not here — since that listener
+   is registered first and would always close the flyout before this one
+   got a chance to react. A separate listener from the tree-trigger one
+   above so neither has to know about the other's key set. document-scoped
+   for the same reason as the click listener — flyout items live outside
+   sideNav while open.
+   Enter/Space doesn't assume L1 is already hover-expanded (focusin usually
+   triggers that first via :focus-visible, but nothing guarantees it has —
+   e.g. focus arriving programmatically, or before :focus-visible commits):
+   if L1 hasn't settled yet, this defers to handleL1ExpandSettled instead of
+   opening the flyout immediately, so L2 never appears beside a row that's
+   still icon-only. */
+document.addEventListener("keydown", (event) => {
+  const row = event.target.closest('.side-nav-link[data-level="1"][data-l2trigger="true"]');
+  if (row && sideNav.contains(row)) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (!isL1Hovered) {
+        openL1Hover();
+      }
+      if (!isL1ExpandSettled) {
+        pendingKeyboardFlyoutRow = row;
+        return;
+      }
+      openRowFlyout(row);
+      focusFlyoutItem(getFlyoutFocusableItems(), 0);
+    }
+    return;
+  }
+
+  const flyout = getFlyoutContainer();
+  const flyoutItem = event.target.closest(".side-nav-link");
+  if (!openFlyoutTrigger || !flyoutItem || !flyout?.contains(flyoutItem)) {
+    return;
+  }
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+    return;
+  }
+  event.preventDefault();
+  const items = getFlyoutFocusableItems();
+  const idx = items.indexOf(flyoutItem);
+  if (event.key === "ArrowDown") {
+    focusFlyoutItem(items, idx === -1 ? 0 : idx + 1);
+    return;
+  }
+  if (idx <= 0) {
+    openFlyoutTrigger.focus();
+    return;
+  }
+  focusFlyoutItem(items, idx - 1);
+});
+
+/* .side-nav (not .side-nav-l1) is the element whose width actually
+   transitions now (styles.css) — .side-nav-l1 just tracks it at 100%. */
+sideNav.addEventListener("transitionend", (event) => {
+  if (event.target !== sideNav || event.propertyName !== "width") {
     return;
   }
   endL1Transition();
+  if (!isL1Hovered) {
+    return;
+  }
+  handleL1ExpandSettled();
 });
 
-sideNavL1.addEventListener("mouseover", () => {
+/* L1 itself no longer opens on a plain hover the way it used to — that's
+   what openL1Peek (above) is for now, and it's a distinct, non-reflowing
+   overlay, not this class's job. L2 opens on hover once L1 is genuinely
+   open by EITHER path — the reflowing click-path (isL1ExpandSettled) or
+   the peek overlay (isL1Peeking) — same intent-delay mechanism either way,
+   so a row's children are reachable by hovering regardless of which one
+   opened the rail. There's deliberately no mouseleave counterpart that
+   closes L1 itself: L1 only ever closes via an explicit action (a leaf
+   navigation, Escape, clicking outside the rail — see settleAfterNavigate
+   and the document-level handlers below) or, for the peek overlay only,
+   the cursor actually leaving it (see the mouseenter/mousemove pair below). */
+sideNavL1.addEventListener("mouseover", (event) => {
+  if (!isMediumOrHdDesktop() || !(isL1ExpandSettled || isL1Peeking)) {
+    return;
+  }
+  const row = event.target.closest('.side-nav-link[data-l2trigger="true"]');
+  if (row) {
+    scheduleOpenRowFlyout(row);
+  }
+});
+
+sideNavL1.addEventListener("mouseout", (event) => {
   if (!isMediumOrHdDesktop()) {
     return;
   }
-  window.clearTimeout(hoverTimeout);
-  if (isL1Collapsed && isHoverAgainEnabled && !isL1Hovered) {
-    isL1Hovered = true;
-    syncL1Classes();
+  const row = event.target.closest('.side-nav-link[data-l2trigger="true"]');
+  if (row && !row.contains(event.relatedTarget)) {
+    cancelPendingRowFlyoutOpen(row);
   }
 });
 
-sideNavL1.addEventListener("mouseleave", () => {
+/* Same pair, one level down: a tree-trigger row only ever exists inside
+   the (body-portaled) L2 flyout once it's open, so these listen on
+   sideNavFlyout directly rather than sideNavL1 — no isL1ExpandSettled/
+   isL1Peeking gate needed either, since the row being hoverable at all
+   already implies L2 finished opening. */
+sideNavFlyout.addEventListener("mouseover", (event) => {
   if (!isMediumOrHdDesktop()) {
     return;
   }
-  if (isL1Collapsed && isL1Hovered) {
-    hoverTimeout = window.setTimeout(() => {
-      isL1Hovered = false;
-      startL1Transition();
-      syncL1Classes();
-    }, L1_EXIT_HOVER_DELAY);
+  const row = event.target.closest("[data-tree-trigger]");
+  if (row) {
+    scheduleOpenL3RowFlyout(row);
+  }
+});
+
+sideNavFlyout.addEventListener("mouseout", (event) => {
+  if (!isMediumOrHdDesktop()) {
     return;
   }
-  if (isL1Collapsed && !isL1Hovered) {
-    setVisibleLevel(2);
+  const row = event.target.closest("[data-tree-trigger]");
+  if (row && !row.contains(event.relatedTarget)) {
+    cancelPendingL3RowFlyoutOpen(row);
   }
 });
 
-sideNavL2.addEventListener("mouseover", (event) => {
-  event.stopPropagation();
-});
-
-sideNavL2.addEventListener("mouseout", (event) => {
-  event.stopPropagation();
-});
-
-function hydrateCollapsedSideNavTooltips() {
-  if (!sideNav) {
+/* L1 peek's own hover-in: mouseenter (not mouseover) so this fires once for
+   the whole rail rather than once per descendant the cursor crosses.
+   Peek's own closing is handled entirely by the mousemove safe-zone check
+   below, same as the L2 flyout's (isPointInFlyoutSafeZone) — not a
+   mouseleave counterpart here — because the safe zone has to keep peek
+   alive across into a body-portaled L2 flyout too, which a plain
+   mouseleave on sideNav alone would miss. */
+sideNav.addEventListener("mouseenter", () => {
+  if (!canPeekL1()) {
     return;
   }
-  sideNav.querySelectorAll('.side-nav-l1 .side-nav-link[data-level="1"]').forEach((link) => {
-    if (link.hasAttribute("data-tooltip")) {
-      return;
-    }
-    const title = getNavTitle(link);
-    if (!title) {
-      return;
-    }
-    link.setAttribute("data-tooltip", title);
-    link.setAttribute("data-tooltip-placement", "right");
-    link.setAttribute("data-tooltip-when", "sidenav-collapsed");
-  });
-}
+  scheduleOpenL1Peek();
+});
+
+document.addEventListener("mousemove", (event) => {
+  const inSafeZone = isPointInL1PeekSafeZone(event.clientX, event.clientY);
+  if (!inSafeZone) {
+    cancelPendingL1PeekOpen();
+  }
+  if (!isL1Peeking) {
+    return;
+  }
+  if (inSafeZone) {
+    cancelPendingL1PeekClose();
+  } else {
+    scheduleCloseL1Peek();
+  }
+});
+
+document.getElementById("side-nav-pin-toggle")?.addEventListener("click", () => {
+  setL1Pinned(!isL1Pinned);
+});
 
 syncL1Classes();
+updatePinToggleUI();
 enhanceTreeGroups();
-hydrateCollapsedSideNavTooltips();
+window.addEventListener("kn-navigation-synced", () => {
+  enhanceTreeGroups();
+  updatePinToggleUI();
+});
 window.setRouteHash = setRouteHash;
 window.KNPersona?.bootstrap?.();
 
@@ -4875,6 +5893,7 @@ window.KNPersona?.bootstrap?.();
     activateNavLinkOnFirstLoad(link);
   } else {
     expandL1();
+    settleDesktopRailCollapsed();
     renderBreadcrumb();
   }
   if (navHash !== path) {
@@ -5773,17 +6792,6 @@ function initKnTooltips() {
     tip.removeAttribute("data-placement");
   };
 
-  const isSideNavCollapsedTooltipAllowed = (el) => {
-    if (el?.getAttribute("data-tooltip-when") !== "sidenav-collapsed") {
-      return true;
-    }
-    return Boolean(
-      sideNav?.classList.contains("is-l1-collapsed") &&
-        !sideNav.classList.contains("is-l1-hovered") &&
-        isMediumOrHdDesktop()
-    );
-  };
-
   const place = (el) => {
     const rect = el.getBoundingClientRect();
     const gap = edge;
@@ -5836,16 +6844,9 @@ function initKnTooltips() {
     if (!content || el.closest(".dash-skeleton") || el === pending) {
       return;
     }
-    if (!isSideNavCollapsedTooltipAllowed(el)) {
-      return;
-    }
     pending = el;
     window.clearTimeout(hideTimer);
     showTimer = window.setTimeout(() => {
-      if (!isSideNavCollapsedTooltipAllowed(el)) {
-        pending = null;
-        return;
-      }
       active = el;
       tip.innerHTML = title
         ? `<strong class="kn-tooltip__title">${title}</strong><span>${content}</span>`
@@ -5855,11 +6856,10 @@ function initKnTooltips() {
     }, showDelay);
   };
 
-  // Capture phase: #side-nav-l2 has its own mouseover/mouseout listeners
-  // that call stopPropagation() (to isolate the L1/L2 hover-expand logic),
-  // which would otherwise silently swallow these events for every
-  // data-tooltip element inside it — e.g. the Agentic Broker chat rows —
-  // before they ever reach a bubble-phase listener on document.
+  // Capture phase so a stopPropagation() anywhere in the tree (there isn't
+  // one today, but there has been before) can't silently swallow these
+  // events for a data-tooltip element before they reach a bubble-phase
+  // listener on document.
   document.addEventListener(
     "mouseover",
     (event) => {
@@ -5907,15 +6907,6 @@ function initKnTooltips() {
   });
 
   window.addEventListener("scroll", hide, true);
-
-  window.KNTooltips = {
-    syncSideNavCollapsed() {
-      const trigger = active || pending;
-      if (trigger && !isSideNavCollapsedTooltipAllowed(trigger)) {
-        hide();
-      }
-    }
-  };
 }
 
 const DASH_LAYOUT_KEY = "kn-dashboard-layout";
@@ -8112,7 +9103,7 @@ function initAiAssistant() {
   const WIDTH_STEP = 20;
   const WIDTH_STORAGE_KEY = "kn-ai-assistant-width";
   const ACTION_INTENT = /\b(add|create|edit|update|delete|remove|assign|deactivate|activate|save|submit|change)\b/i;
-  const COACHMARK_SEEN_KEY = "kn-klear-assist-rename-seen";
+  const COACHMARK_SEEN_KEY = "kn-klear-agent-rename-seen";
   const INTRO_SEEN_KEY = "kn-ai-assistant-intro-seen";
   const COACHMARK_COPY =
     "Klear Agent is available on every page — open contextual help from the top nav, not just here.";
@@ -8194,7 +9185,7 @@ function initAiAssistant() {
   }
 
   function setExpandedState(expanded) {
-    const label = window.KNAssistCore?.triggerLabel?.(expanded) || (expanded ? "Close Klear Agent" : "Klear Agent");
+    const label = window.KlearAgentCore?.triggerLabel?.(expanded) || (expanded ? "Close Klear Agent" : "Klear Agent");
     triggers.forEach((trigger) => {
       trigger.setAttribute("aria-expanded", String(expanded));
       trigger.setAttribute("aria-pressed", String(expanded));
@@ -8305,7 +9296,7 @@ function initAiAssistant() {
   }
 
   function showCoachmark() {
-    const canShow = window.KNAssistCore?.isFullPageAssist?.();
+    const canShow = window.KlearAgentCore?.isFullPageAssist?.();
     if (!canShow || hasSeenFlag(COACHMARK_SEEN_KEY)) {
       coachmarkVisible = false;
       setCoachmarkBadges(false);
@@ -8368,8 +9359,8 @@ function initAiAssistant() {
     if (context?.headline) {
       return String(context.headline);
     }
-    if (window.KNAssistCore?.lookingAtLine && context) {
-      return window.KNAssistCore.lookingAtLine(context);
+    if (window.KlearAgentCore?.lookingAtLine && context) {
+      return window.KlearAgentCore.lookingAtLine(context);
     }
     if (context?.kind === "role-detail" || context?.kind === "user-detail" || context?.kind === "default-detail" || context?.kind === "visibility-detail") {
       return `Looking at ${context.title}`;
@@ -9461,7 +10452,7 @@ function initAiAssistant() {
   }
 
   function getContext() {
-    const record = window.KNAssistCore?.getContext?.();
+    const record = window.KlearAgentCore?.getContext?.();
     if (record) {
       return record;
     }
@@ -9486,7 +10477,7 @@ function initAiAssistant() {
     } else {
       context = unavailableContext();
     }
-    return window.KNAssistCore?.enrichContext?.(context) || context;
+    return window.KlearAgentCore?.enrichContext?.(context) || context;
   }
 
   function prefersReducedMotion() {
@@ -9692,7 +10683,7 @@ function initAiAssistant() {
   }
 
   function refChipScopeKey(context = panelContextForUi()) {
-    return window.KNAssistCore?.sessionKey?.(context) || context?.scopeKey || "";
+    return window.KlearAgentCore?.sessionKey?.(context) || context?.scopeKey || "";
   }
 
   function syncRefChipDismissForScope(scopeKey) {
@@ -10393,7 +11384,7 @@ function initAiAssistant() {
   }
 
   function restoreDrawerTranscript() {
-    const scope = window.KNAssistCore?.sessionKey?.(panelContext) || panelScopeKey;
+    const scope = window.KlearAgentCore?.sessionKey?.(panelContext) || panelScopeKey;
     const thread =
       (scope && window.KNThreadStore?.findByScopeKey?.(scope)) ||
       window.KNThreadStore?.getActiveLiveThread?.();
@@ -10522,7 +11513,7 @@ function initAiAssistant() {
     status.innerHTML = `
       <div class="ai-msg__row">
         <span class="ai-msg__leading is-rotating" aria-hidden="true">
-          <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>
+          <svg class="klear-assistant-mark klear-assistant-mark--spin" viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>
         </span>
         <div class="ai-msg__loading-col">
           <div class="ai-msg__loading-line">
@@ -12105,9 +13096,9 @@ function initAiAssistant() {
   }
 
   function beginPanelSession() {
-    const context = window.KNAssistCore?.getContext?.() || getContext();
+    const context = window.KlearAgentCore?.getContext?.() || getContext();
     panelContext = context;
-    panelScopeKey = window.KNAssistCore?.sessionKey?.(context) || context?.scopeKey || "";
+    panelScopeKey = window.KlearAgentCore?.sessionKey?.(context) || context?.scopeKey || "";
     if (panelScopeKey && window.KNThreadStore?.activateScope) {
       window.KNThreadStore.activateScope(panelScopeKey);
     } else if (panelScopeKey && window.KNThreadStore?.ensureScopedThread) {
@@ -12129,7 +13120,7 @@ function initAiAssistant() {
   }
 
   function openPanel(trigger) {
-    if (!window.KNAssistCore?.isPanelRoute?.()) {
+    if (!window.KlearAgentCore?.isPanelRoute?.()) {
       return;
     }
     lastTrigger = trigger || lastTrigger;
@@ -12164,14 +13155,14 @@ function initAiAssistant() {
     if (!isOpen) {
       return;
     }
-    const context = panelContext || window.KNAssistCore?.getContext?.() || getContext();
-    const scopeKey = panelScopeKey || window.KNAssistCore?.sessionKey?.(context) || context?.scopeKey || "";
+    const context = panelContext || window.KlearAgentCore?.getContext?.() || getContext();
+    const scopeKey = panelScopeKey || window.KlearAgentCore?.sessionKey?.(context) || context?.scopeKey || "";
     const title = context?.headline || context?.title || "Conversation";
     if (window.KNThreadStore?.prepareFullPageHandoff) {
       window.KNThreadStore.prepareFullPageHandoff({
         scopeKey,
         title,
-        context: window.KNAssistCore?.handoffContext?.(context, location.hash) || {
+        context: window.KlearAgentCore?.handoffContext?.(context, location.hash) || {
           title: context?.title || "",
           headline: context?.headline || "",
           area: context?.area || "",
@@ -12206,11 +13197,11 @@ function initAiAssistant() {
 
   triggers.forEach((trigger) => {
     trigger.addEventListener("click", () => {
-      if (window.KNAssistCore?.isFullPageAssist?.()) {
+      if (window.KlearAgentCore?.isFullPageAssist?.()) {
         focusFullPageComposer();
         return;
       }
-      if (window.KNAssistCore?.isPanelRoute?.()) {
+      if (window.KlearAgentCore?.isPanelRoute?.()) {
         if (isOpen) {
           closePanel();
           return;
@@ -12373,7 +13364,7 @@ function initAiAssistant() {
     if (actionRaw) {
       try {
         const action = JSON.parse(actionRaw);
-        if (window.KNAssistCore?.runPageAction?.(action)) {
+        if (window.KlearAgentCore?.runPageAction?.(action)) {
           sendQuestion(prompt);
           return;
         }
@@ -12467,7 +13458,7 @@ function initAiAssistant() {
         return;
       }
       const context = getContext();
-      const result = answer(question, context);
+      const result = await resolveAnswer(question, context);
       await presentResult(result, context, genId, question);
     } catch (_error) {
       if (genId === generationId) {
@@ -12520,10 +13511,10 @@ function initAiAssistant() {
   });
 
   function onAssistantRouteChange() {
-    window.KNAssistCore?.syncTriggerVisibility?.(shell);
-    const nextKey = window.KNAssistCore?.sessionKey?.() || "";
+    window.KlearAgentCore?.syncTriggerVisibility?.(shell);
+    const nextKey = window.KlearAgentCore?.sessionKey?.() || "";
     const leftRecord = Boolean(isOpen && panelScopeKey && nextKey !== panelScopeKey);
-    const onFullPage = Boolean(window.KNAssistCore?.isFullPageAssist?.());
+    const onFullPage = Boolean(window.KlearAgentCore?.isFullPageAssist?.());
     if (leftRecord || (isOpen && onFullPage)) {
       closePanel();
       resetPanelSession();
@@ -12550,14 +13541,14 @@ function initAiAssistant() {
   window.addEventListener("kn-route-change", onAssistantRouteChange);
 
   document.addEventListener("keydown", (event) => {
-    if (window.KNAssistCore?.isAssistShortcut?.(event)) {
+    if (window.KlearAgentCore?.isAssistShortcut?.(event)) {
       event.preventDefault();
       event.stopPropagation();
-      if (window.KNAssistCore?.isFullPageAssist?.()) {
+      if (window.KlearAgentCore?.isFullPageAssist?.()) {
         focusFullPageComposer();
         return;
       }
-      if (window.KNAssistCore?.isPanelRoute?.()) {
+      if (window.KlearAgentCore?.isPanelRoute?.()) {
         if (!isOpen) {
           openPanel(triggers[0]);
         } else {
@@ -12604,14 +13595,53 @@ function initAiAssistant() {
   window.KNAiOpsSurface = { sync: syncOpsFlags };
   window.addEventListener("kn-ai-ops-flag-change", () => syncOpsFlags());
 
-  window.KNAssistant = {
+  /* Klear Agent's real "brain" today is the answer() function above — a
+     large, hand-authored knowledge base keyed to this app's own pages,
+     personas and sample data (kn-navigation.js's own catalog is the same
+     idea: a static default, good enough to demo against with no backend
+     wired up). It's still a stand-in for wherever these answers should
+     really come from once a real one exists — a live model call grounded
+     in this user's actual documents and data, the same shape of thing a
+     real AI-chat backend already does elsewhere (session chat history + a
+     vector store + a real model, not keyword matching). Rather than
+     guessing at that integration now (there is no such backend reachable
+     from this prototype to call), this exposes the exact same override
+     seam KNNavigation already uses for its own catalog (kn-navigation.js
+     syncFromApi/fetchAndSync): register a real responder once via
+     setResponder, and every existing call site — the Klear Agent panel,
+     Klear Agent's own composer — starts routing through it automatically,
+     with nothing at any of those call sites needing to change. A responder
+     that throws, or resolves to nothing, falls back to today's local
+     answer() rather than breaking Klear Agent outright. */
+  let externalResponder = null;
+
+  function setResponder(fn) {
+    externalResponder = typeof fn === "function" ? fn : null;
+  }
+
+  async function resolveAnswer(question, pageContext) {
+    if (externalResponder) {
+      try {
+        const remote = await externalResponder(question, pageContext);
+        if (remote) {
+          return remote;
+        }
+      } catch (err) {
+        console.warn("Klear Agent: external responder failed, falling back to the local answer().", err);
+      }
+    }
+    return answer(question, pageContext);
+  }
+
+  window.KlearAgent = {
     isOpen: () => isOpen,
     open: (trigger) => openPanel(trigger || lastTrigger || triggers[0]),
     ask: (text, opts = {}) => {
       openPanel(opts.trigger || lastTrigger || triggers[0]);
       window.requestAnimationFrame(() => sendQuestion(text));
     },
-    answer: (text) => answer(text, getContext()),
+    answer: (text) => resolveAnswer(text, getContext()),
+    setResponder,
     renderText: (text, context) => renderAssistantMarkdown(text, context || getContext()),
     thinkingPanel: (steps, expanded, opts) => thinkingPanelHtml(steps, expanded, opts)
   };
@@ -12666,14 +13696,14 @@ function initAiAssistant() {
     if (!prompt || !inAssistant) {
       return;
     }
-    window.KNAssistant.ask(prompt);
+    window.KlearAgent.ask(prompt);
   });
 
   updateWidth(preferredWidth);
   setExpandedState(false);
   initPanelGhost();
   updateSendControl();
-  window.KNAssistCore?.syncTriggerVisibility?.(shell);
+  window.KlearAgentCore?.syncTriggerVisibility?.(shell);
   syncContextChip();
   syncOpsFlags();
   window.requestAnimationFrame(() => showCoachmark());

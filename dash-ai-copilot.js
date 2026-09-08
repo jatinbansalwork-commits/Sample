@@ -190,7 +190,7 @@
     if (!text) {
       return;
     }
-    window.KNAssistant?.ask?.(text);
+    window.KlearAgent?.ask?.(text);
   }
 
   function expandComposer(focus = false) {
@@ -282,8 +282,8 @@
     });
 
     const markSlot = document.getElementById("dash-ai-insights-mark");
-    if (markSlot && window.KNAssistCore?.aiMarkHtml) {
-      markSlot.innerHTML = window.KNAssistCore.aiMarkHtml({ size: 20, className: "dash-ai-copilot__ray" });
+    if (markSlot && window.KlearAgentCore?.aiMarkHtml) {
+      markSlot.innerHTML = window.KlearAgentCore.aiMarkHtml({ size: 20, className: "dash-ai-copilot__ray" });
     }
 
     window.KNChatInput?.hydrate?.(document.getElementById("dash-ai-insights-input"));

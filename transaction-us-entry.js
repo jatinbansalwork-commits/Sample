@@ -742,7 +742,7 @@
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 5, extra: "entry-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 22, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}${ux.tableSkeletonShell({ tableClass: ux.tmTableClasses({ stickyCompany: true, actionCount: 5, extra: "entry-table" }), cols: 22, rows: 8, ariaLabel: "Loading" })}`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -857,7 +857,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}${ux.tableSkeletonShell({ tableClass: ux.tmTableClasses({ stickyCompany: true, actionCount: 3, extra: "" }), cols: 10, rows: 8, ariaLabel: "Loading" })}`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));

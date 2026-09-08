@@ -199,21 +199,27 @@
   }
 
   /**
-   * Klear360 Table — shared TM row-action icons (same SVG for same use case everywhere).
+   * Klear360 Table — shared TM row-action icons (KNIcons registry).
    * Mirrors packages/klear360 Table hoverActions + IconButton patterns.
    */
-  const tmTableIcons = {
-    eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
-    createTxn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>`,
-    doc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>`,
-    intake: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a4 4 0 0 1 4 4v7"/></svg>`,
-    list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="6" r="1"/><path d="M9 6h11"/><circle cx="4" cy="12" r="1"/><path d="M9 12h11"/><circle cx="4" cy="18" r="1"/><path d="M9 18h11"/></svg>`,
-    pencil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
-    refresh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>`,
-    do: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/><path d="M8 12h8"/><path d="M8 16h6"/></svg>`,
-    copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>`,
-    delete: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`
-  };
+  const TM_ICON_KEYS = [
+    "eye",
+    "createTxn",
+    "doc",
+    "intake",
+    "list",
+    "pencil",
+    "refresh",
+    "do",
+    "copy",
+    "delete"
+  ];
+
+  function tmTableIcon(name) {
+    return window.KNIcons?.html?.(name) || "";
+  }
+
+  const tmTableIcons = Object.fromEntries(TM_ICON_KEYS.map((key) => [key, tmTableIcon(key)]));
 
   const TM_ACTION_DEFS = {
     viewShipment: { icon: "eye", suffix: "view", tooltip: "View Shipment", aria: (label) => `View shipment ${label}` },
@@ -431,15 +437,62 @@
   }
 
   /** Skeleton rows for TM table first paint (avoids blank flash). */
+  const TABLE_SKELETON_WIDTHS = [40, 55, 78, 64, 48, 72, 68, 58, 82, 60, 70, 52, 74, 66, 80, 50, 76, 62, 84, 56, 71, 63];
+
+  function tableSkeletonCell(colIndex, rowIndex) {
+    if (colIndex === 0) {
+      return `<td><span class="skeleton skeleton--icon" aria-hidden="true"></span></td>`;
+    }
+    const width = TABLE_SKELETON_WIDTHS[(colIndex + rowIndex) % TABLE_SKELETON_WIDTHS.length];
+    return `<td><span class="skeleton skeleton--line skeleton--tm-line" style="width:${width}%" aria-hidden="true"></span></td>`;
+  }
+
   function tableSkeletonRows({ cols = 8, rows = 8 } = {}) {
-    const cells = Array.from(
-      { length: Math.max(1, cols) },
-      () => `<td><span class="skeleton skeleton--tm-cell" aria-hidden="true"></span></td>`
+    const colCount = Math.max(1, cols);
+    const rowCount = Math.max(1, rows);
+    return Array.from({ length: rowCount }, (_, rowIndex) =>
+      `<tr class="tm-skeleton-row" aria-hidden="true">${Array.from({ length: colCount }, (_, colIndex) =>
+        tableSkeletonCell(colIndex, rowIndex)
+      ).join("")}</tr>`
     ).join("");
-    return Array.from(
-      { length: Math.max(1, rows) },
-      () => `<tr class="tm-skeleton-row" aria-hidden="true">${cells}</tr>`
+  }
+
+  function tableSkeletonHead({ cols = 8, filters = true } = {}) {
+    const colCount = Math.max(1, cols);
+    const labels = Array.from({ length: colCount }, (_, index) =>
+      `<th scope="col"><span class="skeleton skeleton--caption" style="width:${index === 0 ? 48 : 72}%" aria-hidden="true"></span></th>`
     ).join("");
+    const filterRow = filters
+      ? `<tr class="vis-table__filters" aria-hidden="true">${Array.from({ length: colCount }, (_, index) =>
+          index === 0
+            ? `<th scope="col"><span class="visually-hidden">Actions</span></th>`
+            : `<th scope="col"><span class="skeleton skeleton--line skeleton--filter" aria-hidden="true"></span></th>`
+        ).join("")}</tr>`
+      : "";
+    return `<thead aria-hidden="true"><tr class="vis-table__labels">${labels}</tr>${filterRow}</thead>`;
+  }
+
+  /** Full TM/admin table shell for booting and reload placeholders. */
+  function tableSkeletonShell({
+    tableClass = "vis-table vis-table--admin tm-table",
+    cols = 8,
+    rows = 8,
+    ariaLabel = "Loading",
+    cardClass = "",
+    filters = true,
+    innerOnly = false
+  } = {}) {
+    const tableHtml = `<table class="${tableClass}" aria-label="${escapeHtml(ariaLabel)}" aria-busy="true">
+          ${tableSkeletonHead({ cols, filters })}
+          <tbody>${tableSkeletonRows({ cols, rows })}</tbody>
+        </table>`;
+    if (innerOnly) {
+      return `<div class="vis-table-scroll">${tableHtml}</div>`;
+    }
+    const cardCls = ["vis-table-wrap", "role-table-card", cardClass].filter(Boolean).join(" ");
+    return `<div class="${cardCls}" aria-busy="true">
+      <div class="vis-table-scroll">${tableHtml}</div>
+    </div>`;
   }
 
   function statusSwitch({ active, toggleAttr, labelId }) {
@@ -530,7 +583,7 @@
   }
 
   function moreMenu({ id, open, items, align = "end" }) {
-    const dots =
+    const dots = window.KNIcons?.html?.("more", { filled: true }) ||
       '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="8" cy="13" r="1.25"/></svg>';
     const alignClass = align === "start" ? "" : " vis-menu--end";
     return `<div class="vis-menu kn-dropdown admin-more${alignClass}">
@@ -589,7 +642,8 @@
   }
 
   function chevronDownIcon() {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>`;
+    return window.KNIcons?.html?.("chevronDown") ||
+      `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>`;
   }
 
   /**
@@ -836,7 +890,7 @@
       ? `<a class="ai-ops-flag__link kn-link type-caption-sm" href="${escapeHtml(href)}">${escapeHtml(hrefLabel || "Open")}</a>`
       : "";
     const icon = observe
-      ? `<span class="ai-ops-flag__icon" aria-hidden="true">${window.KNAssistCore?.aiMarkHtml?.({ size: 16, suggest: true }) || ""}</span>`
+      ? `<span class="ai-ops-flag__icon" aria-hidden="true">${window.KlearAgentCore?.aiMarkHtml?.({ size: 16, suggest: true }) || ""}</span>`
       : `<span class="ai-ops-flag__icon ai-ops-flag__icon--notice" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg>
         </span>`;
@@ -1121,8 +1175,8 @@
   }
 
   function permFilters({ query, selectedOnly, aiDescribe, aiLoading, aiNoMatch, aiAttr, totalCount, selectedCount, placeholder, prompts, inputMode = "describe" }) {
-    const assistantMark = window.KNAssistCore?.aiMarkHtml?.({ size: 18, className: "ai-describe-icon" })
-      || `<svg class="ai-describe-icon klear-assistant-mark" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`;
+    const assistantMark = window.KlearAgentCore?.aiMarkHtml?.({ size: 18, className: "ai-describe-icon" })
+      || `<svg class="ai-describe-icon klear-assistant-mark" viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>`;
     const searchIcon = `<svg class="search-input__svg-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="15" height="15"><circle cx="6.5" cy="6.5" r="4"/><path d="M10.5 10.5 L14 14"/></svg>`;
     const attr = escapeHtml(aiAttr || "role");
     const searchOpen = inputMode === "search";
@@ -1434,7 +1488,7 @@
             const label = escapeHtml(chip.label);
             const aiClass = chip.aiSuggested ? " is-ai-suggested" : "";
             const aiMark = chip.aiSuggested
-              ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
+              ? window.KlearAgentCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
               : "";
             const tip = chip.aiSuggested && (chip.title || chip.reason)
               ? ` title="${escapeHtml(chip.title || chip.reason)}"`
@@ -1470,7 +1524,7 @@
                   .map((item) => {
                     const on = Boolean(item.checked);
                     const aiMark = item.aiSuggested
-                      ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
+                      ? window.KlearAgentCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
                       : "";
                     return `<label class="kn-checkbox kn-check kn-select__option ${on ? "is-selected" : ""}">
                       <input type="checkbox" ${item.attr} ${on ? "checked" : ""} />
@@ -2468,6 +2522,8 @@
     tmStatusBadge,
     ellipsisCell,
     tableSkeletonRows,
+    tableSkeletonHead,
+    tableSkeletonShell,
     statusSwitch,
     pagination,
     moreMenu,

@@ -283,15 +283,12 @@
 
   function skeletonTable(cols, label) {
     const ux = window.KNAdminUX;
-    const heads = Array.from({ length: cols }, (_, i) => (i === 0 ? ux.actionsColHeader() : `<th scope="col">…</th>`)).join("");
-    return `<div class="vis-table-wrap role-table-card" aria-busy="true">
-      <div class="vis-table-scroll">
-        <table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 3 })}" aria-label="${escapeHtml(label)}">
-          <thead><tr class="vis-table__labels">${heads}</tr></thead>
-          <tbody>${ux.tableSkeletonRows({ cols, rows: 8 })}</tbody>
-        </table>
-      </div>
-    </div>`;
+    return ux.tableSkeletonShell({
+      tableClass: ux.tmTableClasses({ stickyCompany: true, actionCount: 3 }),
+      cols,
+      rows: 8,
+      ariaLabel: label
+    });
   }
 
   function renderTxnTable() {
@@ -568,8 +565,8 @@
     })();
     root.innerHTML = `<div class="tm-toolbar vis-toolbar">
       <div class="kh-tabs" role="tablist" aria-label="FTZ list view">
-        <button class="btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-ftz-view="shipment">Shipment</button>
-        <button class="btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-ftz-view="transaction">Transaction</button>
+        <button class="kn-btn btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-ftz-view="shipment">Shipment</button>
+        <button class="kn-btn btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-ftz-view="transaction">Transaction</button>
       </div>
       <div class="tm-toolbar__meta"><span class="type-caption-sm tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span></div>
     </div>

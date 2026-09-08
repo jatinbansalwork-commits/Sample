@@ -3346,34 +3346,35 @@ button.avatar:focus-visible,
 
 .kn-btn,
 .btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--theme-spacing-2);
   min-height: var(--theme-size-36);
   padding: var(--theme-spacing-0) var(--theme-spacing-4);
-  border-style: solid;
-  border-width: var(--kn-border-thin);
+  border: none;
   border-radius: var(--theme-border-radius-small);
   cursor: pointer;
   text-decoration: none;
+  overflow: hidden;
   font-size: var(--kn-type-body-md-size);
   line-height: var(--kn-type-body-md-line);
   font-weight: var(--kn-weight-medium);
   background: var(--kn-color-background-surface-gray-intense);
   color: var(--kn-color-text-interactive-gray-normal);
-  border-color: var(--kn-color-border-interactive-gray-default);
-  transition:
-    background-color var(--theme-motion-duration-xquick) var(--theme-motion-easing-standard),
-    border-color var(--theme-motion-duration-xquick) var(--theme-motion-easing-standard),
-    color var(--theme-motion-duration-xquick) var(--theme-motion-easing-standard);
+  transition-property: background-color, background-image, box-shadow, color, border-color;
+  transition-duration: var(--theme-motion-duration-xquick);
+  transition-timing-function: var(--theme-motion-easing-standard);
 }
 
-.kn-btn--xsmall {
+.kn-btn--xsmall,
+.btn--xsmall {
   min-height: var(--theme-size-28);
   padding-inline: var(--theme-spacing-3);
   font-size: var(--kn-type-caption-sm-size);
   line-height: var(--kn-type-caption-sm-line);
+  --kn-btn-gradient-size: var(--theme-size-48);
 }
 
 .kn-btn--small,
@@ -3382,12 +3383,14 @@ button.avatar:focus-visible,
   padding: var(--theme-spacing-0) var(--theme-spacing-3);
   font-size: var(--kn-type-caption-sm-size);
   line-height: var(--kn-type-caption-sm-line);
+  --kn-btn-gradient-size: var(--theme-size-56);
 }
 
 .kn-btn--medium,
 .btn--md {
   min-height: var(--theme-size-36);
   padding: var(--theme-spacing-0) var(--theme-spacing-4);
+  --kn-btn-gradient-size: var(--theme-size-64);
 }
 
 .kn-btn--large {
@@ -3396,6 +3399,7 @@ button.avatar:focus-visible,
   border-radius: var(--theme-border-radius-medium);
   font-size: var(--kn-type-body-lg-size);
   line-height: var(--kn-type-body-lg-line);
+  --kn-btn-gradient-size: var(--theme-size-72);
 }
 
 .kn-btn:hover,
@@ -3405,81 +3409,160 @@ a.btn:hover {
   text-decoration: none;
 }
 
-.kn-btn:focus-visible,
-.btn:focus-visible {
-  outline: none;
-  box-shadow: var(--kn-focus-ring);
-}
-
 .kn-btn--primary,
 .btn--primary {
-  background: var(--kn-color-background-interactive-primary-default);
-  border-color: var(--kn-color-background-interactive-primary-default);
+  background-color: var(--kn-color-background-interactive-primary-default);
   color: var(--kn-color-text-interactive-onPrimary-normal);
+  box-shadow: var(--kn-btn-shadow-primary);
+}
+
+.kn-btn--primary:not(:disabled):not([aria-disabled="true"]):not(:hover):not(:active):not(:focus-visible),
+.btn--primary:not(:disabled):not([aria-disabled="true"]):not(:hover):not(:active):not(:focus-visible) {
+  background-image: radial-gradient(
+    var(--kn-btn-gradient-size) var(--kn-btn-gradient-size) at var(--kn-btn-mouse-x, 50%) var(--kn-btn-mouse-y, 50%),
+    var(--kn-color-background-interactive-staticWhite-faded) 0%,
+    transparent 100%
+  );
 }
 
 .kn-btn--primary:hover,
+.btn--primary:hover {
+  background-color: var(--kn-color-background-interactive-primary-highlighted);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary);
+  color: var(--kn-color-text-interactive-onPrimary-normal);
+}
+
+.kn-btn--primary:active,
+.btn--primary:active {
+  background-color: var(--kn-color-background-interactive-primary-highlighted);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary);
+}
+
 .kn-btn--primary:focus-visible,
-.btn--primary:hover,
 .btn--primary:focus-visible {
-  background: var(--kn-color-background-interactive-primary-highlighted);
-  border-color: var(--kn-color-background-interactive-primary-highlighted);
+  outline: none;
+  background-color: var(--kn-color-background-interactive-primary-highlighted);
+  background-image: none;
+  box-shadow: var(--kn-btn-focus-ring-primary), var(--kn-btn-shadow-primary);
   color: var(--kn-color-text-interactive-onPrimary-normal);
 }
 
 .kn-btn--primary.kn-btn--negative,
 .btn--primary.btn--color-negative,
 .btn--primary.kn-btn--negative {
-  background: var(--kn-color-background-feedback-negative-intense);
-  border-color: var(--kn-color-background-feedback-negative-intense);
+  background-color: var(--kn-color-background-feedback-negative-intense);
+  box-shadow: var(--kn-btn-shadow-primary-negative);
   color: var(--kn-color-text-interactive-onPrimary-normal);
 }
 
-.kn-btn--primary.kn-btn--positive {
-  background: var(--kn-color-background-feedback-positive-intense);
-  border-color: var(--kn-color-background-feedback-positive-intense);
+.kn-btn--primary.kn-btn--negative:hover,
+.kn-btn--primary.kn-btn--negative:active,
+.kn-btn--primary.kn-btn--negative:focus-visible,
+.btn--primary.btn--color-negative:hover,
+.btn--primary.btn--color-negative:active,
+.btn--primary.btn--color-negative:focus-visible {
+  background-color: var(--kn-color-background-interactive-negative-highlighted);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-negative);
+}
+
+.kn-btn--primary.kn-btn--negative:focus-visible,
+.btn--primary.btn--color-negative:focus-visible {
+  box-shadow: var(--kn-btn-focus-ring-primary), var(--kn-btn-shadow-primary-negative);
+}
+
+.kn-btn--primary.kn-btn--positive,
+.btn--primary.btn--color-positive {
+  background-color: var(--kn-color-background-feedback-positive-intense);
+  box-shadow: var(--kn-btn-shadow-primary-positive);
   color: var(--kn-color-text-interactive-onPrimary-normal);
 }
 
-.kn-btn--primary.kn-btn--white {
-  background: var(--kn-color-background-interactive-staticWhite-default);
-  border-color: var(--kn-color-background-interactive-staticWhite-default);
+.kn-btn--primary.kn-btn--positive:hover,
+.kn-btn--primary.kn-btn--positive:active,
+.kn-btn--primary.kn-btn--positive:focus-visible,
+.btn--primary.btn--color-positive:hover,
+.btn--primary.btn--color-positive:active,
+.btn--primary.btn--color-positive:focus-visible {
+  background-color: var(--kn-color-background-interactive-positive-highlighted);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-positive);
+}
+
+.kn-btn--primary.kn-btn--positive:focus-visible,
+.btn--primary.btn--color-positive:focus-visible {
+  box-shadow: var(--kn-btn-focus-ring-primary), var(--kn-btn-shadow-primary-positive);
+}
+
+.kn-btn--primary.kn-btn--white,
+.btn--primary.btn--color-white {
+  background-color: var(--kn-color-background-interactive-staticWhite-default);
+  box-shadow: var(--kn-btn-shadow-primary-white);
   color: var(--kn-color-text-surface-gray-normal);
 }
 
 .kn-btn--primary.kn-btn--white:hover,
-.kn-btn--primary.kn-btn--white:focus-visible {
-  background: var(--kn-color-background-interactive-staticWhite-highlighted);
-  border-color: var(--kn-color-background-interactive-staticWhite-highlighted);
+.kn-btn--primary.kn-btn--white:active,
+.kn-btn--primary.kn-btn--white:focus-visible,
+.btn--primary.btn--color-white:hover,
+.btn--primary.btn--color-white:active,
+.btn--primary.btn--color-white:focus-visible {
+  background-color: var(--kn-color-background-interactive-staticWhite-highlighted);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-white);
   color: var(--kn-color-text-surface-gray-normal);
 }
 
 .kn-btn--secondary,
 .btn--secondary {
-  background: var(--kn-color-background-surface-gray-intense);
-  border-color: var(--kn-color-border-interactive-gray-default);
+  background-color: var(--kn-color-background-surface-gray-intense);
   color: var(--kn-color-text-interactive-gray-normal);
+  box-shadow: var(--kn-btn-shadow-secondary);
 }
 
 .kn-btn--secondary:hover,
-.kn-btn--secondary:focus-visible,
-.btn--secondary:hover,
-.btn--secondary:focus-visible {
-  border-color: var(--kn-color-border-interactive-gray-highlighted);
+.btn--secondary:hover {
+  background-color: var(--kn-color-background-surface-gray-intense);
+  box-shadow: var(--kn-btn-shadow-secondary-hover);
   color: var(--kn-color-text-interactive-gray-normal);
+}
+
+.kn-btn--secondary:active,
+.btn--secondary:active {
+  background-color: var(--kn-color-background-surface-gray-intense);
+  box-shadow: var(--kn-btn-shadow-secondary-hover);
+}
+
+.kn-btn--secondary:focus-visible,
+.btn--secondary:focus-visible {
+  outline: none;
+  box-shadow: var(--kn-btn-focus-ring-primary), var(--kn-btn-shadow-secondary-hover);
 }
 
 .kn-btn--tertiary,
 .btn--tertiary {
-  border-width: var(--theme-border-width-none);
   background: var(--theme-colors-transparent);
+  box-shadow: none;
   color: var(--kn-color-text-interactive-primary-normal);
 }
 
 .kn-btn--tertiary:hover,
+.btn--tertiary:hover {
+  background: var(--kn-color-background-interactive-gray-faded);
+  box-shadow: none;
+}
+
+.kn-btn--tertiary:active,
+.btn--tertiary:active {
+  background: var(--kn-color-background-interactive-gray-faded);
+}
+
 .kn-btn--tertiary:focus-visible,
-.btn--tertiary:hover,
 .btn--tertiary:focus-visible {
+  outline: none;
+  box-shadow: var(--kn-focus-ring);
   background: var(--kn-color-background-interactive-gray-faded);
 }
 
@@ -3489,11 +3572,14 @@ a.btn:hover {
 }
 
 .kn-btn--tertiary.kn-btn--negative:hover,
+.kn-btn--tertiary.kn-btn--negative:active,
 .kn-btn--tertiary.kn-btn--negative:focus-visible,
 .btn--tertiary.btn--color-negative:hover,
+.btn--tertiary.btn--color-negative:active,
 .btn--tertiary.btn--color-negative:focus-visible {
   background: var(--kn-color-background-feedback-negative-subtle);
   color: var(--kn-color-text-feedback-negative-intense);
+  box-shadow: none;
 }
 
 .kn-btn--icon,
@@ -3560,15 +3646,19 @@ a.btn:hover {
 .kn-btn--primary[aria-disabled="true"],
 .btn.btn--primary:disabled,
 .btn.btn--primary[aria-disabled="true"] {
-  background: var(--kn-color-background-interactive-primary-disabled);
-  border-color: var(--kn-color-background-interactive-primary-disabled);
+  background-color: var(--kn-color-background-interactive-primary-disabled);
+  background-image: none;
+  box-shadow: none;
   color: var(--kn-color-text-interactive-gray-disabled);
 }
 
 .kn-btn--primary.kn-btn--white:disabled,
-.kn-btn--primary.kn-btn--white[aria-disabled="true"] {
-  background: var(--kn-color-background-interactive-staticWhite-disabled);
-  border-color: var(--kn-color-background-interactive-staticWhite-disabled);
+.kn-btn--primary.kn-btn--white[aria-disabled="true"],
+.btn--primary.btn--color-white:disabled,
+.btn--primary.btn--color-white[aria-disabled="true"] {
+  background-color: var(--kn-color-background-interactive-staticWhite-disabled);
+  background-image: none;
+  box-shadow: none;
   color: var(--kn-color-text-interactive-gray-disabled);
 }
 
@@ -3577,7 +3667,8 @@ a.btn:hover {
 .btn--secondary:disabled,
 .btn--secondary[aria-disabled="true"] {
   color: var(--kn-color-text-interactive-gray-disabled);
-  border-color: var(--kn-color-border-interactive-gray-disabled);
+  box-shadow: inset 0 0 0 1px var(--kn-color-border-interactive-gray-disabled);
+  background-image: none;
 }
 
 .kn-btn--tertiary:disabled,
@@ -4695,9 +4786,14 @@ button.kn-link.agentic-home__attach {
 
 .kn-chat-msg--self,
 .ai-msg--user {
+  /* .kn-chat-msg/.ai-msg (shared base, above) sets flex-direction:column —
+     justify-content controls that container's main (vertical) axis, so it
+     can only push children to the bottom, never to the right. align-items
+     is the cross-axis property in a column flex container, i.e. the
+     horizontal one — that's what actually right-aligns the bubble. */
   align-self: flex-end;
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .kn-chat-msg--other,

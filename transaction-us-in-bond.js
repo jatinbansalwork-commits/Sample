@@ -597,7 +597,7 @@
   function renderTxnTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ actionCount: 3, extra: "inb-table" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 14, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "all", label: "All", count: "…", selected: true }], results: "Loading…" })}${ux.tableSkeletonShell({ tableClass: ux.tmTableClasses({ actionCount: 3, extra: "inb-table" }), cols: 14, rows: 8, ariaLabel: "Loading" })}`;
     }
     const rows = filteredTxnRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.txn.pageSize));
@@ -744,7 +744,7 @@
   function renderShipTable() {
     const ux = window.KNAdminUX;
     if (state.booting) {
-      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}<div class="vis-table-wrap role-table-card" aria-busy="true"><div class="vis-table-scroll"><table class="${ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" })}" aria-label="Loading"><tbody>${ux.tableSkeletonRows({ cols: 10, rows: 8 })}</tbody></table></div></div>`;
+      return `${ux.toolbar({ chips: [{ id: "allActive", label: "All Active", count: "…", selected: true }], results: "Loading…" })}${ux.tableSkeletonShell({ tableClass: ux.tmTableClasses({ stickyCompany: true, actionCount: 4, extra: "inb-table inb-table--ship" }), cols: 10, rows: 8, ariaLabel: "Loading" })}`;
     }
     const rows = filteredShipRows();
     const pages = Math.max(1, Math.ceil(rows.length / state.ship.pageSize));
@@ -1103,8 +1103,8 @@
     })();
     root.innerHTML = `<div class="inb-toolbar tm-toolbar vis-toolbar">
       <div class="kh-tabs" role="tablist" aria-label="In-Bond list view">
-        <button class="btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-inb-view="shipment">Shipment</button>
-        <button class="btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-inb-view="transaction">Transaction</button>
+        <button class="kn-btn btn ${state.view === "shipment" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "shipment"}" data-inb-view="shipment">Shipment</button>
+        <button class="kn-btn btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-inb-view="transaction">Transaction</button>
       </div>
       <div class="inb-toolbar__meta tm-toolbar__meta">
         <span class="type-caption-sm inb-updated tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span>

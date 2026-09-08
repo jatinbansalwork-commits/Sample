@@ -660,7 +660,7 @@
   }
 
   function iconClose() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
+    return window.KNIcons?.html?.("close") || "";
   }
 
   function assignedCount(roleName) {
@@ -773,8 +773,8 @@
           <td>${ux.statusBadge(role.active)}</td>
           <td>
             <div class="user-row-actions">
-              <button class="icon-btn" type="button" data-role-edit="${escapeHtml(role.id)}" aria-label="Edit ${escapeHtml(role.name)}" data-tooltip="Edit role">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/></svg>
+              <button class="icon-btn icon-btn--on-surface" type="button" data-role-edit="${escapeHtml(role.id)}" aria-label="Edit ${escapeHtml(role.name)}" data-tooltip="Edit role">
+                ${window.KNIcons?.html?.("edit") || ""}
               </button>
               ${ux.moreMenu({
                 id: role.id,

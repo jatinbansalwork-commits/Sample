@@ -78,19 +78,19 @@
   };
 
   function iconChevron(expanded) {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${expanded ? "M4 6l4 4 4-4" : "M6 4l4 4-4 4"}"/></svg>`;
+    return window.KNIcons?.chevron?.(expanded) || "";
   }
   function iconPencil() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+    return window.KNIcons?.html?.("pencil") || "";
   }
   function iconTrash() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>`;
+    return window.KNIcons?.html?.("trash") || "";
   }
 
   function escapeHtml(v) { return window.KNAdminUX.escapeHtml(v); }
   function toast(content, color = "positive") { if (typeof window.showKnToast === "function") window.showKnToast({ content, color }); }
   function iconFilter() {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`;
+    return window.KNIcons?.html?.("filter") || "";
   }
 
   function buildSeed() { return []; }
@@ -369,8 +369,8 @@
     const updatedLabel = (() => { const raw = window.KNAdminUX.relativeTime(lastUpdatedIso); const hours = raw.match(/^(\d+)h ago$/); return hours ? `${hours[1]} hours ago` : raw; })();
     root.innerHTML = `<div class="tmship-toolbar tm-toolbar vis-toolbar">
       <div class="kh-tabs" role="tablist" aria-label="Shipments list view">
-        <button class="btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-tmship-view="transaction">Transaction View</button>
-        <button class="btn ${state.view === "group" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "group"}" data-tmship-view="group">Group View</button>
+        <button class="kn-btn btn ${state.view === "transaction" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "transaction"}" data-tmship-view="transaction">Transaction View</button>
+        <button class="kn-btn btn ${state.view === "group" ? "btn--primary" : "btn--tertiary"} btn--sm type-ui-sm" type="button" role="tab" aria-selected="${state.view === "group"}" data-tmship-view="group">Group View</button>
       </div>
       <div class="tm-toolbar__meta tmship-toolbar__meta"><span class="type-caption-sm tm-updated" title="${escapeHtml(lastUpdatedIso)}">Updated ${escapeHtml(updatedLabel)}</span></div>
     </div>

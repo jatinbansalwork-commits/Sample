@@ -43,7 +43,12 @@
     if (window.KNAdminUX?.tableSkeletonRows) {
       return window.KNAdminUX.tableSkeletonRows({ cols, rows });
     }
-    const cells = Array.from({ length: cols }, () => '<td><span class="skeleton skeleton--tm-cell" aria-hidden="true"></span></td>').join("");
+    const widths = [40, 55, 78, 64, 48, 72, 68, 58];
+    const cells = Array.from({ length: cols }, (_, colIndex) =>
+      colIndex === 0
+        ? '<td><span class="skeleton skeleton--icon" aria-hidden="true"></span></td>'
+        : `<td><span class="skeleton skeleton--line skeleton--tm-line" style="width:${widths[colIndex % widths.length]}%" aria-hidden="true"></span></td>`
+    ).join("");
     return Array.from({ length: rows }, () => `<tr class="tm-skeleton-row" aria-hidden="true">${cells}</tr>`).join("");
   }
 
@@ -64,14 +69,15 @@
         <span class="skeleton skeleton--badge" style="width: 7rem"></span>
       </div>
       <div class="role-table-card admin-reload-skeleton__table">
-        <div class="vis-table-wrap">
-          <table class="tm-table admin-table" aria-hidden="true">
-            <thead>
-              <tr>${Array.from({ length: cols }, () => '<th><span class="skeleton skeleton--caption" style="width: 72%"></span></th>').join("")}</tr>
-            </thead>
-            <tbody>${tableSkeletonRows({ cols, rows })}</tbody>
-          </table>
-        </div>
+        ${window.KNAdminUX?.tableSkeletonShell?.({
+          tableClass: "tm-table admin-table",
+          cols,
+          rows,
+          ariaLabel: "Loading",
+          filters: true,
+          innerOnly: true
+        }) ||
+          `<div class="vis-table-wrap"><table class="tm-table admin-table" aria-hidden="true"><thead><tr>${Array.from({ length: cols }, () => '<th><span class="skeleton skeleton--caption" style="width: 72%"></span></th>').join("")}</tr></thead><tbody>${tableSkeletonRows({ cols, rows })}</tbody></table></div>`}
       </div>
     </div>`;
   }

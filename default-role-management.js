@@ -1174,7 +1174,7 @@
   function check(name, value, checked, label, extras = {}) {
     const labelClass = extras.labelClass || "type-body-sm";
     const mark = extras.aiMark
-      ? window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
+      ? window.KlearAgentCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""
       : "";
     const text = extras.hideLabel
       ? `<span class="visually-hidden">${escapeHtml(label)}</span>`
@@ -1521,7 +1521,7 @@
     const aiApplicableIds = state.aiApplicableSuggestions || [];
     const accessAiHint =
       aiServiceIds.length || aiApplicableIds.length
-        ? `<p class="type-caption-sm ai-applicable-hint">${window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""} ${escapeHtml(
+        ? `<p class="type-caption-sm ai-applicable-hint">${window.KlearAgentCore?.aiMarkHtml?.({ size: 12, suggest: true }) || ""} ${escapeHtml(
             sharedAiReason([...aiServiceIds, ...aiApplicableIds], {
               ...(state.aiServiceReasons || {}),
               ...(state.aiApplicableReasons || {})

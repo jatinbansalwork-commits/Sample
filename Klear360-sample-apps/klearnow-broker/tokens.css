@@ -1,6 +1,12 @@
 /**
  * KlearNow Engine — design tokens
  *
+ * Token tiers (never skip a layer in component CSS):
+ *   Tier 1  --kn-primitive-*     Raw palette — never in components.css
+ *   Tier 2  --theme-colors-*     Semantic roles (surface, interactive, ai.*)
+ *   Tier 3  --kn-color-*         Product aliases for CSS
+ *   Tier 4  --kn-divider-* etc.  Component-scoped aliases
+ *
  * `--theme-*` is the raw scale (spacing, type, radius, motion, semantic color).
  * `--kn-*` aliases that scale for product CSS. Component styles must use
  * semantic `--kn-color-*` / `--theme-spacing-*` / type tokens — never primitives.
@@ -240,9 +246,9 @@
   --theme-colors-surface-background-cloud-subtle: var(--kn-primitive-surface-100);
   --theme-colors-surface-background-cloud-intense: var(--kn-primitive-blue-sapphire-500);
 
-  /* Klear360 surface.border.gray.* (light), opacity reduced 70% (30% of Klear360 alpha) */
-  --theme-colors-surface-border-gray-normal: hsla(213, 27%, 84%, 0.3);
-  --theme-colors-surface-border-gray-subtle: hsla(214, 32%, 91%, 0.3);
+  --theme-colors-surface-border-gray-normal: var(--kn-primitive-surface-400);
+  --theme-colors-surface-border-gray-subtle: var(--kn-primitive-surface-300);
+  /* Klear360 surface.border.gray.muted (a917) at 30% opacity — sidebar, cards, dividers */
   --theme-colors-surface-border-gray-muted: hsla(222, 47%, 11%, 0.038);
   --theme-colors-surface-border-primary-normal: var(--kn-primitive-blue-sapphire-500);
   --theme-colors-surface-border-primary-muted: var(--kn-primitive-bluegray-400);
@@ -758,8 +764,8 @@
   --kn-divider-width-thick: var(--kn-border-thick);
   --kn-divider-width-thicker: var(--kn-border-thicker);
   --kn-divider-width: var(--kn-divider-width-thin);
-  --kn-divider-color-normal: var(--kn-color-border-surface-gray-normal);
-  --kn-divider-color-subtle: var(--kn-color-border-surface-gray-subtle);
+  --kn-divider-color-normal: color-mix(in srgb, var(--kn-color-border-surface-gray-normal) 50%, transparent);
+  --kn-divider-color-subtle: color-mix(in srgb, var(--kn-color-border-surface-gray-subtle) 50%, transparent);
   --kn-divider-color-muted: var(--kn-color-border-surface-gray-muted);
   --kn-divider-color: var(--kn-divider-color-muted);
   --kn-color-text-surface-gray-normal: var(--theme-colors-surface-text-gray-normal);
@@ -1503,6 +1509,42 @@
 
   --kn-focus-ring: 0 0 0 var(--theme-border-width-thicker)
     var(--theme-colors-interactive-border-information-default);
+
+  /* Button — inset 3D shadows (packages/klear360 BaseButton/buttonTokens) */
+  --kn-btn-shadow-primary:
+    inset 0 -1.5px 0 0 var(--kn-color-border-interactive-primary-highlighted),
+    inset 0 0 0 0.5px var(--kn-color-border-interactive-primary-default),
+    inset 0 1.5px 0 0 var(--kn-color-border-interactive-staticWhite-faded),
+    inset 0 -2px 0 0 var(--kn-color-border-interactive-staticWhite-faded);
+  --kn-btn-shadow-primary-negative:
+    inset 0 -1.5px 0 0 var(--kn-color-border-interactive-negative-highlighted),
+    inset 0 0 0 0.5px var(--kn-color-border-interactive-negative-default),
+    inset 0 1.5px 0 0 var(--kn-color-border-interactive-staticWhite-faded),
+    inset 0 -2px 0 0 var(--kn-color-border-interactive-staticWhite-faded);
+  --kn-btn-shadow-primary-positive:
+    inset 0 -1.5px 0 0 var(--kn-color-border-interactive-positive-highlighted),
+    inset 0 0 0 0.5px var(--kn-color-border-interactive-positive-default),
+    inset 0 1.5px 0 0 var(--kn-color-border-interactive-staticWhite-faded),
+    inset 0 -2px 0 0 var(--kn-color-border-interactive-staticWhite-faded);
+  --kn-btn-shadow-primary-white:
+    inset 0 -1.5px 0 0 var(--kn-color-border-interactive-staticBlack-fadedHighlighted),
+    inset 0 0 0 0.5px var(--kn-color-border-interactive-staticBlack-fadedHighlighted);
+  --kn-btn-shadow-secondary:
+    inset 0 -1px 0.5px 0 var(--kn-color-border-interactive-staticBlack-fadedHighlighted),
+    inset 0 0 0 1px var(--kn-color-border-interactive-gray-default),
+    inset 0 -1.5px 0 0 var(--kn-color-border-interactive-gray-default);
+  --kn-btn-shadow-secondary-hover:
+    inset 0 -1px 0.5px 0 var(--kn-color-border-interactive-staticBlack-fadedHighlighted),
+    inset 0 0 0 1px var(--kn-color-border-interactive-gray-highlighted),
+    inset 0 -1.5px 0 0 var(--kn-color-border-interactive-gray-default);
+  --kn-btn-focus-ring-primary: 0 0 0 4px var(--kn-color-border-surface-primary-muted);
+  --kn-btn-shadow-primary-ai:
+    inset 0 -1.5px 0 0 var(--ai-assistant-accent-text),
+    inset 0 0 0 0.5px var(--ai-assistant-accent),
+    inset 0 1.5px 0 0 var(--kn-color-border-interactive-staticWhite-faded),
+    inset 0 -2px 0 0 var(--kn-color-border-interactive-staticWhite-faded);
+  --kn-btn-focus-ring-ai: 0 0 0 4px var(--ai-discussion-border-subtle);
+  --kn-btn-gradient-size: var(--theme-size-64);
 
   /* Motion */
   --theme-motion-duration-2xquick: 80ms;

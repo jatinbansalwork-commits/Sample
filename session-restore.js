@@ -25,7 +25,7 @@
       agentMode = "permission";
     }
 
-    const contextMeta = window.KNAssistCore?.contextOf?.() || window.KNAssistant?.getContext?.() || null;
+    const contextMeta = window.KlearAgentCore?.contextOf?.() || window.KlearAgent?.getContext?.() || null;
     const entryForm = entryId && window.KNEntryFormState?.getSnapshot
       ? window.KNEntryFormState.getSnapshot(entryId)
       : null;

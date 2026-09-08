@@ -964,11 +964,16 @@ html[data-kn-l1="collapsed"] .side-nav .side-nav-l2[hidden] {
 }
 
 /* L2 opens as a side panel (Klear360 ChevronRight). Do not rotate these
-   chevrons — including Agentic Broker, whose L2 is also a flyout, not an
-   inline accordion. TreeView L3 chevrons below still rotate when expanded. */
+   chevrons — TreeView L3 chevrons below still rotate when expanded. */
 .side-nav-link[data-l2trigger] .side-nav-link__chevron,
 .side-nav-link--agentic-broker[data-l2trigger] .side-nav-link__chevron {
   transform: none;
+}
+
+/* Klear Agent L2 (chat history) is always portaled beside the icon rail —
+   no expand chevron on the L1 item. */
+.side-nav-link--agentic-broker .side-nav-link__chevron {
+  display: none;
 }
 
 /* KlearNow TreeView-style nesting inside L2 (left chevron slot + indentation) */
@@ -1185,16 +1190,17 @@ button.side-nav-tree__row {
   padding-inline: var(--theme-spacing-4);
   gap: var(--theme-spacing-3);
   border-radius: var(--agentic-radius-btn, var(--theme-border-radius-small));
-  border-color: var(--ai-assistant-accent);
   color: var(--kn-color-text-interactive-onPrimary-normal);
   font-size: var(--kn-type-body-sm-size);
   line-height: var(--kn-type-body-sm-line);
   letter-spacing: var(--kn-type-body-sm-tracking);
   font-weight: var(--kn-weight-medium);
-  background: var(--ai-assistant-accent);
+  border: none;
+  background-color: var(--ai-assistant-accent);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
   transition:
     background-color var(--kn-motion-duration-xquick) var(--agentic-ease, ease),
-    border-color var(--kn-motion-duration-xquick) var(--agentic-ease, ease),
     box-shadow var(--kn-motion-duration-xquick) var(--agentic-ease, ease),
     transform var(--kn-motion-duration-xquick) var(--agentic-ease, ease);
 }
@@ -1205,15 +1211,17 @@ button.side-nav-tree__row {
 
 .side-nav-chat-new__btn:hover,
 .side-nav-chat-new__btn:focus-visible {
-  border-color: var(--ai-assistant-accent-text);
-  background: var(--ai-assistant-accent-text);
+  background-color: var(--ai-assistant-accent-text);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
   color: var(--kn-color-text-interactive-onPrimary-normal);
 }
 
 .side-nav-chat-new__btn:active {
   transform: scale(0.98);
-  border-color: var(--ai-assistant-accent-text);
-  background: var(--ai-assistant-accent-text);
+  background-color: var(--ai-assistant-accent-text);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1223,8 +1231,13 @@ button.side-nav-tree__row {
 }
 
 .side-nav-chat-new__btn:focus-visible {
-  box-shadow: 0 0 0 var(--kn-border-thin) var(--ai-assistant-accent-border);
+  box-shadow: var(--kn-btn-focus-ring-ai), var(--kn-btn-shadow-primary-ai);
   outline: none;
+}
+
+.side-nav-chat-new__btn.kn-btn--primary:not(:disabled):not([aria-disabled="true"]):not(:hover):not(:active):not(:focus-visible) {
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
 }
 
 .side-nav-chat-new__btn .side-nav-chat-new__icon {

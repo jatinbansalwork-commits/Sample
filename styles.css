@@ -559,6 +559,25 @@ svg.klear-assistant-mark {
   transition: opacity var(--kn-motion-duration-gentle) var(--kn-motion-easing-entrance);
 }
 
+/* Reuses the same backdrop element as the mobile drawer above, just for a
+   different trigger (desktop's L1 peek — see script.js openL1Peek /
+   is-l1-peeking, styles.css). Same dimming strength, but non-interactive:
+   peek already closes via the outside-click/mousemove safe-zone handlers
+   (script.js), not a dedicated tap on the scrim the way the mobile drawer's
+   backdrop needs. .app-shell ancestor bumps specificity above
+   .sidebar-backdrop[hidden] deliberately, rather than relying on source
+   order to win a specificity tie — this element keeps its `hidden`
+   attribute the whole time (peek never touches it), so only a genuinely
+   higher-specificity rule can show it. Hiding still snaps instantly rather
+   than fading out, same asymmetry the mobile drawer above already accepts
+   (backdrop.hidden flips synchronously on close, script.js) — kept
+   consistent with it rather than inventing a delayed-hide just for peek. */
+.app-shell .sidebar-backdrop.is-l1-peek-scrim {
+  display: block;
+  opacity: var(--kn-opacity-12);
+  pointer-events: none;
+}
+
 
 .sidebar {
   position: fixed;
@@ -591,11 +610,16 @@ svg.klear-assistant-mark {
   width: var(--kn-layout-sidenav-expanded);
   min-width: var(--kn-layout-sidenav-collapsed);
   height: 100%;
-  padding: var(--theme-spacing-5) var(--theme-spacing-0) var(--theme-spacing-8);
+  /* Bottom padding was spacing-8 (32px) — enough empty space below the pin
+     toggle that it read as floating mid-rail rather than anchored to the
+     viewport's actual bottom edge. spacing-3 keeps a small, deliberate
+     buffer (so the button's own hover/focus states don't touch the screen
+     edge) without the dead gap. */
+  padding: var(--theme-spacing-5) var(--theme-spacing-0) var(--theme-spacing-3);
   overflow: hidden;
   background: var(--kn-color-background-surface-gray-moderate);
   border-right: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
-  transition: width var(--theme-motion-duration-xmoderate) var(--theme-motion-easing-entrance);
+  transition: width var(--theme-motion-duration-xmoderate) var(--theme-motion-easing-standard);
 }
 
 .sidebar-nav,
@@ -605,143 +629,240 @@ svg.klear-assistant-mark {
   overflow-y: auto;
 }
 
-.side-nav.is-l1-collapsed:not(.is-l1-hovered) .side-nav-body {
+.side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-l1-peeking) .side-nav-body {
   overflow-y: hidden;
 }
 
-.side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-transitioning) .side-nav-l1 .side-nav-link {
+.side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-l1-peeking):not(.is-transitioning) .side-nav-l1 .side-nav-link {
   justify-content: center;
   padding-inline: var(--theme-spacing-2);
   gap: var(--theme-spacing-0);
 }
 
-/* Shared Klear360 SideNav L2 shell: width = expanded L1 − 56px rail, sits
-   beside the collapsed icon rail, outer edge uses border-right. Keep the
-   xquick enter fade/slide — Klear360 mounts L2 with no enter motion.
-   Contents portaled in here may be SideNavLinks or (Agentic) chat history. */
-.side-nav-l2 {
-  display: flex;
-  flex-direction: column;
-  width: var(--kn-layout-sidenav-l2);
-  min-width: var(--kn-layout-sidenav-l2);
-  height: 100%;
-  padding: var(--theme-spacing-0);
-  border-right: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
+/* .hide-when-collapsed (title/chevron/counter) is hidden via opacity, not
+   display:none, so it can animate on the way back in (see the label-fade
+   comment below) — but that means it still occupies its own flex width
+   even at rest, invisible. justify-content:center on the row above then
+   centers the icon+invisible-label pair as one block instead of the icon
+   alone, shoving the icon left of true-center by half the label's width.
+   Zeroing the label's box only in this exact at-rest (not hovered, not
+   transitioning) state removes it from that centering math without
+   touching the opacity transition itself. */
+.side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-l1-peeking):not(.is-transitioning) .side-nav-l1 .side-nav-link .hide-when-collapsed {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
   overflow: hidden;
-  opacity: 1;
-  transform: translateX(0);
-  transition:
-    opacity var(--kn-motion-duration-xquick) var(--kn-motion-easing-entrance),
-    transform var(--kn-motion-duration-xquick) var(--kn-motion-easing-entrance);
-}
-
-.side-nav-l2[hidden] {
-  display: none;
-}
-
-.side-nav-l2.is-entering {
-  opacity: 0;
-  transform: translateX(calc(var(--theme-spacing-3) * -1));
-}
-
-.side-nav-l2__header {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--theme-spacing-3);
-  min-height: var(--kn-type-body-lg-line);
-  margin: var(--theme-spacing-0);
-  padding: var(--theme-spacing-4);
-  border-bottom: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
-}
-
-.side-nav-l2__title {
-  margin: var(--theme-spacing-0);
-  color: var(--kn-color-text-surface-gray-normal);
-}
-
-/* Agentic L2 reuses this shell but is not a SideNav instance: no section
-   title, because the first thing in the pane is New chat (chat history,
-   not navigation). Do not restore a SideNavLevel header here. */
-#side-nav-l2:has(> #sidenav-level-agentic-broker:not([hidden])) .side-nav-l2__title {
-  display: none;
-}
-
-#side-nav-l2:has(> #sidenav-level-agentic-broker:not([hidden])) .side-nav-l2__header {
-  min-height: 0;
-  padding: var(--theme-spacing-0);
-  border-bottom: var(--theme-border-width-none);
-}
-
-/* Agentic Broker's panel stays the same 11.5rem width shared by every other
-   L1 section's L2 flyout — the New chat button, search bar, and row content
-   are sized to fit that width (see .side-nav-chat-new__btn etc. below)
-   rather than widening the panel itself, which avoids the flyout (position:
-   absolute while L1 is collapsed) overflowing past #app-sidebar's own
-   in-flow box and overlapping main content. */
-
-.side-nav-l2__back {
-  display: none;
-  align-items: center;
-  border: var(--theme-border-width-none);
-  background: var(--theme-colors-transparent);
-  color: var(--kn-color-text-surface-gray-subtle);
-  cursor: pointer;
-  padding: var(--theme-spacing-0);
+  /* .side-nav-link__chevron's own margin-inline-start:auto (below) is what
+     actually right-aligns it once the title reveals a variable-length gap
+     to fill — with the title zeroed above, that auto margin has nothing
+     to push against but the icon, and swallows the same space
+     justify-content:center was just given, undoing the fix above. */
+  margin-inline-start: 0;
 }
 
 .side-nav.is-mobile-l2-open .side-nav-l1 {
   display: none;
 }
 
-.side-nav.is-mobile-l2-open .side-nav-l2 {
-  width: 100%;
-  min-width: 0;
+/* Pin toggle sits below the scrollable item list (.side-nav-body is
+   flex:1 1 auto above, so this footer is naturally pushed to the bottom of
+   .side-nav-l1's own column flex) — a persistent, always-reachable control
+   rather than one more row competing with the catalog above it. Hidden
+   below the desktop rail breakpoint: mobile's drawer already shows every
+   label at all times, so "keep it open" has nothing to toggle there. */
+.side-nav-l1__footer {
+  display: none;
+  flex: 0 0 auto;
+  padding-inline: var(--theme-spacing-3);
+  padding-top: var(--theme-spacing-2);
+  margin-top: var(--theme-spacing-2);
+  border-top: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
 }
 
-.side-nav.is-mobile-l2-open .side-nav-l2__back {
-  display: inline-flex;
+@media screen and (min-width: 1024px) {
+  .side-nav-l1__footer {
+    display: block;
+  }
 }
 
+/* Same accent used elsewhere in-app for a toggled-on pin control (see
+   .entry-doc-pin.is-pinned / .entry-record-pin.is-pinned) — kept consistent
+   rather than inventing a second "pinned" color. */
+/* Pinning used to change only the icon's color — a state distinguishable
+   by hue alone, with no transition (an abrupt snap on click) and nothing
+   for a colorblind or low-vision user to go on. The pin head now also
+   fills solid on (a pressed-in pin, not just a differently-colored one);
+   the needle (the <line>) stays a thin stroke in both states — only the
+   head is what visually "activates". */
+.side-nav-pin-toggle {
+  transition: color var(--kn-motion-duration-2xquick) var(--kn-motion-easing-standard);
+}
+
+.side-nav-pin-toggle .side-nav-link__icon svg path {
+  transition: fill var(--kn-motion-duration-2xquick) var(--kn-motion-easing-standard);
+  fill: none;
+}
+
+.side-nav-pin-toggle.is-pinned {
+  color: var(--kn-primitive-indigo-500);
+}
+
+.side-nav-pin-toggle.is-pinned .side-nav-link__icon svg path {
+  fill: currentColor;
+}
+
+/* .side-nav (== .sidebar, same element, #app-sidebar) sits as the first
+   track of .main-column's desktop grid (auto minmax(0,1fr) — see the
+   min-width:1024px media query below). "auto" sizes that track to this
+   element's own width, so animating THIS width (not just the inner
+   .side-nav-l1's) is what makes the rest of the page — the grid's other
+   (1fr) track — reflow in step, the same way any normal sidebar push/
+   expand works. No position:fixed, no JS-measured rect, no separate
+   overlay layer: L1 stays a normal grid item the whole time, and
+   .side-nav-l1 simply fills whatever width its parent currently has
+   (width:100%, no transition of its own needed — it just tracks the
+   parent's animated value every frame). This is deliberately different
+   from the L2 flyout (below), which anchors beside a row and floats over
+   the page on purpose — L1 pushes, L2 overlays; they're not the same
+   interaction and shouldn't share a mechanism. */
 .side-nav.is-l1-collapsed {
   position: relative;
-  width: calc(var(--kn-layout-sidenav-collapsed) + var(--kn-layout-sidenav-l2));
+  width: var(--kn-layout-sidenav-collapsed);
+  transition: width var(--theme-motion-duration-xmoderate) var(--theme-motion-easing-standard);
+}
+
+.side-nav.is-l1-collapsed.is-l1-hovered {
+  width: var(--kn-layout-sidenav-expanded);
 }
 
 .side-nav.is-l1-collapsed .side-nav-l1 {
   position: relative;
   z-index: 2;
+  width: 100%;
 }
 
-.side-nav.is-l1-collapsed:not(.is-l1-hovered) .side-nav-l1 {
-  width: var(--kn-layout-sidenav-collapsed);
-  transition: width var(--theme-motion-duration-quick) var(--theme-motion-easing-exit);
+/* L1 label fade — its own transition, decoupled from the rail's width
+   transition above. Deliberately INSTANT: the label starts fading in the
+   moment .is-l1-hovered is added, in parallel with the width still
+   animating, rather than waiting for the width transition to settle first
+   (a prior version gated this on a "settled" class precisely to avoid the
+   label appearing before the rail had room for it — that sequencing was
+   removed on purpose because the wait made the reveal read as sluggish;
+   perceived responsiveness on hover wins here even if the label's own
+   200ms fade slightly overlaps the still-widening rail).
+   is-l1-closing is the one exception, and is NOT about the open side above
+   — it's collapse-direction only: beginL1Collapse sets it to force the
+   label to fade out FIRST (xquick, fast) while the rail is still at full
+   width, and only once that fade finishes does isL1Hovered actually flip
+   false and snap the width back down. The width-shrink itself is a hard
+   snap (not an animation — see beginL1Collapse's comment), so without this
+   the label would still be visible, clipped, inside the now-narrow box. */
+.side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-l1-peeking) .hide-when-collapsed,
+.side-nav.is-l1-collapsed.is-l1-closing .hide-when-collapsed,
+.side-nav.is-l1-collapsed.is-l1-peek-closing .hide-when-collapsed {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--theme-motion-duration-xquick) var(--theme-motion-easing-exit);
 }
 
-.side-nav.is-l1-collapsed.is-l1-hovered .side-nav-l1 {
-  width: var(--kn-layout-sidenav-expanded);
-  transition: width var(--theme-motion-duration-xmoderate) var(--theme-motion-easing-entrance);
+.side-nav.is-l1-collapsed.is-l1-hovered:not(.is-l1-closing) .hide-when-collapsed {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity var(--theme-motion-duration-quick) var(--theme-motion-easing-entrance);
 }
 
-.side-nav.is-l1-collapsed .side-nav-l2 {
+/* L1 peek — a hover-only PREVIEW of the expanded rail, shown as a floating
+   overlay rather than the click-driven expand above. Deliberately a
+   separate mechanism, not a reintroduction of hover-driven L1 (removed
+   once already for orphaning the L2 flyout — see script.js openL1Hover):
+   peeking never touches .side-nav's own width, so the grid track behind it
+   — and therefore the page's main content column — never reflows just
+   because a cursor passed over the rail. Only .side-nav-l1 breaks out over
+   the page (position:absolute, elevated with a shadow) while .side-nav's
+   box stays at the collapsed width the whole time. isL1Peeking and
+   isL1Hovered are mutually exclusive by construction (script.js
+   canPeekL1/openL1Hover), so this never fights the reflowing path for the
+   same row — a click during a peek promotes it straight into that path.
+   is-l1-peek-closing mirrors is-l1-closing's job above, one state down:
+   closeL1Peek's non-immediate path sets it to force the label out FIRST
+   (same xquick exit fade), and only once that finishes does isL1Peeking
+   itself flip false. */
+.side-nav.is-l1-collapsed.is-l1-peeking {
+  overflow: visible;
+  z-index: var(--theme-zindex-overlay);
+}
+
+.side-nav.is-l1-collapsed.is-l1-peeking .side-nav-l1 {
   position: absolute;
-  top: var(--theme-spacing-0);
-  bottom: var(--theme-spacing-0);
-  left: var(--kn-layout-sidenav-collapsed);
+  inset-block: 0;
+  left: 0;
+  width: var(--kn-layout-sidenav-expanded);
+  box-shadow: var(--kn-elevation-midRaised);
+}
+
+.side-nav.is-l1-collapsed.is-l1-peeking:not(.is-l1-peek-closing) .hide-when-collapsed {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity var(--theme-motion-duration-quick) var(--theme-motion-easing-entrance);
+}
+
+/* L2 flyout — a popup, not a docked column: it reserves no layout width and
+   exists only between openRowFlyout()/closeRowFlyout() (script.js). Fixed
+   positioning (JS sets top/left per row) escapes .side-nav's own box, and
+   the layering token matches the app's other overlays (modals, menus —
+   see components.css/styles.css .kn-menu, .kn-modal-root).
+   Enter/exit are deliberately asymmetric — exits read slightly snappier
+   than entrances (xquick/160ms + exit-easing to close vs. quick/200ms +
+   entrance-easing to open), same convention as every other overlay's
+   open/close pair in this file. Each direction's transition lives on the
+   class governing ITS OWN end state: closing removes .is-open, so the
+   base rule's transition is what actually plays for that change; opening
+   adds it, so .is-open needs its own transition declaration below. */
+.side-nav-flyout {
+  position: fixed;
+  z-index: var(--theme-zindex-overlay);
   width: var(--kn-layout-sidenav-l2);
   min-width: var(--kn-layout-sidenav-l2);
-  z-index: 1;
+  max-height: calc(100vh - var(--theme-spacing-8));
+  overflow-y: auto;
+  background: var(--kn-color-background-surface-gray-moderate);
+  border: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
+  border-radius: var(--kn-radius-medium);
+  box-shadow: var(--kn-elevation-midRaised);
+  opacity: 0;
+  transform: translateX(calc(var(--theme-spacing-3) * -1));
+  pointer-events: none;
+  transition:
+    opacity var(--theme-motion-duration-xquick) var(--theme-motion-easing-exit),
+    transform var(--theme-motion-duration-xquick) var(--theme-motion-easing-exit);
 }
 
-.side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-transitioning) .hide-when-collapsed {
+.side-nav-flyout[hidden] {
   display: none;
 }
 
-/* First paint: collapsed L2 panel before script.js. The blocking head script
-   sets html[data-kn-l1=collapsed] for L2-panel routes + viewport ≥ 1024. */
+.side-nav-flyout.is-open {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  transition:
+    opacity var(--theme-motion-duration-quick) var(--theme-motion-easing-entrance),
+    transform var(--theme-motion-duration-quick) var(--theme-motion-easing-entrance);
+}
+
+/* First paint, before script.js runs: matches .side-nav.is-l1-collapsed's
+   width exactly (56px, not 56px + the old docked-L2 reservation that rule
+   used to need) so the rail never resizes out from under whatever already
+   rendered beside it once JS adds that class — L2 is a popup flyout now,
+   not a docked column, so it never needed extra width reserved here. A
+   stale wider value here doesn't just leave a gap: any fixed-width sibling
+   positioned immediately after .side-nav (e.g. the Klear Agent page's
+   history panel) renders further right than its settled position and then
+   visibly jumps left the moment script.js's narrower width takes over. */
 html[data-kn-l1="collapsed"] .side-nav {
   position: relative;
-  width: calc(var(--kn-layout-sidenav-collapsed) + var(--kn-layout-sidenav-l2));
+  width: var(--kn-layout-sidenav-collapsed);
 }
 
 html[data-kn-l1="collapsed"] .side-nav .side-nav-l1 {
@@ -759,27 +880,6 @@ html[data-kn-l1="collapsed"] .side-nav .side-nav-l1 .side-nav-link {
   justify-content: center;
   padding-inline: var(--theme-spacing-2);
   gap: var(--theme-spacing-0);
-}
-
-html[data-kn-l1="collapsed"] .side-nav .side-nav-l2 {
-  position: absolute;
-  top: var(--theme-spacing-0);
-  bottom: var(--theme-spacing-0);
-  left: var(--kn-layout-sidenav-collapsed);
-  width: var(--kn-layout-sidenav-l2);
-  min-width: var(--kn-layout-sidenav-l2);
-  z-index: 1;
-}
-
-html[data-kn-l1="collapsed"] .side-nav.is-l1-collapsed:not(.is-l1-hovered):not(.is-transitioning) .hide-when-collapsed {
-  display: none;
-}
-
-/* First-paint boot: head script keeps L2 in DOM for agentic chat history while
-   [hidden] until portalL2() runs. Intentionally overrides [hidden] — do not reuse
-   this pattern for other panels without an explicit open-state attribute. */
-html[data-kn-l1="collapsed"] .side-nav .side-nav-l2[hidden] {
-  display: flex;
 }
 
 .skip-nav {
@@ -836,19 +936,65 @@ html[data-kn-l1="collapsed"] .side-nav .side-nav-l2[hidden] {
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color var(--kn-motion-duration-2xquick) var(--kn-motion-easing-standard);
+  transition:
+    background-color var(--kn-motion-duration-2xquick) var(--kn-motion-easing-standard),
+    color var(--kn-motion-duration-2xquick) var(--kn-motion-easing-standard);
 }
 
+/* --kn-color-background-interactive-gray-default resolves to the exact
+   same primitive (surface-100 / #f7f8f9) as the rail/flyout/history-panel
+   backgrounds every .side-nav-link sits on — so the "hover" background was
+   real, just genuinely invisible against its own surface, everywhere this
+   class is used (L1, L2 flyout, L3 tree rows). surface-300 is the next
+   real step down the same gray scale (no semantic token wraps it — every
+   existing gray background token in this scale tops out at surface-200,
+   which has the identical problem) and reads as an actual hover, not a
+   deeper "you are here": [aria-current="page"] below keeps its own
+   semibold weight as the persistent signal, background darkness is doing
+   the temporary/exploratory signal here instead. */
 .side-nav-link:hover {
-  background: var(--kn-color-background-interactive-gray-default);
-  color: var(--kn-color-text-surface-gray-normal);
+  background: var(--kn-color-background-interactive-primary-faded);
+  color: var(--kn-color-text-interactive-primary-normal);
 }
 
 .side-nav-link[aria-current="page"],
 .side-nav-link[aria-current="page"]:hover {
-  background: var(--kn-color-background-interactive-gray-fadedHighlighted);
-  color: var(--kn-color-text-surface-gray-normal);
+  background: var(--kn-color-background-interactive-primary-fadedHighlighted);
+  color: var(--kn-color-text-interactive-primary-normal);
   font-weight: var(--kn-weight-semibold);
+}
+
+/* Klear Agent is the one row whose "primary" isn't the interactive-blue
+   above — it's the AI accent purple, matching the AI icon's own color
+   (.side-nav-link--agentic-broker .side-nav-link__icon svg.klear-assistant-mark
+   below, which already forces this unconditionally). Without this, the
+   label text and row background followed the generic blue while the icon
+   mark stayed purple — two different "primary" colors on one row. Needs
+   the extra .side-nav-link class repeated for specificity: otherwise this
+   ties with (and, depending on source order, can lose to) the plain
+   [aria-current="page"] rule above rather than reliably overriding it. */
+.side-nav-link.side-nav-link--agentic-broker:hover {
+  background: var(--ai-assistant-background-subtle);
+  color: var(--kn-color-ai-accent);
+}
+
+.side-nav-link.side-nav-link--agentic-broker[aria-current="page"],
+.side-nav-link.side-nav-link--agentic-broker[aria-current="page"]:hover {
+  background: var(--kn-color-ai-accent-subtle);
+  color: var(--kn-color-ai-accent);
+}
+
+/* Dual-tone (a soft currentColor fill alongside the stroke) is reserved for
+   the current/selected row only — hover recolors to the same primary blue
+   above but stays single-tone, so dual-tone reads as "you are here", not
+   "your cursor is here". 0.18 opacity matches --theme-opacity-300 /
+   --kn-opacity-03 (tokens.css). Excludes Klear Agent — its icon is the
+   special animated ray mark (a <use> reference, not an inline shape this
+   opacity trick was designed for), which already has its own dedicated
+   styling below and shouldn't pick up an unrelated fill rule. */
+.side-nav-link[aria-current="page"]:not(.side-nav-link--agentic-broker) .side-nav-link__icon svg {
+  fill: currentColor;
+  fill-opacity: 0.18;
 }
 
 .side-nav-link:focus-visible {
@@ -892,7 +1038,7 @@ html[data-kn-l1="collapsed"] .side-nav .side-nav-l2[hidden] {
   flex-shrink: 0;
 }
 
-.side-nav-l2 .side-nav-link {
+.side-nav-flyout .side-nav-link {
   min-height: var(--kn-layout-sidenav-item-height);
   height: auto;
   padding-block: var(--theme-spacing-3);
@@ -964,11 +1110,16 @@ html[data-kn-l1="collapsed"] .side-nav .side-nav-l2[hidden] {
 }
 
 /* L2 opens as a side panel (Klear360 ChevronRight). Do not rotate these
-   chevrons — including Agentic Broker, whose L2 is also a flyout, not an
-   inline accordion. TreeView L3 chevrons below still rotate when expanded. */
+   chevrons — TreeView L3 chevrons below still rotate when expanded. */
 .side-nav-link[data-l2trigger] .side-nav-link__chevron,
 .side-nav-link--agentic-broker[data-l2trigger] .side-nav-link__chevron {
   transform: none;
+}
+
+/* Klear Agent L2 (chat history) is always portaled beside the icon rail —
+   no expand chevron on the L1 item. */
+.side-nav-link--agentic-broker .side-nav-link__chevron {
+  display: none;
 }
 
 /* KlearNow TreeView-style nesting inside L2 (left chevron slot + indentation) */
@@ -1049,6 +1200,35 @@ button.side-nav-tree__row {
   display: none;
 }
 
+/* Desktop only: a tree-trigger row here only ever renders inside the L2
+   flyout (#side-nav-flyout) once its own L3 has become a flyout too, not
+   an in-place accordion (see openL3RowFlyout, script.js) — mobile's
+   drawer never portals these rows into .side-nav-flyout at all, so this
+   selector can't accidentally reach its still-genuine accordion there.
+   Matches .side-nav-link__chevron above rather than the 20px
+   rotate-on-expand look further up: the interaction is now identical to
+   an L2-trigger row opening L2 (reveal a flyout, never rotate in place),
+   so the chevron should read the same way L1's already does — small,
+   static, right-pointing — instead of a different size and a down/up
+   flip signaling an accordion that no longer exists here. */
+.side-nav-flyout .side-nav-tree__chevron {
+  width: var(--theme-size-12);
+  height: var(--theme-size-12);
+  color: var(--kn-color-icon-surface-gray-muted);
+  transform: none;
+}
+
+.side-nav-flyout .side-nav-tree__chevron svg {
+  width: var(--theme-size-12);
+  height: var(--theme-size-12);
+}
+
+.side-nav-flyout .side-nav-tree__row:hover > .side-nav-tree__chevron,
+.side-nav-flyout .side-nav-tree__row[aria-expanded="true"] > .side-nav-tree__chevron {
+  color: inherit;
+  transform: none;
+}
+
 .side-nav-tree__row[aria-expanded="true"] > .side-nav-tree__chevron {
   /* ChevronDown → ChevronUp without spinning through left/right */
   transform: rotate(90deg) rotate(180deg);
@@ -1114,26 +1294,42 @@ button.side-nav-tree__row {
   display: none;
 }
 
-.side-nav-l2 .side-nav-level:not([hidden]),
+.side-nav-flyout .side-nav-level:not([hidden]),
 .side-nav-level:not([hidden]) {
   display: flex;
   flex-direction: column;
 }
 
-.side-nav-l2 .side-nav-level {
+.side-nav-flyout .side-nav-level {
   flex: 1 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--theme-spacing-4) var(--theme-spacing-3) var(--theme-spacing-3);
+  padding: var(--theme-spacing-2);
 }
 
-.side-nav-l2 .side-nav-level.side-nav-level--l3 {
+/* L3's own flyout content — a bare .side-nav-tree__group once portaled
+   directly into #side-nav-flyout-l3 (see openL3RowFlyout, script.js), not
+   a .side-nav-level, so it never picked up the rule above at all: L2 had
+   a comfortable inset on every side, L3 had none. Direct-child selector
+   so this doesn't also apply to a .side-nav-tree__group still nested
+   inside an L2 .side-nav-level (that one keeps relying on its rows' own
+   padding for indentation, same as before). Matches L2's padding exactly
+   now that L2's own is the flat, reduced value above rather than the
+   taller top inset it used to have. */
+.side-nav-flyout > .side-nav-tree__group {
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--theme-spacing-2);
+}
+
+.side-nav-flyout .side-nav-level.side-nav-level--l3 {
   flex: 0 0 auto;
   overflow: visible;
   padding: var(--theme-spacing-0) var(--theme-spacing-0) var(--theme-spacing-1) var(--theme-spacing-6);
 }
 
-.side-nav-l2 .side-nav-level.side-nav-level--l3:not([hidden]) {
+.side-nav-flyout .side-nav-level.side-nav-level--l3:not([hidden]) {
   display: flex;
 }
 
@@ -1141,31 +1337,48 @@ button.side-nav-tree__row {
    other module — it holds agent chat history (Recents / Earlier), so it
    gets its own item shape instead of reusing .side-nav-link's nav-row look. */
 
-/* Agentic L2 panel.
-   Shares Klear360 SideNav collapse shell (#side-nav-l2: 56px rail + L2 flyout,
-   hover-expand isolation, outer border-right). This is not a SideNav instance
-   and not Collapsible: contents are chat history (New chat, search, dated
-   threads), not SideNavLinks or nested nav. Do not convert it to Collapsible. */
-/* Selector matches .side-nav-l2 .side-nav-level's own compound specificity
-   (2 classes) — a bare .side-nav-level--chat-history rule loses that
-   cascade fight and its padding never actually applies, leaving that rule's
-   12px/8px/8px padding in effect and shrinking every row below by 16px
-   relative to #side-nav-l2's real width. This must stay compound. */
-.side-nav-l2 .side-nav-level--chat-history {
+/* Klear Agent chat-history panel.
+   Page-level content owned by #agentic-broker-page — a full-height column
+   that is a direct child of #agentic-thread, a peer of .agentic-thread__main
+   (not nested under its header), the same way the side-nav rail sits beside
+   the rest of the page. Permanently visible: independent of the side-nav's
+   L1/L2 shell and of isL1Collapsed/portalL2 in script.js. Do not re-wire
+   this to the nav rail. */
+.agentic-history-panel {
+  display: flex;
+  flex-direction: column;
+  /* Same width token L1 itself expands to (.side-nav.is-l1-collapsed.
+     is-l1-hovered) — this panel is always showing full labels/content, the
+     same "expanded" state L1 only shows on hover, so it should read as the
+     same width, not the narrower L2-flyout width it borrowed before. */
+  flex: 0 0 var(--kn-layout-sidenav-expanded);
+  width: var(--kn-layout-sidenav-expanded);
+  min-width: var(--kn-layout-sidenav-expanded);
+  min-height: 0;
+  background: var(--kn-color-background-surface-gray-moderate);
+  border-right: var(--theme-border-width-thin) solid var(--kn-color-border-surface-gray-muted);
+  overflow: hidden;
+}
+
+/* Selector matches .agentic-history-panel .side-nav-level's own compound
+   specificity (2 classes) — a bare .side-nav-level--chat-history rule loses
+   that cascade fight and its padding never actually applies, leaving that
+   rule's 12px/8px/8px padding in effect and shrinking every row below by
+   16px relative to this panel's real width. This must stay compound. */
+.agentic-history-panel .side-nav-level--chat-history {
   list-style: none;
   margin: var(--theme-spacing-0);
-  /* The shared .side-nav-l2 .side-nav-level rule pads and scrolls the whole
-     list — here the search box needs to stay pinned while only the grouped
-     list beneath it scrolls, so this list owns layout instead and hands
-     scrolling to .side-nav-chat-scroll below. */
+  /* The shared .side-nav-flyout .side-nav-level rule (used by every other
+     L1 section's flyout) pads and scrolls the whole list — here the search box
+     needs to stay pinned while only the grouped list beneath it scrolls, so
+     this list owns layout instead and hands scrolling to .side-nav-chat-scroll
+     below. */
   padding: var(--theme-spacing-0);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* Explicit instead of relying on flex's default cross-axis stretch — this
-     panel's width comes from #side-nav-l2's :has() override (see below), and
-     this row set must always match it exactly regardless of any align-items
-     value further up the ancestor chain. */
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
 }
 
@@ -1185,16 +1398,17 @@ button.side-nav-tree__row {
   padding-inline: var(--theme-spacing-4);
   gap: var(--theme-spacing-3);
   border-radius: var(--agentic-radius-btn, var(--theme-border-radius-small));
-  border-color: var(--ai-assistant-accent);
   color: var(--kn-color-text-interactive-onPrimary-normal);
   font-size: var(--kn-type-body-sm-size);
   line-height: var(--kn-type-body-sm-line);
   letter-spacing: var(--kn-type-body-sm-tracking);
   font-weight: var(--kn-weight-medium);
-  background: var(--ai-assistant-accent);
+  border: none;
+  background-color: var(--ai-assistant-accent);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
   transition:
     background-color var(--kn-motion-duration-xquick) var(--agentic-ease, ease),
-    border-color var(--kn-motion-duration-xquick) var(--agentic-ease, ease),
     box-shadow var(--kn-motion-duration-xquick) var(--agentic-ease, ease),
     transform var(--kn-motion-duration-xquick) var(--agentic-ease, ease);
 }
@@ -1205,15 +1419,17 @@ button.side-nav-tree__row {
 
 .side-nav-chat-new__btn:hover,
 .side-nav-chat-new__btn:focus-visible {
-  border-color: var(--ai-assistant-accent-text);
-  background: var(--ai-assistant-accent-text);
+  background-color: var(--ai-assistant-accent-text);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
   color: var(--kn-color-text-interactive-onPrimary-normal);
 }
 
 .side-nav-chat-new__btn:active {
   transform: scale(0.98);
-  border-color: var(--ai-assistant-accent-text);
-  background: var(--ai-assistant-accent-text);
+  background-color: var(--ai-assistant-accent-text);
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1223,8 +1439,13 @@ button.side-nav-tree__row {
 }
 
 .side-nav-chat-new__btn:focus-visible {
-  box-shadow: 0 0 0 var(--kn-border-thin) var(--ai-assistant-accent-border);
+  box-shadow: var(--kn-btn-focus-ring-ai), var(--kn-btn-shadow-primary-ai);
   outline: none;
+}
+
+.side-nav-chat-new__btn.kn-btn--primary:not(:disabled):not([aria-disabled="true"]):not(:hover):not(:active):not(:focus-visible) {
+  background-image: none;
+  box-shadow: var(--kn-btn-shadow-primary-ai);
 }
 
 .side-nav-chat-new__btn .side-nav-chat-new__icon {
@@ -1394,6 +1615,19 @@ button.side-nav-tree__row {
   --agentic-border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-normal);
 }
 
+/* Route reveal: setPageSectionVisibility (script.js) flips the raw `hidden`
+   attribute, which — with no transition — pops this whole subtree (history
+   panel plus every chat-history row plus the chat pane) from nothing to
+   fully laid out in a single synchronous frame. On a route this size that
+   reads as a jerky "catching up" flash rather than a page appearing, since
+   the browser has no animated frames to spread that layout/paint work
+   across. `display` can now participate in the transition (allow-discrete
+   keeps it "flex" for the transition's duration instead of snapping to
+   "none" immediately), and @starting-style below gives the browser an
+   opacity:0 starting point for the frame `hidden` is removed, so the
+   reveal is one coordinated fade instead of an instant pop. Browsers
+   without @starting-style support simply keep today's instant behavior —
+   this is additive, not a functional dependency. */
 .agentic-home {
   position: relative;
   flex: 1 1 auto;
@@ -1404,10 +1638,21 @@ button.side-nav-tree__row {
   justify-content: flex-start;
   overflow: hidden;
   background: var(--kn-color-background-surface-gray-subtle);
+  opacity: 1;
+  transition:
+    opacity var(--theme-motion-duration-quick) var(--theme-motion-easing-entrance),
+    display var(--theme-motion-duration-quick) var(--theme-motion-easing-entrance) allow-discrete;
 }
 
 .agentic-home[hidden] {
   display: none;
+  opacity: 0;
+}
+
+@starting-style {
+  .agentic-home:not([hidden]) {
+    opacity: 0;
+  }
 }
 
 /* ChatInput error popup and file strip must not be clipped by pane overflow. */
@@ -1977,16 +2222,30 @@ h1.agentic-home__greeting,
 /* Agentic Broker — active conversation thread (sidebar picks the
    conversation, this pane renders it — new chat and resumed history share the
    same thread view). */
+/* Row, not column: .agentic-history-panel and .agentic-thread__main sit
+   side by side as full-height peers — the vertical padding that used to
+   live here (so the header/messages/composer weren't flush with the page
+   edge) now belongs on .agentic-thread__main alone, so the history panel
+   stays flush top-to-bottom instead of starting below empty padding. */
 .agentic-thread {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   max-width: none;
   margin: var(--theme-spacing-0);
+  overflow: hidden;
+}
+
+.agentic-thread__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   padding: var(--theme-spacing-6) var(--theme-spacing-0);
   overflow: hidden;
 }
@@ -2270,7 +2529,7 @@ h1.agentic-home__greeting,
   display: none;
 }
 
-.agentic-thread:has(.agentic-thread__header:not([hidden])) {
+.agentic-thread__main:has(.agentic-thread__header:not([hidden])) {
   padding-top: var(--theme-spacing-0);
 }
 
@@ -2616,8 +2875,15 @@ h1.agentic-home__greeting,
 }
 
 /* Copy / thumbs: hide until the assistant message or the action row is
-   hovered (or focused). Related chips and GenUI CTAs stay visible.
-   Thumbs are a client-side preference toggle, not recorded feedback. */
+   hovered (or focused) — EXCEPT the latest response, which keeps them
+   visible always (it's the one the user is most likely to act on right
+   away, without having to discover the hover affordance). Related chips
+   and GenUI CTAs stay visible regardless.
+   Thumbs are a client-side preference toggle, not recorded feedback.
+   The rest-state rule below only ever animates opacity, never
+   height/margin/overflow — every older message's footer keeps its normal
+   layout space reserved at all times, so hovering to reveal its icons
+   never shifts the messages above or below it. */
 .agentic-msg-actions {
   display: flex;
   align-items: center;
@@ -2628,18 +2894,15 @@ h1.agentic-home__greeting,
 @media (hover: hover) and (pointer: fine) {
   .agentic-thread-msg--assistant .ai-msg__footer:has(.agentic-msg-actions),
   .ai-assistant-history .ai-msg--assistant .ai-msg__footer:has(.ai-msg__actions) {
-    height: 0;
-    margin-block: 0;
-    overflow: hidden;
     opacity: var(--theme-opacity-0);
     pointer-events: none;
     transition: opacity var(--theme-motion-duration-xquick) var(--theme-motion-easing-standard);
   }
 
   .agentic-thread-msg--assistant:is(:hover, :focus-within) .ai-msg__footer:has(.agentic-msg-actions),
-  .ai-assistant-history .ai-msg--assistant:is(:hover, :focus-within) .ai-msg__footer:has(.ai-msg__actions) {
-    height: auto;
-    overflow: visible;
+  .ai-assistant-history .ai-msg--assistant:is(:hover, :focus-within) .ai-msg__footer:has(.ai-msg__actions),
+  .agentic-thread-msg--assistant:last-child .ai-msg__footer:has(.agentic-msg-actions),
+  .ai-assistant-history .ai-msg--assistant:last-child .ai-msg__footer:has(.ai-msg__actions) {
     opacity: var(--theme-opacity-1300);
     pointer-events: auto;
   }
@@ -2758,15 +3021,15 @@ h1.agentic-home__greeting,
   transform: rotate(90deg);
 }
 
-.side-nav-l2 .side-nav-link[data-level="3"] {
+.side-nav-flyout .side-nav-link[data-level="3"] {
   padding-inline: var(--theme-spacing-4);
 }
 
-.side-nav-l2 .side-nav-link {
+.side-nav-flyout .side-nav-link {
   padding-inline: var(--theme-spacing-4);
 }
 
-.side-nav-l2 .side-nav-tree__row.side-nav-link,
+.side-nav-flyout .side-nav-tree__row.side-nav-link,
 .side-nav-tree__row.side-nav-link {
   height: var(--kn-layout-sidenav-item-height);
   min-height: var(--kn-layout-sidenav-item-height);
@@ -2774,7 +3037,7 @@ h1.agentic-home__greeting,
   padding-inline: var(--theme-spacing-4);
 }
 
-.side-nav-l2 .side-nav-tree__group .side-nav-tree__row.side-nav-link,
+.side-nav-flyout .side-nav-tree__group .side-nav-tree__row.side-nav-link,
 .side-nav-tree__group .side-nav-tree__row.side-nav-link,
 .side-nav-tree__animator .side-nav-tree__row.side-nav-link[data-level="3"] {
   padding-inline-start: var(--theme-spacing-6);
@@ -2782,11 +3045,6 @@ h1.agentic-home__greeting,
 
 @media screen and (min-width: 1024px) {
   .side-nav-l1 .side-nav-level {
-    display: none;
-  }
-
-  .side-nav-l2__back,
-  .side-nav.is-mobile-l2-open .side-nav-l2__back {
     display: none;
   }
 }
@@ -4984,11 +5242,12 @@ p {
   color: var(--kn-color-text-surface-gray-muted);
 }
 
-/* Button — variant/color/size/state per design.md §5.1 + §5.3 */
-/* Button primitive: components.css (.kn-btn / .btn). */
-.btn--primary.btn--color-negative:hover {
-  background: var(--kn-color-background-interactive-negative-highlighted);
-  border-color: var(--kn-color-background-interactive-negative-highlighted);
+/* Button — variant/color/size/state: components.css (.kn-btn / .btn). */
+
+.map-basemap .btn,
+.kh-tabs .btn {
+  background-image: none;
+  box-shadow: none;
 }
 
 .icon-btn {
@@ -5046,6 +5305,16 @@ p {
   background: var(--kn-color-background-interactive-staticWhite-fadedHighlighted);
 }
 
+/* Table / list row actions on light surface — surface.icon tokens, not interactive primary. */
+.icon-btn.icon-btn--on-surface {
+  color: var(--kn-color-icon-surface-gray-muted);
+}
+
+.icon-btn.icon-btn--on-surface:hover {
+  color: var(--kn-color-icon-surface-gray-normal);
+  background: var(--kn-color-background-interactive-gray-faded);
+}
+
 .icon-btn svg {
   width: var(--theme-size-16);
   height: var(--theme-size-16);
@@ -5056,6 +5325,60 @@ p {
   color: var(--kn-color-icon-interactive-gray-disabled);
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Klear360 icon size scale — pair with currentColor on host for semantic color. */
+.kn-icon {
+  display: block;
+  flex-shrink: 0;
+  width: var(--theme-size-16);
+  height: var(--theme-size-16);
+}
+
+.kn-icon--xsmall {
+  width: var(--theme-size-8);
+  height: var(--theme-size-8);
+}
+
+.kn-icon--small {
+  width: var(--theme-size-12);
+  height: var(--theme-size-12);
+}
+
+.kn-icon--medium {
+  width: var(--theme-size-16);
+  height: var(--theme-size-16);
+}
+
+.kn-icon--large {
+  width: var(--theme-size-20);
+  height: var(--theme-size-20);
+}
+
+.kn-icon--xlarge {
+  width: var(--theme-size-24);
+  height: var(--theme-size-24);
+}
+
+.kn-icon--2xlarge {
+  width: var(--theme-size-32);
+  height: var(--theme-size-32);
+}
+
+.kn-icon-tone-positive {
+  color: var(--kn-color-icon-feedback-positive-intense);
+}
+
+.kn-icon-tone-negative {
+  color: var(--kn-color-icon-feedback-negative-intense);
+}
+
+.kn-icon-tone-notice {
+  color: var(--kn-color-icon-feedback-notice-intense);
+}
+
+.kn-icon-tone-information {
+  color: var(--kn-color-icon-feedback-information-intense);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -10032,15 +10355,36 @@ body.is-widget-sorting * {
   color: var(--kn-color-text-surface-gray-muted);
 }
 
-.skeleton--tm-cell {
+.skeleton--tm-cell,
+.skeleton--tm-line {
+  display: block;
+  max-width: 100%;
+  height: var(--theme-size-16);
+  border-radius: var(--radius-nested);
+}
+
+.skeleton--filter {
   display: block;
   width: 100%;
-  height: var(--theme-size-12);
+  height: var(--theme-size-36);
   border-radius: var(--radius-control);
 }
 
 .tm-skeleton-row td {
   pointer-events: none;
+  vertical-align: middle;
+}
+
+.role-table-card .tm-skeleton-row td:first-child {
+  text-align: center;
+}
+
+.role-table-card .tm-skeleton-row:nth-child(odd) .skeleton {
+  animation-delay: var(--kn-motion-delay-xquick);
+}
+
+.role-table-card .tm-skeleton-row:nth-child(3n) .skeleton {
+  animation-delay: var(--kn-motion-delay-2xquick);
 }
 
 .admin-toolbar.vis-toolbar {

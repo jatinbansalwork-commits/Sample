@@ -334,8 +334,8 @@
 
   function aiFieldMark({ suggest = false } = {}) {
     return (
-      window.KNAssistCore?.aiMarkHtml?.({ size: 12, suggest }) ||
-      `<svg class="klear-assistant-mark${suggest ? " ai-suggest-mark" : ""}" viewBox="0 0 24 24" width="12" height="12" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`
+      window.KlearAgentCore?.aiMarkHtml?.({ size: 12, suggest }) ||
+      `<svg class="klear-assistant-mark${suggest ? " ai-suggest-mark" : ""}" viewBox="0 0 24 24" width="12" height="12" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>`
     );
   }
 

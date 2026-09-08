@@ -3554,8 +3554,8 @@
       return;
     }
     if (window.KNClassificationAssistant?.isClassificationIntent?.(text)) {
-      if (window.KNAssistant?.ask) {
-        window.KNAssistant.ask(text);
+      if (window.KlearAgent?.ask) {
+        window.KlearAgent.ask(text);
         return;
       }
     }

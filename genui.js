@@ -477,10 +477,22 @@
     const rowData = Array.isArray(node?.rows) ? node.rows.filter((row) => Array.isArray(row) && row.length) : [];
     const cols = Math.max(colsOverride ?? headers.length, 2);
     const rows = Math.max(rowsOverride ?? rowData.length, 3);
+    if (window.KNAdminUX?.tableSkeletonShell) {
+      return `<div class="kn-genui__table-wrap kn-genui__skeleton" aria-hidden="true">${window.KNAdminUX.tableSkeletonShell({
+        tableClass: "kn-genui__table vis-table",
+        cols,
+        rows,
+        ariaLabel: "Loading table",
+        filters: false,
+        innerOnly: true
+      })}</div>`;
+    }
     const head = Array.from({ length: cols }, () => '<th><span class="skeleton skeleton--caption" style="width:72%" aria-hidden="true"></span></th>').join("");
     const body = Array.from({ length: rows }, () =>
-      `<tr class="kn-genui__skeleton-row" aria-hidden="true">${Array.from({ length: cols }, () =>
-        '<td><span class="skeleton skeleton--tm-cell" aria-hidden="true"></span></td>'
+      `<tr class="kn-genui__skeleton-row" aria-hidden="true">${Array.from({ length: cols }, (_, colIndex) =>
+        colIndex === 0
+          ? '<td><span class="skeleton skeleton--icon" aria-hidden="true"></span></td>'
+          : '<td><span class="skeleton skeleton--line skeleton--tm-line" style="width:72%" aria-hidden="true"></span></td>'
       ).join("")}</tr>`
     ).join("");
     return `<div class="kn-genui__table-wrap kn-genui__skeleton" aria-hidden="true"><table class="kn-genui__table vis-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;

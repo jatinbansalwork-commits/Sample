@@ -843,8 +843,8 @@
 
   function aiSuggestMark(size = 12) {
     return (
-      window.KNAssistCore?.aiMarkHtml?.({ size, suggest: true }) ||
-      `<svg class="klear-assistant-mark ai-suggest-mark" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-assist-ray" /></svg>`
+      window.KlearAgentCore?.aiMarkHtml?.({ size, suggest: true }) ||
+      `<svg class="klear-assistant-mark ai-suggest-mark" viewBox="0 0 24 24" width="${size}" height="${size}" focusable="false" aria-hidden="true"><use href="#klear-agent-ray" /></svg>`
     );
   }
 

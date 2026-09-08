@@ -1489,6 +1489,18 @@ function isL3FlyoutOpen() {
   return Boolean(openL3FlyoutTrigger);
 }
 
+/* L3's own equivalent of getFlyoutFocusableItems above — every visible row
+   inside the OPEN L3 flyout, in order. A plain data-level="3" query (no
+   is-expanded filter, unlike L2's) is enough: L3 is the deepest level, so
+   its group never contains a further collapsed branch to skip over. */
+function getL3FlyoutFocusableItems() {
+  const flyout = getL3FlyoutContainer();
+  if (!flyout) {
+    return [];
+  }
+  return Array.from(flyout.querySelectorAll('a.side-nav-link[data-level="3"]'));
+}
+
 function getL3Group(trigger) {
   const id = trigger?.getAttribute("aria-controls");
   const animator = id ? document.getElementById(id) : null;
@@ -5556,6 +5568,41 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  /* Below the desktop breakpoint the rail isn't showing at all — this is
+     the hamburger-triggered mobile drawer instead, and there's no flyout
+     concept to open there. Without a branch here, a parent row fell all
+     the way through to activateL2Trigger below and auto-navigated to
+     whichever child happened to come first, same bug as the two guards
+     above exist to prevent, just unguarded on the one breakpoint neither
+     of them covers (both are gated to isMediumOrHdDesktop()). Reveal this
+     row's own already-in-the-DOM L2 panel in place instead — the same
+     hidden <ul> the flyout borrows on desktop (see openRowFlyout), just
+     left where kn-navigation.js put it and toggled directly, matching the
+     plain expand/collapse a mobile drawer row is expected to do. */
+  if (isL2TriggerLink && level === 1 && !isMediumOrHdDesktop()) {
+    event.preventDefault();
+    const panelId = link.getAttribute("aria-controls");
+    const panel = panelId ? document.getElementById(panelId) : null;
+    if (!panel) {
+      return;
+    }
+    const nowExpanded = link.getAttribute("aria-expanded") !== "true";
+    if (nowExpanded) {
+      sideNav.querySelectorAll('.side-nav-link[data-level="1"][data-l2trigger="true"][aria-expanded="true"]').forEach((other) => {
+        if (other !== link) {
+          other.setAttribute("aria-expanded", "false");
+          const otherPanel = document.getElementById(other.getAttribute("aria-controls") || "");
+          if (otherPanel) {
+            otherPanel.hidden = true;
+          }
+        }
+      });
+    }
+    link.setAttribute("aria-expanded", String(nowExpanded));
+    panel.hidden = !nowExpanded;
+    return;
+  }
+
   const href = link.getAttribute("href");
   if (href?.startsWith("#") && !window.KNAdminUX?.tryNavigate(href)) {
     event.preventDefault();
@@ -5634,6 +5681,11 @@ document.addEventListener("keydown", (event) => {
       event.preventDefault();
       if (sideNavFlyout.contains(treeTrigger) && isMediumOrHdDesktop()) {
         openL3RowFlyout(treeTrigger);
+        /* Without this, L3 opens (aria-expanded flips, the panel renders)
+           but keyboard focus is left stranded on the tree-trigger with no
+           Tab/Arrow path into it at all — L2's own Enter handler moves
+           focus into ITS flyout the same way, see below. */
+        focusFlyoutItem(getL3FlyoutFocusableItems(), 0);
       } else {
         accordionTreeTriggers(treeTrigger);
         setTreeExpanded(treeTrigger, true);
@@ -5651,6 +5703,49 @@ document.addEventListener("keydown", (event) => {
       }
     }
   }
+});
+
+/* L3 roving focus: ArrowUp/ArrowDown move through the open L3 flyout's
+   rows, ArrowUp from the first one returns to the tree-trigger that opened
+   it (same shape as the L2 roving handler below, one level down), and
+   ArrowLeft from anywhere inside L3 closes it and returns focus to that
+   trigger — mirroring the ArrowLeft-on-the-trigger-itself case above, just
+   reachable from one step deeper. */
+document.addEventListener("keydown", (event) => {
+  const l3Flyout = getL3FlyoutContainer();
+  const l3FlyoutItem = event.target.closest(".side-nav-link");
+  if (!openL3FlyoutTrigger || !l3FlyoutItem || !l3Flyout?.contains(l3FlyoutItem)) {
+    return;
+  }
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    /* Focus the trigger BEFORE closing, not after: closing re-parents the
+       L3 group the currently-focused item still lives in, and a DOM move
+       blurs a focused node as a side effect — synchronously, before this
+       function gets to its own .focus() call. That stray blur was
+       tripping the global focusout handler's "left the flyout" check
+       (openL3FlyoutTrigger was still set, relatedTarget was still null at
+       that point) into tearing down the parent L2 flyout too, an
+       unrelated flyout closing itself as a side effect of leaving L3. */
+    const trigger = openL3FlyoutTrigger;
+    trigger.focus();
+    closeL3RowFlyout();
+  }
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+    return;
+  }
+  event.preventDefault();
+  const items = getL3FlyoutFocusableItems();
+  const idx = items.indexOf(l3FlyoutItem);
+  if (event.key === "ArrowDown") {
+    focusFlyoutItem(items, idx === -1 ? 0 : idx + 1);
+    return;
+  }
+  if (idx <= 0) {
+    openL3FlyoutTrigger.focus();
+    return;
+  }
+  focusFlyoutItem(items, idx - 1);
 });
 
 document.addEventListener("transitionend", onTreeAnimatorTransitionEnd);
@@ -11836,6 +11931,20 @@ function initAiAssistant() {
     return null;
   }
 
+  /* Personal dashboard and ISF dashboard (this function and
+     answerIsfDashboard below) are not in the written PRD — Klear Agent
+     resolves both entirely in Chat Mode (a schemaAnswer rendered inline in
+     the thread) and never triggers a Workstation Mode transition or an
+     entity-card list (see agentic-shell.js's MODE_CHAT/MODE_WORKSTATION —
+     that only ever flips on an #agentic-broker/entry/{id} route, which
+     nothing here links to; genuiLink/genuiNav below all point at other
+     pages' own routes, not an entry workstation). Ships as a reasonable v1
+     — workload counts here, ISF timeliness in answerIsfDashboard — built
+     from this app's real feature data (txnChipCounts-equivalent counts off
+     window.KNUsEntry.list(), the same duty-sum formula the real Dashboard
+     page already uses at line ~8863) rather than any invented figure, per
+     the Data Sourcing Policy. The exact metric set (which counts, which
+     chart) is provisional pending Product/UX sign-off. // EXTENSION */
   function answerPersonalDashboard(question) {
     if (!PERSONAL_DASHBOARD_INTENT.test(question)) {
       return null;
@@ -11844,7 +11953,29 @@ function initAiAssistant() {
     const hold = (stats.holdRows || [])[0];
     const newest = (stats.newest || stats.rows || []).slice(0, 3);
     const jane = janeQueue();
-    const duty = Number(stats.amounts?.[newest[0]?.id]) || 44337;
+    /* Real duty total (sum of every shipment's own amount), not a single
+       row's amount with an invented fallback number — same formula the
+       real Dashboard's own duty widget already uses (script.js ~line 8863:
+       (summary.rows || []).reduce((sum, item) => sum + (summary.amounts[item.id] || 0), 0)). */
+    const duty = (stats.rows || []).reduce((sum, item) => sum + (stats.amounts?.[item.id] || 0), 0);
+    /* Real due-today count (ISF + statements + PSC), not a hardcoded
+       "4 items" string — reuses the same aggregation the Due Today
+       assistant already builds from live seed data. */
+    const dueTodayCount = (window.KNDueTodayAssistant?.collectDueItems?.() || []).length;
+    /* // EXTENSION — workload counts (provisional metric set, see the
+       function-level comment above): real entry-queue counts by status,
+       computed the same way transaction-us-entry.js's own txnChipCounts()
+       does off window.KNUsEntry.list() (that helper itself isn't exported,
+       so this mirrors it rather than duplicating its module-private
+       state). */
+    const entryRows = window.KNUsEntry?.list?.() || [];
+    const workloadCounts = {
+      active: entryRows.filter((row) => row.statusChip === "active").length,
+      hold: entryRows.filter((row) => row.statusChip === "hold").length,
+      reject: entryRows.filter((row) => row.statusChip === "reject").length,
+      complete: entryRows.filter((row) => row.statusChip === "complete").length
+    };
+    const workloadTotal = workloadCounts.active + workloadCounts.hold + workloadCounts.reject + workloadCounts.complete;
     return schemaAnswer({
       title: "Personal dashboard",
       thinking: [
@@ -11887,10 +12018,25 @@ function initAiAssistant() {
                 title: "Due today",
                 description: "ISF + statement + PSC",
                 children: [
-                  { component: "BADGE", text: "4 items", color: "notice" },
+                  { component: "BADGE", text: `${dueTodayCount} item${dueTodayCount === 1 ? "" : "s"}`, color: "notice" },
                   { component: "TEXT", content: jane.pendingIsf[0] ? `File **${jane.pendingIsf[0].transactionId}** (${jane.pendingIsf[0].companyName}) before vessel cutoff.` : "No ISF filings due." }
                 ]
               }
+            ]
+          },
+          { component: "TEXT", content: "### Workload · // EXTENSION, provisional pending Product/UX" },
+          {
+            component: "CHART",
+            chartType: "donut",
+            variant: "compact",
+            xAxis: "label",
+            valueFormatter: { type: "number" },
+            centerLabel: `${workloadTotal} entries`,
+            data: [
+              { label: "active", value: workloadCounts.active },
+              { label: "hold", value: workloadCounts.hold },
+              { label: "reject", value: workloadCounts.reject },
+              { label: "complete", value: workloadCounts.complete }
             ]
           },
           { component: "TEXT", content: "### Latest movements" },
@@ -12298,6 +12444,10 @@ function initAiAssistant() {
     return window.KNIsfAssistant?.answer?.(question) || null;
   }
 
+  /* Not in the written PRD — see the comment on answerPersonalDashboard
+     above for the shared Chat-Mode-only / no-Workstation-transition /
+     no-entity-card-list contract both dashboards follow, and the Data
+     Sourcing Policy this v1 is built against. // EXTENSION */
   function answerIsfDashboard(question) {
     if (!ISF_DASHBOARD_INTENT.test(question)) {
       return null;
@@ -12307,6 +12457,20 @@ function initAiAssistant() {
     const accepted = isf.filter((row) => row.statusChip === "submitted");
     const fin = isf.filter((row) => row.statusChip === "finBill");
     const sample = pending.slice(0, 4);
+    /* // EXTENSION — ISF timeliness (provisional metric, pending Product/UX):
+       "on time" here means already filed (accepted + Fin Bill Match — the
+       24-hour vessel rule this page's own ALERT below cites is already met
+       once a row leaves "pending"), "at risk" means still pending. This is
+       a real count off the same live rows above, not an invented figure —
+       but it's a proxy for true timeliness, not literal ETD-vs-now date
+       math: every row's etd/etdSort in this sample dataset is a fixed past
+       date (transaction-us-isf.js), so comparing it against the real
+       current date would mark every row "late" regardless of its actual
+       filing state. Swap in real ETD math once Product/UX confirms that's
+       the intended definition and the sample dates are refreshed to be
+       relative to "today". */
+    const isfOnTime = accepted.length + fin.length;
+    const isfAtRisk = pending.length;
     return schemaAnswer({
       title: "ISF Dashboard",
       thinking: [

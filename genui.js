@@ -11,7 +11,7 @@
     "duty",
     "entry-status"
   ];
-  const BLOCK_TYPES = new Set(["CARD", "TABLE", "ENTRY_STATUS_TABLE", "DUTY_BREAKDOWN"]);
+  const BLOCK_TYPES = new Set(["CARD", "TABLE", "ENTRY_STATUS_TABLE", "DUTY_BREAKDOWN", "CHART"]);
   const CARD_TABLE = new Set(["CARD", "TABLE"]);
   const VISUAL_BLOCKS = new Set([
     "CARD",
@@ -281,7 +281,20 @@
       air: { tone: "green", label: "Air", token: "var(--kn-color-background-feedback-positive-intense)" },
       truck: { tone: "gold", label: "Truck", token: "var(--kn-color-background-feedback-notice-intense)" },
       rail: { tone: "purple", label: "Rail", token: "var(--kn-primitive-purple-500)" },
-      value: { tone: "blue", label: "Value", token: "var(--kn-color-background-interactive-primary-default)" }
+      value: { tone: "blue", label: "Value", token: "var(--kn-color-background-interactive-primary-default)" },
+      /* Status-style categories for the workload/timeliness charts
+         (answerPersonalDashboard / answerIsfDashboard, script.js) — reusing
+         the same 5 tones already styled by .chart-cat--{blue|green|gold|
+         purple|sky} (components.css) rather than inventing a new one;
+         there's no "negative/red" tone in this chart palette today, so
+         "reject" gets purple (distinct from the others) rather than a
+         color that doesn't exist here. */
+      active: { tone: "blue", label: "Active", token: "var(--kn-color-background-interactive-primary-default)" },
+      hold: { tone: "gold", label: "On hold", token: "var(--kn-color-background-feedback-notice-intense)" },
+      reject: { tone: "purple", label: "Rejected", token: "var(--kn-primitive-purple-500)" },
+      complete: { tone: "green", label: "Complete", token: "var(--kn-color-background-feedback-positive-intense)" },
+      "on-time": { tone: "green", label: "On time", token: "var(--kn-color-background-feedback-positive-intense)" },
+      "at-risk": { tone: "gold", label: "At risk", token: "var(--kn-color-background-feedback-notice-intense)" }
     };
     const normalized = String(key || "").toLowerCase();
     if (catalog[normalized]) {
@@ -333,7 +346,7 @@
     const compact = node.variant === "compact" || node.variant === "tiny";
     const chartClass = compact ? "kn-genui__chart" : "kn-genui__chart kn-genui__chart--full";
     if (!node.chartType || !node.xAxis || !data.length || !node.valueFormatter?.type) {
-      return `<div class="${chartClass} skeleton skeleton--bar" aria-hidden="true"></div>`;
+      return chartSkeleton(node);
     }
 
     if (node.chartType === "donut" || node.chartType === "pie") {
@@ -369,7 +382,7 @@
     const firstItem = data[0];
     const keysToPlot = chartPlotKeys(firstItem, node.xAxis);
     if (!keysToPlot.length) {
-      return `<div class="${chartClass} skeleton skeleton--bar" aria-hidden="true"></div>`;
+      return chartSkeleton(node);
     }
     const max = Math.max(
       ...data.map((row) => keysToPlot.reduce((sum, key) => sum + (Number(row[key]) || 0), 0)),
@@ -465,6 +478,12 @@
     if (type === "DUTY_BREAKDOWN") {
       return Array.isArray(node.lines) && node.lines.filter((line) => line?.label).length > 0;
     }
+    if (type === "CHART") {
+      /* Mirrors chartHtml's own readiness check below — a chart with no
+         type/axis/data/formatter yet has nothing real to plot, same as an
+         empty TABLE or CARD counts as incomplete above. */
+      return Boolean(node.chartType && node.xAxis && Array.isArray(node.data) && node.data.length && node.valueFormatter?.type);
+    }
     if (type === "CARD") {
       const kids = Array.isArray(node.children) ? node.children : [];
       return Boolean(node.title || node.description || kids.length);
@@ -511,6 +530,37 @@
     return `<article class="kn-card kn-genui__card kn-genui__skeleton" aria-hidden="true">${header}${body}</article>`;
   }
 
+  /* GenUI's chart skeleton loader — the shared shimmer-ring pattern
+     (wrapRing, via skeletonForBlock below) applied to CHART the same way
+     tableSkeleton/cardSkeleton already apply it to TABLE/CARD, instead of
+     chartHtml's own bare "skeleton skeleton--bar" div it used to fall back
+     to inline. Shape follows node.chartType so a donut request shows a
+     round placeholder (reusing the existing .skeleton--donut treatment)
+     and anything else shows placeholder bars — same visual language the
+     real chart renders once data arrives, not a generic box. */
+  function chartSkeleton(node) {
+    const compact = node?.variant === "compact" || node?.variant === "tiny";
+    const chartClass = compact ? "kn-genui__chart" : "kn-genui__chart kn-genui__chart--full";
+    if (node?.chartType === "donut" || node?.chartType === "pie") {
+      const legend = Array.from(
+        { length: 3 },
+        () => '<li class="kn-chart__item"><span class="skeleton skeleton--caption" style="width:70%" aria-hidden="true"></span></li>'
+      ).join("");
+      return `<div class="kn-chart kn-chart--donut dash-donut-wrap ${chartClass} kn-genui__skeleton" aria-hidden="true">
+        <div class="kn-chart__plot dash-donut skeleton skeleton--donut" aria-hidden="true"></div>
+        <ul class="kn-chart__legend kn-chart__legend--vertical dash-donut__legend">${legend}</ul>
+      </div>`;
+    }
+    const bars = Array.from(
+      { length: 4 },
+      () =>
+        `<div class="kn-chart__row dash-bars__row"><span class="kn-chart__tick skeleton skeleton--caption" style="width:20%" aria-hidden="true"></span><span class="kn-chart__track dash-bars__track skeleton skeleton--bar" style="flex:1" aria-hidden="true"></span></div>`
+    ).join("");
+    return `<div class="kn-chart kn-chart--bar ${chartClass} kn-genui__skeleton" aria-hidden="true">
+      <div class="kn-chart__plot dash-bars">${bars}</div>
+    </div>`;
+  }
+
   function blockSkeleton(type, node) {
     if (type === "TABLE" || type === "ENTRY_STATUS_TABLE") {
       return tableSkeleton(node);
@@ -520,6 +570,9 @@
     }
     if (type === "CARD") {
       return cardSkeleton(node);
+    }
+    if (type === "CHART") {
+      return chartSkeleton(node);
     }
     return `<div class="skeleton-stack kn-genui__skeleton" aria-hidden="true"><span class="skeleton skeleton--title" style="width:42%" aria-hidden="true"></span><span class="skeleton skeleton--row" aria-hidden="true"></span><span class="skeleton skeleton--row" aria-hidden="true"></span></div>`;
   }
@@ -1101,7 +1154,11 @@
     textSchema,
     isStructuredResult,
     repairPartialJson,
-    blockSkeletonHtml: blockSkeleton
+    blockSkeletonHtml: blockSkeleton,
+    /* The chart-specific skeleton loader — call this (or blockSkeletonHtml
+       with type "CHART") wherever a CHART node is still loading, instead of
+       hand-rolling a placeholder div. */
+    ChartSkeletonLoader: chartSkeleton
   };
   (window.__knGenUIPending || []).forEach((entry) => register(entry[0], entry[1]));
   window.__knGenUIPending = [];

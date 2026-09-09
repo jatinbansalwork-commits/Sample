@@ -1,3 +1,23 @@
+/* =============================================================================
+   APP SHELL — 4 PANELS
+   The app is one .app-shell, split into 4 panels. Each is marked with its own
+   "PANEL n OF 4" banner at its main rule — search for "PANEL " to jump
+   between them. Layout, top to bottom / left to right:
+
+     .app-shell (column flex)
+       ├─ PANEL 1  .top-nav              — header bar, full width, fixed height
+       └─ .dashboard-workspace (row flex, the rest of the height)
+            ├─ PANEL 2  .sidebar / .side-nav*   — collapsible icon rail (+ mobile drawer)
+            ├─ PANEL 3  .content                — the routed page for whatever's active
+            └─ PANEL 4  .ai-assistant-panel     — resizable chat panel, closed by default
+
+   Each panel's own banner comment notes what it depends on from the others
+   (mostly just shared CSS variables/tokens, e.g. --top-nav-shell-color,
+   --kn-layout-topnav-height) — that's the full extent of the coupling
+   between them, and worth keeping true if any one panel is ever pulled out
+   into its own component.
+   ============================================================================= */
+
 * {
   box-sizing: border-box;
   /* Hide native scrollbar chrome product-wide; scroll via wheel/touch/trackpad only. */
@@ -17,13 +37,25 @@ body {
 }
 
 body {
+  /* Owned by the Top Nav design, not "the shell" in general — .top-nav
+     (styles.css) uses this exact same color for its own background, and
+     .dashboard-workspace's desktop-only inset margin (≥768px breakpoint,
+     further down this file) deliberately reveals this color as an 8px
+     frame around the floating content card. body's own background here
+     exists only so that frame is already the right color before .app-shell
+     finishes painting over it (first load, resize). Defined once, here,
+     precisely so all three stay one color if it's ever changed — if Top
+     Nav is ever pulled out into its own component, this variable and the
+     .dashboard-workspace inset that depends on it need to travel with it,
+     not get left behind as generic "shell" styling. */
+  --top-nav-shell-color: var(--kn-color-background-surface-primary-intense);
   margin: var(--kn-spacing-00);
   font-family: var(--kn-font-family);
   font-size: var(--kn-type-body-md-size);
   line-height: var(--kn-type-body-md-line);
   font-weight: var(--kn-weight-regular);
   color: var(--kn-color-text-surface-gray-normal);
-  background: var(--kn-color-background-surface-primary-intense);
+  background: var(--top-nav-shell-color);
 }
 
 a,
@@ -66,6 +98,14 @@ button: focus-visible {
   border-end-end-radius: var(--group-radius);
 }
 
+/* =========================================================================
+   PANEL 1 OF 4 — TOP NAV (+ APP SHELL)
+   The dark header bar, plus the App Shell background it shares — see
+   --top-nav-shell-color (body, above) and the comment on .top-nav just
+   below for why those two are one treatment, not two coincidences. Also
+   defines the shared --ai-assistant-* color variables PANEL 4 (AI
+   Assistant) reads from, since they're app-shell-scoped, not panel-local.
+   ========================================================================= */
 .app-shell {
   --ai-assistant-width: var(--kn-layout-assistant-width);
   /* AI accent → primitive purple (not brand indigo primary) */
@@ -81,9 +121,13 @@ button: focus-visible {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--kn-color-background-surface-primary-intense);
+  background: var(--top-nav-shell-color);
 }
 
+/* .top-nav-brand's collapse sync (script.js syncL1Classes → .app-shell.is-l1-collapsed,
+   below) and .dashboard-workspace's inset frame (≥768px breakpoint, further
+   down this file) both key off this same color/state — see the
+   --top-nav-shell-color comment on body, above. */
 .top-nav {
   position: sticky;
   top: var(--theme-spacing-0);
@@ -91,7 +135,7 @@ button: focus-visible {
   flex-shrink: 0;
   height: var(--kn-layout-topnav-height);
   min-height: var(--kn-layout-topnav-height);
-  background: var(--kn-color-background-surface-primary-intense);
+  background: var(--top-nav-shell-color);
   color: var(--kn-color-text-surface-staticWhite-normal);
 }
 
@@ -125,6 +169,15 @@ button: focus-visible {
   width: auto;
   height: 100%;
   padding-inline: var(--theme-spacing-5);
+  transition: min-width var(--theme-motion-duration-xmoderate) var(--theme-motion-easing-standard);
+}
+
+/* Tracks the rail's own collapsed width (script.js syncL1Classes) — without
+   this, the logo column stayed locked at the expanded width even once the
+   rail underneath it shrank to its 56px icon-only state, leaving the top bar
+   visibly overhanging a narrower rail. */
+.app-shell.is-l1-collapsed .top-nav-brand {
+  min-width: var(--kn-layout-sidenav-collapsed);
 }
 
 .top-nav-brand-link {
@@ -541,7 +594,18 @@ svg.klear-assistant-mark {
 
 .sidebar-backdrop {
   position: fixed;
-  inset: var(--kn-spacing-00);
+  /* Starts below the top nav (same token .top-nav/.sidebar use for their own
+     height/top), not inset:0 — .top-nav shares this element's z-index, and
+     being later in the DOM this backdrop would otherwise paint on top of
+     the top nav rather than stopping beneath it, silently blocking clicks
+     there (hard to notice since the dimming color is close to .top-nav's
+     own dark background). The drawer/peek panel itself already starts at
+     this same line (.sidebar, above), so this now simply matches it instead
+     of overshooting past it. */
+  top: var(--kn-layout-topnav-height);
+  right: var(--kn-spacing-00);
+  bottom: var(--kn-spacing-00);
+  left: var(--kn-spacing-00);
   background: var(--theme-colors-overlay-background-subtle);
   z-index: var(--theme-zindex-overlay);
   opacity: var(--kn-opacity-00);
@@ -579,6 +643,16 @@ svg.klear-assistant-mark {
 }
 
 
+/* =========================================================================
+   PANEL 2 OF 4 — SIDE NAV
+   The collapsible icon rail: hover-to-peek, click-to-dock, L1/L2/L3 flyouts.
+   Below 768px this same element (.sidebar/.side-nav) becomes the slide-in
+   mobile drawer instead — see .app-shell.nav-open .sidebar just below.
+   Interaction/state logic lives in script.js (isL1Collapsed/isL1Hovered/
+   isL1Peeking, syncL1Classes, openRowFlyout/openL3RowFlyout). Depends on
+   PANEL 1 only for --kn-layout-topnav-height (so it starts exactly where
+   the top nav ends) — otherwise self-contained.
+   ========================================================================= */
 .sidebar {
   position: fixed;
   top: var(--kn-layout-topnav-height);
@@ -3049,6 +3123,18 @@ h1.agentic-home__greeting,
   }
 }
 
+/* =========================================================================
+   PANEL 3 OF 4 — INNER PAGE / CONTENT
+   The scrollable area to the right of Side Nav, below Top Nav. This base
+   rule carries NO padding — every feature area supplies its own page-root
+   wrapper with its own inset (.role-page, .dashboard-inner, .kh-overview,
+   .empty-page, .agentic-thread__main, elsewhere in this file), and as of
+   this pass those all agree on --theme-spacing-7 (24px) for LEFT/RIGHT
+   padding specifically, so a route's content lines up with
+   .content-breadcrumb above it — their top/bottom padding can still differ
+   (e.g. .dashboard-inner's own vertical rhythm). Any *new* page wrapper's
+   left/right padding should match that same 24px, not invent its own.
+   ========================================================================= */
 .content {
   display: flex;
   flex-direction: column;
@@ -3072,6 +3158,14 @@ h1.agentic-home__greeting,
   min-width: 0;
 }
 
+/* =========================================================================
+   PANEL 4 OF 4 — AI ASSISTANT PANEL
+   The resizable chat panel, a flex sibling of Side Nav and Content (all
+   three sit inside .main-column/.dashboard-workspace). Closed by default
+   (flex/width/max-width: 0, below) — .app-shell.ai-assistant-open (further
+   down this file) is what actually opens it. Reads --ai-assistant-* color
+   variables defined on .app-shell (PANEL 1), not redefined here.
+   ========================================================================= */
 .ai-assistant-panel {
   display: flex;
   flex-direction: column;
@@ -4325,13 +4419,17 @@ tr.is-ai-focus,
   }
 }
 
-/* Product chrome around the Breadcrumb primitive — padding is not on .kn-breadcrumb. */
+/* Product chrome around the Breadcrumb primitive — padding is not on .kn-breadcrumb.
+   Horizontal padding matches .role-page's own (the page wrapper sitting right
+   below this bar on every route that shows one) — theme-spacing-7, not -5 —
+   so the breadcrumb's left edge lines up with the page content underneath it
+   instead of sitting 8px to its left. */
 .content-breadcrumb {
   width: 100%;
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  padding: var(--theme-spacing-5) var(--theme-spacing-5) var(--theme-spacing-0);
+  padding: var(--theme-spacing-5) var(--theme-spacing-7) var(--theme-spacing-0);
 }
 
 .content-breadcrumb[hidden] {
@@ -7021,6 +7119,12 @@ a.metric-row.notice:hover {
     padding-inline: var(--theme-spacing-3);
   }
 
+  /* This inset is what makes --top-nav-shell-color (body, top of this file)
+     visible at all — the gap it opens up on 3 sides reveals that same color
+     underneath, framing the content like a card sitting inside the top
+     nav's own dark background. Keep this alongside .top-nav if either is
+     ever pulled out into a standalone component; on its own, either half
+     looks like an unrelated rule rather than one deliberate treatment. */
   .dashboard-workspace {
     margin-inline: var(--theme-spacing-3);
     margin-bottom: var(--theme-spacing-3);
@@ -7082,7 +7186,11 @@ a.metric-row.notice:hover {
   align-self: stretch;
   flex: 1 1 auto;
   min-width: 0;
-  padding: var(--theme-spacing-5);
+  /* theme-spacing-7, matching .role-page and the breadcrumb bar above it —
+     was -5 (16px), which lined up with the breadcrumb only by coincidence
+     of both being wrong the same way; -7 is the value the rest of the app's
+     page wrappers already use. */
+  padding: var(--theme-spacing-7);
   display: flex;
   flex-direction: column;
   gap: var(--theme-spacing-5);

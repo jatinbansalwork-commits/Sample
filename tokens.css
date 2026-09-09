@@ -1495,7 +1495,7 @@
   --kn-opacity-09: var(--theme-opacity-900);
   --kn-opacity-10: var(--theme-opacity-1000);
   --kn-opacity-11: var(--theme-opacity-1100);
-  --kn-opacity-12: var(--theme-opacity-1300);
+  --kn-opacity-12: var(--theme-opacity-1200);
 
   --theme-elevation-none: none;
   --theme-elevation-lowRaised: 0px 2px 4px 0px var(--theme-colors-elevation-lowRaised);

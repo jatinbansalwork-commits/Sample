@@ -667,6 +667,14 @@ function syncL1Classes() {
   }
 
   sideNav.classList.toggle("is-l1-collapsed", desktop && isL1Collapsed);
+  /* Mirrored onto the shell too (not just sideNav) so .top-nav-brand can
+     react to the same true collapsed/expanded state (styles.css) — it sits
+     in the top bar, a sibling of the rail rather than a descendant, so it
+     has no other way to see this. Deliberately the same condition as
+     sideNav's own toggle above (not tied to hover/peek) — peek is a
+     temporary floating overlay that doesn't reflow anything, so the actual
+     static top bar shouldn't shrink and grow along with it. */
+  shell.classList.toggle("is-l1-collapsed", desktop && isL1Collapsed);
   sideNav.classList.toggle("is-l1-hovered", desktop && isL1Collapsed && isL1Hovered);
   sideNav.classList.toggle("is-l1-peeking", desktop && isL1Collapsed && isL1Peeking);
   sideNav.classList.toggle("is-l1-peek-closing", desktop && isL1Collapsed && isL1Peeking && isL1PeekClosing);

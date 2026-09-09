@@ -1,6 +1,6 @@
 # Klear360 Sample Apps
 
-Demo apps that use the [Klear360 design system](https://github.com/jatinbansalwork-commits/Klear360).
+Demo apps that use the Klear360 design system.
 
 This is a **separate repo** from the design system. Open it as its own Cursor project.
 

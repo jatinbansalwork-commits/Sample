@@ -4163,6 +4163,40 @@ a.btn:hover {
   color: var(--kn-color-text-surface-gray-normal);
 }
 
+/* Donut legend interactivity (matches Klear360 DonutChart: hover previews a
+   slice, click hides/shows it — see the recompute logic in genui.js bind()).
+   The plot itself is recolored by JS since it's a single conic-gradient
+   background, not per-segment elements like the bar chart's :has() rule below. */
+.kn-chart--donut [data-chart-legend-item] {
+  cursor: pointer;
+  border-radius: var(--kn-radius-2xsmall);
+  padding: var(--theme-spacing-1) var(--theme-spacing-2);
+  margin: calc(var(--theme-spacing-1) * -1) calc(var(--theme-spacing-2) * -1);
+}
+
+.kn-chart--donut [data-chart-legend-item]:hover,
+.kn-chart--donut [data-chart-legend-item]:focus-visible {
+  background: var(--kn-color-background-surface-gray-subtle);
+}
+
+.kn-chart--donut [data-chart-legend-item]:focus-visible {
+  outline: none;
+  box-shadow: var(--kn-focus-ring);
+}
+
+.kn-chart--donut [data-chart-legend-item].is-chart-excluded {
+  opacity: var(--theme-opacity-300);
+}
+
+.kn-chart--donut [data-chart-legend-item].is-chart-excluded .kn-chart__swatch {
+  background: transparent !important;
+  border: var(--kn-border-thin) solid currentColor;
+}
+
+.kn-chart__plot.dash-donut {
+  transition: background var(--theme-motion-duration-xquick) var(--theme-motion-easing-standard);
+}
+
 .kn-chart__swatch,
 .dash-legend__swatch {
   display: inline-block;
@@ -4174,23 +4208,23 @@ a.btn:hover {
 
 .chart-cat--blue,
 .dash-bars__seg--primary {
-  background: var(--kn-color-background-interactive-primary-default);
+  background: var(--kn-chart-categorical-blue);
 }
 
 .chart-cat--green,
 .dash-bars__seg--positive {
-  background: var(--kn-color-background-feedback-positive-intense);
+  background: var(--kn-chart-categorical-green);
 }
 
 .chart-cat--gold,
 .dash-bars__seg--notice {
-  background: var(--kn-color-background-feedback-notice-intense);
+  background: var(--kn-chart-categorical-gold);
 }
 
 .chart-cat--purple,
 .chart-cat--sky,
 .dash-bars__seg--information {
-  background: var(--kn-primitive-purple-500);
+  background: var(--kn-chart-categorical-purple);
 }
 
 .kn-chart__plot.dash-bars,
@@ -4264,10 +4298,10 @@ a.btn:hover {
   flex: 0 0 auto;
   border-radius: var(--radius-round);
   background: conic-gradient(
-    var(--kn-color-background-interactive-primary-default) 0 64%,
-    var(--kn-color-background-feedback-positive-intense) 64% 82%,
-    var(--kn-color-background-feedback-notice-intense) 82% 94%,
-    var(--kn-primitive-purple-500) 94% 100%
+    var(--kn-chart-categorical-blue) 0 64%,
+    var(--kn-chart-categorical-green) 64% 82%,
+    var(--kn-chart-categorical-gold) 82% 94%,
+    var(--kn-chart-categorical-purple) 94% 100%
   );
 }
 
@@ -4638,7 +4672,7 @@ button.kn-link.agentic-home__attach {
   border: none;
   border-radius: var(--radius-input);
   background: var(--theme-colors-transparent);
-  color: var(--kn-color-text-interactive-gray-normal);
+  color: var(--kn-color-text-interactive-neutral-normal);
   font-size: var(--kn-type-body-sm-size);
   line-height: var(--kn-type-body-sm-line);
   font-weight: var(--kn-weight-medium);
@@ -4653,7 +4687,7 @@ button.kn-link.agentic-home__attach {
 .kn-chat-input__attach.kn-link:hover,
 .agentic-home__attach.kn-link:hover {
   background: var(--theme-colors-transparent);
-  color: var(--kn-color-text-interactive-gray-normal);
+  color: var(--kn-color-text-interactive-neutral-subtle);
   text-decoration: underline;
 }
 
@@ -4711,13 +4745,14 @@ button.kn-link.agentic-home__attach {
 
 .kn-chat-input__submit.is-stop,
 .kn-chat-input__submit[data-generating="true"] {
-  background: var(--kn-color-background-interactive-gray-default);
-  color: var(--kn-color-text-interactive-gray-normal);
+  background: var(--kn-color-background-surface-gray-intense);
+  color: var(--kn-color-text-interactive-neutral-normal);
+  border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-subtle);
 }
 
 .kn-chat-input__submit.is-stop:hover:not(:disabled),
 .kn-chat-input__submit[data-generating="true"]:hover:not(:disabled) {
-  background: var(--kn-color-background-interactive-gray-highlighted);
+  background: var(--kn-color-background-interactive-gray-default);
 }
 
 .kn-chat-input__icon[hidden] {
@@ -4870,9 +4905,11 @@ button.kn-link.agentic-home__attach {
   max-width: min(88%, var(--theme-size-360));
   padding: var(--theme-spacing-4);
   border-radius: var(--theme-border-radius-large);
-  background: var(--kn-color-background-surface-gray-intense);
+  /* Klear360 SelfMessageBubble: ai.discussion.background/border.subtle (purple-50/200),
+     not a plain gray card — keep in sync with --ai-discussion-* in tokens.css. */
+  background: var(--ai-discussion-background-subtle);
   color: var(--kn-color-text-surface-gray-normal);
-  border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-muted);
+  border: var(--kn-border-thin) solid var(--ai-discussion-border-subtle);
   max-width: min(88%, var(--theme-size-360));
   box-shadow: 0 0.5px 4px 0 color-mix(in srgb, var(--kn-color-text-surface-gray-normal) 6%, transparent);
 }
@@ -4932,6 +4969,32 @@ button.kn-link.agentic-home__attach {
 .kn-chat-msg__actions:empty,
 .ai-msg__footer:empty {
   display: none;
+}
+
+/* Shown inline under the action icons once "Bad response" is marked —
+   forced onto its own row (flex-basis: 100%) rather than crowding onto
+   the icon row, since it carries a sentence of text plus a button. */
+.agentic-msg-feedback-prompt {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--theme-spacing-2);
+  margin-top: var(--theme-spacing-1);
+}
+
+.agentic-msg-feedback-prompt[hidden] {
+  display: none;
+}
+
+.agentic-msg-feedback-prompt__text {
+  color: var(--kn-color-text-surface-gray-muted);
+}
+
+.agentic-msg-feedback-prompt__text--confirmed {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-spacing-1);
+  color: var(--kn-color-text-feedback-positive-intense);
 }
 
 .kn-chat-msg__thumbs {
@@ -5028,7 +5091,9 @@ button.kn-link.agentic-home__attach {
 
 .ai-msg__thinking-list li.is-complete .ai-msg__trace-dot,
 .ai-msg__thinking-list li.is-complete .ai-msg__trace-connector {
-  background: var(--kn-color-icon-feedback-positive-intense);
+  /* Klear360 ReasoningTraces: completed step/connector use ai.assistant.accentText
+     (purple-600), not the feedback-positive green. */
+  background: var(--ai-assistant-accent-text);
 }
 
 .ai-msg__thinking-list li.is-active .ai-msg__trace-dot {
@@ -5049,7 +5114,8 @@ button.kn-link.agentic-home__attach {
 }
 
 .ai-msg__thinking-list li.is-active .ai-msg__trace-label {
-  color: var(--kn-color-text-feedback-positive-intense);
+  /* Klear360 ReasoningTraces: active row text uses ai.assistant.accentText (purple-600). */
+  color: var(--ai-assistant-accent-text);
   position: relative;
   overflow: hidden;
 }
@@ -8343,6 +8409,7 @@ body > .kn-date-picker__panel:not([hidden]) {
 }
 
 .kn-file-upload__item-icon {
+  position: relative;
   flex-shrink: 0;
   width: var(--theme-size-20);
   height: var(--theme-size-20);
@@ -8358,6 +8425,41 @@ body > .kn-date-picker__panel:not([hidden]) {
 .kn-file-upload__item.is-error .kn-file-upload__item-icon,
 .kn-file-upload__item[data-status="error"] .kn-file-upload__item-icon {
   color: var(--kn-color-icon-feedback-negative-intense);
+}
+
+/* File-type color: PDF/XLSX share the same document glyph (Klear360 has no
+   dedicated icon for either), so color + the 3-letter badge below are what
+   actually distinguish them; image keeps the default icon color. */
+.kn-file-upload__item-icon--pdf {
+  color: var(--kn-color-icon-feedback-negative-intense);
+}
+
+.kn-file-upload__item-icon--xlsx {
+  color: var(--kn-color-icon-feedback-positive-intense);
+}
+
+.kn-file-upload__item-badge {
+  position: absolute;
+  right: calc(var(--theme-spacing-2) * -1);
+  bottom: calc(var(--theme-spacing-1) * -1);
+  padding: 0 var(--theme-spacing-1);
+  border-radius: var(--kn-radius-small);
+  font-family: var(--kn-font-family);
+  font-size: 8px;
+  font-weight: var(--kn-weight-bold);
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  color: var(--kn-color-text-interactive-staticWhite-normal);
+}
+
+/* Own background per type, set here rather than via currentColor — the
+   badge's `color` above is its (white) text, not its parent's icon tint. */
+.kn-file-upload__item-icon--pdf .kn-file-upload__item-badge {
+  background: var(--kn-color-icon-feedback-negative-intense);
+}
+
+.kn-file-upload__item-icon--xlsx .kn-file-upload__item-badge {
+  background: var(--kn-color-icon-feedback-positive-intense);
 }
 
 .kn-file-upload__item-body {

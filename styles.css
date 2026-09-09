@@ -1736,12 +1736,13 @@ button.side-nav-tree__row {
   overflow: visible;
 }
 
+/* Removed from the chat background per product decision — was a WebGL
+   ripple/wave video effect (agentic-spark.js/klear-sense.js) that played
+   during "thinking"/"success". The mode-switching JS is left untouched
+   (still tracks isPageLive/thinking/success state harmlessly); this just
+   makes sure nothing from it ever paints. */
 .kn-spark.agentic-spark {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 .kn-spark__sense,
@@ -1752,6 +1753,11 @@ button.side-nav-tree__row {
 
 .kn-spark__sense {
   z-index: 0;
+  /* Re-tints the rippleWave/circleSlideUp video's built-in blue color-grade
+     (colorama-gradient-map-blue.jpg, ~223° hue) to this product's AI purple
+     accent (~247° hue, --ai-assistant-accent-text) rather than generic blue,
+     since the video asset itself isn't ours to re-render. */
+  filter: hue-rotate(25deg) saturate(1.15);
 }
 
 /* Empty Assist: plain page bottom — no bottomWave WebGL or indigo overlay. */
@@ -1777,14 +1783,10 @@ button.side-nav-tree__row {
   display: none;
 }
 
+/* Removed alongside .kn-spark.agentic-spark above — this was the success
+   checkmark overlay for the same effect. */
 .kn-spark__gradient {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+  display: none;
 }
 
 .kn-spark__gradient.is-pinned {
@@ -2238,8 +2240,12 @@ h1.agentic-home__greeting,
 .ai-assistant-panel .kn-chat-input__submit[data-generating="true"],
 #ai-assistant-chat-input .kn-chat-input__submit.is-stop,
 #ai-assistant-chat-input .kn-chat-input__submit[data-generating="true"] {
-  background: var(--kn-color-background-interactive-gray-default);
-  color: var(--kn-color-text-interactive-gray-normal);
+  /* Klear360 StopCircleIcon (variant=secondary): white surface + near-black icon +
+     a light gray ring, not a filled gray chip — keep in sync with the canonical
+     .kn-chat-input__submit.is-stop rule in components.css. */
+  background: var(--kn-color-background-surface-gray-intense);
+  color: var(--kn-color-text-interactive-neutral-normal);
+  border: var(--kn-border-thin) solid var(--kn-color-border-surface-gray-subtle);
   opacity: 1;
 }
 
@@ -2255,7 +2261,7 @@ h1.agentic-home__greeting,
 .ai-assistant-panel .kn-chat-input__submit[data-generating="true"]:hover:not(:disabled),
 #ai-assistant-chat-input .kn-chat-input__submit.is-stop:hover:not(:disabled),
 #ai-assistant-chat-input .kn-chat-input__submit[data-generating="true"]:hover:not(:disabled) {
-  background: var(--kn-color-background-interactive-gray-highlighted);
+  background: var(--kn-color-background-interactive-gray-default);
 }
 
 .agentic-home__ghost-text {
@@ -2787,6 +2793,22 @@ h1.agentic-home__greeting,
   gap: var(--theme-spacing-3);
   overflow-y: auto;
   padding-right: var(--theme-spacing-2);
+  opacity: 1;
+  transition: opacity var(--theme-motion-duration-quick) var(--theme-motion-easing-standard);
+}
+
+/* Set right before a full thread teardown/rebuild (switching conversations
+   from the history sidebar), removed once the new thread is built — a
+   brief fade instead of the old thread vanishing and the new one popping
+   in with no transition at all. */
+.agentic-thread__messages.is-swapping {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agentic-thread__messages {
+    transition: none;
+  }
 }
 
 .agentic-thread__messages::before {
@@ -3026,6 +3048,18 @@ h1.agentic-home__greeting,
 .agentic-msg-action.icon-btn[aria-pressed="true"] {
   background: var(--ai-assistant-accent-faded);
   color: var(--ai-assistant-accent-text);
+}
+
+.agentic-msg-action:disabled,
+.agentic-msg-action.icon-btn:disabled {
+  color: var(--kn-color-icon-interactive-gray-disabled, var(--kn-color-text-surface-gray-subtle));
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.agentic-msg-action:disabled:hover,
+.agentic-msg-action.icon-btn:disabled:hover {
+  background: none;
 }
 
 .agentic-thread-msg__avatar {
@@ -3869,9 +3903,12 @@ h1.agentic-home__greeting,
 
 .ai-assistant-history .ai-msg--user .ai-msg__body,
 .agentic-thread-msg--user .ai-msg--user .ai-msg__body {
-  background: color-mix(in srgb, var(--ai-assistant-accent) 88%, var(--ai-assistant-brand));
-  color: var(--kn-color-text-interactive-onPrimary-normal);
-  border-color: color-mix(in srgb, var(--kn-color-background-interactive-staticWhite-default) 18%, transparent);
+  /* Klear360 SelfMessageBubble is a light lavender card (ai.discussion.background/border.subtle)
+     with normal dark text, not a solid intense-purple fill with onPrimary text — align with the
+     canonical .kn-chat-msg--self rule in components.css instead of overriding it here. */
+  background: var(--ai-discussion-background-subtle);
+  color: var(--kn-color-text-surface-gray-normal);
+  border-color: var(--ai-discussion-border-subtle);
 }
 
 .ai-msg--assistant .ai-msg__body {

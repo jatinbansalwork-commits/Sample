@@ -644,6 +644,17 @@
   --theme-colors-data-background-categorical-gray-intense: var(--kn-primitive-surface-400);
   --theme-colors-data-background-categorical-gray-strong: var(--kn-primitive-surface-700);
 
+  /* Klear360-aligned chart categorical colors (Charts/DonutChart, Charts/BarChart —
+     categorical theme, "strong" tier). Blue reuses the brand primary since it
+     already matches Klear360's azure.500 (~#00405c vs #003f5b here); green/gold/
+     purple get their own values instead of the KEEP'd brand/feedback primitives
+     above (green-600 #1da750, gold-600 #e08300, purple-500 #6c5dd3 are reused by
+     feedback banners and AI branding elsewhere and must not shift for charts). */
+  --kn-chart-categorical-blue: var(--kn-primitive-indigo-500);
+  --kn-chart-categorical-green: #24c660;
+  --kn-chart-categorical-gold: #faa433;
+  --kn-chart-categorical-purple: #a655f7;
+
   --theme-colors-data-background-sequential-blue-50: var(--kn-primitive-indigo-50);
   --theme-colors-data-background-sequential-blue-100: var(--kn-primitive-indigo-100);
   --theme-colors-data-background-sequential-blue-200: var(--kn-primitive-indigo-200);

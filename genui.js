@@ -276,12 +276,16 @@
   }
 
   function chartSeriesMeta(key) {
+    /* Tokens point at the dedicated --kn-chart-categorical-* set (tokens.css),
+       aligned to Klear360's real Charts/DonutChart categorical palette —
+       NOT the shared feedback/brand tokens, which stay reserved for banners
+       and AI branding (see the KEEP comments on those primitives). */
     const catalog = {
-      ocean: { tone: "blue", label: "Ocean", token: "var(--kn-color-background-interactive-primary-default)" },
-      air: { tone: "green", label: "Air", token: "var(--kn-color-background-feedback-positive-intense)" },
-      truck: { tone: "gold", label: "Truck", token: "var(--kn-color-background-feedback-notice-intense)" },
-      rail: { tone: "purple", label: "Rail", token: "var(--kn-primitive-purple-500)" },
-      value: { tone: "blue", label: "Value", token: "var(--kn-color-background-interactive-primary-default)" },
+      ocean: { tone: "blue", label: "Ocean", token: "var(--kn-chart-categorical-blue)" },
+      air: { tone: "green", label: "Air", token: "var(--kn-chart-categorical-green)" },
+      truck: { tone: "gold", label: "Truck", token: "var(--kn-chart-categorical-gold)" },
+      rail: { tone: "purple", label: "Rail", token: "var(--kn-chart-categorical-purple)" },
+      value: { tone: "blue", label: "Value", token: "var(--kn-chart-categorical-blue)" },
       /* Status-style categories for the workload/timeliness charts
          (answerPersonalDashboard / answerIsfDashboard, script.js) — reusing
          the same 5 tones already styled by .chart-cat--{blue|green|gold|
@@ -289,12 +293,12 @@
          there's no "negative/red" tone in this chart palette today, so
          "reject" gets purple (distinct from the others) rather than a
          color that doesn't exist here. */
-      active: { tone: "blue", label: "Active", token: "var(--kn-color-background-interactive-primary-default)" },
-      hold: { tone: "gold", label: "On hold", token: "var(--kn-color-background-feedback-notice-intense)" },
-      reject: { tone: "purple", label: "Rejected", token: "var(--kn-primitive-purple-500)" },
-      complete: { tone: "green", label: "Complete", token: "var(--kn-color-background-feedback-positive-intense)" },
-      "on-time": { tone: "green", label: "On time", token: "var(--kn-color-background-feedback-positive-intense)" },
-      "at-risk": { tone: "gold", label: "At risk", token: "var(--kn-color-background-feedback-notice-intense)" }
+      active: { tone: "blue", label: "Active", token: "var(--kn-chart-categorical-blue)" },
+      hold: { tone: "gold", label: "On hold", token: "var(--kn-chart-categorical-gold)" },
+      reject: { tone: "purple", label: "Rejected", token: "var(--kn-chart-categorical-purple)" },
+      complete: { tone: "green", label: "Complete", token: "var(--kn-chart-categorical-green)" },
+      "on-time": { tone: "green", label: "On time", token: "var(--kn-chart-categorical-green)" },
+      "at-risk": { tone: "gold", label: "At risk", token: "var(--kn-chart-categorical-gold)" }
     };
     const normalized = String(key || "").toLowerCase();
     if (catalog[normalized]) {
@@ -365,13 +369,24 @@
         return `${row.meta.token} ${start}% ${cursor}%`;
       });
       const aria = rows.map((row) => `${formatChartLegendValue(row.value, node.valueFormatter)} ${row.label}`).join(", ");
+      /* data-chart-value/-tone/-unit let the click handler in bind() below
+         recompute the gradient and center total from whatever legend items
+         are still un-excluded, without needing to re-run this function or
+         keep the original schema around — the rendered legend is the only
+         state it needs. -unit/-label are only on the first item since the
+         center total's suffix ("entries", "active", ...) is one shared
+         string, not per-category. */
       const legend = rows
         .map(
           (row) =>
-            `<li class="kn-chart__item"><span class="kn-chart__swatch dash-legend__swatch chart-cat--${row.meta.tone}"></span> ${escapeHtml(row.meta.label)} ${formatChartLegendValue(row.value, node.valueFormatter)}</li>`
+            `<li class="kn-chart__item" data-chart-legend-item data-chart-value="${row.value}" data-chart-tone="${escapeHtml(row.meta.tone)}" data-chart-token="${escapeHtml(row.meta.token)}" tabindex="0" role="button" aria-pressed="false" aria-label="Toggle ${escapeHtml(row.meta.label)} in chart">
+              <span class="kn-chart__swatch dash-legend__swatch chart-cat--${row.meta.tone}"></span> ${escapeHtml(row.meta.label)} <span data-chart-legend-value>${formatChartLegendValue(row.value, node.valueFormatter)}</span>
+            </li>`
         )
         .join("");
-      return `<div class="kn-chart kn-chart--donut dash-donut-wrap ${chartClass}">
+      const centerParts = String(node.centerLabel || "").trim().split(/\s+/);
+      const centerUnit = centerParts.length > 1 ? centerParts.slice(1).join(" ") : "active";
+      return `<div class="kn-chart kn-chart--donut dash-donut-wrap ${chartClass}" data-chart-value-formatter="${escapeHtml(node.valueFormatter.type)}" data-chart-center-unit="${escapeHtml(centerUnit)}">
         <div class="kn-chart__plot dash-donut" role="img" aria-label="${escapeHtml(aria)}" style="background: conic-gradient(${stops.join(",")})">
           ${chartCenterLabelHtml(node.centerLabel)}
         </div>
@@ -746,6 +761,48 @@
     }
   }
 
+  function donutLegendItems(wrapper) {
+    return Array.from(wrapper.querySelectorAll("[data-chart-legend-item]")).map((li) => ({
+      li,
+      token: li.dataset.chartToken,
+      tone: li.dataset.chartTone,
+      value: Number(li.dataset.chartValue) || 0
+    }));
+  }
+
+  /* Single recompute path for both hover/focus preview (emphasizeLi, temporary,
+     doesn't change what's excluded) and click-to-exclude (persistent, via the
+     is-chart-excluded class) — mirrors Klear360's DonutChart, which highlights
+     the hovered category and lets a legend click hide a data key entirely
+     (recomputing the remaining slices' proportions), rather than leaving a
+     gap where the hidden slice was. */
+  function renderDonutPlot(wrapper, emphasizeLi) {
+    const items = donutLegendItems(wrapper);
+    const included = items.filter((item) => !item.li.classList.contains("is-chart-excluded"));
+    const total = included.reduce((sum, item) => sum + item.value, 0);
+    let cursor = 0;
+    const stops = included.length
+      ? included.map((item) => {
+          const slice = total > 0 ? (item.value / total) * 100 : 100 / included.length;
+          const start = cursor;
+          cursor += slice;
+          const color =
+            emphasizeLi && item.li !== emphasizeLi
+              ? `color-mix(in srgb, ${item.token} 30%, var(--kn-color-background-surface-default))`
+              : item.token;
+          return `${color} ${start}% ${cursor}%`;
+        })
+      : ["var(--kn-color-border-default) 0% 100%"];
+    const plot = wrapper.querySelector(".kn-chart__plot");
+    if (plot) {
+      plot.style.background = `conic-gradient(${stops.join(",")})`;
+    }
+    const centerStrong = wrapper.querySelector(".kn-chart__center strong");
+    if (centerStrong) {
+      centerStrong.textContent = formatChartLegendValue(total, { type: wrapper.dataset.chartValueFormatter });
+    }
+  }
+
   function bind(root) {
     if (root.dataset.knGenuiBound === "true") {
       return;
@@ -756,6 +813,20 @@
       if (copyBtn) {
         event.preventDefault();
         navigator.clipboard?.writeText(copyBtn.getAttribute("data-kn-genui-copy") || "").catch(() => {});
+        return;
+      }
+      const legendItem = event.target.closest("[data-chart-legend-item]");
+      if (legendItem) {
+        const wrapper = legendItem.closest(".kn-chart--donut");
+        if (wrapper) {
+          const willExclude = !legendItem.classList.contains("is-chart-excluded");
+          const stillVisible = donutLegendItems(wrapper).filter((item) => !item.li.classList.contains("is-chart-excluded")).length;
+          if (!willExclude || stillVisible > 1) {
+            legendItem.classList.toggle("is-chart-excluded", willExclude);
+            legendItem.setAttribute("aria-pressed", String(willExclude));
+            renderDonutPlot(wrapper);
+          }
+        }
         return;
       }
       const actionBtn = event.target.closest("[data-kn-genui-action]");
@@ -772,6 +843,45 @@
         window.location.hash = action.data.href;
       }
     });
+    root.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+      const legendItem = event.target.closest("[data-chart-legend-item]");
+      if (!legendItem) return;
+      event.preventDefault();
+      legendItem.click();
+    });
+    root.addEventListener("mouseover", (event) => {
+      const legendItem = event.target.closest("[data-chart-legend-item]");
+      if (!legendItem || legendItem.classList.contains("is-chart-excluded")) return;
+      const wrapper = legendItem.closest(".kn-chart--donut");
+      if (wrapper) renderDonutPlot(wrapper, legendItem);
+    });
+    root.addEventListener("mouseout", (event) => {
+      const legendItem = event.target.closest("[data-chart-legend-item]");
+      if (!legendItem || legendItem.contains(event.relatedTarget)) return;
+      const wrapper = legendItem.closest(".kn-chart--donut");
+      if (wrapper) renderDonutPlot(wrapper);
+    });
+    root.addEventListener(
+      "focusin",
+      (event) => {
+        const legendItem = event.target.closest("[data-chart-legend-item]");
+        if (!legendItem || legendItem.classList.contains("is-chart-excluded")) return;
+        const wrapper = legendItem.closest(".kn-chart--donut");
+        if (wrapper) renderDonutPlot(wrapper, legendItem);
+      },
+      true
+    );
+    root.addEventListener(
+      "focusout",
+      (event) => {
+        const legendItem = event.target.closest("[data-chart-legend-item]");
+        if (!legendItem) return;
+        const wrapper = legendItem.closest(".kn-chart--donut");
+        if (wrapper) renderDonutPlot(wrapper);
+      },
+      true
+    );
   }
 
   function settleRings(root) {

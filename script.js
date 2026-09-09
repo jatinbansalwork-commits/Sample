@@ -5621,11 +5621,17 @@ document.addEventListener("click", (event) => {
     setRouteHash(href);
   }
 
+  /* Klear Agent is a leaf item (no L2 children), so it never reaches the
+     isL2TriggerLink branch below — this used to live there and so never
+     ran. Opening Klear Agent from the side nav should always start a fresh
+     conversation rather than silently resuming whatever thread was last
+     open, matching the dedicated "New chat" button's behavior. */
+  if (link.matches(".side-nav-link--agentic-broker")) {
+    window.KNAgenticBroker?.newChat?.();
+  }
+
   if (isL2TriggerLink) {
     activateL2Trigger(link);
-    if (link.matches(".side-nav-link--agentic-broker")) {
-      window.KNAgenticBroker?.newChat?.();
-    }
     return;
   }
 
@@ -11925,6 +11931,13 @@ function initAiAssistant() {
   const DUE_TODAY_INTENT = /\ball\s*items?\s*due\s*today|items?\s*due\s*today\b/i;
   const POST_SUMMARY_CORRECTIONS_INTENT = /post\s*summary\s*correction/i;
   const ISF_DASHBOARD_INTENT = /\bisf\s+dashboard\b|\bopen\s+(the\s+)?isf\b/i;
+  /* Not a customs-topic intent — this catches the user telling Klear Agent
+     itself isn't working for them (confused, lost, unhelpful reply), so it
+     can offer a human path out instead of trying (and likely failing again)
+     to match their words against a real topic. Checked first, in answer()
+     below, before any topic-specific intent gets a chance to. */
+  const CONFUSION_INTENT =
+    /\b(i'?m\s*not\s*sure|i\s*am\s*not\s*sure|i'?m\s*confused|i\s*am\s*confused|this\s*is\s*confusing|(don'?t|do\s*not)\s*understand|doesn'?t\s*make\s*sense|i'?m\s*lost|(this|that)\s*(isn'?t|is\s*not|didn'?t|did\s*not)\s*(helping|help)|not\s*helpful|i\s*give\s*up)\b/i;
 
   function queueFilterFromQuestion(question) {
     const q = String(question || "");
@@ -12560,8 +12573,37 @@ function initAiAssistant() {
     });
   }
 
+  /* Offers a human path out — not a knowledge-base answer, so it never
+     tries to look up a customs topic. Provisional wording pending Product/UX
+     sign-off on tone, same as the other net-new v1 additions in this file. */
+  function answerConfusion(question) {
+    if (!CONFUSION_INTENT.test(question)) {
+      return null;
+    }
+    return schemaAnswer({
+      title: "Let's get you unstuck",
+      thinking: ["Recognized this as a request for human help, not a customs question"],
+      schema: {
+        components: [
+          { component: "TEXT", content: "It sounds like Klear Agent isn't getting you where you need to be. You don't have to keep rephrasing it — I can loop in a person instead." },
+          {
+            component: "GRID",
+            columns: 2,
+            gap: "small",
+            children: [
+              { component: "BUTTON", text: "Raise a ticket", action: { type: "raise-ticket" } },
+              { component: "BUTTON", text: "Connect with the team", action: { type: "connect-team" } }
+            ]
+          }
+        ]
+      },
+      followUps: []
+    });
+  }
+
   function answerBrokerHome(question) {
     return (
+      answerConfusion(question) ||
       answerPersonalDashboard(question) ||
       answerQueueBriefing(question) ||
       answerTodaysStatements(question) ||
@@ -13213,10 +13255,18 @@ function initAiAssistant() {
       });
     }
 
+    /* This is the last-resort fallback — nothing above matched a specific
+       intent. Leading with a flat, unchanging page blurb here (regardless
+       of what was actually asked) read as a canned non-answer no matter
+       the question. Echoing the real question back first, then pivoting
+       to what this page can actually help with, is the honest version of
+       "sound tailored" available without a real model behind this: it's
+       still the same fixed page copy, just framed as a response to what
+       was asked instead of a generic recitation. */
     return textAnswer({
       title: context.title || "This page",
       thinking: [`Checked what is available on ${context.area || "this page"}`],
-      text: `${context.summary} ${context.details?.[0] || ""}\n\nIf you need a specific record, open it in the table and ask again.`,
+      text: `I don't have a specific answer set up yet for "${q}". Here's what I can help with on ${context.area || context.title || "this page"}:\n\n${context.summary} ${context.details?.[0] || ""}\n\nIf you need a specific record, open it in the table and ask again.`,
       followUps: followUpsFromContext(context, q)
     });
   }
@@ -13926,9 +13976,16 @@ initDashCommandRail();
 initDashDatePicker();
 initAiAssistant();
 
+/* The brand mark's href/aria-label both say "Klear Agent" (its real
+   destination since the Klear Assist -> Klear Agent rebuild), but this used
+   to redirect the click into the old Klear Assist side panel instead —
+   route it like the side-nav Klear Agent link does: navigate there and
+   always start a fresh chat, rather than silently resuming the last one. */
 document.querySelector(".top-nav-brand-link")?.addEventListener("click", (event) => {
+  const href = event.currentTarget.getAttribute("href");
   event.preventDefault();
-  const trigger =
-    document.getElementById("ai-assistant-trigger") || document.getElementById("ai-assistant-trigger-mobile");
-  trigger?.click();
+  if (href?.startsWith("#")) {
+    setRouteHash(href);
+  }
+  window.KNAgenticBroker?.newChat?.();
 });

@@ -781,6 +781,34 @@
   const composerFiles = new Map();
   const FILE_ITEM_ICON =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>';
+  /* Filled document glyph (Klear360 FileTextIcon path) — used for both the
+     PDF and XLSX cases below, distinguished by color + a 3-letter badge
+     rather than a separate icon shape, since Klear360's own icon set has
+     no dedicated Pdf/Xls icon to match against. */
+  const FILE_DOC_ICON =
+    '<svg viewBox="0 0 24 24" fill="none"><path d="M8 12C7.44772 12 7 12.4477 7 13C7 13.5523 7.44772 14 8 14H16C16.5523 14 17 13.5523 17 13C17 12.4477 16.5523 12 16 12H8Z" fill="currentColor"/><path d="M7 17C7 16.4477 7.44772 16 8 16H16C16.5523 16 17 16.4477 17 17C17 17.5523 16.5523 18 16 18H8C7.44772 18 7 17.5523 7 17Z" fill="currentColor"/><path d="M8 8C7.44772 8 7 8.44772 7 9C7 9.55229 7.44772 10 8 10H10C10.5523 10 11 9.55229 11 9C11 8.44772 10.5523 8 10 8H8Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M3 4C3 2.34315 4.34315 1 6 1H14C14.2652 1 14.5196 1.10536 14.7071 1.29289L20.7071 7.29289C20.8946 7.48043 21 7.73478 21 8V20C21 21.6569 19.6569 23 18 23H6C4.34315 23 3 21.6569 3 20V4ZM6 3C5.44772 3 5 3.44772 5 4V20C5 20.5523 5.44772 21 6 21H18C18.5523 21 19 20.5523 19 20V9H14C13.4477 9 13 8.55228 13 8V3H6ZM15 4.41421L17.5858 7H15V4.41421Z" fill="currentColor"/></svg>';
+  /* Klear360 ImageIcon path (picture-frame + circle), used as-is for jpg/png. */
+  const FILE_IMAGE_ICON =
+    '<svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 8.5C6 7.11929 7.11929 6 8.5 6C9.88071 6 11 7.11929 11 8.5C11 9.88071 9.88071 11 8.5 11C7.11929 11 6 9.88071 6 8.5ZM8.5 8C8.22386 8 8 8.22386 8 8.5C8 8.77614 8.22386 9 8.5 9C8.77614 9 9 8.77614 9 8.5C9 8.22386 8.77614 8 8.5 8Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M2 5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5C3.34315 22 2 20.6569 2 19V5ZM5 4C4.44772 4 4 4.44772 4 5V19C4 19.4288 4.2699 19.7946 4.64909 19.9367L15.2929 9.29289C15.6835 8.90237 16.3166 8.90237 16.7072 9.29289L20 12.5857V5C20 4.44772 19.5523 4 19 4H5ZM20 15.4142L16 11.4142L7.41422 20H19C19.5523 20 20 19.5523 20 19V15.4142Z" fill="currentColor"/></svg>';
+
+  /* Broad category from the file's name/MIME type — drives both the icon
+     shape (document vs image) and the color + 3-letter badge (PDF/XLS)
+     that actually distinguishes file types for the user, per CHAT_ACCEPT
+     above (jpg/jpeg/png/pdf/xlsx — the only types this composer accepts). */
+  function fileTypeMeta(file) {
+    const name = String(file?.name || "").toLowerCase();
+    const type = String(file?.type || "").toLowerCase();
+    if (name.endsWith(".pdf") || type === "application/pdf") {
+      return { kind: "pdf", label: "PDF", icon: FILE_DOC_ICON };
+    }
+    if (name.endsWith(".xlsx") || name.endsWith(".xls") || type.includes("spreadsheet") || type.includes("excel")) {
+      return { kind: "xlsx", label: "XLS", icon: FILE_DOC_ICON };
+    }
+    if (/\.(jpe?g|png)$/.test(name) || type.startsWith("image/")) {
+      return { kind: "image", label: "", icon: FILE_IMAGE_ICON };
+    }
+    return { kind: "generic", label: "", icon: FILE_ITEM_ICON };
+  }
   const FILE_CLOSE_ICON =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
   const FILE_TRASH_ICON =
@@ -885,10 +913,14 @@
       status === "uploading"
         ? `<div class="kn-file-upload__progress"><div class="kn-file-upload__progress-fill" style="--kn-file-upload-progress: ${file.uploadPercent || 0}%"></div></div>`
         : "";
+    const typeMeta = fileTypeMeta(file);
+    const badge = typeMeta.label
+      ? `<span class="kn-file-upload__item-badge kn-file-upload__item-badge--${typeMeta.kind}">${typeMeta.label}</span>`
+      : "";
     return `<div class="kn-chat-input__file">
       <div class="kn-file-upload__item${status === "error" ? " is-error" : ""}" data-status="${status}" data-file-id="${file.id}">
         <div class="kn-file-upload__item-body">
-          <span class="kn-file-upload__item-icon" aria-hidden="true">${FILE_ITEM_ICON}</span>
+          <span class="kn-file-upload__item-icon kn-file-upload__item-icon--${typeMeta.kind}" aria-hidden="true">${typeMeta.icon}${badge}</span>
           <div class="kn-file-upload__item-copy">
             <p class="kn-file-upload__item-name type-ui-sm">${name}</p>
             <p class="kn-file-upload__item-meta type-caption-sm">${escapeHtml(meta)}</p>
@@ -1141,7 +1173,31 @@
       <button type="button" class="agentic-msg-action icon-btn" data-agentic-feedback="down" aria-label="Bad response" aria-pressed="false" data-tooltip="Bad response">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3Zm0 0-4 7a2 2 0 0 1-3.6-1.2l.8-3.8H6a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 7.2 4H14a3 3 0 0 1 3 3v6Z"/></svg>
       </button>
-    </div>`;
+    </div>
+    <div class="agentic-msg-feedback-prompt" data-agentic-feedback-prompt hidden></div>`;
+  }
+
+  /* Shown inline once a reader marks a reply "Bad response" — offers to
+     raise a support ticket instead of just recording a silent thumbs-down
+     with no path forward. There's no real ticketing backend in this
+     prototype, so "raising" one just mints a plausible-looking reference
+     number client-side and confirms it — the point is the interaction
+     pattern, not a real integration. */
+  function feedbackIssuePromptHtml() {
+    return `<p class="type-caption-sm agentic-msg-feedback-prompt__text">Not the answer you needed?</p>
+      <button type="button" class="kn-btn kn-btn--tertiary kn-btn--small btn btn--tertiary btn--sm type-ui-sm" data-agentic-raise-issue>Raise an issue</button>`;
+  }
+
+  function feedbackIssueRaisedHtml(ticketId) {
+    return `<p class="type-caption-sm agentic-msg-feedback-prompt__text agentic-msg-feedback-prompt__text--confirmed">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      Ticket ${ticketId} raised — our team will follow up.
+    </p>`;
+  }
+
+  function nextTicketId() {
+    const n = 10000 + Math.floor(Math.random() * 89999);
+    return `KN-${n}`;
   }
 
   function userMessageHtml(text, files = [], meta = {}) {
@@ -1257,13 +1313,51 @@
     return distance <= THREAD_SCROLL_BOTTOM_THRESHOLD;
   }
 
+  /* Whether the thread should keep following new content to the bottom.
+     Captured ONCE per turn (captureThreadStick, called right before the
+     user's own message is appended in askInline) rather than recomputed
+     live at every scroll call — a live recompute mid-stream reads
+     scrollHeight AFTER a skeleton/card has already grown the container but
+     BEFORE scrollTop has caught up, so it always measures a large fake
+     "distance from bottom" for the very content it should be following,
+     and gives up after the first chunk. Captured intent survives that,
+     since it isn't re-derived from a temporarily-stale position.
+     Kept in sync with genuine user scrolling via the capture-phase
+     listener below (real scroll events, i.e. > 500ms after our own last
+     programmatic scrollTo, update it either way — including back to
+     true if the user scrolls back down to the bottom themselves). */
+  let threadStickToBottom = true;
+  let threadLastProgrammaticScrollAt = 0;
+
+  function captureThreadStick() {
+    const { messages } = els();
+    threadStickToBottom = isThreadNearBottom(messages);
+    return threadStickToBottom;
+  }
+
+  document.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target?.id !== "agentic-thread-messages") {
+        return;
+      }
+      if (Date.now() - threadLastProgrammaticScrollAt < 500) {
+        // Our own smooth-scroll still settling — not a real user scroll.
+        return;
+      }
+      threadStickToBottom = isThreadNearBottom(event.target);
+    },
+    true
+  );
+
   function scrollThreadMessages({ force = false, behavior } = {}) {
     const { messages } = els();
     if (!messages) {
       return;
     }
-    if (force || isThreadNearBottom(messages)) {
+    if (force || threadStickToBottom) {
       const scrollBehavior = behavior ?? (prefersReducedMotion() ? "auto" : "smooth");
+      threadLastProgrammaticScrollAt = Date.now();
       messages.scrollTo({ top: messages.scrollHeight, behavior: scrollBehavior });
     }
   }
@@ -1508,9 +1602,8 @@
     streamAbort?.abort();
     streamAbort = new AbortController();
     try {
-      const { messages } = els();
       const followScroll = () => {
-        if (isThreadNearBottom(messages)) {
+        if (threadStickToBottom) {
           scrollThreadMessages({ behavior: prefersReducedMotion() ? "auto" : "smooth" });
         }
       };
@@ -1662,6 +1755,7 @@
       announceThread("Message not saved.");
       return;
     }
+    captureThreadStick();
     appendMessages(userMessageHtml(text, attachments, { id: userId, status: "sent" }));
     patchThreadMessage(userId, { status: "sent" });
     const prompt =
@@ -1799,6 +1893,7 @@
     pendingThinkingId = null;
     lastStreamSchema = null;
     setThreadGenerating(false);
+    threadStickToBottom = true;
 
     activeThreadId = handoff?.threadId || thread?.id || readActiveThreadId();
     writeActiveThreadId(activeThreadId);
@@ -1806,6 +1901,7 @@
 
     const { messages, threadInput, threadForm } = els();
     if (messages) {
+      messages.classList.add("is-swapping");
       messages.innerHTML = "";
     }
     if (threadInput) {
@@ -1839,6 +1935,11 @@
     announceThread(displayTitle);
     window.KNAgenticSpark?.setState?.("idle");
     highlightSidebarChat(activeThreadId);
+    if (messages) {
+      requestAnimationFrame(() => {
+        messages.classList.remove("is-swapping");
+      });
+    }
   }
 
   function restoreThread(thread) {
@@ -1847,8 +1948,16 @@
     }
     activeThreadId = thread.id || activeThreadId;
     clearThreadHeaderLock();
+    threadStickToBottom = true;
     const { messages, threadInput, threadForm } = els();
+    /* The teardown-and-rebuild below (innerHTML = "", then re-append every
+       message) is synchronous, so nothing here slows down switching
+       conversations — this class only gives the swap a brief fade instead
+       of the old thread vanishing and the new one popping in with zero
+       visual transition. Removed again once the new thread is fully built
+       (end of this function), so it only ever covers this one rebuild. */
     if (messages) {
+      messages.classList.add("is-swapping");
       messages.innerHTML = "";
     }
     if (threadInput) {
@@ -1896,6 +2005,11 @@
     highlightSidebarChat(thread.id);
     syncHeaderVisibility();
     syncCompanionContext();
+    if (messages) {
+      requestAnimationFrame(() => {
+        messages.classList.remove("is-swapping");
+      });
+    }
     return true;
   }
 
@@ -2250,6 +2364,41 @@
       const wasPressed = feedbackBtn.getAttribute("aria-pressed") === "true";
       group?.querySelectorAll("[data-agentic-feedback]").forEach((btn) => btn.setAttribute("aria-pressed", "false"));
       feedbackBtn.setAttribute("aria-pressed", wasPressed ? "false" : "true");
+      const promptEl = group?.parentElement?.querySelector("[data-agentic-feedback-prompt]");
+      if (promptEl) {
+        const showIssuePrompt = feedbackBtn.dataset.agenticFeedback === "down" && !wasPressed;
+        promptEl.hidden = !showIssuePrompt;
+        promptEl.innerHTML = showIssuePrompt ? feedbackIssuePromptHtml() : "";
+        if (showIssuePrompt) {
+          /* This reveal can land below the fold (the row sits at the very
+             bottom of a long reply) — scrollIntoView with block:"nearest"
+             only moves the thread if the prompt genuinely isn't visible
+             yet, so it's a no-op on the common case where it's already
+             in view. Not routed through scrollThreadMessages/
+             threadStickToBottom: this is a direct result of the user's own
+             click, not passive new content, so it should always bring
+             itself into view regardless of scroll position. */
+          promptEl.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "nearest" });
+        }
+      }
+      return;
+    }
+    const raiseIssueBtn = event.target.closest("[data-agentic-raise-issue]");
+    if (raiseIssueBtn) {
+      event.preventDefault();
+      const promptEl = raiseIssueBtn.closest("[data-agentic-feedback-prompt]");
+      if (promptEl) {
+        promptEl.innerHTML = feedbackIssueRaisedHtml(nextTicketId());
+        /* Having just flagged this reply bad and raised a ticket over it,
+           also marking it "good" would be a contradictory state to leave
+           reachable — disable the sibling thumbs-up rather than let both
+           be true at once. */
+        const upBtn = promptEl.parentElement?.querySelector('[data-agentic-feedback="up"]');
+        if (upBtn) {
+          upBtn.disabled = true;
+          upBtn.setAttribute("data-tooltip", "Already flagged as a bad response");
+        }
+      }
       return;
     }
     const retryBtn = event.target.closest("[data-agentic-retry]");
@@ -2428,6 +2577,14 @@
 
   document.addEventListener("kn-genui-action", (event) => {
     const detail = event.detail || {};
+    if (detail.type === "raise-ticket" && event.target?.closest?.("#agentic-broker-page")) {
+      showKnToast?.({ content: `Ticket ${nextTicketId()} raised — our team will follow up.`, color: "positive" });
+      return;
+    }
+    if (detail.type === "connect-team" && event.target?.closest?.("#agentic-broker-page")) {
+      showKnToast?.({ content: "Connecting you with the team — someone will reach out shortly.", color: "positive" });
+      return;
+    }
     const hts = detail.data?.hts;
     if (detail.type === "file-isf-confirm" && detail.data?.isfId && event.target?.closest?.("#agentic-broker-page")) {
       const result = window.KNIsfAssistant?.fileConfirmed?.(detail.data.isfId);
